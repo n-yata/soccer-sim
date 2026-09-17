@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
 import ComparisonPage from "./ComparisonPage.vue";
+import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
 import RadarChart from "@/components/RadarChart.vue";
@@ -354,6 +355,148 @@ describe("ComparisonPage", () => {
       expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
 
       routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+  });
+
+  // 自由配置モード（.steering/20260918-自由配置モード）
+  describe("自由配置モード", () => {
+    function findToggle(wrapper: ReturnType<typeof mount>) {
+      return wrapper.find(".free-layout-controls__toggle");
+    }
+
+    it("初期表示では自由配置モードはOFFで、通常のMatchupPitchDiagramが表示される", () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      expect(wrapper.findComponent(MatchupPitchDiagram).exists()).toBe(true);
+      expect(wrapper.findComponent(FreeLayoutPitchDiagram).exists()).toBe(false);
+    });
+
+    it("トグルをONにすると、FreeLayoutPitchDiagramに切り替わりAチームの配置が渡される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+
+      expect(wrapper.findComponent(MatchupPitchDiagram).exists()).toBe(false);
+      const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      expect(freeLayout.exists()).toBe(true);
+      const formationA = getFormationById("4-2-3-1");
+      expect(freeLayout.props("formationA")?.positions).toEqual(formationA?.positions);
+      expect(freeLayout.props("formationB")?.id).toBe("4-4-2");
+    });
+
+    it("配置変更(update-position)で、優位ポイント・総合判定・レーダーチャートのAチーム側が再計算される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+
+      // トグルON直後（座標未変更）の時点の値を先に取っておく。
+      // estimateStatsはトグルON時点で既にbaseStatsと同値の新オブジェクトを返すため、
+      // 「formationA.statsと参照が異なるか」だけを見ると常に真になり恒真テストになる
+      // （タグ構成が変わっていなくても検出できない）。ここでは「emit前後で値そのものが
+      // 変わるか」を比較することで、update-positionが実際にfreePositionsAへ反映され、
+      // タグ再導出→matchup/estimateStatsの再計算まで駆動されていることを検証する
+      const radarChartBefore = wrapper.findComponent(RadarChart);
+      const statsBefore = (radarChartBefore.props("series") as { values: Record<string, number> }[])[0]
+        .values;
+      const advantagesBefore = wrapper
+        .findAll(".comparison-page__advantage-column--blue li")
+        .map((li) => li.text());
+      expect(advantagesBefore.some((text) => text.includes("マンツーマン気味に対応でき"))).toBe(
+        true,
+      );
+
+      // 4-2-3-1のDM(id: 4-2-3-1-dm1, y=40)を攻撃的MFの高さ(y=65)まで押し上げる。
+      // deriveTagsはMFの人数ではなくy座標のしきい値で「守備的MF2枚」/「アンカー1枚」を
+      // 判定するため（formationTags.ts）、この移動で守備的MFが2人→1人になり
+      // 「守備的MF2枚」が消えて「アンカー1枚」が立つ（タグ構成が実際に変わる）
+      const formationA = getFormationById("4-2-3-1")!;
+      const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
+      const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      freeLayout.vm.$emit("update-position", dm1.id, dm1.x, 65);
+      await wrapper.vm.$nextTick();
+
+      // 総合判定・優位ポイント: 「守備的MF2枚」に依存する優位ポイントの文言が消える
+      // （matchupRules.tsの該当ルールはselfTags:["守備的MF2枚"]を要求するため）
+      const advantagesAfter = wrapper
+        .findAll(".comparison-page__advantage-column--blue li")
+        .map((li) => li.text());
+      expect(advantagesAfter.some((text) => text.includes("マンツーマン気味に対応でき"))).toBe(
+        false,
+      );
+
+      // レーダーチャート: 守備的MF2枚(defense+5/pressIntensity+5)が消え、
+      // アンカー1枚(defense-5/balance-5)が立つ差分が、baseStatsに対して適用される
+      const radarChartAfter = wrapper.findComponent(RadarChart);
+      const statsAfter = (radarChartAfter.props("series") as { values: Record<string, number> }[])[0]
+        .values;
+      expect(statsAfter).not.toEqual(statsBefore);
+      expect(statsAfter.defense).toBe(statsBefore.defense - 10);
+      expect(statsAfter.balance).toBe(statsBefore.balance - 5);
+      expect(statsAfter.pressIntensity).toBe(statsBefore.pressIntensity - 5);
+    });
+
+    it("トグルをOFFにすると、元の配置・通常表示に戻る", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      await findToggle(wrapper).trigger("click");
+
+      expect(wrapper.findComponent(FreeLayoutPitchDiagram).exists()).toBe(false);
+      expect(wrapper.findComponent(MatchupPitchDiagram).exists()).toBe(true);
+    });
+
+    it("組み合わせを切り替えると、自由配置モードがOFFに戻る", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      expect(wrapper.findComponent(FreeLayoutPitchDiagram).exists()).toBe(true);
+
+      routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.findComponent(FreeLayoutPitchDiagram).exists()).toBe(false);
+      expect(wrapper.findComponent(MatchupPitchDiagram).exists()).toBe(true);
+    });
+
+    it("リセットボタンで、変更した配置が元のフォーメーション定義に戻る", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
+      let freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      freeLayout.vm.$emit("update-position", dfPosition.id, 50, 90);
+      await wrapper.vm.$nextTick();
+
+      await wrapper.find(".free-layout-controls__reset").trigger("click");
+
+      freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      expect(freeLayout.props("formationA")?.positions).toEqual(formationA.positions);
+      // リセット後もモード自体はONのまま
+      expect(freeLayout.exists()).toBe(true);
+    });
+
+    it("自由配置トグルON時、表示中の試合シミュレーション結果が破棄される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
+
+      await findToggle(wrapper).trigger("click");
+
+      // トグルON後の配置に基づかない古いシミュレーション結果を残さない
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+
+    it("配置変更(update-position)で、表示中の試合シミュレーション結果が破棄される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
+      const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      freeLayout.vm.$emit("update-position", dm1.id, dm1.x, 65);
       await wrapper.vm.$nextTick();
 
       expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);

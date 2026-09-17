@@ -36,6 +36,9 @@ soccer-sim/
 │   │   ├── FormationMiniPitch.vue   # フォーメーション単体のミニピッチ図（SVG描画）コンポーネント
 │   │   ├── ComparisonControls.vue   # 比較画面のA/B入れ替え・切替UIコンポーネント
 │   │   ├── MatchupPitchDiagram.vue  # 2フォーメーション重ね合わせピッチ図（SVG描画）コンポーネント
+│   │   ├── FreeLayoutPitchDiagram.vue # 自由配置モードのピッチ図（実座標の線形マッピング描画・Aチームのドラッグ受付）
+│   │   ├── freeLayoutCoordinates.ts   # FreeLayoutPitchDiagram用の座標変換純粋関数（DOM非依存）
+│   │   ├── FreeLayoutControls.vue     # 自由配置モードのトグル・リセットボタンUIコンポーネント
 │   │   ├── TermAnnotatedText.vue    # 解説文中のサッカー用語をボタン化し説明を開閉するコンポーネント
 │   │   ├── TermPopover.vue          # サッカー用語1件の説明を表示する吹き出し
 │   │   ├── QuizQuestionCard.vue     # クイズの設問1問の表示・回答受付コンポーネント
@@ -48,6 +51,7 @@ soccer-sim/
 │   │   ├── soccerTerms.ts       # サッカー用語定義（静的データ）
 │   │   ├── termAnnotation.ts    # 解説文を「平文/用語」へ切り出す純粋関数（副作用なし）
 │   │   ├── quiz.ts              # フォーメーション・マッチアップからクイズ設問を生成する純粋関数（副作用なし）
+│   │   ├── radarScoreEstimator.ts # 自由配置モード用: タグ差分からレーダースコアを概算する純粋関数
 │   │   └── learningProgress.ts  # 学習進捗の読み書き（`localStorage`。副作用を持つ唯一のdata/モジュール）
 │   └── types/
 │       └── formation.ts         # Formation・Position・Matchup・SoccerTerm・QuizQuestion・LearningProgress 等の型定義
@@ -70,7 +74,8 @@ soccer-sim/
 **配置ファイル**:
 - `FormationListPage.vue`: フォーメーション一覧表示・比較対象の選択（FR-01, FR-02, FR-08）
 - `ComparisonPage.vue`: ピッチ図重ね合わせ表示・優位ポイント表示（用語インライン表示付き）・
-  A/B入れ替え・切替・学習進捗の記録（FR-03, FR-04, FR-09, FR-11, FR-13）
+  A/B入れ替え・切替・学習進捗の記録・自由配置モードの状態管理
+  （FR-03, FR-04, FR-09, FR-11, FR-13, FR-15）
 - `MatrixPage.vue`: 全フォーメーションの相性をN×Nの表で一覧表示・学習進捗の可視化と消去
   （FR-07, FR-13）
 - `GlossaryPage.vue`: サッカー用語一覧表示（FR-10）
@@ -96,6 +101,15 @@ soccer-sim/
 - `MatchupPitchDiagram.vue`: 2つのフォーメーション（formationA/formationB）を1つの
   ピッチ図上に重ねてSVGで描画する（`pages/` からフォーメーションデータを受け取って
   描画するだけの表示コンポーネント）
+- `FreeLayoutPitchDiagram.vue`: 自由配置モード（FR-15）用のピッチ図。実座標(0-100)を
+  `freeLayoutCoordinates.ts`で線形マッピングして描画し、Aチームの選手のみドラッグ操作を
+  受け付ける。内部にドラッグ座標のstateを持たず、`update-position`イベントで
+  呼び出し元（`ComparisonPage`）へ通知するだけの表示専用コンポーネント
+- `freeLayoutCoordinates.ts`: `FreeLayoutPitchDiagram.vue`専用の座標変換（実座標↔SVG座標、
+  ピッチ範囲へのクランプ）を行う、DOM非依存の純粋関数群
+- `FreeLayoutControls.vue`: 自由配置モードのトグル・リセットボタンを表示する。
+  現在の有効状態（isActive）をpropsで受け取り、`toggle`/`reset`をemitするだけの
+  表示専用コンポーネント（状態管理は呼び出し元の`ComparisonPage`が行う）
 - `TermAnnotatedText.vue`: 表示するテキスト（text）をpropsで受け取り、`data/termAnnotation.ts`
   で「平文/用語」に切り出してボタン化する。用語ボタンの開閉状態は自身で持つ
 - `TermPopover.vue`: サッカー用語（term）1件をpropsで受け取り、説明を吹き出し表示する
@@ -152,6 +166,10 @@ soccer-sim/
 - `learningProgress.ts`: 学習進捗（確認済みの組み合わせ）を`localStorage`へ読み書きする。
   `data/`配下で唯一副作用を持つモジュール。読み込み時に保存値の形式を検証し、
   壊れたデータは空の進捗として扱う（利用者が`localStorage`を直接書き換えられるため）
+- `radarScoreEstimator.ts`: 自由配置モード（FR-15）用。タグ構成の差分（ドラッグ前後で
+  新たに立った/消えたタグ）から、元のレーダースコア（`FormationStats`）を基準に概算する
+  純粋関数（`estimateStats`）。`formationTags.ts`と同様、positions/Formationは直接見ず
+  タグ配列のみを入力にする
 
 **依存関係**:
 - 依存可能: `types/`

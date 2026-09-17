@@ -22,6 +22,11 @@
         @select-a="onSelectA"
         @select-b="onSelectB"
       />
+      <FreeLayoutControls
+        :is-active="isFreeLayoutMode"
+        @toggle="toggleFreeLayoutMode"
+        @reset="resetFreeLayout"
+      />
       <p
         class="comparison-page__verdict"
         :class="`comparison-page__verdict--${matchup.overallEdge}`"
@@ -33,7 +38,14 @@
       </p>
       <div class="comparison-page__main">
         <div class="comparison-page__pitch-overlay">
+          <FreeLayoutPitchDiagram
+            v-if="isFreeLayoutMode && effectiveFormationA"
+            :formation-a="effectiveFormationA"
+            :formation-b="formationB"
+            @update-position="onUpdatePosition"
+          />
           <MatchupPitchDiagram
+            v-else
             :key="`${formationA.id}-${formationB.id}`"
             :formation-a="formationA"
             :formation-b="formationB"
@@ -95,6 +107,8 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ComparisonControls from "@/components/ComparisonControls.vue";
+import FreeLayoutControls from "@/components/FreeLayoutControls.vue";
+import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
 import RadarChart from "@/components/RadarChart.vue";
@@ -102,18 +116,81 @@ import TermAnnotatedText from "@/components/TermAnnotatedText.vue";
 import { simulateMatch } from "@/composables/matchSimulation";
 import { formations, getFormationById } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
+import { generateMatchup } from "@/data/matchupGenerator";
+import { getTags } from "@/data/formationTags";
+import { estimateStats } from "@/data/radarScoreEstimator";
 import { markPairViewed } from "@/data/learningProgress";
 import { radarAxes } from "@/data/radarAxes";
-import type { MatchSimulationResult } from "@/types/formation";
+import type { MatchSimulationResult, Position } from "@/types/formation";
 
 const route = useRoute();
 const router = useRouter();
 
 const formationA = computed(() => getFormationById(route.params.formationAId as string));
 const formationB = computed(() => getFormationById(route.params.formationBId as string));
+
+// 自由配置モード: Aチームのみドラッグで配置を変更できる一時状態。永続化しない
+// （組み合わせ切替・トグルOFF・画面離脱でリセットする）
+const isFreeLayoutMode = ref(false);
+const freePositionsA = ref<Position[] | null>(null);
+
+function clonePositions(positions: Position[]): Position[] {
+  return positions.map((position) => ({ ...position }));
+}
+
+function toggleFreeLayoutMode(): void {
+  if (isFreeLayoutMode.value) {
+    isFreeLayoutMode.value = false;
+    freePositionsA.value = null;
+    return;
+  }
+  if (!formationA.value) return;
+  isFreeLayoutMode.value = true;
+  freePositionsA.value = clonePositions(formationA.value.positions);
+  // 自由配置モードに入る前のformationA.statsで計算された試合シミュレーション結果は、
+  // これから変更されうるAチームの表示（タグ・優位ポイント・レーダー）と食い違うため破棄する
+  simulationResult.value = null;
+}
+
+function resetFreeLayout(): void {
+  if (!formationA.value) return;
+  freePositionsA.value = clonePositions(formationA.value.positions);
+}
+
+function onUpdatePosition(positionId: string, x: number, y: number): void {
+  if (!freePositionsA.value) return;
+  freePositionsA.value = freePositionsA.value.map((position) =>
+    position.id === positionId ? { ...position, x, y } : position,
+  );
+  // 配置を動かした時点で、表示中のシミュレーション結果は古いAチームの配置に基づくため破棄する
+  simulationResult.value = null;
+}
+
+// 自由配置モード中はfreePositionsAを反映したFormationを、そうでなければ静的なformationAを
+// そのまま使う。matchup/レーダースコアの算出はこちらを入力にする
+const effectiveFormationA = computed(() => {
+  if (!formationA.value) return undefined;
+  if (!freePositionsA.value) return formationA.value;
+  return { ...formationA.value, positions: freePositionsA.value };
+});
+
+// 自由配置モードでない限り既存のgetMatchup（静的キャッシュのIDルックアップ）を使う。
+// 自由配置モード中のみ、変更後の配置でgenerateMatchupを都度呼び直す
 const matchup = computed(() => {
-  if (!formationA.value || !formationB.value) return undefined;
-  return getMatchup(formationA.value.id, formationB.value.id);
+  if (!effectiveFormationA.value || !formationB.value) return undefined;
+  if (!freePositionsA.value) return getMatchup(effectiveFormationA.value.id, formationB.value.id);
+  return generateMatchup(effectiveFormationA.value, formationB.value);
+});
+
+// 自由配置モード中のAチームのレーダースコア概算。タグ構成の差分から元のstatsを基準に算出する
+const effectiveStatsA = computed(() => {
+  if (!formationA.value) return undefined;
+  if (!effectiveFormationA.value || !freePositionsA.value) return formationA.value.stats;
+  return estimateStats(
+    getTags(effectiveFormationA.value),
+    getTags(formationA.value),
+    formationA.value.stats,
+  );
 });
 
 // FR-14: 試合シミュレーション結果。ボタン押下時にのみ計算する（表示するまで90分ループを
@@ -129,6 +206,9 @@ watch(
   () => [formationA.value?.id, formationB.value?.id] as const,
   () => {
     simulationResult.value = null;
+    // 組み合わせが変わったら自由配置モードの一時状態も破棄する（永続化しない要件）
+    isFreeLayoutMode.value = false;
+    freePositionsA.value = null;
   },
 );
 
@@ -144,9 +224,9 @@ const verdictHeadline = computed(() => {
 // レーダーチャート用の系列データ。formationA/Bが両方揃っている（v-ifの範囲内）ことを
 // 前提に、未定義の場合は空配列でチャート側に何も渡さない
 const radarSeries = computed(() => {
-  if (!formationA.value || !formationB.value) return [];
+  if (!formationA.value || !formationB.value || !effectiveStatsA.value) return [];
   return [
-    { label: formationA.value.name, colorVar: "--color-team-a", values: formationA.value.stats },
+    { label: formationA.value.name, colorVar: "--color-team-a", values: effectiveStatsA.value },
     { label: formationB.value.name, colorVar: "--color-team-b", values: formationB.value.stats },
   ];
 });
