@@ -1,0 +1,36 @@
+*.log
+
+# 依存関係・ビルド成果物（Vue + Vite）
+node_modules/
+node_modules/.vite/
+dist/
+coverage/
+*.local
+
+# OS が自動生成するファイル
+.DS_Store
+Thumbs.db
+
+# 資格情報ファイル(誤配置時の事故防止)
+*.pem
+*.key
+*.p12
+id_rsa*
+
+# 資格情報の実値
+.env
+.env.*
+# 否定パターンは後勝ちのため、必ず .env.* より後に書く
+!.env.example
+
+# Claude Code のマシンローカル設定・一時ファイル
+# session-env/ は環境変数の値を含みうるため、必ず除外する
+# スラッシュを含むパターンは .gitignore からの相対パスにアンカーされるため、
+# サブディレクトリ配下にも効かせるには **/ が必要
+**/.claude/settings.local.json
+**/.claude/session-env/
+
+# Claude Code がサブエージェント・並行作業用に作る一時 git worktree
+# 除外しないと git add -A で埋め込み git リポジトリ（gitlink）として誤コミットされ、
+# クローン側で中身を取得できない壊れた参照が残る
+.claude/worktrees/

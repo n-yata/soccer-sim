@@ -1,0 +1,17 @@
+:root {
+  --color-primary: #15803d;
+  --color-primary-end: #115e59;
+  --color-accent: #ff6b35;
+  --color-accent-bg: #fff4ec;
+  --color-team-a: #2563eb;
+  --color-team-a-bg: #eff6ff;
+  --color-team-b: #ef4444;
+  --color-team-b-bg: #fef2f2;
+  --color-pitch: #3cb043;
+  --color-pitch-dark: #1b5e20;
+  --color-text: #111827;
+  --color-text-sub: #6b7280;
+  --color-border: #e5e7eb;
+  --radius-card: 14px;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+}

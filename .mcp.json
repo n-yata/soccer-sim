@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "spec-kit": {
+      "command": "${KIT_MCP_BIN}",
+      "args": ["-root", "${KIT_MCP_ROOT}"]
+    },
+    "drawio": {
+      "command": "npx",
+      "args": ["-y", "drawio-mcp-server", "--editor"]
+    }
+  }
+}

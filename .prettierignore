@@ -1,0 +1,14 @@
+docs/
+.steering/
+AGENTS.md
+CLAUDE.md
+dist/
+node_modules/
+package-lock.json
+
+# .claude/ 配下（kit配布物のskills/hooksに加え、settings.json・session-env等）と
+# .mcp.json はフォーマッタの対象外にする。誤って `prettier --write .` を広範囲実行しても
+# kit関連設定・接続設定を書き換えないための防御
+# （reference/rules/gitignore.md「フォーマッタ・整形ツールの除外設定」参照）
+.claude/
+.mcp.json
