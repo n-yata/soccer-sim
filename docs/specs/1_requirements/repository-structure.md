@@ -24,13 +24,14 @@ soccer-sim/
 │   ├── main.ts                  # エントリーポイント
 │   ├── App.vue                  # ルートコンポーネント
 │   ├── router/
-│   │   └── index.ts             # Vue Router 定義（一覧・比較・相性マトリクス・用語集・クイズ画面のルート）
+│   │   └── index.ts             # Vue Router 定義（一覧・比較・相性マトリクス・用語集・クイズ・リーグ戦画面のルート）
 │   ├── pages/
 │   │   ├── FormationListPage.vue  # フォーメーション一覧画面
 │   │   ├── ComparisonPage.vue     # 比較画面
 │   │   ├── MatrixPage.vue         # 相性マトリクス画面
 │   │   ├── GlossaryPage.vue       # サッカー用語集画面
-│   │   └── QuizPage.vue           # 理解度チェック（クイズ）画面
+│   │   ├── QuizPage.vue           # 理解度チェック（クイズ）画面
+│   │   └── LeaguePage.vue         # リーグ戦（総当たり1回戦の勝ち点表・全対戦結果）画面
 │   ├── components/
 │   │   ├── FormationCard.vue        # フォーメーションカード（一覧画面の選択UI）コンポーネント
 │   │   ├── FormationMiniPitch.vue   # フォーメーション単体のミニピッチ図（SVG描画）コンポーネント
@@ -44,7 +45,8 @@ soccer-sim/
 │   │   ├── QuizQuestionCard.vue     # クイズの設問1問の表示・回答受付コンポーネント
 │   │   └── MatchSimulationPanel.vue # 試合シミュレーション結果（スコア・ポゼッション・タイムライン）表示コンポーネント
 │   ├── composables/
-│   │   └── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`）
+│   │   ├── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`）
+│   │   └── leagueSimulation.ts  # 総当たり1回戦の集計・順位算出ロジック（純粋関数。`runLeagueSimulation`）
 │   ├── data/
 │   │   ├── formations.ts        # フォーメーション定義（静的データ）
 │   │   ├── matchups.ts          # マッチアップ解説文（静的データ）
@@ -80,6 +82,8 @@ soccer-sim/
   （FR-07, FR-13）
 - `GlossaryPage.vue`: サッカー用語一覧表示（FR-10）
 - `QuizPage.vue`: クイズの出題進行・結果表示・再挑戦（FR-12）
+- `LeaguePage.vue`: 全フォーメーション総当たり1回戦の勝ち点表・全対戦結果一覧の表示、
+  比較画面への遷移（FR-16）
 
 **依存関係**:
 - 依存可能: `components/`, `composables/`, `data/`, `types/`
@@ -141,9 +145,14 @@ soccer-sim/
 - `matchSimulation.ts`: 2つのフォーメーション（Formation）と組み合わせ（Matchup）を
   受け取り、90分・1分刻みのイベント駆動シミュレーションを実行して`MatchSimulationResult`を
   返す純粋関数（`simulateMatch`）。シード付きPRNG（mulberry32）で決定的に乱数を生成する
+- `leagueSimulation.ts`: フォーメーション一覧（Formation[]）とマッチアップ取得関数を
+  受け取り、総当たり1回戦（n(n-1)/2試合）を`matchSimulation.ts`の`simulateMatch`で実行して
+  勝ち点表（`LeagueStanding[]`）・全対戦結果（`LeagueMatchResult[]`）を返す純粋関数
+  （`runLeagueSimulation`）。マッチアップ取得は`data/`層への依存を避けるため関数として
+  引数注入する（`simulateMatch`は同じ`composables/`層のため既定引数として直接利用）
 
 **依存関係**:
-- 依存可能: `types/`
+- 依存可能: `types/`、同階層の`composables/`（`leagueSimulation.ts`が`matchSimulation.ts`を利用）
 - 依存禁止: `pages/`、`components/`、`data/`（`formations.ts`/`matchups.ts`等の
   静的データモジュールをimportしない。必要なFormation/Matchupの実体は、呼び出し元の
   UIレイヤーが引数として渡す）
