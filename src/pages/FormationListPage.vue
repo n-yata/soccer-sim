@@ -10,6 +10,9 @@
           <button type="button" class="formation-list-page__matrix-button" @click="goToMatrix">
             相性表を見る
           </button>
+          <router-link to="/league" class="formation-list-page__league-link">
+            🏆 リーグ戦
+          </router-link>
           <router-link to="/quiz" class="formation-list-page__quiz-link">
             ✏️ 理解度チェック
           </router-link>
@@ -127,6 +130,7 @@ watch(
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
+.formation-list-page__league-link,
 .formation-list-page__glossary-link,
 .formation-list-page__quiz-link {
   display: inline-block;

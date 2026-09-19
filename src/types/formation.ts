@@ -162,3 +162,39 @@ export interface MatchSimulationResult {
   // 試合結果を要約する平易な日本語の一文（NFR-02準拠）
   summary: string;
 }
+
+// リーグ戦: 総当たり1回戦（n(n-1)/2試合）を composables/leagueSimulation.ts の
+// runLeagueSimulation が集計した、1フォーメーション分の成績
+export interface LeagueStanding {
+  formationId: string;
+  formationName: string;
+  // 勝ち点→得失点差→総得点の順で決定する順位。すべて同値の場合は同順位（同着順位方式。
+  // 例: 1位が2チーム並んだ場合、次点は2位ではなく3位になる）
+  rank: number;
+  played: number;
+  win: number;
+  draw: number;
+  lose: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  // goalsFor - goalsAgainst と常に一致する
+  goalDifference: number;
+  // win * 3 + draw * 1 と常に一致する
+  points: number;
+}
+
+// リーグ戦の1試合分の結果。a/bは simulateMatch 呼び出し時の a/b にそのまま対応する
+export interface LeagueMatchResult {
+  formationAId: string;
+  formationAName: string;
+  formationBId: string;
+  formationBName: string;
+  scoreA: number;
+  scoreB: number;
+}
+
+export interface LeagueSimulationResult {
+  // rank昇順に並んでいる
+  standings: LeagueStanding[];
+  matches: LeagueMatchResult[];
+}
