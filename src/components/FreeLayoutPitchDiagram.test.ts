@@ -38,7 +38,7 @@ describe("FreeLayoutPitchDiagram", () => {
     expect(wrapper.findAll("circle.red")).toHaveLength(formationB.positions.length);
   });
 
-  it("Aチームの選手のみドラッグ可能クラスが付与され、Bチームには付与されない", () => {
+  it("A・B両チームの選手にドラッグ可能クラスが付与される", () => {
     const formationA = getFormationById("4-3-3") as Formation;
     const formationB = getFormationById("3-5-2") as Formation;
     const wrapper = mount(FreeLayoutPitchDiagram, {
@@ -51,25 +51,11 @@ describe("FreeLayoutPitchDiagram", () => {
       expect(circle.classes()).toContain("free-layout-pitch__player--draggable");
     });
     redCircles.forEach((circle) => {
-      expect(circle.classes()).not.toContain("free-layout-pitch__player--draggable");
+      expect(circle.classes()).toContain("free-layout-pitch__player--draggable");
     });
   });
 
-  it("Bチームの選手にpointerdownを発生させても update-position はemitされない", async () => {
-    const formationA = getFormationById("4-3-3") as Formation;
-    const formationB = getFormationById("3-5-2") as Formation;
-    const wrapper = mount(FreeLayoutPitchDiagram, {
-      props: { formationA, formationB },
-    });
-
-    const redCircle = wrapper.findAll("circle.red")[0];
-    await redCircle.trigger("pointerdown", { pointerId: 1 });
-    await wrapper.find("svg").trigger("pointermove", { clientX: 10, clientY: 10 });
-
-    expect(wrapper.emitted("update-position")).toBeUndefined();
-  });
-
-  it("Aチームの選手をドラッグすると、pointerdown→pointermoveの実配線でupdate-positionがemitされる", async () => {
+  it("Aチームの選手をドラッグすると、team:'A'付きでupdate-positionがemitされる", async () => {
     const formationA = getFormationById("4-3-3") as Formation;
     const formationB = getFormationById("3-5-2") as Formation;
     const wrapper = mount(FreeLayoutPitchDiagram, {
@@ -87,11 +73,58 @@ describe("FreeLayoutPitchDiagram", () => {
 
     const emitted = wrapper.emitted("update-position");
     expect(emitted).toHaveLength(1);
-    const [positionId, x, y] = emitted![0] as [string, number, number];
+    const [team, positionId, x, y] = emitted![0] as [string, string, number, number];
+    expect(team).toBe("A");
     expect(positionId).toBe(targetPosition.id);
     // cy=80(高さ中央)→xは50、cx=130(Aチームの深さの最大値=HALF_WIDTH)→yは100(敵陣側)
     expect(x).toBeCloseTo(50);
     expect(y).toBeCloseTo(100);
+  });
+
+  it("Bチームの選手をドラッグすると、team:'B'付きでupdate-positionがemitされ、Bチームの深さ変換が使われる", async () => {
+    const formationA = getFormationById("4-3-3") as Formation;
+    const formationB = getFormationById("3-5-2") as Formation;
+    const wrapper = mount(FreeLayoutPitchDiagram, {
+      props: { formationA, formationB },
+    });
+    stubIdentityCtm(wrapper.find("svg").element as SVGSVGElement);
+
+    const targetPosition = formationB.positions[0];
+    const redCircle = wrapper.findAll("circle.red")[0];
+    await redCircle.trigger("pointerdown", { pointerId: 1 });
+    // cx=130(中央)はBチームでも深さ100(敵陣側)相当。Aチームと違い自陣はcx=260側になる
+    await wrapper.find("svg").trigger("pointermove", { clientX: 130, clientY: 80, buttons: 1 });
+
+    const emitted = wrapper.emitted("update-position");
+    expect(emitted).toHaveLength(1);
+    const [team, positionId, x, y] = emitted![0] as [string, string, number, number];
+    expect(team).toBe("B");
+    expect(positionId).toBe(targetPosition.id);
+    expect(x).toBeCloseTo(50);
+    expect(y).toBeCloseTo(100);
+  });
+
+  it("Aチームのドラッグ中はBチームの位置に影響せず、逆も同様（team別に独立して扱われる）", async () => {
+    const formationA = getFormationById("4-3-3") as Formation;
+    const formationB = getFormationById("3-5-2") as Formation;
+    const wrapper = mount(FreeLayoutPitchDiagram, {
+      props: { formationA, formationB },
+    });
+    stubIdentityCtm(wrapper.find("svg").element as SVGSVGElement);
+
+    const blueCircle = wrapper.findAll("circle.blue")[0];
+    await blueCircle.trigger("pointerdown", { pointerId: 1 });
+    await wrapper.find("svg").trigger("pointermove", { clientX: 130, clientY: 80, buttons: 1 });
+    await wrapper.find("svg").trigger("pointerup", { pointerId: 1 });
+
+    const redCircle = wrapper.findAll("circle.red")[0];
+    await redCircle.trigger("pointerdown", { pointerId: 2 });
+    await wrapper.find("svg").trigger("pointermove", { clientX: 200, clientY: 40, buttons: 1 });
+
+    const emitted = wrapper.emitted("update-position")!;
+    expect(emitted).toHaveLength(2);
+    expect(emitted[0][0]).toBe("A");
+    expect(emitted[1][0]).toBe("B");
   });
 
   it("ピッチ外の座標へドラッグすると、emitされる値が0-100にクランプされる", async () => {
@@ -109,7 +142,7 @@ describe("FreeLayoutPitchDiagram", () => {
 
     const emitted = wrapper.emitted("update-position");
     expect(emitted).toHaveLength(1);
-    const [, x, y] = emitted![0] as [string, number, number];
+    const [, , x, y] = emitted![0] as [string, string, number, number];
     expect(x).toBe(0);
     expect(y).toBe(0);
   });
@@ -172,6 +205,68 @@ describe("FreeLayoutPitchDiagram", () => {
     await wrapper.find("svg").trigger("pointermove", { clientX: 130, clientY: 80 });
 
     expect(wrapper.emitted("update-position")).toBeUndefined();
+  });
+
+  it("ドラッグ確定時(pointerup)に、update-position-endが直近の座標で1回だけemitされる", async () => {
+    const formationA = getFormationById("4-3-3") as Formation;
+    const formationB = getFormationById("3-5-2") as Formation;
+    const wrapper = mount(FreeLayoutPitchDiagram, {
+      props: { formationA, formationB },
+    });
+    stubIdentityCtm(wrapper.find("svg").element as SVGSVGElement);
+
+    const targetPosition = formationA.positions[0];
+    const blueCircle = wrapper.findAll("circle.blue")[0];
+    await blueCircle.trigger("pointerdown", { pointerId: 1 });
+    // pointermoveを複数回発生させても、update-positionは複数回emitされるが
+    // update-position-endはpointerup時の1回だけになるはず
+    await wrapper.find("svg").trigger("pointermove", { clientX: 100, clientY: 60, buttons: 1 });
+    await wrapper.find("svg").trigger("pointermove", { clientX: 130, clientY: 80, buttons: 1 });
+    expect(wrapper.emitted("update-position")).toHaveLength(2);
+    expect(wrapper.emitted("update-position-end")).toBeUndefined();
+
+    await wrapper.find("svg").trigger("pointerup", { pointerId: 1 });
+
+    const endEmitted = wrapper.emitted("update-position-end");
+    expect(endEmitted).toHaveLength(1);
+    const [team, positionId, x, y] = endEmitted![0] as [string, string, number, number];
+    expect(team).toBe("A");
+    expect(positionId).toBe(targetPosition.id);
+    // 直近(2回目)のpointermoveの座標と一致する
+    expect(x).toBeCloseTo(50);
+    expect(y).toBeCloseTo(100);
+  });
+
+  it("pointermoveが一度も無いままpointerupしても、update-position-endはemitされない", async () => {
+    const formationA = getFormationById("4-3-3") as Formation;
+    const formationB = getFormationById("3-5-2") as Formation;
+    const wrapper = mount(FreeLayoutPitchDiagram, {
+      props: { formationA, formationB },
+    });
+    stubIdentityCtm(wrapper.find("svg").element as SVGSVGElement);
+
+    const blueCircle = wrapper.findAll("circle.blue")[0];
+    await blueCircle.trigger("pointerdown", { pointerId: 1 });
+    await wrapper.find("svg").trigger("pointerup", { pointerId: 1 });
+
+    expect(wrapper.emitted("update-position-end")).toBeUndefined();
+  });
+
+  it("ポインタキャプチャ喪失からの回復(pointerup相当)でも、直近の座標でupdate-position-endがemitされる", async () => {
+    const formationA = getFormationById("4-3-3") as Formation;
+    const formationB = getFormationById("3-5-2") as Formation;
+    const wrapper = mount(FreeLayoutPitchDiagram, {
+      props: { formationA, formationB },
+    });
+    stubIdentityCtm(wrapper.find("svg").element as SVGSVGElement);
+
+    const blueCircle = wrapper.findAll("circle.blue")[0];
+    await blueCircle.trigger("pointerdown", { pointerId: 1 });
+    await wrapper.find("svg").trigger("pointermove", { clientX: 130, clientY: 80, buttons: 1 });
+    // buttons=0で回復ロジックが働き、内部的にonPointerUpが呼ばれる
+    await wrapper.find("svg").trigger("pointermove", { clientX: 200, clientY: 40, buttons: 0 });
+
+    expect(wrapper.emitted("update-position-end")).toHaveLength(1);
   });
 
   it("Aチームの選手の座標は実座標(0-100)をfreeLayoutCoordinatesで変換した位置に描画される", () => {

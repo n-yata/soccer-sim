@@ -44,10 +44,11 @@
       <div class="comparison-page__main">
         <div class="comparison-page__pitch-overlay">
           <FreeLayoutPitchDiagram
-            v-if="isFreeLayoutMode && effectiveFormationA"
+            v-if="isFreeLayoutMode && effectiveFormationA && effectiveFormationB"
             :formation-a="effectiveFormationA"
-            :formation-b="formationB"
+            :formation-b="effectiveFormationB"
             @update-position="onUpdatePosition"
+            @update-position-end="onUpdatePositionEnd"
           />
           <MatchupPitchDiagram
             v-else
@@ -127,6 +128,7 @@ import { generateMatchup } from "@/data/matchupGenerator";
 import { getTags } from "@/data/formationTags";
 import { estimateStats } from "@/data/radarScoreEstimator";
 import { markPairViewed } from "@/data/learningProgress";
+import { applyOverrides, clearFormationOverride, savePositionOverride } from "@/data/freeLayoutStorage";
 import { radarAxes } from "@/data/radarAxes";
 import type { MatchSimulationResult, Position } from "@/types/formation";
 
@@ -136,10 +138,14 @@ const router = useRouter();
 const formationA = computed(() => getFormationById(route.params.formationAId as string));
 const formationB = computed(() => getFormationById(route.params.formationBId as string));
 
-// 自由配置モード: Aチームのみドラッグで配置を変更できる一時状態。永続化しない
-// （組み合わせ切替・トグルOFF・画面離脱でリセットする）
+// 自由配置モード: A・B両チームともドラッグで配置を変更できる一時状態（表示用のref自体は
+// 永続化しない。組み合わせ切替・トグルOFF・画面離脱でリセットする）。
+// ただし配置そのものはフォーメーションID単位でdata/freeLayoutStorage.tsへ永続化しており、
+// 再度自由配置モードをONにすると復元される（FR-15永続化。「一時状態のref」と
+// 「フォーメーションに紐づく保存データ」は別物であることに注意）
 const isFreeLayoutMode = ref(false);
 const freePositionsA = ref<Position[] | null>(null);
+const freePositionsB = ref<Position[] | null>(null);
 
 function clonePositions(positions: Position[]): Position[] {
   return positions.map((position) => ({ ...position }));
@@ -149,47 +155,72 @@ function toggleFreeLayoutMode(): void {
   if (isFreeLayoutMode.value) {
     isFreeLayoutMode.value = false;
     freePositionsA.value = null;
+    freePositionsB.value = null;
     return;
   }
-  if (!formationA.value) return;
+  if (!formationA.value || !formationB.value) return;
   isFreeLayoutMode.value = true;
-  freePositionsA.value = clonePositions(formationA.value.positions);
-  // 自由配置モードに入る前のformationA.statsで計算された試合シミュレーション結果は、
-  // これから変更されうるAチームの表示（タグ・優位ポイント・レーダー）と食い違うため破棄する
+  // 保存済みの配置があれば復元し、無ければcanonicalな配置がそのまま返る
+  freePositionsA.value = applyOverrides(formationA.value.positions, formationA.value.id);
+  freePositionsB.value = applyOverrides(formationB.value.positions, formationB.value.id);
+  // 自由配置モードに入る前のstatsで計算された試合シミュレーション結果は、
+  // これから変更されうるA/Bチームの表示（タグ・優位ポイント・レーダー）と食い違うため破棄する
   simulationResult.value = null;
 }
 
 function resetFreeLayout(): void {
-  if (!formationA.value) return;
+  if (!formationA.value || !formationB.value) return;
+  clearFormationOverride(formationA.value.id);
+  clearFormationOverride(formationB.value.id);
   freePositionsA.value = clonePositions(formationA.value.positions);
+  freePositionsB.value = clonePositions(formationB.value.positions);
 }
 
-function onUpdatePosition(positionId: string, x: number, y: number): void {
-  if (!freePositionsA.value) return;
-  freePositionsA.value = freePositionsA.value.map((position) =>
+// ドラッグ中(pointermoveのたびに高頻度で発火)の表示更新のみを行う。永続化はしない
+// （pointermoveごとにlocalStorageへ同期書き込みすると、1回のドラッグで数十〜数百回の
+// read-modify-writeが走りジャンクの原因になるため、永続化はonUpdatePositionEndに寄せる）
+function onUpdatePosition(team: "A" | "B", positionId: string, x: number, y: number): void {
+  const freePositions = team === "A" ? freePositionsA : freePositionsB;
+  if (!freePositions.value) return;
+  freePositions.value = freePositions.value.map((position) =>
     position.id === positionId ? { ...position, x, y } : position,
   );
-  // 配置を動かした時点で、表示中のシミュレーション結果は古いAチームの配置に基づくため破棄する
+  // 配置を動かした時点で、表示中のシミュレーション結果は古い配置に基づくため破棄する
   simulationResult.value = null;
 }
 
-// 自由配置モード中はfreePositionsAを反映したFormationを、そうでなければ静的なformationAを
-// そのまま使う。matchup/レーダースコアの算出はこちらを入力にする
+// ドラッグ確定時（pointerup/pointercancel）に1回だけ発火し、永続化する
+function onUpdatePositionEnd(team: "A" | "B", positionId: string, x: number, y: number): void {
+  const formation = team === "A" ? formationA.value : formationB.value;
+  if (!formation) return;
+  savePositionOverride(formation.id, positionId, x, y);
+}
+
+// 自由配置モード中はfreePositionsA/Bを反映したFormationを、そうでなければ静的な
+// formationA/Bをそのまま使う。matchup/レーダースコアの算出はこちらを入力にする
 const effectiveFormationA = computed(() => {
   if (!formationA.value) return undefined;
   if (!freePositionsA.value) return formationA.value;
   return { ...formationA.value, positions: freePositionsA.value };
 });
 
-// 自由配置モードでない限り既存のgetMatchup（静的キャッシュのIDルックアップ）を使う。
-// 自由配置モード中のみ、変更後の配置でgenerateMatchupを都度呼び直す
-const matchup = computed(() => {
-  if (!effectiveFormationA.value || !formationB.value) return undefined;
-  if (!freePositionsA.value) return getMatchup(effectiveFormationA.value.id, formationB.value.id);
-  return generateMatchup(effectiveFormationA.value, formationB.value);
+const effectiveFormationB = computed(() => {
+  if (!formationB.value) return undefined;
+  if (!freePositionsB.value) return formationB.value;
+  return { ...formationB.value, positions: freePositionsB.value };
 });
 
-// 自由配置モード中のAチームのレーダースコア概算。タグ構成の差分から元のstatsを基準に算出する
+// 自由配置モードでない限り既存のgetMatchup（静的キャッシュのIDルックアップ）を使う。
+// A・Bいずれかが自由配置モード中なら、変更後の配置でgenerateMatchupを都度呼び直す
+const matchup = computed(() => {
+  if (!effectiveFormationA.value || !effectiveFormationB.value) return undefined;
+  if (!freePositionsA.value && !freePositionsB.value) {
+    return getMatchup(effectiveFormationA.value.id, effectiveFormationB.value.id);
+  }
+  return generateMatchup(effectiveFormationA.value, effectiveFormationB.value);
+});
+
+// 自由配置モード中のA/Bチームのレーダースコア概算。タグ構成の差分から元のstatsを基準に算出する
 const effectiveStatsA = computed(() => {
   if (!formationA.value) return undefined;
   if (!effectiveFormationA.value || !freePositionsA.value) return formationA.value.stats;
@@ -197,6 +228,16 @@ const effectiveStatsA = computed(() => {
     getTags(effectiveFormationA.value),
     getTags(formationA.value),
     formationA.value.stats,
+  );
+});
+
+const effectiveStatsB = computed(() => {
+  if (!formationB.value) return undefined;
+  if (!effectiveFormationB.value || !freePositionsB.value) return formationB.value.stats;
+  return estimateStats(
+    getTags(effectiveFormationB.value),
+    getTags(formationB.value),
+    formationB.value.stats,
   );
 });
 
@@ -248,9 +289,13 @@ watch(
   () => [formationA.value?.id, formationB.value?.id] as const,
   () => {
     simulationResult.value = null;
-    // 組み合わせが変わったら自由配置モード・選手個体差の一時状態も破棄する（永続化しない要件）
+    // 組み合わせが変わったら自由配置モード・選手個体差の一時状態も破棄する。
+    // 自由配置の保存データ自体（data/freeLayoutStorage.ts）はフォーメーションIDに紐づき、
+    // 組み合わせの切替では消さない（FR-15永続化の要件）。ここで破棄するのはあくまで
+    // 「その場の表示用の一時状態」であり、次に自由配置モードをONにすれば保存データから復元される
     isFreeLayoutMode.value = false;
     freePositionsA.value = null;
+    freePositionsB.value = null;
     squadConditionSeed.value = null;
   },
 );
@@ -267,10 +312,12 @@ const verdictHeadline = computed(() => {
 // レーダーチャート用の系列データ。formationA/Bが両方揃っている（v-ifの範囲内）ことを
 // 前提に、未定義の場合は空配列でチャート側に何も渡さない
 const radarSeries = computed(() => {
-  if (!formationA.value || !formationB.value || !effectiveStatsA.value) return [];
+  if (!formationA.value || !formationB.value || !effectiveStatsA.value || !effectiveStatsB.value) {
+    return [];
+  }
   return [
     { label: formationA.value.name, colorVar: "--color-team-a", values: effectiveStatsA.value },
-    { label: formationB.value.name, colorVar: "--color-team-b", values: formationB.value.stats },
+    { label: formationB.value.name, colorVar: "--color-team-b", values: effectiveStatsB.value },
   ];
 });
 
