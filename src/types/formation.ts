@@ -198,3 +198,30 @@ export interface LeagueSimulationResult {
   standings: LeagueStanding[];
   matches: LeagueMatchResult[];
 }
+
+// カップ戦: composables/cupSimulation.ts の runCupSimulation が返す1試合分の結果。
+// a/bは呼び出し時に渡したFormationにそのまま対応する（LeagueMatchResultと同じ規約）
+export interface CupMatch {
+  round: 1 | 2 | 3; // 1=準々決勝 2=準決勝 3=決勝
+  formationAId: string;
+  formationAName: string;
+  formationBId: string;
+  formationBName: string;
+  scoreA: number;
+  scoreB: number;
+  // 90分で同点だった場合のみtrue。falseの場合penaltyScoreA/Bはundefined
+  wentToPenalties: boolean;
+  penaltyScoreA?: number;
+  penaltyScoreB?: number;
+  winnerId: string;
+  winnerName: string;
+}
+
+// 8フォーメーション固定のノックアウト方式トーナメント結果
+export interface CupSimulationResult {
+  quarterfinals: CupMatch[]; // 4件。入力formationsの並び順([0]vs[1], [2]vs[3], ...)
+  semifinals: CupMatch[]; // 2件
+  final: CupMatch;
+  championId: string;
+  championName: string;
+}
