@@ -4,7 +4,7 @@
     viewBox="0 0 260 160"
     class="free-layout-pitch"
     role="img"
-    :aria-label="`${formationA.name}の配置をドラッグで調整できる自由配置モードのピッチ図`"
+    :aria-label="`${formationA.name}と${formationB.name}の配置をドラッグで調整できる自由配置モードのピッチ図`"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @pointercancel="onPointerUp"
@@ -24,7 +24,13 @@
 
     <g class="free-layout-pitch__team free-layout-pitch__team--b">
       <g v-for="item in itemsB" :key="item.position.id">
-        <circle :cx="item.cx" :cy="item.cy" r="4.5" class="free-layout-pitch__player red" />
+        <circle
+          :cx="item.cx"
+          :cy="item.cy"
+          r="4.5"
+          class="free-layout-pitch__player red free-layout-pitch__player--draggable"
+          @pointerdown="onPointerDown('B', item.position.id, $event)"
+        />
         <text :x="item.cx" :y="item.cy - 7" text-anchor="middle" class="free-layout-pitch__label">
           {{ item.position.label }}
         </text>
@@ -37,7 +43,7 @@
           :cy="item.cy"
           r="4.5"
           class="free-layout-pitch__player blue free-layout-pitch__player--draggable"
-          @pointerdown="onPointerDown(item.position.id, $event)"
+          @pointerdown="onPointerDown('A', item.position.id, $event)"
         />
         <text :x="item.cx" :y="item.cy - 7" text-anchor="middle" class="free-layout-pitch__label">
           {{ item.position.label }}
@@ -58,7 +64,12 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update-position": [positionId: string, x: number, y: number];
+  "update-position": [team: "A" | "B", positionId: string, x: number, y: number];
+  // ドラッグ確定時（pointerup/pointercancel）にのみ発火する。永続化（呼び出し側の
+  // savePositionOverride）はここでのみ行うことを想定している。update-positionは
+  // pointermoveのたびに（1ドラッグで数十〜数百回）発火するため、表示更新用に留め、
+  // 高コストな永続化はドラッグ完了時の1回に絞る
+  "update-position-end": [team: "A" | "B", positionId: string, x: number, y: number];
 }>();
 
 interface Item {
@@ -80,6 +91,10 @@ const itemsB = computed(() => toItems("B", props.formationB));
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const draggingPositionId = ref<string | null>(null);
+const draggingTeam = ref<"A" | "B" | null>(null);
+// ドラッグ確定時(update-position-end)に使う直近の座標。onPointerMoveのたびに更新するが、
+// emitはpointerup/pointercancel時の1回のみ
+let lastCoords: { x: number; y: number } | null = null;
 
 function toPitchCoords(clientX: number, clientY: number): { cx: number; cy: number } | null {
   const svg = svgRef.value;
@@ -98,14 +113,16 @@ function toPitchCoords(clientX: number, clientY: number): { cx: number; cy: numb
   return { cx: transformed.x, cy: transformed.y };
 }
 
-function onPointerDown(positionId: string, event: PointerEvent): void {
+function onPointerDown(team: "A" | "B", positionId: string, event: PointerEvent): void {
+  draggingTeam.value = team;
   draggingPositionId.value = positionId;
   (event.target as Element).setPointerCapture?.(event.pointerId);
 }
 
 function onPointerMove(event: PointerEvent): void {
   const positionId = draggingPositionId.value;
-  if (!positionId) return;
+  const team = draggingTeam.value;
+  if (!positionId || !team) return;
   // ポインタキャプチャが張れない/失われた環境では、SVG外でボタンを離しても
   // このコンポーネントのpointerupを受け取れない。ボタンが離されているのに
   // ドラッグ状態が残ると、ポインタを戻しただけで選手が追従し続けるため、
@@ -117,12 +134,22 @@ function onPointerMove(event: PointerEvent): void {
   const coords = toPitchCoords(event.clientX, event.clientY);
   if (!coords) return;
   const x = clampToPitchRange(cyToX(coords.cy));
-  const y = clampToPitchRange(cxToDepth("A", coords.cx));
-  emit("update-position", positionId, x, y);
+  const y = clampToPitchRange(cxToDepth(team, coords.cx));
+  lastCoords = { x, y };
+  emit("update-position", team, positionId, x, y);
 }
 
 function onPointerUp(): void {
+  const positionId = draggingPositionId.value;
+  const team = draggingTeam.value;
+  // 一度もpointermoveが発火しないままpointerup（クリックのみ等）の場合はlastCoordsが無く、
+  // 確定すべき変更も無いためemitしない
+  if (positionId && team && lastCoords) {
+    emit("update-position-end", team, positionId, lastCoords.x, lastCoords.y);
+  }
   draggingPositionId.value = null;
+  draggingTeam.value = null;
+  lastCoords = null;
 }
 </script>
 
