@@ -4,7 +4,7 @@
     viewBox="0 0 260 160"
     class="free-layout-pitch"
     role="img"
-    :aria-label="`${formationA.name}の配置をドラッグで調整できる自由配置モードのピッチ図`"
+    :aria-label="pitchAriaLabel"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @pointercancel="onPointerUp"
@@ -24,7 +24,14 @@
 
     <g class="free-layout-pitch__team free-layout-pitch__team--b">
       <g v-for="item in itemsB" :key="item.position.id">
-        <circle :cx="item.cx" :cy="item.cy" r="4.5" class="free-layout-pitch__player red" />
+        <circle
+          :cx="item.cx"
+          :cy="item.cy"
+          r="4.5"
+          class="free-layout-pitch__player red"
+          :class="{ 'free-layout-pitch__player--draggable': isDraggable('B') }"
+          @pointerdown="onPointerDown('B', item.position.id, $event)"
+        />
         <text :x="item.cx" :y="item.cy - 7" text-anchor="middle" class="free-layout-pitch__label">
           {{ item.position.label }}
         </text>
@@ -36,8 +43,9 @@
           :cx="item.cx"
           :cy="item.cy"
           r="4.5"
-          class="free-layout-pitch__player blue free-layout-pitch__player--draggable"
-          @pointerdown="onPointerDown(item.position.id, $event)"
+          class="free-layout-pitch__player blue"
+          :class="{ 'free-layout-pitch__player--draggable': isDraggable('A') }"
+          @pointerdown="onPointerDown('A', item.position.id, $event)"
         />
         <text :x="item.cx" :y="item.cy - 7" text-anchor="middle" class="free-layout-pitch__label">
           {{ item.position.label }}
@@ -52,14 +60,24 @@ import { ref, computed } from "vue";
 import type { Formation, Position } from "@/types/formation";
 import { xToCy, cyToX, depthToCx, cxToDepth, clampToPitchRange } from "./freeLayoutCoordinates";
 
-const props = defineProps<{
-  formationA: Formation;
-  formationB: Formation;
-}>();
+const props = withDefaults(
+  defineProps<{
+    formationA: Formation;
+    formationB: Formation;
+    // ドラッグ操作を受け付けるチーム。既定はAのみ（FR-15）。
+    // ハーフタイム采配（自チーム拡張）ではA/B両方を渡す
+    draggableTeams?: ("A" | "B")[];
+  }>(),
+  { draggableTeams: () => ["A"] },
+);
 
 const emit = defineEmits<{
-  "update-position": [positionId: string, x: number, y: number];
+  "update-position": [team: "A" | "B", positionId: string, x: number, y: number];
 }>();
+
+function isDraggable(team: "A" | "B"): boolean {
+  return props.draggableTeams.includes(team);
+}
 
 interface Item {
   position: Position;
@@ -78,8 +96,16 @@ function toItems(team: "A" | "B", formation: Formation): Item[] {
 const itemsA = computed(() => toItems("A", props.formationA));
 const itemsB = computed(() => toItems("B", props.formationB));
 
+const pitchAriaLabel = computed(() => {
+  if (isDraggable("A") && isDraggable("B")) {
+    return `${props.formationA.name}・${props.formationB.name}の配置をドラッグで調整できる自由配置モードのピッチ図`;
+  }
+  return `${props.formationA.name}の配置をドラッグで調整できる自由配置モードのピッチ図`;
+});
+
 const svgRef = ref<SVGSVGElement | null>(null);
 const draggingPositionId = ref<string | null>(null);
+const draggingTeam = ref<"A" | "B" | null>(null);
 
 function toPitchCoords(clientX: number, clientY: number): { cx: number; cy: number } | null {
   const svg = svgRef.value;
@@ -98,14 +124,17 @@ function toPitchCoords(clientX: number, clientY: number): { cx: number; cy: numb
   return { cx: transformed.x, cy: transformed.y };
 }
 
-function onPointerDown(positionId: string, event: PointerEvent): void {
+function onPointerDown(team: "A" | "B", positionId: string, event: PointerEvent): void {
+  if (!isDraggable(team)) return;
+  draggingTeam.value = team;
   draggingPositionId.value = positionId;
   (event.target as Element).setPointerCapture?.(event.pointerId);
 }
 
 function onPointerMove(event: PointerEvent): void {
   const positionId = draggingPositionId.value;
-  if (!positionId) return;
+  const team = draggingTeam.value;
+  if (!positionId || !team) return;
   // ポインタキャプチャが張れない/失われた環境では、SVG外でボタンを離しても
   // このコンポーネントのpointerupを受け取れない。ボタンが離されているのに
   // ドラッグ状態が残ると、ポインタを戻しただけで選手が追従し続けるため、
@@ -117,12 +146,13 @@ function onPointerMove(event: PointerEvent): void {
   const coords = toPitchCoords(event.clientX, event.clientY);
   if (!coords) return;
   const x = clampToPitchRange(cyToX(coords.cy));
-  const y = clampToPitchRange(cxToDepth("A", coords.cx));
-  emit("update-position", positionId, x, y);
+  const y = clampToPitchRange(cxToDepth(team, coords.cx));
+  emit("update-position", team, positionId, x, y);
 }
 
 function onPointerUp(): void {
   draggingPositionId.value = null;
+  draggingTeam.value = null;
 }
 </script>
 

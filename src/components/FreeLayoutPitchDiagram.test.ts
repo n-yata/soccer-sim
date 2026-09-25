@@ -55,7 +55,7 @@ describe("FreeLayoutPitchDiagram", () => {
     });
   });
 
-  it("Bチームの選手にpointerdownを発生させても update-position はemitされない", async () => {
+  it("Bチームの選手にpointerdownを発生させても update-position はemitされない（既定はAのみドラッグ可）", async () => {
     const formationA = getFormationById("4-3-3") as Formation;
     const formationB = getFormationById("3-5-2") as Formation;
     const wrapper = mount(FreeLayoutPitchDiagram, {
@@ -69,7 +69,7 @@ describe("FreeLayoutPitchDiagram", () => {
     expect(wrapper.emitted("update-position")).toBeUndefined();
   });
 
-  it("Aチームの選手をドラッグすると、pointerdown→pointermoveの実配線でupdate-positionがemitされる", async () => {
+  it("Aチームの選手をドラッグすると、pointerdown→pointermoveの実配線でupdate-positionが'A'付きでemitされる", async () => {
     const formationA = getFormationById("4-3-3") as Formation;
     const formationB = getFormationById("3-5-2") as Formation;
     const wrapper = mount(FreeLayoutPitchDiagram, {
@@ -87,10 +87,38 @@ describe("FreeLayoutPitchDiagram", () => {
 
     const emitted = wrapper.emitted("update-position");
     expect(emitted).toHaveLength(1);
-    const [positionId, x, y] = emitted![0] as [string, number, number];
+    const [team, positionId, x, y] = emitted![0] as ["A" | "B", string, number, number];
+    expect(team).toBe("A");
     expect(positionId).toBe(targetPosition.id);
     // cy=80(高さ中央)→xは50、cx=130(Aチームの深さの最大値=HALF_WIDTH)→yは100(敵陣側)
     expect(x).toBeCloseTo(50);
+    expect(y).toBeCloseTo(100);
+  });
+
+  it("draggableTeamsに'B'を含めると、Bチームの選手にもドラッグ可能クラスが付き、'B'付きでemitされる", async () => {
+    const formationA = getFormationById("4-3-3") as Formation;
+    const formationB = getFormationById("3-5-2") as Formation;
+    const wrapper = mount(FreeLayoutPitchDiagram, {
+      props: { formationA, formationB, draggableTeams: ["A", "B"] },
+    });
+    stubIdentityCtm(wrapper.find("svg").element as SVGSVGElement);
+
+    wrapper.findAll("circle.red").forEach((circle) => {
+      expect(circle.classes()).toContain("free-layout-pitch__player--draggable");
+    });
+
+    const targetPosition = formationB.positions[0];
+    const redCircle = wrapper.findAll("circle.red")[0];
+    await redCircle.trigger("pointerdown", { pointerId: 1 });
+    // Bチームはcx=130(中央)が自陣ゴール寄り0側ではなく、cxToDepth("B", ...)で
+    // 反転した式を使う。cx=0(Aチームなら自陣=y0)はBチームでは敵陣側(y=100)になる
+    await wrapper.find("svg").trigger("pointermove", { clientX: 0, clientY: 80, buttons: 1 });
+
+    const emitted = wrapper.emitted("update-position");
+    expect(emitted).toHaveLength(1);
+    const [team, positionId, , y] = emitted![0] as ["A" | "B", string, number, number];
+    expect(team).toBe("B");
+    expect(positionId).toBe(targetPosition.id);
     expect(y).toBeCloseTo(100);
   });
 
@@ -109,7 +137,7 @@ describe("FreeLayoutPitchDiagram", () => {
 
     const emitted = wrapper.emitted("update-position");
     expect(emitted).toHaveLength(1);
-    const [, x, y] = emitted![0] as [string, number, number];
+    const [, , x, y] = emitted![0] as ["A" | "B", string, number, number];
     expect(x).toBe(0);
     expect(y).toBe(0);
   });

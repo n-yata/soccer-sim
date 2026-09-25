@@ -206,67 +206,112 @@ function buildSummary(
 }
 
 /**
- * 90分・1分刻みのイベント駆動シミュレーションの本体。
- * 呼び出し側は必ず「matchup.idが想定する正準順」でa/b/overallEdgeを揃えて渡すこと
- * （順序に関する決定性の保証はこの関数の外、simulateMatchが担う）。
+ * ハーフタイム時点（90分に満たない途中経過）の中立なサマリー文。
+ * buildSummary と違い「下した」等の決着表現を使わない（まだ試合が終わっていないため）。
  */
-function runCanonicalSimulation(
+function buildHalftimeSummary(a: Formation, b: Formation, score: { a: number; b: number }): string {
+  if (score.a === score.b) {
+    return `前半終了。${a.name}と${b.name}は${score.a}-${score.b}の互角の展開。`;
+  }
+  const aLeads = score.a > score.b;
+  const leader = aLeads ? a : b;
+  const leaderScore = aLeads ? score.a : score.b;
+  const trailerScore = aLeads ? score.b : score.a;
+  return `前半終了。${leader.name}が${leaderScore}-${trailerScore}でリードしている。`;
+}
+
+// --- 90分（または途中まで）の累計状態 -----------------------------------------
+
+interface SimAccumulator {
+  possessionMinutes: Record<Team, number>;
+  shots: Record<Team, number>;
+  shotsOnTarget: Record<Team, number>;
+  score: Record<Team, number>;
+  timeline: MatchEvent[];
+}
+
+function createAccumulator(): SimAccumulator {
+  return {
+    possessionMinutes: { A: 0, B: 0 },
+    shots: { A: 0, B: 0 },
+    shotsOnTarget: { A: 0, B: 0 },
+    score: { A: 0, B: 0 },
+    timeline: [],
+  };
+}
+
+/**
+ * `fromMinute`〜`toMinute`（両端含む）ぶんのイベント駆動シミュレーションを`acc`に積み上げる。
+ * 呼び出し側は必ず「matchup.idが想定する正準順」でa/b/overallEdgeを揃えて渡すこと
+ * （順序に関する決定性の保証はこの関数の外、simulateMatch/startMatch/resumeMatchが担う）。
+ * `random`は呼び出しをまたいで同一インスタンスを使い続けることで、前半・後半を
+ * 分けて呼んでも90分通しで呼んだ場合と同じ乱数列になる。
+ */
+function simulateMinuteRange(
+  acc: SimAccumulator,
   a: Formation,
   b: Formation,
   overallEdge: Matchup["overallEdge"],
-  seed: number,
-): MatchSimulationResult {
-  const random = mulberry32(seed);
-
+  random: () => number,
+  fromMinute: number,
+  toMinute: number,
+): void {
   const formationOf: Record<Team, Formation> = { A: a, B: b };
   const opponentOf: Record<Team, Formation> = { A: b, B: a };
 
-  const possessionMinutes: Record<Team, number> = { A: 0, B: 0 };
-  const shots: Record<Team, number> = { A: 0, B: 0 };
-  const shotsOnTarget: Record<Team, number> = { A: 0, B: 0 };
-  const score: Record<Team, number> = { A: 0, B: 0 };
-  const timeline: MatchEvent[] = [];
-
-  for (let minute = 1; minute <= MINUTES; minute += 1) {
+  for (let minute = fromMinute; minute <= toMinute; minute += 1) {
     const possessor = choosePossessor(a, b, overallEdge, random);
-    possessionMinutes[possessor] += 1;
+    acc.possessionMinutes[possessor] += 1;
 
     const attacker = formationOf[possessor];
     const defender = opponentOf[possessor];
 
     if (random() >= chanceProbability(attacker, defender)) continue;
-    shots[possessor] += 1;
+    acc.shots[possessor] += 1;
 
     if (random() >= onTargetProbability(attacker, defender)) {
-      timeline.push({ minute, team: possessor, kind: "chance", text: eventText("chance", attacker.name) });
+      acc.timeline.push({ minute, team: possessor, kind: "chance", text: eventText("chance", attacker.name) });
       continue;
     }
-    shotsOnTarget[possessor] += 1;
+    acc.shotsOnTarget[possessor] += 1;
 
     if (random() >= goalProbability(attacker, defender)) {
-      timeline.push({ minute, team: possessor, kind: "shot", text: eventText("shot", attacker.name) });
+      acc.timeline.push({ minute, team: possessor, kind: "shot", text: eventText("shot", attacker.name) });
       continue;
     }
 
     const opponentTeam: Team = possessor === "A" ? "B" : "A";
-    const label = goalText(attacker.name, score[possessor], score[opponentTeam]);
-    score[possessor] += 1;
-    timeline.push({ minute, team: possessor, kind: "goal", text: eventText("goal", attacker.name, label) });
+    const label = goalText(attacker.name, acc.score[possessor], acc.score[opponentTeam]);
+    acc.score[possessor] += 1;
+    acc.timeline.push({ minute, team: possessor, kind: "goal", text: eventText("goal", attacker.name, label) });
   }
+}
 
-  const possessionA = Math.round((possessionMinutes.A / MINUTES) * 100);
+/**
+ * `acc`の累計値から`MatchSimulationResult`を組み立てる。
+ * `totalMinutes`は経過分母（90分通しなら90、ハーフタイム時点の中間表示なら45）。
+ * `totalMinutes < 90`のときは決着を前提としない`buildHalftimeSummary`を使う。
+ */
+function finalizeResult(a: Formation, b: Formation, acc: SimAccumulator, totalMinutes: number): MatchSimulationResult {
+  const possessionA = Math.round((acc.possessionMinutes.A / totalMinutes) * 100);
   const possession = { a: possessionA, b: 100 - possessionA };
-  const shotsResult = { a: shots.A, b: shots.B };
-  const shotsOnTargetResult = { a: shotsOnTarget.A, b: shotsOnTarget.B };
-  const scoreResult = { a: score.A, b: score.B };
+  const shots = { a: acc.shots.A, b: acc.shots.B };
+  const shotsOnTarget = { a: acc.shotsOnTarget.A, b: acc.shotsOnTarget.B };
+  const score = { a: acc.score.A, b: acc.score.B };
 
   return {
     possession,
-    shots: shotsResult,
-    shotsOnTarget: shotsOnTargetResult,
-    score: scoreResult,
-    timeline,
-    summary: buildSummary(a, b, scoreResult, possession, shotsResult),
+    shots,
+    shotsOnTarget,
+    score,
+    // acc.timelineへの参照をそのまま返すと、finalizeResult(45分時点)の戻り値を
+    // 保持したまま同じacc(=progress.acc)でresumeMatchを呼んだ場合に、
+    // 「前半の部分結果」の配列が後から90分ぶんへ書き換わってしまう。コピーして切り離す
+    timeline: [...acc.timeline],
+    summary:
+      totalMinutes >= MINUTES
+        ? buildSummary(a, b, score, possession, shots)
+        : buildHalftimeSummary(a, b, score),
   };
 }
 
@@ -288,6 +333,91 @@ function mirrorResult(result: MatchSimulationResult): MatchSimulationResult {
 }
 
 /**
+ * matchup.overallEdge は「呼び出し時のa/b」を基準にした値。正準順（matchup.idの前半をAとする順）
+ * で計算する前に、必要なら正準の向きへ反転させる。
+ */
+function mirrorEdgeIfNeeded(edge: Matchup["overallEdge"], reversed: boolean): Matchup["overallEdge"] {
+  if (!reversed) return edge;
+  if (edge === "A") return "B";
+  if (edge === "B") return "A";
+  return "even";
+}
+
+/**
+ * 呼び出し時のa/bがmatchup.idの正準順と一致するか（一致しない＝鏡写しが必要）を判定する。
+ * review-pre-commitの指摘(L-1)対応: matchup.idを"_vs_"で分割して比較すると、
+ * フォーメーションidそのものに"_vs_"が含まれる場合に誤判定しうる。idの前半が
+ * a.idと一致するかを直接調べる方が壊れにくい。
+ */
+function isReversed(a: Formation, matchup: Matchup): boolean {
+  return !matchup.id.startsWith(`${a.id}_vs_`);
+}
+
+/**
+ * 試合の途中経過を表す不透明な状態。`startMatch`が生成し`resumeMatch`に渡す以外の
+ * 用途を想定しない（呼び出し側はフィールドを直接読み書きしない）。
+ */
+export interface MatchProgress {
+  reversed: boolean;
+  random: () => number;
+  acc: SimAccumulator;
+  throughMinute: number;
+  // resumeMatchで一度消費されたことを示す。同じprogressを2回resumeMatchに渡すと
+  // 46分目以降が二重加算される（accが破壊的に累積するため）。呼び出し側の実装ミスを
+  // 早期に検知できるよう、2回目の呼び出しはエラーにする
+  consumed: boolean;
+}
+
+/**
+ * 試合開始から`throughMinute`分（既定45=前半終了）までを計算する。
+ * 続きは`resumeMatch`で計算できる。
+ *
+ * 決定性・鏡写しのルールは`simulateMatch`と同じ（内部で同じヘルパーを共有する）。
+ */
+export function startMatch(
+  a: Formation,
+  b: Formation,
+  matchup: Matchup,
+  throughMinute = 45,
+): { progress: MatchProgress; result: MatchSimulationResult } {
+  const reversed = isReversed(a, matchup);
+  const canonicalA = reversed ? b : a;
+  const canonicalB = reversed ? a : b;
+  const canonicalEdge = mirrorEdgeIfNeeded(matchup.overallEdge, reversed);
+
+  const seed = fnv1aHash(matchup.id);
+  const random = mulberry32(seed);
+  const acc = createAccumulator();
+  simulateMinuteRange(acc, canonicalA, canonicalB, canonicalEdge, random, 1, throughMinute);
+
+  const partial = finalizeResult(canonicalA, canonicalB, acc, throughMinute);
+  const progress: MatchProgress = { reversed, random, acc, throughMinute, consumed: false };
+  return { progress, result: reversed ? mirrorResult(partial) : partial };
+}
+
+/**
+ * `startMatch`の続きから90分目までを計算する。
+ * a/b/matchupは後半に使うフォーメーション・マッチアップ（配置変更が無ければ
+ * `startMatch`に渡したものと同じ値を渡す）。`progress`が保持する乱数インスタンスを
+ * そのまま継続するため、配置を変更しなければ`simulateMatch`を90分通しで1回呼んだ
+ * 場合と完全に同じ結果になる（決定性・後方互換性）。
+ */
+export function resumeMatch(progress: MatchProgress, a: Formation, b: Formation, matchup: Matchup): MatchSimulationResult {
+  if (progress.consumed) {
+    throw new Error("resumeMatch: このMatchProgressは既に使用済みです（同じprogressを2回resumeMatchに渡すことはできません）");
+  }
+  const canonicalA = progress.reversed ? b : a;
+  const canonicalB = progress.reversed ? a : b;
+  const canonicalEdge = mirrorEdgeIfNeeded(matchup.overallEdge, progress.reversed);
+
+  simulateMinuteRange(progress.acc, canonicalA, canonicalB, canonicalEdge, progress.random, progress.throughMinute + 1, MINUTES);
+  progress.consumed = true;
+
+  const result = finalizeResult(canonicalA, canonicalB, progress.acc, MINUTES);
+  return progress.reversed ? mirrorResult(result) : result;
+}
+
+/**
  * 2つのフォーメーションの対戦を、90分・1分刻みのイベント駆動でシミュレーションする。
  *
  * 決定性: 「組み合わせ」は呼び出し順に依存しない不変条件とする（FR-14の受け入れ条件、
@@ -298,25 +428,5 @@ function mirrorResult(result: MatchSimulationResult): MatchSimulationResult {
  * 勝敗が呼び出し順によって変わることがない。
  */
 export function simulateMatch(a: Formation, b: Formation, matchup: Matchup): MatchSimulationResult {
-  // review-pre-commitの指摘(L-1)対応: matchup.idを"_vs_"で分割して比較すると、
-  // フォーメーションidそのものに"_vs_"が含まれる場合に誤判定しうる。idの前半が
-  // a.idと一致するかを直接調べる方が壊れにくい
-  const reversed = !matchup.id.startsWith(`${a.id}_vs_`);
-
-  const canonicalA = reversed ? b : a;
-  const canonicalB = reversed ? a : b;
-  // overallEdgeはgetMatchupにより「呼び出し時のa/b」を基準に反転済みのため、
-  // 正準順で計算する前に正準の向きへ戻す
-  const canonicalEdge: Matchup["overallEdge"] = reversed
-    ? matchup.overallEdge === "A"
-      ? "B"
-      : matchup.overallEdge === "B"
-        ? "A"
-        : "even"
-    : matchup.overallEdge;
-
-  const seed = fnv1aHash(matchup.id);
-  const result = runCanonicalSimulation(canonicalA, canonicalB, canonicalEdge, seed);
-
-  return reversed ? mirrorResult(result) : result;
+  return startMatch(a, b, matchup, MINUTES).result;
 }

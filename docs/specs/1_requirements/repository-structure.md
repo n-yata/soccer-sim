@@ -37,15 +37,16 @@ soccer-sim/
 │   │   ├── FormationMiniPitch.vue   # フォーメーション単体のミニピッチ図（SVG描画）コンポーネント
 │   │   ├── ComparisonControls.vue   # 比較画面のA/B入れ替え・切替UIコンポーネント
 │   │   ├── MatchupPitchDiagram.vue  # 2フォーメーション重ね合わせピッチ図（SVG描画）コンポーネント
-│   │   ├── FreeLayoutPitchDiagram.vue # 自由配置モードのピッチ図（実座標の線形マッピング描画・Aチームのドラッグ受付）
+│   │   ├── FreeLayoutPitchDiagram.vue # 自由配置モードのピッチ図（実座標の線形マッピング描画・draggableTeamsで指定したチームのドラッグ受付）
 │   │   ├── freeLayoutCoordinates.ts   # FreeLayoutPitchDiagram用の座標変換純粋関数（DOM非依存）
 │   │   ├── FreeLayoutControls.vue     # 自由配置モードのトグル・リセットボタンUIコンポーネント
 │   │   ├── TermAnnotatedText.vue    # 解説文中のサッカー用語をボタン化し説明を開閉するコンポーネント
 │   │   ├── TermPopover.vue          # サッカー用語1件の説明を表示する吹き出し
 │   │   ├── QuizQuestionCard.vue     # クイズの設問1問の表示・回答受付コンポーネント
-│   │   └── MatchSimulationPanel.vue # 試合シミュレーション結果（スコア・ポゼッション・タイムライン）表示コンポーネント
+│   │   ├── MatchSimulationPanel.vue # 試合シミュレーション結果（スコア・ポゼッション・タイムライン）表示コンポーネント
+│   │   └── HalftimeTacticsModal.vue # ハーフタイム采配（FR-17）: A/B両チームの配置変更UIを持つモーダル
 │   ├── composables/
-│   │   ├── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`）
+│   │   ├── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`。ハーフタイム采配用に`startMatch`/`resumeMatch`も提供）
 │   │   └── leagueSimulation.ts  # 総当たり1回戦の集計・順位算出ロジック（純粋関数。`runLeagueSimulation`）
 │   ├── data/
 │   │   ├── formations.ts        # フォーメーション定義（静的データ）
@@ -105,10 +106,12 @@ soccer-sim/
 - `MatchupPitchDiagram.vue`: 2つのフォーメーション（formationA/formationB）を1つの
   ピッチ図上に重ねてSVGで描画する（`pages/` からフォーメーションデータを受け取って
   描画するだけの表示コンポーネント）
-- `FreeLayoutPitchDiagram.vue`: 自由配置モード（FR-15）用のピッチ図。実座標(0-100)を
-  `freeLayoutCoordinates.ts`で線形マッピングして描画し、Aチームの選手のみドラッグ操作を
-  受け付ける。内部にドラッグ座標のstateを持たず、`update-position`イベントで
-  呼び出し元（`ComparisonPage`）へ通知するだけの表示専用コンポーネント
+- `FreeLayoutPitchDiagram.vue`: 自由配置モード（FR-15）・ハーフタイム采配（FR-17）で共用する
+  ピッチ図。実座標(0-100)を`freeLayoutCoordinates.ts`で線形マッピングして描画し、
+  `draggableTeams`propで指定したチーム（既定は`["A"]`。FR-17では`["A", "B"]`）のみ
+  ドラッグ操作を受け付ける。内部にドラッグ座標のstateを持たず、
+  `update-position`イベント（チーム種別・positionId・x・y）で呼び出し元
+  （`ComparisonPage`/`HalftimeTacticsModal`）へ通知するだけの表示専用コンポーネント
 - `freeLayoutCoordinates.ts`: `FreeLayoutPitchDiagram.vue`専用の座標変換（実座標↔SVG座標、
   ピッチ範囲へのクランプ）を行う、DOM非依存の純粋関数群
 - `FreeLayoutControls.vue`: 自由配置モードのトグル・リセットボタンを表示する。
@@ -124,7 +127,14 @@ soccer-sim/
   両フォーメーション名をpropsで受け取り、スコアボード・ポゼッションバー・
   シュート/枠内シュートの対比・ハイライトタイムラインを表示する表示専用コンポーネント
   （シミュレーションの計算自体は行わない。呼び出し元の`ComparisonPage`が
-  `composables/matchSimulation.ts`を呼んで結果をpropsで渡す）
+  `composables/matchSimulation.ts`を呼んで結果をpropsで渡す。ハーフタイム采配（FR-17）の
+  前半部分結果もこのコンポーネントを再利用して表示する）
+- `HalftimeTacticsModal.vue`: ハーフタイム采配（FR-17）用のモーダル。前半終了時点の
+  フォーメーションA/B・部分結果（`MatchSimulationResult`）をpropsで受け取り、
+  `FreeLayoutPitchDiagram.vue`（`draggableTeams=['A','B']`）でA/B両チームの配置ドラフトを
+  保持する。「確定」で`confirm`（変更後または元のpositionsA/B）、`Escape`キー・閉じるボタン
+  （✕）・バックドロップクリックのいずれかで`cancel`をemitするだけで、後半のシミュレーション
+  実行自体は呼び出し元の`ComparisonPage`が行う
 
 **依存関係**:
 - 依存可能: `types/`
@@ -144,7 +154,11 @@ soccer-sim/
 **配置ファイル**:
 - `matchSimulation.ts`: 2つのフォーメーション（Formation）と組み合わせ（Matchup）を
   受け取り、90分・1分刻みのイベント駆動シミュレーションを実行して`MatchSimulationResult`を
-  返す純粋関数（`simulateMatch`）。シード付きPRNG（mulberry32）で決定的に乱数を生成する
+  返す純粋関数（`simulateMatch`）。シード付きPRNG（mulberry32）で決定的に乱数を生成する。
+  ハーフタイム采配（FR-17）向けに、前半（既定45分目まで）で打ち切って`MatchProgress`
+  （不透明な進行状態）を返す`startMatch`と、`MatchProgress`の続きから90分目まで計算する
+  `resumeMatch`も提供する。`simulateMatch`は内部で`startMatch(..., 90).result`を返すだけの
+  薄いラッパーになっており、外部から見た挙動（決定性・鏡写しルール）は変わらない
 - `leagueSimulation.ts`: フォーメーション一覧（Formation[]）とマッチアップ取得関数を
   受け取り、総当たり1回戦（n(n-1)/2試合）を`matchSimulation.ts`の`simulateMatch`で実行して
   勝ち点表（`LeagueStanding[]`）・全対戦結果（`LeagueMatchResult[]`）を返す純粋関数

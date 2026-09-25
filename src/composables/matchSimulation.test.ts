@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { simulateMatch } from "./matchSimulation";
+import { simulateMatch, startMatch, resumeMatch } from "./matchSimulation";
 import { formations, getFormationById } from "@/data/formations";
 import { buildAllMatchups, generateMatchup } from "@/data/matchupGenerator";
 import { getMatchup } from "@/data/matchups";
@@ -48,7 +48,7 @@ describe("simulateMatch", () => {
 
   it("A/Bを入れ替えて呼んでも、順序非依存の同じ90分間の鏡写しになる（勝敗が呼び出し順で変わらない）", () => {
     // 「組み合わせ」は呼び出し順に依存しない不変条件（FR-14の受け入れ条件。
-    // getMatchup/buildPairKeyが順序非依存に扱う既存の設計と揃える）。
+    // getMatchup/buildPairKeyが組み合わせを順序非依存に扱う既存の設計と揃える）。
     // review-implementationの[必須]指摘: 修正前はここが鏡写しにならず、
     // 入れ替えボタン（FR-09）を押しただけで勝者が反転する不具合があった
     const swappedMatchup = findMatchup(formationB.id, formationA.id);
@@ -218,5 +218,97 @@ describe("simulateMatch", () => {
     // ガードがあれば確率はBASE値相当（0.4未満）に収まり、90分間90ゴールにはならない
     expect(result.score.a).toBeLessThan(90);
     expect(result.score.b).toBeLessThan(90);
+  });
+});
+
+describe("startMatch / resumeMatch（ハーフタイム采配）", () => {
+  it("後方互換性: 配置を変更しない場合、startMatch→resumeMatchはsimulateMatchの90分通し結果と完全に一致する", () => {
+    const wholeMatch = simulateMatch(formationA, formationB, matchupAB);
+    const { progress, result: halftime } = startMatch(formationA, formationB, matchupAB, 45);
+    const secondHalf = resumeMatch(progress, formationA, formationB, matchupAB);
+
+    expect(secondHalf).toEqual(wholeMatch);
+    // 前半の部分結果も、90分通し結果の45分目までと矛盾しない（決着表現を使わない）
+    expect(halftime.score.a + halftime.score.b).toBeLessThanOrEqual(wholeMatch.score.a + wholeMatch.score.b);
+    expect(halftime.summary).toContain("前半終了");
+  });
+
+  it("決定性: 同じ配置変更を行った別々のstartMatchでも、後半の結果は完全に同じになる", () => {
+    const { progress: progress1 } = startMatch(formationA, formationB, matchupAB, 45);
+    const { progress: progress2 } = startMatch(formationA, formationB, matchupAB, 45);
+
+    const changedFormationA: Formation = {
+      ...formationA,
+      stats: { ...formationA.stats, attack: 90, defense: 20 },
+    };
+    const changedMatchup = generateMatchup(changedFormationA, formationB);
+
+    const result1 = resumeMatch(progress1, changedFormationA, formationB, changedMatchup);
+    const result2 = resumeMatch(progress2, changedFormationA, formationB, changedMatchup);
+
+    expect(result2).toEqual(result1);
+  });
+
+  it("resumeMatchを同じprogressに2回渡すとErrorを投げる（46分目以降の二重加算を防ぐガード）", () => {
+    const { progress } = startMatch(formationA, formationB, matchupAB, 45);
+    resumeMatch(progress, formationA, formationB, matchupAB);
+
+    expect(() => resumeMatch(progress, formationA, formationB, matchupAB)).toThrow();
+  });
+
+  it("後半のフォーメーション変更が反映される: statsを変えたFormationを渡すと後半の入力に使われる", () => {
+    // resumeMatchのAPI契約（渡したa/b/matchupが後半の計算に使われること）を検証する。
+    // 本番（ComparisonPage.vue）はpositionsのみを変更しstatsは変えない
+    // （FR-17は「タグ・優位ポイント・総合判定」の再計算までがスコープで、レーダー用の
+    // estimateStatsは後半の入力には使わない設計。design.md参照）。position変更が実際に
+    // 反映されるかは、本番と同じ経路をE2Eで通す `ComparisonPage.test.ts`
+    // 「配置変更を確定すると...変更後の配置に基づく結果になる」で検証している。
+    // ここではresumeMatchが受け取ったa/bをそのまま後半の計算に使うこと自体を、
+    // 複数の独立したベースマッチアップで確認する
+    const basePairs: [string, string][] = [
+      ["4-2-3-1", "4-4-2"],
+      ["4-3-3", "3-5-2"],
+      ["5-3-2", "4-1-4-1"],
+    ];
+
+    let atLeastOneDiffers = false;
+    for (const [idA, idB] of basePairs) {
+      const a = findFormation(idA);
+      const b = findFormation(idB);
+      const matchup = findMatchup(a.id, b.id);
+
+      const { progress: unchangedProgress } = startMatch(a, b, matchup, 45);
+      const unchangedSecondHalf = resumeMatch(unchangedProgress, a, b, matchup);
+
+      const { progress: boostedProgress } = startMatch(a, b, matchup, 45);
+      const boostedA: Formation = { ...a, stats: { ...a.stats, attack: 100 } };
+      const boostedMatchup = generateMatchup(boostedA, b);
+      const boostedSecondHalf = resumeMatch(boostedProgress, boostedA, b, boostedMatchup);
+
+      if (
+        boostedSecondHalf.score.a !== unchangedSecondHalf.score.a ||
+        boostedSecondHalf.shots.a !== unchangedSecondHalf.shots.a ||
+        boostedSecondHalf.timeline.length !== unchangedSecondHalf.timeline.length
+      ) {
+        atLeastOneDiffers = true;
+      }
+    }
+    expect(atLeastOneDiffers).toBe(true);
+  });
+
+  it("鏡写しルール: matchupが逆順(b起点)で渡された場合もsimulateMatchと同じ鏡写しで一致する", () => {
+    const swappedMatchup = findMatchup(formationB.id, formationA.id);
+    const wholeSwapped = simulateMatch(formationB, formationA, swappedMatchup);
+
+    const { progress } = startMatch(formationB, formationA, swappedMatchup, 45);
+    const secondHalfSwapped = resumeMatch(progress, formationB, formationA, swappedMatchup);
+
+    expect(secondHalfSwapped).toEqual(wholeSwapped);
+  });
+
+  it("throughMinute=90を渡すとsimulateMatchの90分通し結果と一致する（前半後半に分けない場合の整合性）", () => {
+    const { result } = startMatch(formationA, formationB, matchupAB, 90);
+    const whole = simulateMatch(formationA, formationB, matchupAB);
+    expect(result).toEqual(whole);
   });
 });
