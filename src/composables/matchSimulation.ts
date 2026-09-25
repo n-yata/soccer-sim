@@ -10,7 +10,11 @@ const MINUTES = 90;
  * 将来ズレても実害が無い（どちらも「文字列から決定的な32bit整数を得る」以上の
  * 意味を持たない）ため、依存を増やすより重複を許容する。
  */
-function fnv1aHash(input: string): number {
+// composables/内の他モジュール（cupSimulation.ts=PK戦、squadCondition.ts=選手個体差）が
+// 同じ「シードから決定的な乱数列を作る」処理を必要とするためexportする。data/への依存を
+// 避けるための重複（このファイル冒頭コメント参照）とは別の話で、同一レイヤー内の共通
+// ユーティリティなので重複させない
+export function fnv1aHash(input: string): number {
   let value = 0x811c9dc5;
   for (let i = 0; i < input.length; i += 1) {
     value ^= input.charCodeAt(i);
@@ -26,7 +30,7 @@ function fnv1aHash(input: string): number {
  * （FR-14の決定性要件）。暗号強度は不要（試合展開の見た目の自然さが目的）なので、
  * 実装が小さく高速なこの方式を選んでいる。
  */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let state = seed;
   return function random(): number {
     state = (state + 0x6d2b79f5) | 0;
@@ -45,7 +49,7 @@ function mulberry32(seed: number): () => number {
  * 現状Formation.statsはdata/の静的リテラルのみに由来し有限だが（型では保証されない）、
  * simulateMatchは公開関数であり将来のカスタムフォーメーション入力にも備えて防御する
  */
-function clamp(value: number, min: number, max: number): number {
+export function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
 }

@@ -504,6 +504,90 @@ describe("ComparisonPage", () => {
     });
   });
 
+  // 選手個体差（スカッドコンディション。.steering/20260920-cup-and-player-variance）
+  describe("選手個体差", () => {
+    function findToggle(wrapper: ReturnType<typeof mount>) {
+      return wrapper.find(".squad-condition-controls__toggle");
+    }
+
+    it("初期表示では選手個体差はOFFで、リロールボタンは表示されない", () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      expect(findToggle(wrapper).attributes("aria-pressed")).toBe("false");
+      expect(wrapper.find(".squad-condition-controls__reroll").exists()).toBe(false);
+    });
+
+    it("トグルをONにすると、リロールボタンが表示される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      expect(findToggle(wrapper).attributes("aria-pressed")).toBe("true");
+      expect(wrapper.find(".squad-condition-controls__reroll").exists()).toBe(true);
+    });
+
+    it("OFFのままシミュレーションしても、レーダーチャートのAチーム側stats(formationA.stats)は変化しない", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      const formationA = getFormationById("4-2-3-1");
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+
+      const radarChart = wrapper.findComponent(RadarChart);
+      const statsA = (radarChart.props("series") as { values: unknown }[])[0].values;
+      expect(statsA).toEqual(formationA?.stats);
+    });
+
+    it("ONにしても、レーダーチャートのAチーム側stats(formationA.stats)は変化しない（影響範囲が試合シミュレーションのみのため）", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      const formationA = getFormationById("4-2-3-1");
+      await findToggle(wrapper).trigger("click");
+
+      const radarChart = wrapper.findComponent(RadarChart);
+      const statsA = (radarChart.props("series") as { values: unknown }[])[0].values;
+      expect(statsA).toEqual(formationA?.stats);
+    });
+
+    it("トグルON時、表示中の試合シミュレーション結果が破棄される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
+
+      await findToggle(wrapper).trigger("click");
+
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+
+    it("リロール時、表示中の試合シミュレーション結果が破棄される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
+
+      await wrapper.find(".squad-condition-controls__reroll").trigger("click");
+
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+
+    it("組み合わせを切り替えると、選手個体差がOFFに戻る", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      expect(findToggle(wrapper).attributes("aria-pressed")).toBe("true");
+
+      routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
+      await wrapper.vm.$nextTick();
+
+      expect(findToggle(wrapper).attributes("aria-pressed")).toBe("false");
+      expect(wrapper.find(".squad-condition-controls__reroll").exists()).toBe(false);
+    });
+
+    it("トグルをOFFに戻すと、リロールボタンが消える", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+      await findToggle(wrapper).trigger("click");
+
+      expect(findToggle(wrapper).attributes("aria-pressed")).toBe("false");
+      expect(wrapper.find(".squad-condition-controls__reroll").exists()).toBe(false);
+    });
+  });
+
   it("各セレクトで、相手側に選択済みのフォーメーションがdisabledになっている", () => {
     const wrapper = mount(ComparisonPage, {
       global: { stubs: { RouterLink: routerLinkStub } },
