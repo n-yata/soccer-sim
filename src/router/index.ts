@@ -5,6 +5,7 @@ import MatrixPage from "@/pages/MatrixPage.vue";
 import GlossaryPage from "@/pages/GlossaryPage.vue";
 import QuizPage from "@/pages/QuizPage.vue";
 import LeaguePage from "@/pages/LeaguePage.vue";
+import CupPage from "@/pages/CupPage.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -19,5 +20,6 @@ export const router = createRouter({
     { path: "/glossary", name: "glossary", component: GlossaryPage },
     { path: "/quiz", name: "quiz", component: QuizPage },
     { path: "/league", name: "league", component: LeaguePage },
+    { path: "/cup", name: "cup", component: CupPage },
   ],
 });

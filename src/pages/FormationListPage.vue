@@ -13,6 +13,13 @@
           <router-link to="/league" class="formation-list-page__league-link">
             🏆 リーグ戦
           </router-link>
+          <router-link
+            v-if="formations.length === CUP_REQUIRED_FORMATION_COUNT"
+            to="/cup"
+            class="formation-list-page__cup-link"
+          >
+            🥇 カップ戦
+          </router-link>
           <router-link to="/quiz" class="formation-list-page__quiz-link">
             ✏️ 理解度チェック
           </router-link>
@@ -45,6 +52,11 @@ import { formations } from "@/data/formations";
 
 const router = useRouter();
 const selectedIds = ref<string[]>([]);
+
+// カップ戦（composables/cupSimulation.ts）は8フォーメーション固定のノックアウト方式
+// のみに対応する。データ追加でformationsが8件以外になった場合、導線を出したままだと
+// 必ずエラー表示になる画面へ誘導してしまうため出し分ける
+const CUP_REQUIRED_FORMATION_COUNT = 8;
 
 function goToMatrix(): void {
   router.push("/matrix");
@@ -131,6 +143,7 @@ watch(
 }
 
 .formation-list-page__league-link,
+.formation-list-page__cup-link,
 .formation-list-page__glossary-link,
 .formation-list-page__quiz-link {
   display: inline-block;
