@@ -108,10 +108,15 @@ soccer-sim/
   描画するだけの表示コンポーネント）
 - `FreeLayoutPitchDiagram.vue`: 自由配置モード（FR-15）・ハーフタイム采配（FR-19）で共用する
   ピッチ図。実座標(0-100)を`freeLayoutCoordinates.ts`で線形マッピングして描画し、
-  A/B両チームのドラッグ操作を受け付ける。内部にドラッグ座標のstateを持たず、
-  `update-position`イベント（ドラッグ中、表示更新用）・`update-position-end`イベント
-  （ドラッグ確定時のみ、永続化用）をチーム種別・positionId・x・y付きで呼び出し元
-  （`ComparisonPage`/`HalftimeTacticsModal`）へ通知するだけの表示専用コンポーネント
+  A/B両チームのドラッグ操作、およびTab+矢印キーによるキーボード操作（WCAG 2.1.1対応、
+  2026-09-26追加）を受け付ける。内部にドラッグ/キー操作中の座標stateを持たず、
+  `update-position`イベント（ドラッグのpointermove・キーのkeydownのたびに発火、表示更新用）・
+  `update-position-end`イベント（ドラッグのpointerup・キーのkeyupのタイミングで1回のみ発火、
+  永続化用）をチーム種別・positionId・x・y付きで呼び出し元
+  （`ComparisonPage`/`HalftimeTacticsModal`）へ通知するだけの表示専用コンポーネント。
+  ルート要素は`role="group"`のラッパー`div`で、内部のSVGに`role="img"`を付けると
+  子要素（各選手）がアクセシビリティツリーから剪定されるため、SVG自体には図全体を表す
+  roleを持たせない
 - `freeLayoutCoordinates.ts`: `FreeLayoutPitchDiagram.vue`専用の座標変換（実座標↔SVG座標、
   ピッチ範囲へのクランプ）を行う、DOM非依存の純粋関数群
 - `FreeLayoutControls.vue`: 自由配置モードのトグル・リセットボタンを表示する。

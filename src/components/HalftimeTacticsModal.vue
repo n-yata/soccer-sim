@@ -1,9 +1,24 @@
 <template>
   <div class="halftime-modal-backdrop" role="presentation" @click.self="onCancel">
-    <div class="halftime-modal" role="dialog" aria-modal="true" aria-label="ハーフタイム采配">
+    <div
+      ref="modalRef"
+      class="halftime-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="ハーフタイム采配"
+      @keydown.tab="onTabKeydown"
+    >
       <div class="halftime-modal__header">
         <h2 class="halftime-modal__title">🔧 ハーフタイム采配</h2>
-        <button type="button" class="halftime-modal__close" aria-label="閉じる" @click="onCancel">✕</button>
+        <button
+          ref="closeButtonRef"
+          type="button"
+          class="halftime-modal__close"
+          aria-label="閉じる"
+          @click="onCancel"
+        >
+          ✕
+        </button>
       </div>
       <p class="halftime-modal__score">
         {{ formationA.name }} {{ halftimeResult.score.a }} - {{ halftimeResult.score.b }}
@@ -28,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import type { Formation, MatchSimulationResult, Position } from "@/types/formation";
 
@@ -86,9 +101,67 @@ function onDocumentKeydown(event: KeyboardEvent): void {
 }
 
 document.addEventListener("keydown", onDocumentKeydown);
+
+// フォーカス管理（WCAG 2.4.3）: 開いた瞬間はモーダル外（背後の「配置を変更する」ボタン等）に
+// フォーカスが残ったままになるため、閉じるボタンへ明示的に移す。閉じたときは、開く前に
+// フォーカスされていた要素（＝モーダルを開いた起点のボタン）へ戻す
+const modalRef = ref<HTMLElement | null>(null);
+const closeButtonRef = ref<HTMLButtonElement | null>(null);
+let previouslyFocusedElement: HTMLElement | null = null;
+
+onMounted(() => {
+  previouslyFocusedElement = document.activeElement as HTMLElement | null;
+  closeButtonRef.value?.focus();
+});
+
+// previouslyFocusedElementが開いている間に別の理由でDOMから取り除かれていた場合、
+// そこへの.focus()は何も起きない（例外にはならないが、フォーカスがどこにも移らず
+// 迷子になる）。document.bodyへ一時的にtabindexを与えて確実にフォーカス先を作る
+// （フォーカスを離したら元通りtabindexを外し、DOMに余分な属性を残さない）
+function focusFallback(): void {
+  const body = document.body;
+  const hadTabIndex = body.hasAttribute("tabindex");
+  if (!hadTabIndex) {
+    body.setAttribute("tabindex", "-1");
+    body.addEventListener("blur", () => body.removeAttribute("tabindex"), { once: true });
+  }
+  body.focus();
+}
+
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", onDocumentKeydown);
+  if (previouslyFocusedElement?.isConnected) {
+    previouslyFocusedElement.focus();
+  } else {
+    focusFallback();
+  }
 });
+
+// フォーカストラップ（WCAG 2.1.2 相当）: Tabキーでモーダルの外（背後のページ）へ
+// フォーカスが抜けると、キーボードユーザーがモーダルを見失う。モーダル内の最初/最後の
+// フォーカス可能要素で折り返す
+function onTabKeydown(event: KeyboardEvent): void {
+  const modal = modalRef.value;
+  if (!modal) return;
+  const focusable = Array.from(
+    modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => !el.hasAttribute("disabled"));
+  if (focusable.length === 0) return;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey) {
+    if (document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else if (document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 // 表示対象のフォーメーションが変わったら（通常は発生しないが、念のため）ドラフトを作り直す
 watch(
