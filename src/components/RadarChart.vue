@@ -28,7 +28,7 @@
         {{ axis.label }}
       </text>
       <g
-        v-for="(s, seriesIndex) in seriesPolygons"
+        v-for="(s, seriesIndex) in displaySeries"
         :key="`${seriesIndex}-${s.label}`"
         :style="{ '--series-color': `var(${s.colorVar})` }"
       >
@@ -163,6 +163,101 @@ const seriesPolygons = computed(() =>
     };
   }),
 );
+
+// フォーメーション切替・自由配置モードのドラッグ・選手個体差のスコア変化のたびに
+// 頂点がその場で瞬時にジャンプすると、どの軸がどれだけ変わったのか目で追えない。
+// seriesPolygons（新しい目標値）とは別に、実際に描画する座標(displaySeries)を持ち、
+// 目標値が変わるたびにrequestAnimationFrameで補間する。
+// SVGの<polygon>のpoints属性はCSS transitionの対象外（アニメーション可能な
+// プロパティとして定義されていない）ため、JS側で座標を補間する方式を採る
+type DisplaySeries = (typeof seriesPolygons)["value"][number];
+
+function cloneSeries(list: typeof seriesPolygons.value): DisplaySeries[] {
+  return list.map((s) => ({
+    label: s.label,
+    colorVar: s.colorVar,
+    points: s.points,
+    vertices: s.vertices.map((v) => ({ ...v })),
+  }));
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+const RADAR_TRANSITION_MS = 300;
+// 自由配置モードのドラッグ中はpointermoveのたびにseriesPolygonsが再計算される
+// （FreeLayoutPitchDiagram.vue「1ドラッグで数十〜数百回」）。そのたびに300msの
+// 補間をゼロからやり直すと、常に目標値より遅れ続ける「追従負け」が起きる。
+// 直前の変化からこの時間未満で次の変化が来た場合は連続変化とみなし、補間せず
+// 即座に反映することで、ドラッグ中は指の動きにそのまま追従させる
+const RAPID_CHANGE_THRESHOLD_MS = 120;
+const displaySeries = ref<DisplaySeries[]>(cloneSeries(seriesPolygons.value));
+let rafId: number | null = null;
+let lastChangeAt: number | null = null;
+
+watch(seriesPolygons, (next) => {
+  const from = displaySeries.value;
+  // 系列数・軸数・軸の並び順が変わった場合は補間の対応が取れないため、即座に確定させる
+  // （axisIdまで見ないと、頂点数が同じまま順序だけ変わったときに別軸同士を
+  // 補間する無意味なモーフが起きる）
+  const shapeMatches =
+    from.length === next.length &&
+    from.every(
+      (s, i) =>
+        s.vertices.length === next[i]?.vertices.length &&
+        s.vertices.every((v, j) => v.axisId === next[i]?.vertices[j]?.axisId),
+    );
+
+  const now = performance.now();
+  const isRapidChange =
+    lastChangeAt !== null && now - lastChangeAt < RAPID_CHANGE_THRESHOLD_MS;
+  lastChangeAt = now;
+
+  if (prefersReducedMotion() || !shapeMatches || isRapidChange) {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = null;
+    displaySeries.value = cloneSeries(next);
+    return;
+  }
+
+  const fromSnapshot = cloneSeries(from);
+  const start = performance.now();
+  if (rafId !== null) cancelAnimationFrame(rafId);
+
+  function step(now: number): void {
+    const t = Math.min(1, (now - start) / RADAR_TRANSITION_MS);
+    const eased = 1 - (1 - t) * (1 - t);
+    displaySeries.value = next.map((target, seriesIndex) => {
+      const fromS = fromSnapshot[seriesIndex];
+      const vertices = target.vertices.map((v, vertexIndex) => {
+        const fv = fromS.vertices[vertexIndex];
+        return {
+          axisId: v.axisId,
+          x: fv.x + (v.x - fv.x) * eased,
+          y: fv.y + (v.y - fv.y) * eased,
+        };
+      });
+      return {
+        label: target.label,
+        colorVar: target.colorVar,
+        points: vertices.map((v) => `${v.x},${v.y}`).join(" "),
+        vertices,
+      };
+    });
+    rafId = t < 1 ? requestAnimationFrame(step) : null;
+  }
+
+  rafId = requestAnimationFrame(step);
+});
+
+onBeforeUnmount(() => {
+  if (rafId !== null) cancelAnimationFrame(rafId);
+});
 </script>
 
 <style scoped>

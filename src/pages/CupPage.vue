@@ -150,6 +150,8 @@ const rounds = computed<{ title: string; matches: CupMatch[] }[]>(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -159,6 +161,7 @@ const rounds = computed<{ title: string; matches: CupMatch[] }[]>(() => {
   font-weight: 700;
   color: var(--color-text);
   text-decoration: none;
+  transition: background-color 0.15s ease;
 }
 
 .cup-page__match-link:hover {
@@ -208,6 +211,22 @@ const rounds = computed<{ title: string; matches: CupMatch[] }[]>(() => {
   .cup-page__match-link {
     flex-wrap: wrap;
     gap: var(--space-xs) var(--space-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .cup-page__header {
+    flex-wrap: wrap;
+  }
+
+  .cup-page__title {
+    font-size: var(--font-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cup-page__match-link {
+    transition: none;
   }
 }
 </style>

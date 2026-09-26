@@ -94,15 +94,24 @@ defineEmits<{
 }
 
 .comparison-controls__select-group select {
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 13px;
   background: #ffffff;
   color: var(--color-text);
+  transition: border-color 0.15s ease;
+}
+
+.comparison-controls__select-group select:hover {
+  border-color: var(--color-border-strong);
 }
 
 .comparison-controls__swap-button {
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: #ffffff;
@@ -112,5 +121,26 @@ defineEmits<{
   font-weight: 700;
   color: #374151;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+@media (hover: hover) {
+  .comparison-controls__swap-button:hover {
+    background: var(--color-surface-hover);
+    transform: rotate(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison-controls__select-group select,
+  .comparison-controls__swap-button {
+    transition: none;
+  }
+
+  .comparison-controls__swap-button:hover {
+    transform: none;
+  }
 }
 </style>

@@ -78,6 +78,10 @@ watch(
 .formation-list-page__matrix-button {
   /* 半透明の白オーバーレイでは、緑背景に対し白文字がAA(4.5:1)未達になるため、
      既存の戻るボタン等と同じ「不透明な白背景+濃色テキスト」に統一する */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -87,6 +91,7 @@ watch(
   font-weight: 700;
   color: var(--color-text-muted);
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .formation-list-page__matrix-button:hover {
@@ -97,7 +102,10 @@ watch(
 .formation-list-page__cup-link,
 .formation-list-page__glossary-link,
 .formation-list-page__quiz-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--radius-pill);
   padding: var(--space-sm) var(--space-md);
@@ -105,6 +113,14 @@ watch(
   font-weight: 700;
   color: #ffffff;
   white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.formation-list-page__league-link:hover,
+.formation-list-page__cup-link:hover,
+.formation-list-page__glossary-link:hover,
+.formation-list-page__quiz-link:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .formation-list-page__body {
@@ -138,6 +154,16 @@ watch(
 
   .formation-list-page__grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formation-list-page__matrix-button,
+  .formation-list-page__league-link,
+  .formation-list-page__cup-link,
+  .formation-list-page__glossary-link,
+  .formation-list-page__quiz-link {
+    transition: none;
   }
 }
 </style>

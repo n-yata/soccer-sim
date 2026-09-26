@@ -283,6 +283,8 @@ function formatCellLabel(row: Formation, col: Formation): string {
 .matrix-page__clear-button,
 .matrix-page__clear-confirm,
 .matrix-page__clear-cancel {
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -291,6 +293,13 @@ function formatCellLabel(row: Formation, col: Formation): string {
   font-weight: 700;
   color: var(--color-text-muted);
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.matrix-page__clear-button:not(:disabled):hover,
+.matrix-page__clear-confirm:hover,
+.matrix-page__clear-cancel:hover {
+  background: var(--color-surface-hover);
 }
 
 .matrix-page__clear-button:disabled {
@@ -404,6 +413,14 @@ a.matrix-page__cell:focus-visible {
 
   .matrix-page__table {
     border-spacing: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-page__clear-button,
+  .matrix-page__clear-confirm,
+  .matrix-page__clear-cancel {
+    transition: none;
   }
 }
 </style>

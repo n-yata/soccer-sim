@@ -193,6 +193,35 @@ watch(
   padding: 24px;
 }
 
+.halftime-modal-fade-enter-active,
+.halftime-modal-fade-leave-active {
+  transition: background-color 0.2s ease;
+}
+
+.halftime-modal-fade-leave-active {
+  /* leave中(200ms)もバックドロップがクリックを吸い続けると、確定直後に
+     背面のボタンを押したつもりが消えかけのモーダルに吸われる */
+  pointer-events: none;
+}
+
+.halftime-modal-fade-enter-active .halftime-modal,
+.halftime-modal-fade-leave-active .halftime-modal {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.halftime-modal-fade-enter-from,
+.halftime-modal-fade-leave-to {
+  background-color: rgba(15, 23, 42, 0);
+}
+
+.halftime-modal-fade-enter-from .halftime-modal,
+.halftime-modal-fade-leave-to .halftime-modal {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+}
+
 .halftime-modal__title {
   margin: 0;
   font-size: 18px;
@@ -209,13 +238,21 @@ watch(
 }
 
 .halftime-modal__close {
+  min-width: 44px;
+  min-height: 44px;
   border: none;
+  border-radius: var(--radius-sm);
   background: none;
   padding: 4px 8px;
   font-size: 16px;
   line-height: 1;
   color: var(--color-text-sub);
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.halftime-modal__close:hover {
+  background: var(--color-surface-hover);
 }
 
 .halftime-modal__close:focus-visible {
@@ -245,12 +282,17 @@ watch(
 
 .halftime-modal__reset,
 .halftime-modal__confirm {
+  min-height: 44px;
+  box-sizing: border-box;
   border: none;
   border-radius: 999px;
   padding: 10px 20px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .halftime-modal__reset {
@@ -259,15 +301,42 @@ watch(
   color: #374151;
 }
 
+.halftime-modal__reset:hover {
+  background: var(--color-surface-hover);
+}
+
 .halftime-modal__confirm {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
   color: #ffffff;
   box-shadow: var(--shadow-card);
 }
 
+.halftime-modal__confirm:hover {
+  transform: translateY(-1px);
+}
+
 .halftime-modal__confirm:focus-visible,
 .halftime-modal__reset:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halftime-modal-fade-enter-active,
+  .halftime-modal-fade-leave-active,
+  .halftime-modal-fade-enter-active .halftime-modal,
+  .halftime-modal-fade-leave-active .halftime-modal {
+    transition: none;
+  }
+
+  .halftime-modal__close,
+  .halftime-modal__reset,
+  .halftime-modal__confirm {
+    transition: none;
+  }
+
+  .halftime-modal__confirm:hover {
+    transform: none;
+  }
 }
 </style>

@@ -39,6 +39,8 @@ defineEmits<{
 
 .free-layout-controls__toggle,
 .free-layout-controls__reset {
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: #ffffff;
@@ -48,11 +50,27 @@ defineEmits<{
   font-weight: 700;
   color: #374151;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.free-layout-controls__toggle:hover,
+.free-layout-controls__reset:hover {
+  background: var(--color-surface-hover);
 }
 
 .free-layout-controls__toggle[aria-pressed="true"] {
   background: var(--color-team-a-bg);
   border-color: var(--color-team-a);
   color: #1e3a5f;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .free-layout-controls__toggle,
+  .free-layout-controls__reset {
+    transition: none;
+  }
 }
 </style>

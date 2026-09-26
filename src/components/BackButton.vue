@@ -25,6 +25,8 @@ function goBack(): void {
 
 <style scoped>
 .back-button {
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -34,9 +36,19 @@ function goBack(): void {
   font-weight: 700;
   color: var(--color-text-muted);
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .back-button:hover {
   background: var(--color-surface-hover);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-button {
+    transition: none;
+  }
 }
 </style>

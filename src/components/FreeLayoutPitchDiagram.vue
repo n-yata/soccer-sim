@@ -284,6 +284,19 @@ function onKeyUp(team: "A" | "B", item: Item, event: KeyboardEvent): void {
 
 .free-layout-pitch__player--draggable {
   cursor: grab;
+  /* r/cx/cyのCSSプロパティ化(SVG2)はSafari/iOSが未対応のため、
+     transform(fill-box基準の拡大)で代替する */
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 0.15s ease,
+    stroke-width 0.15s ease;
+}
+
+.free-layout-pitch__player--draggable:hover,
+.free-layout-pitch__player--draggable:focus-visible {
+  transform: scale(1.25);
+  stroke-width: 1.5;
 }
 
 .free-layout-pitch__player--draggable:active {
@@ -293,6 +306,17 @@ function onKeyUp(team: "A" | "B", item: Item, event: KeyboardEvent): void {
 .free-layout-pitch__player--draggable:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .free-layout-pitch__player--draggable {
+    transition: none;
+  }
+
+  .free-layout-pitch__player--draggable:hover,
+  .free-layout-pitch__player--draggable:focus-visible {
+    transform: none;
+  }
 }
 
 .free-layout-pitch__label {

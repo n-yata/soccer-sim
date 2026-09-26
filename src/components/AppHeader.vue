@@ -122,6 +122,7 @@ function closeMenu(): void {
   display: none;
   align-items: center;
   gap: var(--space-xs);
+  min-height: 44px;
   margin-left: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -131,6 +132,11 @@ function closeMenu(): void {
   font-weight: 700;
   color: var(--color-text-muted);
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.app-header__toggle:hover {
+  background: var(--color-surface-hover);
 }
 
 .app-header__nav {
@@ -142,6 +148,8 @@ function closeMenu(): void {
 }
 
 .app-header__link {
+  display: inline-flex;
+  align-items: center;
   font-size: var(--font-sm);
   font-weight: 700;
   color: var(--color-text-sub);
@@ -149,6 +157,9 @@ function closeMenu(): void {
   white-space: nowrap;
   padding: var(--space-xs) 0;
   border-bottom: 2px solid transparent;
+  transition:
+    color 0.15s ease,
+    border-bottom-color 0.15s ease;
 }
 
 .app-header__link:hover {
@@ -182,6 +193,18 @@ function closeMenu(): void {
 
   .app-header__nav--open {
     display: flex;
+  }
+
+  .app-header__link {
+    min-height: 44px;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-header__toggle,
+  .app-header__link {
+    transition: none;
   }
 }
 </style>
