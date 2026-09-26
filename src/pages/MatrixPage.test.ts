@@ -155,7 +155,7 @@ describe("MatrixPage", () => {
 
   it("「← 戻る」をクリックするとrouter.pushが'/'で1回呼ばれる", async () => {
     const wrapper = mountMatrix();
-    await wrapper.find(".matrix-page__back-button").trigger("click");
+    await wrapper.find(".back-button").trigger("click");
     expect(pushMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith("/");
   });

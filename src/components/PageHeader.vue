@@ -1,9 +1,12 @@
 <template>
   <header class="page-header">
     <div class="page-header__row">
-      <div>
-        <h1 class="page-header__title">{{ title }}</h1>
-        <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
+      <div class="page-header__heading">
+        <BackButton v-if="showBackButton" :fallback-to="backFallbackTo" />
+        <div>
+          <h1 class="page-header__title">{{ title }}</h1>
+          <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
+        </div>
       </div>
       <div v-if="$slots.default" class="page-header__actions">
         <slot />
@@ -13,7 +16,19 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ title: string; subtitle?: string }>();
+import BackButton from "@/components/BackButton.vue";
+
+// 全画面共通のページヘッダー。戻るボタンの有無は呼び出し元が判断する
+// （一覧画面のようなトップレベル画面にはbackボタンを出さない）
+withDefaults(
+  defineProps<{
+    title: string;
+    subtitle?: string;
+    showBackButton?: boolean;
+    backFallbackTo?: string;
+  }>(),
+  { subtitle: undefined, showBackButton: false, backFallbackTo: "/" },
+);
 </script>
 
 <style scoped>
@@ -27,6 +42,13 @@ defineProps<{ title: string; subtitle?: string }>();
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.page-header__heading {
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
   flex-wrap: wrap;
 }

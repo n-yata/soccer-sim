@@ -214,7 +214,7 @@ describe("QuizPage", () => {
     window.history.replaceState({}, "");
     const wrapper = mountPage();
 
-    await wrapper.find(".quiz-page__back-button").trigger("click");
+    await wrapper.find(".back-button").trigger("click");
 
     expect(pushMock).toHaveBeenCalledWith("/");
     expect(backMock).not.toHaveBeenCalled();
@@ -224,7 +224,7 @@ describe("QuizPage", () => {
     window.history.replaceState({ back: "/" }, "");
     const wrapper = mountPage();
 
-    await wrapper.find(".quiz-page__back-button").trigger("click");
+    await wrapper.find(".back-button").trigger("click");
 
     expect(backMock).toHaveBeenCalledTimes(1);
     expect(pushMock).not.toHaveBeenCalled();

@@ -50,15 +50,17 @@ GlossaryPage（単独。子コンポーネントは持たない）
 
 ### 一覧画面への遷移
 
-1. ユーザーが「← 一覧画面へ戻る」をクリックする。
-2. `router-link` の静的遷移により `/`（`FormationListPage`）へ遷移する
-   （`ComparisonPage`の「← 戻る」とは異なり、`router.push`のハンドラは持たない）。
+1. ユーザーが`PageHeader`が表示する「← 戻る」（`BackButton`）をクリックする
+   （2026-09-27より前は`router-link`による静的遷移だったが、他画面とヘッダーを統一する際に
+   `BackButton`へ置き換えた）。
+2. アプリ内遷移の履歴があれば`router.back()`で遷移元へ戻り、無ければ`fallback-to="/"`へ
+   `router.push()`する（`ComparisonPage`/`MatrixPage`/`QuizPage`の「← 戻る」と同じ挙動）。
 
 ### 画面遷移イベント
 
 | 操作 | 遷移先 | 備考 |
 |---|---|---|
-| 「← 一覧画面へ戻る」をクリック | `/`（`FormationListPage`） | `router-link` による静的遷移 |
+| 「← 戻る」をクリック | 履歴があれば遷移元、無ければ`/`（`FormationListPage`） | `BackButton`（`PageHeader`経由）による遷移 |
 
 ## 例外・エラー表示
 

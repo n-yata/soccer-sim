@@ -1,135 +1,137 @@
 <template>
   <div class="comparison-page">
     <template v-if="formationA && formationB && matchup">
-      <div class="comparison-page__header">
-        <BackButton fallback-to="/" />
-        <h1 class="comparison-page__title">{{ formationA.name }} vs {{ formationB.name }}</h1>
+      <PageHeader show-back-button :title="`${formationA.name} vs ${formationB.name}`">
         <router-link to="/glossary" class="comparison-page__glossary-link"> 📖 用語集 </router-link>
-      </div>
-      <div class="comparison-page__legend">
-        <span class="comparison-page__legend-item comparison-page__legend-item--blue">
-          {{ formationA.name }}
-        </span>
-        <span class="comparison-page__legend-item comparison-page__legend-item--red">
-          {{ formationB.name }}
-        </span>
-      </div>
-      <ComparisonControls
-        :formations="formations"
-        :formation-a-id="formationA.id"
-        :formation-b-id="formationB.id"
-        @swap="swap"
-        @select-a="onSelectA"
-        @select-b="onSelectB"
-      />
-      <FreeLayoutControls
-        :is-active="isFreeLayoutMode"
-        @toggle="toggleFreeLayoutMode"
-        @reset="resetFreeLayout"
-      />
-      <SquadConditionControls
-        :is-active="squadConditionSeed !== null"
-        @toggle="toggleSquadCondition"
-        @reroll="rerollSquadCondition"
-      />
-      <p
-        class="comparison-page__verdict"
-        :class="`comparison-page__verdict--${matchup.overallEdge}`"
-      >
-        {{ verdictHeadline }}<br />
-        <span class="comparison-page__verdict-reason">
-          <TermAnnotatedText :text="matchup.overallReason" />
-        </span>
-      </p>
-      <div class="comparison-page__main">
-        <div class="comparison-page__pitch-overlay">
-          <FreeLayoutPitchDiagram
-            v-if="isFreeLayoutMode && effectiveFormationA && effectiveFormationB"
-            :formation-a="effectiveFormationA"
-            :formation-b="effectiveFormationB"
-            @update-position="onUpdatePosition"
-            @update-position-end="onUpdatePositionEnd"
-          />
-          <MatchupPitchDiagram
-            v-else
-            :key="`${formationA.id}-${formationB.id}`"
-            :formation-a="formationA"
-            :formation-b="formationB"
-          />
+      </PageHeader>
+      <div class="comparison-page__body">
+        <div class="comparison-page__legend">
+          <span class="comparison-page__legend-item comparison-page__legend-item--blue">
+            {{ formationA.name }}
+          </span>
+          <span class="comparison-page__legend-item comparison-page__legend-item--red">
+            {{ formationB.name }}
+          </span>
         </div>
-        <div class="comparison-page__radar">
-          <h2 class="comparison-page__radar-title">フォーメーション特性</h2>
-          <RadarChart :axes="radarAxes" :max-value="100" :series="radarSeries" />
-        </div>
-      </div>
-      <div class="comparison-page__advantages">
-        <div class="comparison-page__advantage-column comparison-page__advantage-column--blue">
-          <h2 class="comparison-page__label comparison-page__label--blue">
-            {{ formationA.name }}の優位ポイント
-          </h2>
-          <ul>
-            <li v-for="(point, index) in matchup.advantagesForA" :key="index">
-              <TermAnnotatedText :text="point" />
-            </li>
-          </ul>
-        </div>
-        <div class="comparison-page__advantage-column comparison-page__advantage-column--red">
-          <h2 class="comparison-page__label comparison-page__label--red">
-            {{ formationB.name }}の優位ポイント
-          </h2>
-          <ul>
-            <li v-for="(point, index) in matchup.advantagesForB" :key="index">
-              <TermAnnotatedText :text="point" />
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="comparison-page__simulation">
-        <button
-          v-if="!simulationResult && !halftimeResult"
-          type="button"
-          class="comparison-page__simulate-button"
-          @click="runSimulation"
+        <ComparisonControls
+          :formations="formations"
+          :formation-a-id="formationA.id"
+          :formation-b-id="formationB.id"
+          @swap="swap"
+          @select-a="onSelectA"
+          @select-b="onSelectB"
+        />
+        <FreeLayoutControls
+          :is-active="isFreeLayoutMode"
+          @toggle="toggleFreeLayoutMode"
+          @reset="resetFreeLayout"
+        />
+        <SquadConditionControls
+          :is-active="squadConditionSeed !== null"
+          @toggle="toggleSquadCondition"
+          @reroll="rerollSquadCondition"
+        />
+        <p
+          class="comparison-page__verdict"
+          :class="`comparison-page__verdict--${matchup.overallEdge}`"
         >
-          ⚽ 試合をシミュレートする
-        </button>
-        <template v-if="halftimeResult && !simulationResult">
+          {{ verdictHeadline }}<br />
+          <span class="comparison-page__verdict-reason">
+            <TermAnnotatedText :text="matchup.overallReason" />
+          </span>
+        </p>
+        <div class="comparison-page__main">
+          <div class="comparison-page__pitch-overlay">
+            <FreeLayoutPitchDiagram
+              v-if="isFreeLayoutMode && effectiveFormationA && effectiveFormationB"
+              :formation-a="effectiveFormationA"
+              :formation-b="effectiveFormationB"
+              @update-position="onUpdatePosition"
+              @update-position-end="onUpdatePositionEnd"
+            />
+            <MatchupPitchDiagram
+              v-else
+              :key="`${formationA.id}-${formationB.id}`"
+              :formation-a="formationA"
+              :formation-b="formationB"
+            />
+          </div>
+          <div class="comparison-page__radar">
+            <h2 class="comparison-page__radar-title">フォーメーション特性</h2>
+            <RadarChart :axes="radarAxes" :max-value="100" :series="radarSeries" />
+          </div>
+        </div>
+        <div class="comparison-page__advantages">
+          <div class="comparison-page__advantage-column comparison-page__advantage-column--blue">
+            <h2 class="comparison-page__label comparison-page__label--blue">
+              {{ formationA.name }}の優位ポイント
+            </h2>
+            <ul>
+              <li v-for="(point, index) in matchup.advantagesForA" :key="index">
+                <TermAnnotatedText :text="point" />
+              </li>
+            </ul>
+          </div>
+          <div class="comparison-page__advantage-column comparison-page__advantage-column--red">
+            <h2 class="comparison-page__label comparison-page__label--red">
+              {{ formationB.name }}の優位ポイント
+            </h2>
+            <ul>
+              <li v-for="(point, index) in matchup.advantagesForB" :key="index">
+                <TermAnnotatedText :text="point" />
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="comparison-page__simulation">
+          <button
+            v-if="!simulationResult && !halftimeResult"
+            type="button"
+            class="comparison-page__simulate-button"
+            @click="runSimulation"
+          >
+            ⚽ 試合をシミュレートする
+          </button>
+          <template v-if="halftimeResult && !simulationResult">
+            <MatchSimulationPanel
+              :result="halftimeResult"
+              :formation-a-name="formationA.name"
+              :formation-b-name="formationB.name"
+            />
+            <div class="comparison-page__halftime-actions">
+              <button type="button" class="comparison-page__halftime-tactics-button" @click="openHalftimeTactics">
+                🔧 配置を変更する
+              </button>
+              <button type="button" class="comparison-page__halftime-continue-button" @click="proceedWithoutChange">
+                ▶ 後半を開始する
+              </button>
+            </div>
+            <Transition name="halftime-modal-fade">
+              <HalftimeTacticsModal
+                v-if="isHalftimeModalOpen && effectiveFormationA && effectiveFormationB"
+                :formation-a="effectiveFormationA"
+                :formation-b="effectiveFormationB"
+                :halftime-result="halftimeResult"
+                @confirm="onHalftimeConfirm"
+                @cancel="closeHalftimeTactics"
+              />
+            </Transition>
+          </template>
           <MatchSimulationPanel
-            :result="halftimeResult"
+            v-if="simulationResult"
+            :result="simulationResult"
             :formation-a-name="formationA.name"
             :formation-b-name="formationB.name"
           />
-          <div class="comparison-page__halftime-actions">
-            <button type="button" class="comparison-page__halftime-tactics-button" @click="openHalftimeTactics">
-              🔧 配置を変更する
-            </button>
-            <button type="button" class="comparison-page__halftime-continue-button" @click="proceedWithoutChange">
-              ▶ 後半を開始する
-            </button>
-          </div>
-          <Transition name="halftime-modal-fade">
-            <HalftimeTacticsModal
-              v-if="isHalftimeModalOpen && effectiveFormationA && effectiveFormationB"
-              :formation-a="effectiveFormationA"
-              :formation-b="effectiveFormationB"
-              :halftime-result="halftimeResult"
-              @confirm="onHalftimeConfirm"
-              @cancel="closeHalftimeTactics"
-            />
-          </Transition>
-        </template>
-        <MatchSimulationPanel
-          v-if="simulationResult"
-          :result="simulationResult"
-          :formation-a-name="formationA.name"
-          :formation-b-name="formationB.name"
-        />
+        </div>
       </div>
     </template>
     <template v-else>
-      <p>指定された組み合わせを表示できません</p>
-      <router-link to="/"> 一覧画面へ戻る </router-link>
+      <div class="comparison-page__error">
+        <p>指定された組み合わせを表示できません</p>
+        <router-link to="/"> 一覧画面へ戻る </router-link>
+      </div>
     </template>
   </div>
 </template>
@@ -137,13 +139,13 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import BackButton from "@/components/BackButton.vue";
 import ComparisonControls from "@/components/ComparisonControls.vue";
 import FreeLayoutControls from "@/components/FreeLayoutControls.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import HalftimeTacticsModal from "@/components/HalftimeTacticsModal.vue";
 import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
+import PageHeader from "@/components/PageHeader.vue";
 import RadarChart from "@/components/RadarChart.vue";
 import SquadConditionControls from "@/components/SquadConditionControls.vue";
 import TermAnnotatedText from "@/components/TermAnnotatedText.vue";
@@ -450,36 +452,32 @@ function onSelectB(id: string): void {
 </script>
 
 <style scoped>
-.comparison-page {
+.comparison-page__body {
   padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
 }
 
-.comparison-page__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.comparison-page__title {
-  margin: 0;
-  font-size: var(--font-xl);
-  font-weight: 700;
-  color: var(--color-text);
+.comparison-page__error {
+  padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
 }
 
 .comparison-page__glossary-link {
-  margin-left: auto;
-  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: #ffffff;
   white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.comparison-page__glossary-link:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .comparison-page__legend {
@@ -722,16 +720,13 @@ function onSelectB(id: string): void {
 }
 
 @media (max-width: 640px) {
-  .comparison-page {
+  .comparison-page__body,
+  .comparison-page__error {
     padding: var(--space-md) var(--space-md) var(--space-xl);
   }
 
   .comparison-page__pitch-overlay {
     max-width: 100%;
-  }
-
-  .comparison-page__glossary-link {
-    margin-left: 0;
   }
 
   .comparison-page__halftime-actions {
@@ -742,7 +737,8 @@ function onSelectB(id: string): void {
 @media (prefers-reduced-motion: reduce) {
   .comparison-page__simulate-button,
   .comparison-page__halftime-tactics-button,
-  .comparison-page__halftime-continue-button {
+  .comparison-page__halftime-continue-button,
+  .comparison-page__glossary-link {
     transition: none;
   }
 

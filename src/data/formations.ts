@@ -1,11 +1,5 @@
 import type { Formation } from "@/types/formation";
 
-// カップ戦（composables/cupSimulation.ts）は8フォーメーション固定のノックアウト方式
-// のみに対応する。データ追加でformationsが8件以外になった場合、導線を出したままだと
-// 必ずエラー表示になる画面へ誘導してしまうため、この定数で出し分ける
-// （利用側: pages/FormationListPage.vue, App.vue）
-export const CUP_REQUIRED_FORMATION_COUNT = 8;
-
 // ピッチ座標系: 幅・高さとも 0-100 の相対座標。原点(0,0)は自陣ゴール側の左下、
 // y が大きいほど攻撃方向（相手ゴール側）に近づく（functional-overview.md「確定事項」参照）。
 //

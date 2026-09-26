@@ -13,7 +13,6 @@ vi.mock("@/data/formations", () => ({
   get formations() {
     return state.formations;
   },
-  CUP_REQUIRED_FORMATION_COUNT: 8,
 }));
 
 const { formations: realFormations } =

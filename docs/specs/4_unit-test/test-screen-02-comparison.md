@@ -21,7 +21,7 @@
 | `FreeLayoutPitchDiagram`（FR-15） | ユニットテスト（Vitest + Testing Library）。`getScreenCTM`/`createSVGPoint`をスタブ化 |
 | `FreeLayoutControls`（FR-15） | ユニットテスト（Vitest + Testing Library） |
 | `SquadConditionControls`（FR-18） | ユニットテスト（Vitest + Testing Library） |
-| `simulateMatch`/`startMatch`/`resumeMatch`（`composables/matchSimulation.ts`。FR-14/FR-19） | ユニットテスト（Vitest）。外部依存なしの純粋関数（リーグ戦・カップ戦画面から参照される中核アルゴリズムのため、テストケースは本ファイルに一本化する） |
+| `simulateMatch`/`startMatch`/`resumeMatch`（`composables/matchSimulation.ts`。FR-14/FR-19） | ユニットテスト（Vitest）。外部依存なしの純粋関数（比較画面・ハーフタイム采配の中核アルゴリズムのため、テストケースは本ファイルに一本化する） |
 | `applySquadVariance`（`composables/squadCondition.ts`。FR-18） | ユニットテスト（Vitest）。外部依存なしの純粋関数 |
 | `applyOverrides`/`savePositionOverride`/`clearFormationOverride`（`data/freeLayoutStorage.ts`。FR-15） | ユニットテスト（Vitest）。`localStorage`をモック/操作 |
 | `MatchSimulationPanel`（FR-14/FR-19） | ユニットテスト（Vitest + Testing Library） |
@@ -192,10 +192,6 @@ const matchups: Matchup[] = [
 
 ### simulateMatch / startMatch / resumeMatch（`composables/matchSimulation.ts`。FR-14/FR-19）
 
-> `simulateMatch`はリーグ戦画面（`test-screen-06-league.md`）・カップ戦画面
-> （`test-screen-07-cup.md`）からも参照される中核アルゴリズムのため、テストケースは
-> 本ファイルに一本化する（両画面の仕様書からは本節を参照する）。
-
 | No | 観点 | 前提・操作 | 期待結果 | 完了 |
 |---|---|---|---|:--:|
 | 133 | 正常系 | 同一の`a`/`b`/`matchup`で`simulateMatch`を複数回呼ぶ | 決定性: 完全に同じ結果（`MatchSimulationResult`）になる | [x] |
@@ -343,8 +339,7 @@ const matchups: Matchup[] = [
   をkeydownのたびに発火させると、ドラッグのpointermoveと同じ高頻度I/O問題が復活する
   （2026-09-26のコミット前レビューで実際に見つかった欠陥）。
 - テストケース135（`simulateMatch`の順序非依存）は、FR-14の受け入れ条件（A/Bの入れ替えで
-  勝敗が変わらない）の唯一の担保であり必須とする。カップ戦（PK戦の勝者判定）も同じ
-  正準順の考え方に依存するため、この不変条件が崩れると波及範囲が広い。
+  勝敗が変わらない）の唯一の担保であり必須とする。
 - テストケース144（`resumeMatch`の二重呼び出しガード）は、`MatchProgress`が可変な累積状態
   （`acc`）を内部に持つことに起因する実装上の制約（同じ状態を2回進行させると二重加算になる）
   の担保であり必須とする。

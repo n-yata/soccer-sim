@@ -1,47 +1,46 @@
 <template>
   <div class="quiz-page">
-    <div class="quiz-page__header">
-      <BackButton class="quiz-page__back-button" fallback-to="/" />
-      <h1 class="quiz-page__title">理解度チェック</h1>
+    <PageHeader show-back-button title="理解度チェック">
       <router-link to="/glossary" class="quiz-page__glossary-link"> 📖 用語集 </router-link>
-    </div>
-
-    <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
-    <p v-if="questions.length === 0" class="quiz-page__empty">
-      出題できる問題がありません。フォーメーションのデータが追加されると出題できるようになります。
-    </p>
-
-    <template v-else-if="currentQuestion">
-      <p class="quiz-page__progress">
-        第 {{ currentIndex + 1 }} 問 / 全 {{ questions.length }} 問
-        <span class="quiz-page__score">（正解 {{ correctCount }} 問）</span>
+    </PageHeader>
+    <div class="quiz-page__body">
+      <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
+      <p v-if="questions.length === 0" class="quiz-page__empty">
+        出題できる問題がありません。フォーメーションのデータが追加されると出題できるようになります。
       </p>
 
-      <QuizQuestionCard
-        :key="currentQuestion.id"
-        :question="currentQuestion"
-        :answered-choice-id="currentAnswer"
-        @answer="onAnswer"
-      />
+      <template v-else-if="currentQuestion">
+        <p class="quiz-page__progress">
+          第 {{ currentIndex + 1 }} 問 / 全 {{ questions.length }} 問
+          <span class="quiz-page__score">（正解 {{ correctCount }} 問）</span>
+        </p>
 
-      <div v-if="currentAnswer !== null" class="quiz-page__actions">
-        <button type="button" class="quiz-page__next-button" @click="goNext">
-          {{ isLastQuestion ? "結果を見る" : "次の問題へ" }}
-        </button>
-      </div>
-    </template>
+        <QuizQuestionCard
+          :key="currentQuestion.id"
+          :question="currentQuestion"
+          :answered-choice-id="currentAnswer"
+          @answer="onAnswer"
+        />
 
-    <div v-else class="quiz-page__result">
-      <h2 class="quiz-page__result-title">おつかれさま！</h2>
-      <p class="quiz-page__result-score">
-        {{ questions.length }} 問中 <strong>{{ correctCount }}</strong> 問 正解
-      </p>
-      <p class="quiz-page__result-comment">{{ resultComment }}</p>
-      <div class="quiz-page__actions">
-        <button type="button" class="quiz-page__retry-button" @click="restart">
-          もう一度挑戦する
-        </button>
-        <router-link to="/" class="quiz-page__result-link">一覧画面へ戻る</router-link>
+        <div v-if="currentAnswer !== null" class="quiz-page__actions">
+          <button type="button" class="quiz-page__next-button" @click="goNext">
+            {{ isLastQuestion ? "結果を見る" : "次の問題へ" }}
+          </button>
+        </div>
+      </template>
+
+      <div v-else class="quiz-page__result">
+        <h2 class="quiz-page__result-title">おつかれさま！</h2>
+        <p class="quiz-page__result-score">
+          {{ questions.length }} 問中 <strong>{{ correctCount }}</strong> 問 正解
+        </p>
+        <p class="quiz-page__result-comment">{{ resultComment }}</p>
+        <div class="quiz-page__actions">
+          <button type="button" class="quiz-page__retry-button" @click="restart">
+            もう一度挑戦する
+          </button>
+          <router-link to="/" class="quiz-page__result-link">一覧画面へ戻る</router-link>
+        </div>
       </div>
     </div>
   </div>
@@ -49,7 +48,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import BackButton from "@/components/BackButton.vue";
+import PageHeader from "@/components/PageHeader.vue";
 import QuizQuestionCard from "@/components/QuizQuestionCard.vue";
 import { formations } from "@/data/formations";
 import { matchups } from "@/data/matchups";
@@ -116,38 +115,29 @@ restart();
 </script>
 
 <style scoped>
-.quiz-page {
+.quiz-page__body {
   max-width: 640px;
   margin: 0 auto;
   padding: var(--space-lg) var(--space-md) var(--space-xl);
 }
 
-.quiz-page__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.quiz-page__title {
-  margin: 0;
-  font-size: var(--font-xl);
-  font-weight: 700;
-  color: var(--color-text);
-}
-
 .quiz-page__glossary-link {
-  margin-left: auto;
-  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
   font-weight: 700;
-  color: var(--color-text-muted);
+  color: #ffffff;
   text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.quiz-page__glossary-link:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .quiz-page__empty {
@@ -253,16 +243,8 @@ restart();
 }
 
 @media (max-width: 480px) {
-  .quiz-page {
+  .quiz-page__body {
     padding: var(--space-md) var(--space-sm) var(--space-lg);
-  }
-
-  .quiz-page__title {
-    font-size: var(--font-lg);
-  }
-
-  .quiz-page__glossary-link {
-    margin-left: 0;
   }
 
   .quiz-page__actions {
@@ -278,7 +260,8 @@ restart();
 
 @media (prefers-reduced-motion: reduce) {
   .quiz-page__next-button,
-  .quiz-page__retry-button {
+  .quiz-page__retry-button,
+  .quiz-page__glossary-link {
     transition: none;
   }
 

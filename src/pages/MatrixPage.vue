@@ -1,113 +1,113 @@
 <template>
   <div class="matrix-page">
-    <div class="matrix-page__header">
-      <BackButton class="matrix-page__back-button" fallback-to="/" />
-      <h1 class="matrix-page__title">相性マトリクス</h1>
-    </div>
-    <p class="matrix-page__subtitle">
-      行のフォーメーションが列のフォーメーションに対して有利かを一目で確認できます
-    </p>
-    <div class="matrix-page__legend">
-      <span class="matrix-page__legend-item matrix-page__legend-item--row">行が有利</span>
-      <span class="matrix-page__legend-item matrix-page__legend-item--col">列が有利</span>
-      <span class="matrix-page__legend-item matrix-page__legend-item--even">互角</span>
-      <span class="matrix-page__legend-item matrix-page__legend-item--viewed">✓ 確認済み</span>
-    </div>
-
-    <!--
-      FR-13: どこまで見たかを可視化する。KPI の「全フォーメーションを1周確認し終えた時点」を
-      利用者自身が判断できるようにする
-    -->
-    <div class="matrix-page__progress">
-      <p class="matrix-page__progress-text">
-        確認済み <strong>{{ viewedCount }}</strong> / 全 {{ totalPairs }} 組み合わせ
-        <span v-if="isComplete" class="matrix-page__progress-done">🎉 すべて確認しました</span>
-      </p>
-      <div class="matrix-page__progress-actions">
-        <button
-          v-if="!isConfirmingClear"
-          type="button"
-          class="matrix-page__clear-button"
-          :disabled="viewedCount === 0"
-          @click="isConfirmingClear = true"
-        >
-          進捗を消去
-        </button>
-        <!--
-          window.confirm は使わない。ブラウザのモーダルは自動テストとブラウザ自動操作を
-          止めてしまうため、インラインの2段階確認にする
-        -->
-        <template v-else>
-          <span class="matrix-page__clear-confirm-text">進捗を消去しますか？</span>
-          <button type="button" class="matrix-page__clear-confirm" @click="onClearProgress">
-            消去する
-          </button>
-          <button
-            type="button"
-            class="matrix-page__clear-cancel"
-            @click="isConfirmingClear = false"
-          >
-            やめる
-          </button>
-        </template>
+    <PageHeader
+      show-back-button
+      title="相性マトリクス"
+      subtitle="行のフォーメーションが列のフォーメーションに対して有利かを一目で確認できます"
+    />
+    <div class="matrix-page__body">
+      <div class="matrix-page__legend">
+        <span class="matrix-page__legend-item matrix-page__legend-item--row">行が有利</span>
+        <span class="matrix-page__legend-item matrix-page__legend-item--col">列が有利</span>
+        <span class="matrix-page__legend-item matrix-page__legend-item--even">互角</span>
+        <span class="matrix-page__legend-item matrix-page__legend-item--viewed">✓ 確認済み</span>
       </div>
-    </div>
 
-    <div class="matrix-page__table-wrapper">
-      <table class="matrix-page__table">
-        <thead>
-          <tr>
-            <th scope="col"></th>
-            <th v-for="col in formations" :key="`col-${col.id}`" scope="col">
-              {{ col.name }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in formations" :key="`row-${row.id}`">
-            <th scope="row">{{ row.name }}</th>
-            <td v-for="col in formations" :key="`cell-${row.id}-${col.id}`">
-              <span
-                v-if="row.id === col.id"
-                class="matrix-page__cell matrix-page__cell--diagonal"
-                aria-hidden="true"
-              ></span>
-              <span
-                v-else-if="!hasMatchup(row.id, col.id)"
-                class="matrix-page__cell matrix-page__cell--unknown"
-                role="img"
-                :aria-label="`${row.name} vs ${col.name}: データ未定義`"
-              ></span>
-              <router-link
-                v-else
-                :to="`/compare/${row.id}/${col.id}`"
-                class="matrix-page__cell"
-                :class="buildCellClass(row.id, col.id)"
-                :aria-label="formatCellLabel(row, col)"
-              >
-                <!--
-                  確認済みは色ではなくチェック印で示す。セルの色は既に
-                  「行有利 / 列有利 / 互角」に使われており、そこへ色を重ねると
-                  どちらの意味なのか判別できなくなる
-                -->
+      <!--
+        FR-13: どこまで見たかを可視化する。KPI の「全フォーメーションを1周確認し終えた時点」を
+        利用者自身が判断できるようにする
+      -->
+      <div class="matrix-page__progress">
+        <p class="matrix-page__progress-text">
+          確認済み <strong>{{ viewedCount }}</strong> / 全 {{ totalPairs }} 組み合わせ
+          <span v-if="isComplete" class="matrix-page__progress-done">🎉 すべて確認しました</span>
+        </p>
+        <div class="matrix-page__progress-actions">
+          <button
+            v-if="!isConfirmingClear"
+            type="button"
+            class="matrix-page__clear-button"
+            :disabled="viewedCount === 0"
+            @click="isConfirmingClear = true"
+          >
+            進捗を消去
+          </button>
+          <!--
+            window.confirm は使わない。ブラウザのモーダルは自動テストとブラウザ自動操作を
+            止めてしまうため、インラインの2段階確認にする
+          -->
+          <template v-else>
+            <span class="matrix-page__clear-confirm-text">進捗を消去しますか？</span>
+            <button type="button" class="matrix-page__clear-confirm" @click="onClearProgress">
+              消去する
+            </button>
+            <button
+              type="button"
+              class="matrix-page__clear-cancel"
+              @click="isConfirmingClear = false"
+            >
+              やめる
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <div class="matrix-page__table-wrapper">
+        <table class="matrix-page__table">
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th v-for="col in formations" :key="`col-${col.id}`" scope="col">
+                {{ col.name }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in formations" :key="`row-${row.id}`">
+              <th scope="row">{{ row.name }}</th>
+              <td v-for="col in formations" :key="`cell-${row.id}-${col.id}`">
                 <span
-                  v-if="isViewed(row.id, col.id)"
-                  class="matrix-page__cell-check"
+                  v-if="row.id === col.id"
+                  class="matrix-page__cell matrix-page__cell--diagonal"
                   aria-hidden="true"
-                  >✓</span
+                ></span>
+                <span
+                  v-else-if="!hasMatchup(row.id, col.id)"
+                  class="matrix-page__cell matrix-page__cell--unknown"
+                  role="img"
+                  :aria-label="`${row.name} vs ${col.name}: データ未定義`"
+                ></span>
+                <router-link
+                  v-else
+                  :to="`/compare/${row.id}/${col.id}`"
+                  class="matrix-page__cell"
+                  :class="buildCellClass(row.id, col.id)"
+                  :aria-label="formatCellLabel(row, col)"
                 >
-              </router-link>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                  <!--
+                    確認済みは色ではなくチェック印で示す。セルの色は既に
+                    「行有利 / 列有利 / 互角」に使われており、そこへ色を重ねると
+                    どちらの意味なのか判別できなくなる
+                  -->
+                  <span
+                    v-if="isViewed(row.id, col.id)"
+                    class="matrix-page__cell-check"
+                    aria-hidden="true"
+                    >✓</span
+                  >
+                </router-link>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import BackButton from "@/components/BackButton.vue";
+import PageHeader from "@/components/PageHeader.vue";
 import { formations } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
 import { buildPairKey, clearProgress, countAllPairs, loadProgress } from "@/data/learningProgress";
@@ -177,28 +177,8 @@ function formatCellLabel(row: Formation, col: Formation): string {
 </script>
 
 <style scoped>
-.matrix-page {
+.matrix-page__body {
   padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
-}
-
-.matrix-page__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-sm);
-}
-
-.matrix-page__title {
-  margin: 0;
-  font-size: var(--font-xl);
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.matrix-page__subtitle {
-  margin: 0 0 var(--space-md);
-  font-size: var(--font-sm);
-  color: var(--color-text-sub);
 }
 
 .matrix-page__legend {
@@ -402,7 +382,7 @@ a.matrix-page__cell:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .matrix-page {
+  .matrix-page__body {
     padding: var(--space-md) var(--space-md) var(--space-xl);
   }
 
