@@ -13,6 +13,14 @@
       <router-link to="/glossary" class="formation-list-page__glossary-link">
         📖 用語集
       </router-link>
+      <a
+        href="https://www.jleague.jp/j1/special/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="formation-list-page__jleague-link"
+      >
+        ⚽ Jリーグ情報（外部サイト）
+      </a>
     </PageHeader>
     <div class="formation-list-page__body">
       <div class="formation-list-page__grid">
@@ -25,14 +33,6 @@
         />
       </div>
       <p class="formation-list-page__footer">2つ選択すると自動的に比較画面へ遷移します</p>
-      <a
-        href="https://www.jleague.jp/j1/special/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="formation-list-page__jleague-link"
-      >
-        ⚽ Jリーグの試合情報・招待キャンペーンはこちら（外部サイト）
-      </a>
     </div>
   </div>
 </template>
@@ -99,7 +99,8 @@ watch(
 }
 
 .formation-list-page__glossary-link,
-.formation-list-page__quiz-link {
+.formation-list-page__quiz-link,
+.formation-list-page__jleague-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -115,8 +116,14 @@ watch(
 }
 
 .formation-list-page__glossary-link:hover,
-.formation-list-page__quiz-link:hover {
+.formation-list-page__quiz-link:hover,
+.formation-list-page__jleague-link:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.formation-list-page__jleague-link {
+  /* 外部サイトへの遷移であることを、他の内部導線と区別できるよう破線枠にする */
+  border-style: dashed;
 }
 
 .formation-list-page__body {
@@ -143,21 +150,6 @@ watch(
   border-radius: var(--radius-pill);
 }
 
-.formation-list-page__jleague-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  box-sizing: border-box;
-  margin-top: var(--space-md);
-  color: var(--color-text-muted);
-  font-size: var(--font-xs);
-  text-decoration: underline;
-}
-
-.formation-list-page__jleague-link:hover {
-  color: var(--color-text);
-}
-
 @media (max-width: 640px) {
   .formation-list-page__body {
     padding: var(--space-lg) var(--space-md);
@@ -171,7 +163,8 @@ watch(
 @media (prefers-reduced-motion: reduce) {
   .formation-list-page__matrix-button,
   .formation-list-page__glossary-link,
-  .formation-list-page__quiz-link {
+  .formation-list-page__quiz-link,
+  .formation-list-page__jleague-link {
     transition: none;
   }
 }
