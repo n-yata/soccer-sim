@@ -109,6 +109,14 @@ describe("FormationListPage", () => {
     expect(wrapper.findAllComponents(FormationCard)).toHaveLength(0);
   });
 
+  it("Jリーグ外部リンクが新規タブでtarget=_blank・rel=noopener noreferrerを持つ", () => {
+    const wrapper = mountPage();
+    const link = wrapper.find("a.formation-list-page__jleague-link");
+    expect(link.attributes("href")).toBe("https://www.jleague.jp/j1/special/");
+    expect(link.attributes("target")).toBe("_blank");
+    expect(link.attributes("rel")).toBe("noopener noreferrer");
+  });
+
   it("「相性表を見る」ボタンをクリックするとrouter.pushが'/matrix'で1回呼ばれる", async () => {
     const wrapper = mountPage();
     const button = wrapper

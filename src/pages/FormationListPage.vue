@@ -33,6 +33,14 @@
         />
       </div>
       <p class="formation-list-page__footer">2つ選択すると自動的に比較画面へ遷移します</p>
+      <a
+        href="https://www.jleague.jp/j1/special/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="formation-list-page__jleague-link"
+      >
+        ⚽ Jリーグの試合情報・招待キャンペーンはこちら（外部サイト）
+      </a>
     </div>
   </div>
 </template>
@@ -145,6 +153,21 @@ watch(
   font-style: italic;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-pill);
+}
+
+.formation-list-page__jleague-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  margin-top: var(--space-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-xs);
+  text-decoration: underline;
+}
+
+.formation-list-page__jleague-link:hover {
+  color: var(--color-text);
 }
 
 @media (max-width: 640px) {
