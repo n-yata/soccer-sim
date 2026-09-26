@@ -1,51 +1,61 @@
 <template>
-  <svg viewBox="-35 0 270 200" class="radar-chart" role="img" :aria-label="chartLabel">
-    <polygon
-      v-for="ring in gridRings"
-      :key="ring.ratio"
-      :points="ring.points"
-      class="radar-chart__grid"
-    />
-    <line
-      v-for="axis in axisLines"
-      :key="axis.id"
-      :x1="center"
-      :y1="center"
-      :x2="axis.x"
-      :y2="axis.y"
-      class="radar-chart__axis-line"
-    />
-    <text
-      v-for="axis in axisLines"
-      :key="`label-${axis.id}`"
-      :x="axis.labelX"
-      :y="axis.labelY"
-      text-anchor="middle"
-      dominant-baseline="middle"
-      class="radar-chart__axis-label"
-    >
-      {{ axis.label }}
-    </text>
-    <g
-      v-for="(s, seriesIndex) in seriesPolygons"
-      :key="`${seriesIndex}-${s.label}`"
-      :style="{ '--series-color': `var(${s.colorVar})` }"
-    >
-      <polygon :points="s.points" class="radar-chart__series" />
-      <circle
-        v-for="vertex in s.vertices"
-        :key="vertex.axisId"
-        :cx="vertex.x"
-        :cy="vertex.y"
-        r="3"
-        class="radar-chart__vertex"
+  <div class="radar-chart-wrapper">
+    <svg viewBox="-35 0 270 200" class="radar-chart" role="img" :aria-label="chartLabel">
+      <polygon
+        v-for="ring in gridRings"
+        :key="ring.ratio"
+        :points="ring.points"
+        class="radar-chart__grid"
       />
-    </g>
-  </svg>
+      <line
+        v-for="axis in axisLines"
+        :key="axis.id"
+        :x1="center"
+        :y1="center"
+        :x2="axis.x"
+        :y2="axis.y"
+        class="radar-chart__axis-line"
+      />
+      <text
+        v-for="axis in axisLines"
+        :key="`label-${axis.id}`"
+        :x="axis.labelX"
+        :y="axis.labelY"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        class="radar-chart__axis-label"
+      >
+        {{ axis.label }}
+      </text>
+      <g
+        v-for="(s, seriesIndex) in seriesPolygons"
+        :key="`${seriesIndex}-${s.label}`"
+        :style="{ '--series-color': `var(${s.colorVar})` }"
+      >
+        <polygon :points="s.points" class="radar-chart__series" />
+        <circle
+          v-for="vertex in s.vertices"
+          :key="vertex.axisId"
+          :cx="vertex.x"
+          :cy="vertex.y"
+          r="3"
+          class="radar-chart__vertex"
+        />
+      </g>
+    </svg>
+    <!--
+      role="img"のsvg配下のaria-labelは、値が変わっても再通知されるとは限らない
+      （AT依存で信頼できない）。そのため、変化の通知は別要素のrole="status"
+      （aria-live="polite"）で行う。liveLabelはdebounceしたテキストを表示し、
+      ドラッグ中の高頻度な値変化（pointermoveのたびのchartLabel再計算）を
+      そのまま読み上げキューに積まないようにする
+    -->
+    <div role="status" aria-live="polite" class="radar-chart__sr-only">{{ liveLabel }}</div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { RadarAxisMeta } from "@/data/radarAxes";
 import type { FormationStats } from "@/types/formation";
 
@@ -114,6 +124,26 @@ const chartLabel = computed(
       .join(" / "),
 );
 
+// aria-liveでの通知用テキスト。chartLabelをそのまま流すと、自由配置モードの
+// ドラッグ中（pointermoveのたびに再計算される）や選手個体差の連続変更のたびに
+// 長文の読み上げがキューへ積まれてしまう。実際の値変化から一定時間経っても
+// 変化が続かなくなってから最新値を反映することで、ドラッグ確定後の1回程度に絞る
+const LIVE_LABEL_DEBOUNCE_MS = 500;
+const liveLabel = ref(chartLabel.value);
+let liveLabelTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(chartLabel, (next) => {
+  if (liveLabelTimer !== null) clearTimeout(liveLabelTimer);
+  liveLabelTimer = setTimeout(() => {
+    liveLabel.value = next;
+    liveLabelTimer = null;
+  }, LIVE_LABEL_DEBOUNCE_MS);
+});
+
+onBeforeUnmount(() => {
+  if (liveLabelTimer !== null) clearTimeout(liveLabelTimer);
+});
+
 const seriesPolygons = computed(() =>
   props.series.map((s) => {
     const vertices = props.axes.map((axis, index) => {
@@ -136,9 +166,25 @@ const seriesPolygons = computed(() =>
 </script>
 
 <style scoped>
+.radar-chart-wrapper {
+  width: 100%;
+}
+
 .radar-chart {
   width: 100%;
   height: auto;
+}
+
+.radar-chart__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .radar-chart__grid {
