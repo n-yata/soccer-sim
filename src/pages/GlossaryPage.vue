@@ -1,11 +1,11 @@
 <template>
   <div class="glossary-page">
     <PageHeader
+      show-back-button
       title="📖 サッカー用語集"
       subtitle="解説文に出てくる用語を、専門知識なしでも分かる言葉で説明します"
     />
     <div class="glossary-page__body">
-      <router-link to="/" class="glossary-page__back-link"> ← 一覧画面へ戻る </router-link>
       <section v-for="group in groupedTerms" :key="group.category" class="glossary-page__category">
         <h2 class="glossary-page__category-title">{{ group.category }}</h2>
         <dl class="glossary-page__list">
@@ -46,14 +46,6 @@ const groupedTerms = computed(() =>
 .glossary-page__body {
   padding: var(--space-xl) var(--space-2xl);
   max-width: 720px;
-}
-
-.glossary-page__back-link {
-  display: inline-block;
-  margin-bottom: var(--space-lg);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  color: var(--color-text);
 }
 
 .glossary-page__category {

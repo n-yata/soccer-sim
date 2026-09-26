@@ -610,69 +610,54 @@ function restart(): void; // questions/currentIndex/answersをすべて作り直
 
 **責務**:
 - ルートコンポーネント。全画面共通の`AppHeader`を配置し、`<router-view />`で各画面を描画する
-- カップ戦導線の出し分け（`formations.length === CUP_REQUIRED_FORMATION_COUNT`）を判定し、
-  `AppHeader`へ`showCupLink` propとして渡す。`components/`は`data/`配下の静的データ定義に
-  直接依存できないため（後述`AppHeader`の依存関係）、判定は呼び出し元である`App.vue`が担う
-
-**インターフェース**:
-```typescript
-// App.vue が data/formations.ts から算出して AppHeader へ渡す
-const showCupLink: ComputedRef<boolean>;
-```
 
 **依存関係**:
-- 依存可能: `data/formations.ts`（`CUP_REQUIRED_FORMATION_COUNT`・件数判定）,
-  `components/AppHeader.vue`
+- 依存可能: `components/AppHeader.vue`
 - 依存禁止: なし（ルートコンポーネントは`pages/`の親であり、レイヤー制約の対象外）
 
 ## UIレイヤー: AppHeader（`components/AppHeader.vue`）
 
 **責務**:
-- 全画面共通のグローバルナビゲーション。一覧・相性表・リーグ戦・カップ戦・理解度チェック・
-  用語集への遷移導線を常時提供する
+- 全画面共通のグローバルナビゲーション。一覧・相性表・理解度チェック・用語集への遷移導線を
+  常時提供する
 - 現在のルート名（`useRoute().name`）と一致するナビ項目に`aria-current="page"`を付与する
 - モバイル幅（640px以下）ではハンバーガーボタンでナビをたたむ。ナビ項目のクリックで開閉状態を
   閉じる（`closeMenu`）
-- カップ戦導線は`showCupLink` propsが`true`のときのみ表示する（判定はApp.vueが担う。下記
-  「依存関係」参照）
-
-**インターフェース**:
-```typescript
-interface AppHeaderProps {
-  showCupLink: boolean;
-}
-```
 
 **依存関係**:
 - 依存可能: `vue-router`（`useRoute`。現在地判定のため画面遷移は行わない）
-- 依存禁止: `pages/`, `data/`配下の静的データ定義（`formations.ts`等）。カップ戦導線の
-  出し分けに必要な`formations.length`はコンポーネントが自ら参照せず、呼び出し元（`App.vue`）が
-  propsとして渡す（`repository-structure.md`「components/の依存関係」原則に従う）
+- 依存禁止: `pages/`, `data/`配下の静的データ定義
 
 ## UIレイヤー: PageHeader（`components/PageHeader.vue`）
 
 **責務**:
-- グラデーション背景のページヘッダー（タイトル・サブタイトル）を表示する共通コンポーネント
-  （`FormationListPage`/`GlossaryPage`で個別実装されていたグラデーションヘッダーを統合した）
+- グラデーション背景のページヘッダー（タイトル・サブタイトル・戻るボタン）を表示する共通
+  コンポーネント（`FormationListPage`/`GlossaryPage`で個別実装されていたグラデーション
+  ヘッダーを統合したのが最初の導入。2026-09-27に、`ComparisonPage`/`MatrixPage`/`QuizPage`が
+  個別に実装していた「素のdiv+`BackButton`+`h1`」ヘッダーもここへ統合し、全画面で見た目を
+  統一した）
 - デフォルトスロットで、タイトル行右側のアクション領域（ボタン・リンク群）を差し込めるようにする
+- `showBackButton`が真のとき、タイトルの左に`BackButton`を描画する
 
 **インターフェース**:
 ```typescript
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
+  showBackButton?: boolean; // 既定値: false
+  backFallbackTo?: string; // 既定値: "/"
 }
 ```
 
 **依存関係**:
-- 依存可能: なし
+- 依存可能: `components/BackButton.vue`（`components/`層内での同一層コンポーネント合成。
+  `FormationCard.vue`→`FormationMiniPitch.vue`と同じパターン）
 - 依存禁止: `pages/`, `data/`（コンポーネントはpropsとスロット経由でのみ内容を受け取る）
 
 ## UIレイヤー: BackButton（`components/BackButton.vue`）
 
 **責務**:
-- 「← 戻る」ボタンの表示と、押下時の戻り先解決を1箇所に集約する（`MatrixPage`/`QuizPage`/
-  `LeaguePage`/`CupPage`/`ComparisonPage`で同一ロジックが重複していたものを統合した）
+- 「← 戻る」ボタンの表示と、押下時の戻り先解決を1箇所に集約する
 - `window.history.state?.back`の有無を判定し、アプリ内遷移の履歴があれば`router.back()`、
   無ければ`fallbackTo`（既定`"/"`）へ`router.push()`する
 
@@ -686,71 +671,8 @@ interface BackButtonProps {
 **依存関係**:
 - 依存可能: `vue-router`（`useRouter`）
 - 依存禁止: `pages/`, `data/`
-
-## UIレイヤー: LeaguePage（`pages/LeaguePage.vue`）
-
-**責務**:
-- 全フォーメーションの総当たり1回戦（`n(n-1)/2`試合）を`composables/leagueSimulation.ts`の
-  `runLeagueSimulation`で決定的に実行し、勝ち点表（順位・試合数・勝分敗・得失点・勝ち点）と
-  全対戦結果一覧を表示する（FR-16）
-- `formations`/`getMatchup`は静的データで実行中に変化しないため、結果は`computed`で1回だけ
-  計算する
-- `runLeagueSimulation`がマッチアップ欠落（データ不整合）時に投げる`Error`を`catch`して
-  `null`へ倒し、エラー表示に切り替える（`ComparisonPage`/`MatrixPage`と同じ「劣化表示」方針）
-- 全対戦結果の各行から対応する比較画面への導線を提供する
-
-**インターフェース**:
-```typescript
-// runLeagueSimulation(formations, getMatchup)の結果をそのまま保持するcomputed。
-// 集計失敗時はnull（エラー表示に切り替える）
-type LeaguePageState = LeagueSimulationResult | null;
-
-function formatSigned(value: number): string; // 得失点差を符号付き文字列にする
-```
-
-戻るボタンは共有コンポーネント`BackButton`（`fallback-to="/"`）を使う。独自の`goBack()`は持たない
-（`BackButton`の責務は上記「BackButton」節を参照）。
-
-**依存関係**:
-- 依存可能: `data/formations.ts`, `data/matchups.ts`, `composables/leagueSimulation.ts`,
-  `components/BackButton.vue`, `vue-router`
-- 依存禁止: なし
-
-## UIレイヤー: CupPage（`pages/CupPage.vue`）
-
-**責務**:
-- 8フォーメーション固定のノックアウト方式トーナメント（準々決勝4試合→準決勝2試合→決勝1試合）を
-  `composables/cupSimulation.ts`の`runCupSimulation`で決定的に実行し、3ラウンドのブラケットと
-  優勝フォーメーションを表示する（FR-17）
-- `runCupSimulation`が`formations.length !== 8`・マッチアップ欠落時に投げる`Error`を`catch`して
-  `null`へ倒し、エラー表示に切り替える（原因調査のため`console.error`にログを残す）
-- 各対戦カードの勝者側に、色（`--color-primary`）に加えて太字・🏆アイコン（`aria-hidden`）・
-  視覚的に隠した「（勝者）」テキストを付与し、色だけに依存しない表示にする（WCAG 1.4.1）
-- 各対戦カードから対応する比較画面への導線を提供する
-
-**インターフェース**:
-```typescript
-// runCupSimulation(formations, getMatchup)の結果をそのまま保持するcomputed。
-// 集計失敗時はnull（エラー表示に切り替える）
-type CupPageState = CupSimulationResult | null;
-
-// cup.quarterfinals/semifinals/finalを「準々決勝」「準決勝」「決勝」の
-// 見出し付きセクションとして描画するための算出プロパティ
-interface CupRound {
-  title: string;
-  matches: CupMatch[];
-}
-```
-
-戻るボタンは共有コンポーネント`BackButton`（`fallback-to="/"`）を使う。独自の`goBack()`は持たない。
-
-**依存関係**:
-- 依存可能: `data/formations.ts`, `data/matchups.ts`, `composables/cupSimulation.ts`,
-  `components/BackButton.vue`, `vue-router`
-- 依存禁止: なし
-
-> **フォーメーション一覧画面からの導線**: `FormationListPage`は`formations.length === 8`の
-> ときのみ「🥇 カップ戦」ボタンを表示する（`CUP_REQUIRED_FORMATION_COUNT`定数で判定）。
+- **利用側**: `PageHeader.vue`が内部で使用する（2026-09-27以前は`MatrixPage`/`QuizPage`/
+  `ComparisonPage`が個別に配置していたが、`PageHeader`経由に統一した）
 
 ## データレイヤー: termAnnotation / quiz（`data/termAnnotation.ts`, `data/quiz.ts`）
 
@@ -825,9 +747,6 @@ export function clearProgress(): LearningProgress;
 // data/formations.ts
 export const formations: Formation[]; // 各要素は stats: FormationStats を含む
 export function getFormationById(id: string): Formation | undefined;
-// カップ戦（8フォーメーション固定のノックアウト方式）の導線出し分けに使う閾値。
-// App.vue（AppHeaderへのprops）とFormationListPage.vueの双方が参照し、値の二重定義を避ける
-export const CUP_REQUIRED_FORMATION_COUNT: number;
 
 // data/matchups.ts
 export const matchups: Matchup[];
@@ -871,7 +790,7 @@ export const soccerTerms: SoccerTerm[]; // matchups.ts等の実文言から抽�
 - `composables/`は`data/`に依存しない設計方針のため、`data/matchupGenerator.ts`の
   ハッシュ関数と同方式のものを`fnv1aHash`として自前で重複実装する
 - `fnv1aHash`/`mulberry32`/`clamp`は同一レイヤー内の共通ユーティリティとして
-  `cupSimulation.ts`（PK戦）・`squadCondition.ts`（選手個体差）へexportする
+  `squadCondition.ts`（選手個体差）へexportする
 
 **インターフェース**:
 ```typescript
@@ -903,52 +822,6 @@ export function clamp(value: number, min: number, max: number): number;
 ```
 
 **依存関係**: `types/formation.ts` のみ（外部依存なし）。`data/`には依存しない。
-
-## ロジック層: leagueSimulation（`composables/leagueSimulation.ts`）
-
-**責務**:
-- 全フォーメーションの総当たり1回戦（`n(n-1)/2`試合）を`simulateMatch`で決定的に実行し、
-  勝ち点表（試合数・勝分敗・得失点・勝ち点・順位）と全対戦結果を集計する（FR-16）
-- 順位は勝ち点→得失点差→総得点の順で決定し、すべて同値の場合は同着順位方式
-  （1, 2, 2, 4, ...）で採番する
-- マッチアップ導出（`getMatchup`）・試合シミュレーション（`simulateMatch`）は呼び出し側から
-  関数として注入するDI方式（`composables/`は`data/`に依存しない設計方針のため）。
-  テストでは固定スコアを返すスタブに差し替えられる
-
-**インターフェース**:
-```typescript
-export function runLeagueSimulation(
-  formations: Formation[],
-  getMatchupFn: (formationAId: string, formationBId: string) => Matchup | undefined,
-  simulateMatchFn?: (a: Formation, b: Formation, matchup: Matchup) => MatchSimulationResult, // 既定値: simulateMatch
-): LeagueSimulationResult; // { standings: LeagueStanding[]; matches: LeagueMatchResult[] }
-```
-
-**依存関係**: `types/formation.ts`, `composables/matchSimulation.ts`（既定の`simulateMatchFn`として）。`data/`には依存しない。
-
-## ロジック層: cupSimulation（`composables/cupSimulation.ts`）
-
-**責務**:
-- 8フォーメーション固定のノックアウト方式トーナメント（準々決勝4試合→準決勝2試合→決勝1試合）を
-  `simulateMatch`で決定的に実行する（FR-17）
-- 対戦カードは`formations`配列の並び順を固定シードとする（`[0]vs[1], [2]vs[3], ...`が
-  準々決勝）。`formations.length !== 8`の場合は`Error`を投げる
-- 90分で同点の場合、`matchup.id`から導出した別シード（本体の乱数列とは独立）でPK戦を
-  決定的にシミュレーションし、必ず勝者を1人決める。PK戦の勝者判定も、試合本体と同じく
-  `matchup.id`が示す正準順で解決してから呼び出し順へマッピングし、対戦カードの呼び出し順に
-  依存しないようにする
-- マッチアップ導出・試合シミュレーションはDI方式（`leagueSimulation.ts`と同じ方針）
-
-**インターフェース**:
-```typescript
-export function runCupSimulation(
-  formations: Formation[], // 必ず8件
-  getMatchupFn: (formationAId: string, formationBId: string) => Matchup | undefined,
-  simulateMatchFn?: (a: Formation, b: Formation, matchup: Matchup) => MatchSimulationResult, // 既定値: simulateMatch
-): CupSimulationResult; // { quarterfinals, semifinals, final: CupMatch[]|CupMatch; championId; championName }
-```
-
-**依存関係**: `types/formation.ts`, `composables/matchSimulation.ts`（`fnv1aHash`/`mulberry32`/既定の`simulateMatchFn`として）。`data/`には依存しない。
 
 ## ロジック層: squadCondition（`composables/squadCondition.ts`）
 

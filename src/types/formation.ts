@@ -163,69 +163,6 @@ export interface MatchSimulationResult {
   summary: string;
 }
 
-// リーグ戦: 総当たり1回戦（n(n-1)/2試合）を composables/leagueSimulation.ts の
-// runLeagueSimulation が集計した、1フォーメーション分の成績
-export interface LeagueStanding {
-  formationId: string;
-  formationName: string;
-  // 勝ち点→得失点差→総得点の順で決定する順位。すべて同値の場合は同順位（同着順位方式。
-  // 例: 1位が2チーム並んだ場合、次点は2位ではなく3位になる）
-  rank: number;
-  played: number;
-  win: number;
-  draw: number;
-  lose: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  // goalsFor - goalsAgainst と常に一致する
-  goalDifference: number;
-  // win * 3 + draw * 1 と常に一致する
-  points: number;
-}
-
-// リーグ戦の1試合分の結果。a/bは simulateMatch 呼び出し時の a/b にそのまま対応する
-export interface LeagueMatchResult {
-  formationAId: string;
-  formationAName: string;
-  formationBId: string;
-  formationBName: string;
-  scoreA: number;
-  scoreB: number;
-}
-
-export interface LeagueSimulationResult {
-  // rank昇順に並んでいる
-  standings: LeagueStanding[];
-  matches: LeagueMatchResult[];
-}
-
-// カップ戦: composables/cupSimulation.ts の runCupSimulation が返す1試合分の結果。
-// a/bは呼び出し時に渡したFormationにそのまま対応する（LeagueMatchResultと同じ規約）
-export interface CupMatch {
-  round: 1 | 2 | 3; // 1=準々決勝 2=準決勝 3=決勝
-  formationAId: string;
-  formationAName: string;
-  formationBId: string;
-  formationBName: string;
-  scoreA: number;
-  scoreB: number;
-  // 90分で同点だった場合のみtrue。falseの場合penaltyScoreA/Bはundefined
-  wentToPenalties: boolean;
-  penaltyScoreA?: number;
-  penaltyScoreB?: number;
-  winnerId: string;
-  winnerName: string;
-}
-
-// 8フォーメーション固定のノックアウト方式トーナメント結果
-export interface CupSimulationResult {
-  quarterfinals: CupMatch[]; // 4件。入力formationsの並び順([0]vs[1], [2]vs[3], ...)
-  semifinals: CupMatch[]; // 2件
-  final: CupMatch;
-  championId: string;
-  championName: string;
-}
-
 // FR-15: 自由配置モードでドラッグした配置の永続化（data/freeLayoutStorage.ts）。
 // フォーメーションID単位で保存し、組み合わせ（相手フォーメーション）には依存しない
 export type FreeLayoutOverrides = Record<string, Record<string, { x: number; y: number }>>;

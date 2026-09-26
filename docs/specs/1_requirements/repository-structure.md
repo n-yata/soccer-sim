@@ -24,14 +24,13 @@ soccer-sim/
 │   ├── main.ts                  # エントリーポイント
 │   ├── App.vue                  # ルートコンポーネント
 │   ├── router/
-│   │   └── index.ts             # Vue Router 定義（一覧・比較・相性マトリクス・用語集・クイズ・リーグ戦画面のルート）
+│   │   └── index.ts             # Vue Router 定義（一覧・比較・相性マトリクス・用語集・クイズ画面のルート）
 │   ├── pages/
 │   │   ├── FormationListPage.vue  # フォーメーション一覧画面
 │   │   ├── ComparisonPage.vue     # 比較画面
 │   │   ├── MatrixPage.vue         # 相性マトリクス画面
 │   │   ├── GlossaryPage.vue       # サッカー用語集画面
-│   │   ├── QuizPage.vue           # 理解度チェック（クイズ）画面
-│   │   └── LeaguePage.vue         # リーグ戦（総当たり1回戦の勝ち点表・全対戦結果）画面
+│   │   └── QuizPage.vue           # 理解度チェック（クイズ）画面
 │   ├── components/
 │   │   ├── FormationCard.vue        # フォーメーションカード（一覧画面の選択UI）コンポーネント
 │   │   ├── FormationMiniPitch.vue   # フォーメーション単体のミニピッチ図（SVG描画）コンポーネント
@@ -49,8 +48,7 @@ soccer-sim/
 │   │   ├── PageHeader.vue           # グラデーション背景のページヘッダー
 │   │   └── BackButton.vue           # 「← 戻る」ボタン（遷移先解決を集約）
 │   ├── composables/
-│   │   ├── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`。ハーフタイム采配用に`startMatch`/`resumeMatch`も提供）
-│   │   └── leagueSimulation.ts  # 総当たり1回戦の集計・順位算出ロジック（純粋関数。`runLeagueSimulation`）
+│   │   └── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`。ハーフタイム采配用に`startMatch`/`resumeMatch`も提供）
 │   ├── data/
 │   │   ├── formations.ts        # フォーメーション定義（静的データ）
 │   │   ├── matchups.ts          # マッチアップ解説文（静的データ）
@@ -86,8 +84,6 @@ soccer-sim/
   （FR-07, FR-13）
 - `GlossaryPage.vue`: サッカー用語一覧表示（FR-10）
 - `QuizPage.vue`: クイズの出題進行・結果表示・再挑戦（FR-12）
-- `LeaguePage.vue`: 全フォーメーション総当たり1回戦の勝ち点表・全対戦結果一覧の表示、
-  比較画面への遷移（FR-16）
 
 **依存関係**:
 - 依存可能: `components/`, `composables/`, `data/`, `types/`
@@ -146,17 +142,21 @@ soccer-sim/
   クリックのいずれかで`cancel`をemitするだけで、後半のシミュレーション実行自体は
   呼び出し元の`ComparisonPage`が行う
 - `AppHeader.vue`: 全画面共通のグローバルナビゲーション。`App.vue`から配置され、現在地
-  ハイライト・モバイル幅でのハンバーガー折りたたみを行う。カップ戦導線の出し分けは
-  `showCupLink` propsで受け取り（判定は`App.vue`が`data/formations.ts`を見て行う）、
-  自身は`data/`配下の静的データを直接参照しない
-- `PageHeader.vue`: グラデーション背景のページヘッダー（タイトル・サブタイトル）を表示する
-  表示専用コンポーネント。`FormationListPage.vue`/`GlossaryPage.vue`が使用する
+  ハイライト・モバイル幅でのハンバーガー折りたたみを行う
+- `PageHeader.vue`: グラデーション背景のページヘッダー（タイトル・サブタイトル・戻るボタン）を
+  表示する。`showBackButton` propsが真のとき`BackButton.vue`を内部で描画する
+  （2026-09-27追加。それまでは各画面が個別に`BackButton`を配置しヘッダーの見た目が
+  画面ごとに不揃いだったため、`PageHeader.vue`経由に統一した）。
+  `FormationListPage.vue`/`GlossaryPage.vue`/`ComparisonPage.vue`/`MatrixPage.vue`/
+  `QuizPage.vue`のすべてが使用する
 - `BackButton.vue`: 「← 戻る」ボタンの表示と遷移先解決（履歴があれば`router.back()`、
-  無ければ`fallbackTo` propsへ`router.push()`）を行う。`MatrixPage.vue`/`QuizPage.vue`/
-  `LeaguePage.vue`/`CupPage.vue`/`ComparisonPage.vue`が使用する
+  無ければ`fallbackTo` propsへ`router.push()`）を行う。`PageHeader.vue`から使用される
+  （`components/`層内での同一層コンポーネント合成であり、`FormationCard.vue`→
+  `FormationMiniPitch.vue`と同じパターン）
 
 **依存関係**:
-- 依存可能: `types/`
+- 依存可能: `types/`、同階層の`components/`（コンポーネント合成。例: `PageHeader.vue`→
+  `BackButton.vue`、`FormationCard.vue`→`FormationMiniPitch.vue`）
 - 依存禁止: `pages/`、`composables/`、`data/`配下の**静的データ定義**（`formations.ts` /
   `matchups.ts` / `soccerTerms.ts`）と**副作用を持つモジュール**（`learningProgress.ts`）
 - **例外的に依存可能**: `data/`配下の**副作用を持たない純粋関数**（`termAnnotation.ts`）。
@@ -178,14 +178,9 @@ soccer-sim/
   （不透明な進行状態）を返す`startMatch`と、`MatchProgress`の続きから90分目まで計算する
   `resumeMatch`も提供する。`simulateMatch`は内部で`startMatch(..., 90).result`を返すだけの
   薄いラッパーになっており、外部から見た挙動（決定性・鏡写しルール）は変わらない
-- `leagueSimulation.ts`: フォーメーション一覧（Formation[]）とマッチアップ取得関数を
-  受け取り、総当たり1回戦（n(n-1)/2試合）を`matchSimulation.ts`の`simulateMatch`で実行して
-  勝ち点表（`LeagueStanding[]`）・全対戦結果（`LeagueMatchResult[]`）を返す純粋関数
-  （`runLeagueSimulation`）。マッチアップ取得は`data/`層への依存を避けるため関数として
-  引数注入する（`simulateMatch`は同じ`composables/`層のため既定引数として直接利用）
 
 **依存関係**:
-- 依存可能: `types/`、同階層の`composables/`（`leagueSimulation.ts`が`matchSimulation.ts`を利用）
+- 依存可能: `types/`
 - 依存禁止: `pages/`、`components/`、`data/`（`formations.ts`/`matchups.ts`等の
   静的データモジュールをimportしない。必要なFormation/Matchupの実体は、呼び出し元の
   UIレイヤーが引数として渡す）

@@ -10,10 +10,10 @@ const MINUTES = 90;
  * 将来ズレても実害が無い（どちらも「文字列から決定的な32bit整数を得る」以上の
  * 意味を持たない）ため、依存を増やすより重複を許容する。
  */
-// composables/内の他モジュール（cupSimulation.ts=PK戦、squadCondition.ts=選手個体差）が
-// 同じ「シードから決定的な乱数列を作る」処理を必要とするためexportする。data/への依存を
-// 避けるための重複（このファイル冒頭コメント参照）とは別の話で、同一レイヤー内の共通
-// ユーティリティなので重複させない
+// composables/内の他モジュール（squadCondition.ts=選手個体差）が同じ「シードから決定的な
+// 乱数列を作る」処理を必要とするためexportする。data/への依存を避けるための重複
+// （このファイル冒頭コメント参照）とは別の話で、同一レイヤー内の共通ユーティリティなので
+// 重複させない
 export function fnv1aHash(input: string): number {
   let value = 0x811c9dc5;
   for (let i = 0; i < input.length; i += 1) {

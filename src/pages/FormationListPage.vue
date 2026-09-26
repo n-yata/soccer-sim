@@ -7,14 +7,6 @@
       <button type="button" class="formation-list-page__matrix-button" @click="goToMatrix">
         相性表を見る
       </button>
-      <router-link to="/league" class="formation-list-page__league-link"> 🏆 リーグ戦 </router-link>
-      <router-link
-        v-if="formations.length === CUP_REQUIRED_FORMATION_COUNT"
-        to="/cup"
-        class="formation-list-page__cup-link"
-      >
-        🥇 カップ戦
-      </router-link>
       <router-link to="/quiz" class="formation-list-page__quiz-link">
         ✏️ 理解度チェック
       </router-link>
@@ -50,7 +42,7 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import FormationCard from "@/components/FormationCard.vue";
 import PageHeader from "@/components/PageHeader.vue";
-import { CUP_REQUIRED_FORMATION_COUNT, formations } from "@/data/formations";
+import { formations } from "@/data/formations";
 
 const router = useRouter();
 const selectedIds = ref<string[]>([]);
@@ -106,8 +98,6 @@ watch(
   background: var(--color-surface-hover);
 }
 
-.formation-list-page__league-link,
-.formation-list-page__cup-link,
 .formation-list-page__glossary-link,
 .formation-list-page__quiz-link {
   display: inline-flex;
@@ -124,8 +114,6 @@ watch(
   transition: background-color 0.15s ease;
 }
 
-.formation-list-page__league-link:hover,
-.formation-list-page__cup-link:hover,
 .formation-list-page__glossary-link:hover,
 .formation-list-page__quiz-link:hover {
   background: rgba(255, 255, 255, 0.15);
@@ -182,8 +170,6 @@ watch(
 
 @media (prefers-reduced-motion: reduce) {
   .formation-list-page__matrix-button,
-  .formation-list-page__league-link,
-  .formation-list-page__cup-link,
   .formation-list-page__glossary-link,
   .formation-list-page__quiz-link {
     transition: none;

@@ -36,23 +36,6 @@
           相性表
         </router-link>
         <router-link
-          to="/league"
-          class="app-header__link"
-          :aria-current="isActive('league')"
-          @click="closeMenu"
-        >
-          🏆 リーグ戦
-        </router-link>
-        <router-link
-          v-if="showCupLink"
-          to="/cup"
-          class="app-header__link"
-          :aria-current="isActive('cup')"
-          @click="closeMenu"
-        >
-          🥇 カップ戦
-        </router-link>
-        <router-link
           to="/quiz"
           class="app-header__link"
           :aria-current="isActive('quiz')"
@@ -76,11 +59,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRoute } from "vue-router";
-
-// カップ戦導線の出し分け（formations.length === CUP_REQUIRED_FORMATION_COUNT）はデータへの
-// 判断であり、components/はdata/配下の静的データ定義に直接依存できない
-// （repository-structure.md「components/の依存関係」）。呼び出し元（App.vue）が判定して渡す
-defineProps<{ showCupLink: boolean }>();
 
 const route = useRoute();
 const isMenuOpen = ref(false);
