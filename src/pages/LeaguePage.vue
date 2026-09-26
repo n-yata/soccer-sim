@@ -182,6 +182,8 @@ function formatSigned(value: number): string {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
+  min-height: 44px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -191,6 +193,7 @@ function formatSigned(value: number): string {
   font-weight: 700;
   color: var(--color-text);
   text-decoration: none;
+  transition: background-color 0.15s ease;
 }
 
 .league-page__match-link:hover {
@@ -214,6 +217,22 @@ function formatSigned(value: number): string {
   .league-page__match-link {
     flex-wrap: wrap;
     gap: var(--space-xs) var(--space-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .league-page__header {
+    flex-wrap: wrap;
+  }
+
+  .league-page__title {
+    font-size: var(--font-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .league-page__match-link {
+    transition: none;
   }
 }
 </style>

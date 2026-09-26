@@ -86,4 +86,24 @@ defineProps<{
   top: calc(100% - 1px);
   border-top-color: #ffffff;
 }
+
+.term-popover-fade-enter-active,
+.term-popover-fade-leave-active {
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.term-popover-fade-enter-from,
+.term-popover-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-popover-fade-enter-active,
+  .term-popover-fade-leave-active {
+    transition: none;
+  }
+}
 </style>

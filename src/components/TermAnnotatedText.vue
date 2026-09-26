@@ -12,7 +12,9 @@
         >
           {{ segment.text }}
         </button>
-        <TermPopover v-if="openIndex === index" :id="popoverId(index)" :term="segment.term" />
+        <Transition name="term-popover-fade">
+          <TermPopover v-if="openIndex === index" :id="popoverId(index)" :term="segment.term" />
+        </Transition>
       </span>
     </template>
   </span>
@@ -118,6 +120,7 @@ onBeforeUnmount(() => {
   color: var(--color-primary);
   font-weight: 700;
   cursor: help;
+  transition: background-color 0.15s ease;
 }
 
 .term-annotated-text__term:hover {
@@ -127,5 +130,11 @@ onBeforeUnmount(() => {
 .term-annotated-text__term:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-annotated-text__term {
+    transition: none;
+  }
 }
 </style>

@@ -142,6 +142,8 @@ function markerText(choice: QuizChoice): string {
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
   border: 2px solid var(--color-border);
   border-radius: 10px;
   background: #ffffff;
@@ -151,6 +153,10 @@ function markerText(choice: QuizChoice): string {
   text-align: left;
   color: var(--color-text);
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .quiz-question-card__choice:hover:not(:disabled) {
@@ -188,6 +194,28 @@ function markerText(choice: QuizChoice): string {
   margin-top: 16px;
   border-top: 1px solid var(--color-border);
   padding-top: 14px;
+  animation: quiz-question-card-fade-in 0.3s ease-out both;
+}
+
+@keyframes quiz-question-card-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-question-card__choice {
+    transition: none;
+  }
+
+  .quiz-question-card__result {
+    animation: none;
+  }
 }
 
 .quiz-question-card__verdict {

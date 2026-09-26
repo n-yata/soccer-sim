@@ -98,4 +98,14 @@ defineEmits<{
 .formation-card.selected .formation-card__description {
   color: #b44712;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .formation-card {
+    transition: none;
+  }
+
+  .formation-card:hover {
+    transform: none;
+  }
+}
 </style>

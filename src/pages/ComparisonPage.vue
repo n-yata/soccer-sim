@@ -108,14 +108,16 @@
               ▶ 後半を開始する
             </button>
           </div>
-          <HalftimeTacticsModal
-            v-if="isHalftimeModalOpen && effectiveFormationA && effectiveFormationB"
-            :formation-a="effectiveFormationA"
-            :formation-b="effectiveFormationB"
-            :halftime-result="halftimeResult"
-            @confirm="onHalftimeConfirm"
-            @cancel="closeHalftimeTactics"
-          />
+          <Transition name="halftime-modal-fade">
+            <HalftimeTacticsModal
+              v-if="isHalftimeModalOpen && effectiveFormationA && effectiveFormationB"
+              :formation-a="effectiveFormationA"
+              :formation-b="effectiveFormationB"
+              :halftime-result="halftimeResult"
+              @confirm="onHalftimeConfirm"
+              @cancel="closeHalftimeTactics"
+            />
+          </Transition>
         </template>
         <MatchSimulationPanel
           v-if="simulationResult"
@@ -648,6 +650,8 @@ function onSelectB(id: string): void {
 }
 
 .comparison-page__simulate-button {
+  min-height: 44px;
+  box-sizing: border-box;
   border: none;
   border-radius: var(--radius-pill);
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
@@ -657,6 +661,11 @@ function onSelectB(id: string): void {
   font-weight: 700;
   color: #ffffff;
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.comparison-page__simulate-button:hover {
+  transform: translateY(-1px);
 }
 
 .comparison-page__simulate-button:focus-visible {
@@ -673,6 +682,8 @@ function onSelectB(id: string): void {
 
 .comparison-page__halftime-tactics-button,
 .comparison-page__halftime-continue-button {
+  min-height: 44px;
+  box-sizing: border-box;
   border: none;
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-card);
@@ -680,6 +691,9 @@ function onSelectB(id: string): void {
   font-size: var(--font-sm);
   font-weight: 700;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .comparison-page__halftime-tactics-button {
@@ -688,9 +702,17 @@ function onSelectB(id: string): void {
   color: var(--color-text-muted);
 }
 
+.comparison-page__halftime-tactics-button:hover {
+  background: var(--color-surface-hover);
+}
+
 .comparison-page__halftime-continue-button {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
   color: #ffffff;
+}
+
+.comparison-page__halftime-continue-button:hover {
+  transform: translateY(-1px);
 }
 
 .comparison-page__halftime-tactics-button:focus-visible,
@@ -714,6 +736,19 @@ function onSelectB(id: string): void {
 
   .comparison-page__halftime-actions {
     flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comparison-page__simulate-button,
+  .comparison-page__halftime-tactics-button,
+  .comparison-page__halftime-continue-button {
+    transition: none;
+  }
+
+  .comparison-page__simulate-button:hover,
+  .comparison-page__halftime-continue-button:hover {
+    transform: none;
   }
 }
 </style>
