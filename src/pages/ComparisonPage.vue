@@ -87,13 +87,36 @@
 
       <div class="comparison-page__simulation">
         <button
-          v-if="!simulationResult"
+          v-if="!simulationResult && !halftimeResult"
           type="button"
           class="comparison-page__simulate-button"
           @click="runSimulation"
         >
           ⚽ 試合をシミュレートする
         </button>
+        <template v-if="halftimeResult && !simulationResult">
+          <MatchSimulationPanel
+            :result="halftimeResult"
+            :formation-a-name="formationA.name"
+            :formation-b-name="formationB.name"
+          />
+          <div class="comparison-page__halftime-actions">
+            <button type="button" class="comparison-page__halftime-tactics-button" @click="openHalftimeTactics">
+              🔧 配置を変更する
+            </button>
+            <button type="button" class="comparison-page__halftime-continue-button" @click="proceedWithoutChange">
+              ▶ 後半を開始する
+            </button>
+          </div>
+          <HalftimeTacticsModal
+            v-if="isHalftimeModalOpen && effectiveFormationA && effectiveFormationB"
+            :formation-a="effectiveFormationA"
+            :formation-b="effectiveFormationB"
+            :halftime-result="halftimeResult"
+            @confirm="onHalftimeConfirm"
+            @cancel="closeHalftimeTactics"
+          />
+        </template>
         <MatchSimulationPanel
           v-if="simulationResult"
           :result="simulationResult"
@@ -110,17 +133,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ComparisonControls from "@/components/ComparisonControls.vue";
 import FreeLayoutControls from "@/components/FreeLayoutControls.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
+import HalftimeTacticsModal from "@/components/HalftimeTacticsModal.vue";
 import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
 import RadarChart from "@/components/RadarChart.vue";
 import SquadConditionControls from "@/components/SquadConditionControls.vue";
 import TermAnnotatedText from "@/components/TermAnnotatedText.vue";
-import { simulateMatch } from "@/composables/matchSimulation";
+import { startMatch, resumeMatch, type MatchProgress } from "@/composables/matchSimulation";
 import { applySquadVariance } from "@/composables/squadCondition";
 import { formations, getFormationById } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
@@ -130,7 +154,7 @@ import { estimateStats } from "@/data/radarScoreEstimator";
 import { markPairViewed } from "@/data/learningProgress";
 import { applyOverrides, clearFormationOverride, savePositionOverride } from "@/data/freeLayoutStorage";
 import { radarAxes } from "@/data/radarAxes";
-import type { MatchSimulationResult, Position } from "@/types/formation";
+import type { Formation, MatchSimulationResult, Position } from "@/types/formation";
 
 const route = useRoute();
 const router = useRouter();
@@ -165,7 +189,7 @@ function toggleFreeLayoutMode(): void {
   freePositionsB.value = applyOverrides(formationB.value.positions, formationB.value.id);
   // 自由配置モードに入る前のstatsで計算された試合シミュレーション結果は、
   // これから変更されうるA/Bチームの表示（タグ・優位ポイント・レーダー）と食い違うため破棄する
-  simulationResult.value = null;
+  resetMatchState();
 }
 
 function resetFreeLayout(): void {
@@ -186,7 +210,7 @@ function onUpdatePosition(team: "A" | "B", positionId: string, x: number, y: num
     position.id === positionId ? { ...position, x, y } : position,
   );
   // 配置を動かした時点で、表示中のシミュレーション結果は古い配置に基づくため破棄する
-  simulationResult.value = null;
+  resetMatchState();
 }
 
 // ドラッグ確定時（pointerup/pointercancel）に1回だけ発火し、永続化する
@@ -241,15 +265,31 @@ const effectiveStatsB = computed(() => {
   );
 });
 
-// FR-14: 試合シミュレーション結果。ボタン押下時にのみ計算する（表示するまで90分ループを
-// 走らせる必要が無いため）。フォーメーションの組み合わせが変わったら古い結果を残さない
+// FR-14: 試合シミュレーション結果（90分ぶんの最終結果）。ボタン押下時にのみ計算する
+// （表示するまで90分ループを走らせる必要が無いため）。フォーメーションの組み合わせが
+// 変わったら古い結果を残さない
 const simulationResult = ref<MatchSimulationResult | null>(null);
 
-// 選手個体差（スカッドコンディション）: nullは無効を表す。有効時のみsimulateMatchに渡す
-// 実効statsの算出に使う。永続化せず、レーダーチャート・優位ポイントには一切影響させない
-// （design.md「実装対象の機能」参照）。シードの「引き方」はUIの関心事、「シードから
-// 実効statsを作る」のはcomposables/squadCondition.tsの関心事、という責務分離を保つ
+// ハーフタイム采配: 前半(1-45分)の部分結果と、後半を続けるための不透明な進行状態。
+// どちらも「試合終了(simulationResult確定)」または「組み合わせ変更」でリセットする
+// MatchProgressは乱数クロージャ・累積配列を持つ不透明な内部状態であり、Vueのdeepな
+// リアクティブトラッキングは不要（毎分のpush等をVueに追跡させる意味が無い）
+const matchProgress = shallowRef<MatchProgress | null>(null);
+const halftimeResult = ref<MatchSimulationResult | null>(null);
+const isHalftimeModalOpen = ref(false);
+
+// 選手個体差（スカッドコンディション）: nullは無効を表す。有効時のみ試合シミュレーションに渡す
+// 実効statsの算出に使う。永続化せず、レーダーチャート・優位ポイント・matchup（タグ導出）には
+// 一切影響させない（design.md「実装対象の機能」参照）。シードの「引き方」はUIの関心事、
+// 「シードから実効statsを作る」のはcomposables/squadCondition.tsの関心事、という責務分離を保つ
 const squadConditionSeed = ref<number | null>(null);
+
+function resetMatchState(): void {
+  simulationResult.value = null;
+  matchProgress.value = null;
+  halftimeResult.value = null;
+  isHalftimeModalOpen.value = false;
+}
 
 function generateSeed(): number {
   return Math.floor(Math.random() * 0xffffffff);
@@ -257,38 +297,88 @@ function generateSeed(): number {
 
 function toggleSquadCondition(): void {
   squadConditionSeed.value = squadConditionSeed.value === null ? generateSeed() : null;
-  // 古いスカッド条件に基づく結果を残さない
-  simulationResult.value = null;
+  // 古いスカッド条件に基づく結果（ハーフタイムの途中経過も含む）を残さない
+  resetMatchState();
 }
 
 function rerollSquadCondition(): void {
   if (squadConditionSeed.value === null) return;
   squadConditionSeed.value = generateSeed();
-  simulationResult.value = null;
+  resetMatchState();
+}
+
+// squadConditionSeedが有効なら、シード（Bはoffset分ずらして異なる乱数列にする）から
+// 決定的に算出した実効statsを持つFormationを返す。無効ならformationをそのまま返す
+// （参照も変えない。「スカッド未使用ならFR-14/FR-19と完全に同じ結果になる」を、
+// この関数が恒等になることで担保する）
+function withSquadVariance(formation: Formation, seed: number | null, offset: number): Formation {
+  if (seed === null) return formation;
+  return { ...formation, stats: applySquadVariance(formation.stats, seed + offset) };
 }
 
 function runSimulation(): void {
-  if (!formationA.value || !formationB.value || !matchup.value) return;
-  if (squadConditionSeed.value === null) {
-    simulationResult.value = simulateMatch(formationA.value, formationB.value, matchup.value);
-    return;
-  }
-  // A/Bで異なる乱数列にするため、Bのシードは+1でオフセットする
-  const squadA = {
-    ...formationA.value,
-    stats: applySquadVariance(formationA.value.stats, squadConditionSeed.value),
-  };
-  const squadB = {
-    ...formationB.value,
-    stats: applySquadVariance(formationB.value.stats, squadConditionSeed.value + 1),
-  };
-  simulationResult.value = simulateMatch(squadA, squadB, matchup.value);
+  // 自由配置モード(FR-15)でA/Bの配置を動かしている場合、その変更後の配置
+  // (effectiveFormationA/B)を使う。matchup.valueも同じeffectiveFormationA/Bから
+  // 算出されているため、前半の入力とmatchup（総合判定）の基準を揃える
+  if (!effectiveFormationA.value || !effectiveFormationB.value || !matchup.value) return;
+  const a = withSquadVariance(effectiveFormationA.value, squadConditionSeed.value, 0);
+  const b = withSquadVariance(effectiveFormationB.value, squadConditionSeed.value, 1);
+  const { progress, result } = startMatch(a, b, matchup.value, 45);
+  matchProgress.value = progress;
+  halftimeResult.value = result;
+}
+
+function openHalftimeTactics(): void {
+  isHalftimeModalOpen.value = true;
+}
+
+function closeHalftimeTactics(): void {
+  isHalftimeModalOpen.value = false;
+}
+
+function samePositions(a: readonly Position[], b: readonly Position[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((position, index) => position.x === b[index].x && position.y === b[index].y);
+}
+
+// 配置が実際に変わっていなければ既存の静的matchupをそのまま使う。
+// 「変更しなければFR-14と完全に同じ結果になる」を、generateMatchupの再計算結果が
+// getMatchupの事前計算結果と厳密に一致する保証に頼らず、入力を変えないことで担保する
+function onHalftimeConfirm(positionsA: Position[], positionsB: Position[]): void {
+  // 前半の入力はeffectiveFormationA/B（自由配置モードの変更を含む）だったため、
+  // 「変更が無い」の基準もformationA/B.valueではなくeffectiveFormationA/B.valueにする
+  if (!effectiveFormationA.value || !effectiveFormationB.value || !matchProgress.value || !matchup.value) return;
+  const changedA = !samePositions(positionsA, effectiveFormationA.value.positions);
+  const changedB = !samePositions(positionsB, effectiveFormationB.value.positions);
+  const baseA: Formation = changedA ? { ...effectiveFormationA.value, positions: positionsA } : effectiveFormationA.value;
+  const baseB: Formation = changedB ? { ...effectiveFormationB.value, positions: positionsB } : effectiveFormationB.value;
+  // matchup（タグ・総合判定）は配置のみで決まるため、スカッド適用前のFormationから算出する
+  const nextMatchup = changedA || changedB ? generateMatchup(baseA, baseB) : matchup.value;
+  const nextA = withSquadVariance(baseA, squadConditionSeed.value, 0);
+  const nextB = withSquadVariance(baseB, squadConditionSeed.value, 1);
+
+  simulationResult.value = resumeMatch(matchProgress.value, nextA, nextB, nextMatchup);
+  matchProgress.value = null;
+  halftimeResult.value = null;
+  isHalftimeModalOpen.value = false;
+}
+
+function proceedWithoutChange(): void {
+  if (!effectiveFormationA.value || !effectiveFormationB.value || !matchProgress.value || !matchup.value) return;
+  const nextA = withSquadVariance(effectiveFormationA.value, squadConditionSeed.value, 0);
+  const nextB = withSquadVariance(effectiveFormationB.value, squadConditionSeed.value, 1);
+  simulationResult.value = resumeMatch(matchProgress.value, nextA, nextB, matchup.value);
+  matchProgress.value = null;
+  halftimeResult.value = null;
+  // モーダルを開いたまま「後半を開始する」ボタン（背後）へキーボード操作で到達した場合、
+  // モーダルを開いたフラグだけが残らないようにする（他のリセット経路と揃える）
+  isHalftimeModalOpen.value = false;
 }
 
 watch(
   () => [formationA.value?.id, formationB.value?.id] as const,
   () => {
-    simulationResult.value = null;
+    resetMatchState();
     // 組み合わせが変わったら自由配置モード・選手個体差の一時状態も破棄する。
     // 自由配置の保存データ自体（data/freeLayoutStorage.ts）はフォーメーションIDに紐づき、
     // 組み合わせの切替では消さない（FR-15永続化の要件）。ここで破棄するのはあくまで
@@ -590,6 +680,41 @@ function onSelectB(id: string): void {
 }
 
 .comparison-page__simulate-button:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.comparison-page__halftime-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.comparison-page__halftime-tactics-button,
+.comparison-page__halftime-continue-button {
+  border: none;
+  border-radius: 999px;
+  box-shadow: var(--shadow-card);
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comparison-page__halftime-tactics-button {
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+  color: #374151;
+}
+
+.comparison-page__halftime-continue-button {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
+  color: #ffffff;
+}
+
+.comparison-page__halftime-tactics-button:focus-visible,
+.comparison-page__halftime-continue-button:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 2px;
 }

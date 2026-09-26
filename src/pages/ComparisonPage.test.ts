@@ -7,7 +7,9 @@ import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
 import RadarChart from "@/components/RadarChart.vue";
 import { getFormationById } from "@/data/formations";
+import { getMatchup } from "@/data/matchups";
 import { buildPairKey, loadProgress } from "@/data/learningProgress";
+import { simulateMatch } from "@/composables/matchSimulation";
 
 const pushMock = vi.fn();
 const replaceMock = vi.fn();
@@ -358,6 +360,94 @@ describe("ComparisonPage", () => {
       await wrapper.vm.$nextTick();
 
       expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+  });
+
+  // ハーフタイム采配（.steering/20260919-halftime-tactics）
+  describe("ハーフタイム采配", () => {
+    it("シミュレーション実行直後は前半の部分結果のみが表示され、まだ最終結果ではない", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(true);
+      expect(wrapper.find(".comparison-page__halftime-continue-button").exists()).toBe(true);
+      // 前半の部分結果であることの直接的な証拠（buildHalftimeSummaryの文言）
+      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain("前半終了");
+    });
+
+    it("配置を変更せず「後半を開始する」を押すと、simulateMatchの90分通し結果と完全に一致する最終結果になる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-continue-button").trigger("click");
+
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(false);
+      const panel = wrapper.findComponent(MatchSimulationPanel);
+      expect(panel.exists()).toBe(true);
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const formationB = getFormationById("4-4-2")!;
+      const matchup = getMatchup(formationA.id, formationB.id)!;
+      const expected = simulateMatch(formationA, formationB, matchup);
+      expect(panel.props("result")).toEqual(expected);
+    });
+
+    it("「配置を変更する」でモーダルが開き、A/B双方の配置変更を確定すると、後半の結果に反映され、モーダルは閉じる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-tactics-button").trigger("click");
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(true);
+
+      const modalDiagram = wrapper.find(".halftime-modal").findComponent(FreeLayoutPitchDiagram);
+      expect(modalDiagram.exists()).toBe(true);
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const formationB = getFormationById("4-4-2")!;
+      const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
+      const dfPosition = formationB.positions.find((p) => p.type === "DF")!;
+      modalDiagram.vm.$emit("update-position", "A", dm1.id, dm1.x, 65);
+      modalDiagram.vm.$emit("update-position", "B", dfPosition.id, dfPosition.x, 30);
+      await wrapper.find(".halftime-modal__confirm").trigger("click");
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(false);
+      const panel = wrapper.findComponent(MatchSimulationPanel);
+      expect(panel.exists()).toBe(true);
+
+      // 配置変更後は静的なsimulateMatch(未変更)の結果とは一致しない可能性が高いことを
+      // 確認する（完全な不一致の保証はできないが、通常は異なる結果になる）
+      const matchup = getMatchup(formationA.id, formationB.id)!;
+      const unchanged = simulateMatch(formationA, formationB, matchup);
+      expect(panel.props("result")).not.toEqual(unchanged);
+    });
+
+    it("Escapeキーでモーダルを閉じても後半は開始されず、ハーフタイムパネルに留まる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-tactics-button").trigger("click");
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(true);
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(true);
+      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain("前半終了");
+    });
+
+    it("ハーフタイム状態で組み合わせが変わると、ハーフタイムパネル・モーダルもリセットされる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-tactics-button").trigger("click");
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(true);
+
+      routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(false);
       expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
     });
   });
