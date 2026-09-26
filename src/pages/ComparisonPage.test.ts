@@ -7,7 +7,9 @@ import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
 import RadarChart from "@/components/RadarChart.vue";
 import { getFormationById } from "@/data/formations";
+import { getMatchup } from "@/data/matchups";
 import { buildPairKey, loadProgress } from "@/data/learningProgress";
+import { simulateMatch } from "@/composables/matchSimulation";
 
 const pushMock = vi.fn();
 const replaceMock = vi.fn();
@@ -362,6 +364,94 @@ describe("ComparisonPage", () => {
     });
   });
 
+  // ハーフタイム采配（.steering/20260919-halftime-tactics）
+  describe("ハーフタイム采配", () => {
+    it("シミュレーション実行直後は前半の部分結果のみが表示され、まだ最終結果ではない", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+
+      expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(true);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(true);
+      expect(wrapper.find(".comparison-page__halftime-continue-button").exists()).toBe(true);
+      // 前半の部分結果であることの直接的な証拠（buildHalftimeSummaryの文言）
+      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain("前半終了");
+    });
+
+    it("配置を変更せず「後半を開始する」を押すと、simulateMatchの90分通し結果と完全に一致する最終結果になる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-continue-button").trigger("click");
+
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(false);
+      const panel = wrapper.findComponent(MatchSimulationPanel);
+      expect(panel.exists()).toBe(true);
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const formationB = getFormationById("4-4-2")!;
+      const matchup = getMatchup(formationA.id, formationB.id)!;
+      const expected = simulateMatch(formationA, formationB, matchup);
+      expect(panel.props("result")).toEqual(expected);
+    });
+
+    it("「配置を変更する」でモーダルが開き、A/B双方の配置変更を確定すると、後半の結果に反映され、モーダルは閉じる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-tactics-button").trigger("click");
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(true);
+
+      const modalDiagram = wrapper.find(".halftime-modal").findComponent(FreeLayoutPitchDiagram);
+      expect(modalDiagram.exists()).toBe(true);
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const formationB = getFormationById("4-4-2")!;
+      const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
+      const dfPosition = formationB.positions.find((p) => p.type === "DF")!;
+      modalDiagram.vm.$emit("update-position", "A", dm1.id, dm1.x, 65);
+      modalDiagram.vm.$emit("update-position", "B", dfPosition.id, dfPosition.x, 30);
+      await wrapper.find(".halftime-modal__confirm").trigger("click");
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(false);
+      const panel = wrapper.findComponent(MatchSimulationPanel);
+      expect(panel.exists()).toBe(true);
+
+      // 配置変更後は静的なsimulateMatch(未変更)の結果とは一致しない可能性が高いことを
+      // 確認する（完全な不一致の保証はできないが、通常は異なる結果になる）
+      const matchup = getMatchup(formationA.id, formationB.id)!;
+      const unchanged = simulateMatch(formationA, formationB, matchup);
+      expect(panel.props("result")).not.toEqual(unchanged);
+    });
+
+    it("Escapeキーでモーダルを閉じても後半は開始されず、ハーフタイムパネルに留まる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-tactics-button").trigger("click");
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(true);
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(true);
+      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain("前半終了");
+    });
+
+    it("ハーフタイム状態で組み合わせが変わると、ハーフタイムパネル・モーダルもリセットされる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__simulate-button").trigger("click");
+      await wrapper.find(".comparison-page__halftime-tactics-button").trigger("click");
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(true);
+
+      routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+  });
+
   // 自由配置モード（.steering/20260918-自由配置モード）
   describe("自由配置モード", () => {
     function findToggle(wrapper: ReturnType<typeof mount>) {
@@ -413,7 +503,7 @@ describe("ComparisonPage", () => {
       const formationA = getFormationById("4-2-3-1")!;
       const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
       const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
-      freeLayout.vm.$emit("update-position", dm1.id, dm1.x, 65);
+      freeLayout.vm.$emit("update-position", "A", dm1.id, dm1.x, 65);
       await wrapper.vm.$nextTick();
 
       // 総合判定・優位ポイント: 「守備的MF2枚」に依存する優位ポイントの文言が消える
@@ -464,7 +554,7 @@ describe("ComparisonPage", () => {
       const formationA = getFormationById("4-2-3-1")!;
       const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
       let freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
-      freeLayout.vm.$emit("update-position", dfPosition.id, 50, 90);
+      freeLayout.vm.$emit("update-position", "A", dfPosition.id, 50, 90);
       await wrapper.vm.$nextTick();
 
       await wrapper.find(".free-layout-controls__reset").trigger("click");
@@ -496,11 +586,168 @@ describe("ComparisonPage", () => {
       const formationA = getFormationById("4-2-3-1")!;
       const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
       const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
-      freeLayout.vm.$emit("update-position", dm1.id, dm1.x, 65);
+      freeLayout.vm.$emit("update-position", "A", dm1.id, dm1.x, 65);
       await wrapper.vm.$nextTick();
 
       expect(wrapper.findComponent(MatchSimulationPanel).exists()).toBe(false);
       expect(wrapper.find(".comparison-page__simulate-button").exists()).toBe(true);
+    });
+
+    // Bチームの自由配置・永続化（.steering/20260926-free-layout-b-and-persistence）
+    it("Bチームの選手をドラッグすると、Bチームの配置が反映され、レーダーチャートのBチーム側が再計算される", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+
+      const radarChartBefore = wrapper.findComponent(RadarChart);
+      const statsBefore = (
+        radarChartBefore.props("series") as { values: Record<string, number> }[]
+      )[1].values;
+
+      const formationB = getFormationById("4-4-2")!;
+      const cm1 = formationB.positions.find((p) => p.id === "4-4-2-cm1")!;
+      let freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      // 中盤4枚のy分布を崩し、フラット→ダイヤへタグが変わるよう大きく動かす
+      // （formationTags.tsのFLAT_MIDFIELD_Y_SPREAD判定を踏まえた移動量）
+      freeLayout.vm.$emit("update-position", "B", cm1.id, cm1.x, 90);
+      await wrapper.vm.$nextTick();
+
+      freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      expect(freeLayout.props("formationB")?.positions.find((p: { id: string }) => p.id === cm1.id))
+        .toMatchObject({ x: cm1.x, y: 90 });
+
+      const radarChartAfter = wrapper.findComponent(RadarChart);
+      const statsAfter = (
+        radarChartAfter.props("series") as { values: Record<string, number> }[]
+      )[1].values;
+      expect(statsAfter).not.toEqual(statsBefore);
+    });
+
+    it("Aチームの配置変更はBチームの表示に影響せず、逆も同様（A/Bは独立して扱われる）", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+
+      const formationB = getFormationById("4-4-2")!;
+      const freeLayoutBefore = wrapper.findComponent(FreeLayoutPitchDiagram);
+      const bPositionsBefore = freeLayoutBefore.props("formationB")?.positions;
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const dm1 = formationA.positions.find((p) => p.id === "4-2-3-1-dm1")!;
+      freeLayoutBefore.vm.$emit("update-position", "A", dm1.id, dm1.x, 65);
+      await wrapper.vm.$nextTick();
+
+      const freeLayoutAfter = wrapper.findComponent(FreeLayoutPitchDiagram);
+      expect(freeLayoutAfter.props("formationB")?.positions).toEqual(bPositionsBefore);
+      expect(freeLayoutAfter.props("formationB")?.positions).toEqual(formationB.positions);
+    });
+
+    it("リセットボタンで、A・B両チームの配置が元のフォーメーション定義に戻る", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await findToggle(wrapper).trigger("click");
+
+      const formationA = getFormationById("4-2-3-1")!;
+      const formationB = getFormationById("4-4-2")!;
+      const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
+      const cm1 = formationB.positions.find((p) => p.id === "4-4-2-cm1")!;
+      let freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      freeLayout.vm.$emit("update-position", "A", dfPosition.id, 50, 90);
+      freeLayout.vm.$emit("update-position", "B", cm1.id, cm1.x, 90);
+      await wrapper.vm.$nextTick();
+
+      await wrapper.find(".free-layout-controls__reset").trigger("click");
+
+      freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+      expect(freeLayout.props("formationA")?.positions).toEqual(formationA.positions);
+      expect(freeLayout.props("formationB")?.positions).toEqual(formationB.positions);
+    });
+
+    describe("自由配置の永続化", () => {
+      it("配置変更後、トグルをOFF→ONにすると、直前にドラッグした配置が復元される", async () => {
+        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        await findToggle(wrapper).trigger("click");
+
+        const formationA = getFormationById("4-2-3-1")!;
+        const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
+        let freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        freeLayout.vm.$emit("update-position", "A", dfPosition.id, 42, 77);
+        // 永続化はドラッグ確定時（update-position-end）にのみ行われる
+        freeLayout.vm.$emit("update-position-end", "A", dfPosition.id, 42, 77);
+        await wrapper.vm.$nextTick();
+
+        await findToggle(wrapper).trigger("click"); // OFF
+        await findToggle(wrapper).trigger("click"); // ON
+
+        freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        const restored = freeLayout
+          .props("formationA")
+          ?.positions.find((p: { id: string }) => p.id === dfPosition.id);
+        expect(restored).toMatchObject({ x: 42, y: 77 });
+      });
+
+      it("ページ再読み込み相当（コンポーネント再マウント）後も、保存済みの配置が復元される", async () => {
+        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        await findToggle(wrapper).trigger("click");
+
+        const formationA = getFormationById("4-2-3-1")!;
+        const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
+        const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        freeLayout.vm.$emit("update-position", "A", dfPosition.id, 33, 88);
+        freeLayout.vm.$emit("update-position-end", "A", dfPosition.id, 33, 88);
+        await wrapper.vm.$nextTick();
+        wrapper.unmount();
+
+        // 再マウント = リロード後の再訪問を模擬（localStorageは維持されたまま）
+        const remounted = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        await findToggle(remounted).trigger("click");
+
+        const restoredLayout = remounted.findComponent(FreeLayoutPitchDiagram);
+        const restored = restoredLayout
+          .props("formationA")
+          ?.positions.find((p: { id: string }) => p.id === dfPosition.id);
+        expect(restored).toMatchObject({ x: 33, y: 88 });
+        remounted.unmount();
+      });
+
+      it("同じフォーメーションを別の組み合わせで表示しても、保存済みの配置が復元される", async () => {
+        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        await findToggle(wrapper).trigger("click");
+
+        const formationA = getFormationById("4-2-3-1")!;
+        const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
+        const freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        freeLayout.vm.$emit("update-position", "A", dfPosition.id, 25, 66);
+        freeLayout.vm.$emit("update-position-end", "A", dfPosition.id, 25, 66);
+        await wrapper.vm.$nextTick();
+
+        // 同じフォーメーション(4-2-3-1)を別の相手(3-5-2)との組み合わせで表示する
+        routeState.params = { formationAId: "4-2-3-1", formationBId: "3-5-2" };
+        await wrapper.vm.$nextTick();
+        await findToggle(wrapper).trigger("click");
+
+        const restoredLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        const restored = restoredLayout
+          .props("formationA")
+          ?.positions.find((p: { id: string }) => p.id === dfPosition.id);
+        expect(restored).toMatchObject({ x: 25, y: 66 });
+      });
+
+      it("リセット操作後は保存データも削除され、再度ONにしても元の配置から始まる", async () => {
+        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        await findToggle(wrapper).trigger("click");
+
+        const formationA = getFormationById("4-2-3-1")!;
+        const dfPosition = formationA.positions.find((p) => p.type === "DF")!;
+        let freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        freeLayout.vm.$emit("update-position", "A", dfPosition.id, 25, 66);
+        freeLayout.vm.$emit("update-position-end", "A", dfPosition.id, 25, 66);
+        await wrapper.vm.$nextTick();
+
+        await wrapper.find(".free-layout-controls__reset").trigger("click");
+        await findToggle(wrapper).trigger("click"); // OFF
+        await findToggle(wrapper).trigger("click"); // ON
+
+        freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
+        expect(freeLayout.props("formationA")?.positions).toEqual(formationA.positions);
+      });
     });
   });
 

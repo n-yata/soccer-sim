@@ -225,3 +225,7 @@ export interface CupSimulationResult {
   championId: string;
   championName: string;
 }
+
+// FR-15: 自由配置モードでドラッグした配置の永続化（data/freeLayoutStorage.ts）。
+// フォーメーションID単位で保存し、組み合わせ（相手フォーメーション）には依存しない
+export type FreeLayoutOverrides = Record<string, Record<string, { x: number; y: number }>>;

@@ -1,7 +1,7 @@
 <template>
   <div class="cup-page">
     <div class="cup-page__header">
-      <BackButton fallback-to="/" />
+      <BackButton class="cup-page__back-button" fallback-to="/" />
       <h1 class="cup-page__title">カップ戦</h1>
     </div>
 
@@ -28,7 +28,11 @@
               :class="{ 'cup-page__match-link--penalties': match.wentToPenalties }"
             >
               <span :class="{ 'cup-page__winner': match.winnerId === match.formationAId }">
+                <span v-if="match.winnerId === match.formationAId" aria-hidden="true">🏆 </span>
                 {{ match.formationAName }}
+                <span v-if="match.winnerId === match.formationAId" class="cup-page__sr-only"
+                  >（勝者）</span
+                >
               </span>
               <span class="cup-page__match-score">
                 {{ match.scoreA }} - {{ match.scoreB }}
@@ -37,7 +41,11 @@
                 </template>
               </span>
               <span :class="{ 'cup-page__winner': match.winnerId === match.formationBId }">
+                <span v-if="match.winnerId === match.formationBId" aria-hidden="true">🏆 </span>
                 {{ match.formationBName }}
+                <span v-if="match.winnerId === match.formationBId" class="cup-page__sr-only"
+                  >（勝者）</span
+                >
               </span>
             </router-link>
           </li>
@@ -172,7 +180,24 @@ const rounds = computed<{ title: string; matches: CupMatch[] }[]>(() => {
 }
 
 .cup-page__winner {
+  /* 色のみに依存しないよう（WCAG 1.4.1）、太字化とアイコンを併用する。
+     アイコンはCSS生成コンテンツ(::before)にすると読み上げがAT依存で揺れるため、
+     マークアップ側にaria-hidden付きの絵文字＋視覚的に隠したテキストを置く
+     （quiz画面の正誤マーカーと同じパターン） */
   color: var(--color-primary);
+  font-weight: 700;
+}
+
+.cup-page__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
