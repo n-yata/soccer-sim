@@ -116,6 +116,16 @@ describe("FormationListPage", () => {
     expect(link.attributes("rel")).toBe("noopener noreferrer");
   });
 
+  // 一覧画面下部（フッター注記の近く）に置くと、カード枚数が多い環境でスクロールしないと
+  // 気づけない配置になるため、ヘッダー内の他ナビゲーションと同列に固定する（2026-09-27修正）
+  it("Jリーグ外部リンクがヘッダー内（page-header__actions配下）に配置され、本文下部には無い", () => {
+    const wrapper = mountPage();
+    const linkInHeader = wrapper.find(".page-header__actions a.formation-list-page__jleague-link");
+    expect(linkInHeader.exists()).toBe(true);
+    const linkInBody = wrapper.find(".formation-list-page__body a.formation-list-page__jleague-link");
+    expect(linkInBody.exists()).toBe(false);
+  });
+
   it("「相性表を見る」ボタンをクリックするとrouter.pushが'/matrix'で1回呼ばれる", async () => {
     const wrapper = mountPage();
     const button = wrapper

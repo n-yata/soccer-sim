@@ -19,7 +19,7 @@
         rel="noopener noreferrer"
         class="formation-list-page__jleague-link"
       >
-        ⚽ Jリーグ情報（外部サイト）
+        🔗 Jリーグの試合日程・キャンペーン情報（外部サイト・新規タブ）
       </a>
     </PageHeader>
     <div class="formation-list-page__body">
