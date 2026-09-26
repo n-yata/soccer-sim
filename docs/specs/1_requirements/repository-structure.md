@@ -125,6 +125,15 @@ soccer-sim/
   シュート/枠内シュートの対比・ハイライトタイムラインを表示する表示専用コンポーネント
   （シミュレーションの計算自体は行わない。呼び出し元の`ComparisonPage`が
   `composables/matchSimulation.ts`を呼んで結果をpropsで渡す）
+- `AppHeader.vue`: 全画面共通のグローバルナビゲーション。`App.vue`から配置され、現在地
+  ハイライト・モバイル幅でのハンバーガー折りたたみを行う。カップ戦導線の出し分けは
+  `showCupLink` propsで受け取り（判定は`App.vue`が`data/formations.ts`を見て行う）、
+  自身は`data/`配下の静的データを直接参照しない
+- `PageHeader.vue`: グラデーション背景のページヘッダー（タイトル・サブタイトル）を表示する
+  表示専用コンポーネント。`FormationListPage.vue`/`GlossaryPage.vue`が使用する
+- `BackButton.vue`: 「← 戻る」ボタンの表示と遷移先解決（履歴があれば`router.back()`、
+  無ければ`fallbackTo` propsへ`router.push()`）を行う。`MatrixPage.vue`/`QuizPage.vue`/
+  `LeaguePage.vue`/`CupPage.vue`/`ComparisonPage.vue`が使用する
 
 **依存関係**:
 - 依存可能: `types/`

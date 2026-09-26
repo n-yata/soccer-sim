@@ -1,11 +1,9 @@
 <template>
   <div class="glossary-page">
-    <header class="glossary-page__header">
-      <h1 class="glossary-page__title">📖 サッカー用語集</h1>
-      <p class="glossary-page__subtitle">
-        解説文に出てくる用語を、専門知識なしでも分かる言葉で説明します
-      </p>
-    </header>
+    <PageHeader
+      title="📖 サッカー用語集"
+      subtitle="解説文に出てくる用語を、専門知識なしでも分かる言葉で説明します"
+    />
     <div class="glossary-page__body">
       <router-link to="/" class="glossary-page__back-link"> ← 一覧画面へ戻る </router-link>
       <section v-for="group in groupedTerms" :key="group.category" class="glossary-page__category">
@@ -26,6 +24,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import PageHeader from "@/components/PageHeader.vue";
 import { soccerTerms } from "@/data/soccerTerms";
 import type { SoccerTermCategory } from "@/types/formation";
 
@@ -44,45 +43,25 @@ const groupedTerms = computed(() =>
 </script>
 
 <style scoped>
-.glossary-page__header {
-  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-end));
-  padding: 32px 40px;
-  color: #ffffff;
-}
-
-.glossary-page__title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.glossary-page__subtitle {
-  margin: 8px 0 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
 .glossary-page__body {
-  padding: 32px 40px;
+  padding: var(--space-xl) var(--space-2xl);
   max-width: 720px;
 }
 
 .glossary-page__back-link {
   display: inline-block;
-  margin-bottom: 24px;
-  font-size: 13px;
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--color-text);
 }
 
 .glossary-page__category {
-  margin-bottom: 28px;
+  margin-bottom: var(--space-lg);
 }
 
 .glossary-page__category-title {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-sm);
   font-size: 16px;
   font-weight: 700;
   color: var(--color-primary);
@@ -95,22 +74,28 @@ const groupedTerms = computed(() =>
 }
 
 .glossary-page__term {
-  font-size: 15px;
+  font-size: var(--font-md);
   font-weight: 700;
   color: var(--color-text);
-  margin-top: 16px;
+  margin-top: var(--space-md);
 }
 
 .glossary-page__reading {
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 400;
   color: var(--color-text-sub);
 }
 
 .glossary-page__description {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--font-sm);
   line-height: 1.6;
   color: var(--color-text-sub);
+}
+
+@media (max-width: 640px) {
+  .glossary-page__body {
+    padding: var(--space-lg) var(--space-md);
+  }
 }
 </style>

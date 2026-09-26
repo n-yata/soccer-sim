@@ -11,7 +11,37 @@
   --color-pitch-dark: #1b5e20;
   --color-text: #111827;
   --color-text-sub: #6b7280;
+  --color-text-muted: #374151;
   --color-border: #e5e7eb;
+  --color-border-strong: #9ca3af;
+  --color-surface: #ffffff;
+  --color-surface-sub: #f9fafb;
+  --color-surface-hover: #f3f4f6;
+
+  /* spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 40px;
+
+  /* font-size scale */
+  --font-xs: 12px;
+  --font-sm: 13px;
+  --font-md: 15px;
+  --font-lg: 18px;
+  --font-xl: 24px;
+  --font-2xl: 28px;
+
+  /* radius scale */
+  --radius-sm: 8px;
+  --radius-md: 10px;
   --radius-card: 14px;
+  --radius-pill: 999px;
+
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  /* breakpoints (参照用。@mediaには直接使えないため値をコメントとして残す) */
+  /* --breakpoint-mobile: 640px; --breakpoint-tablet: 768px; */
 }

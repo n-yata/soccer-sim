@@ -2,7 +2,7 @@
   <div class="comparison-page">
     <template v-if="formationA && formationB && matchup">
       <div class="comparison-page__header">
-        <button type="button" class="comparison-page__back-button" @click="goBack">← 戻る</button>
+        <BackButton fallback-to="/" />
         <h1 class="comparison-page__title">{{ formationA.name }} vs {{ formationB.name }}</h1>
         <router-link to="/glossary" class="comparison-page__glossary-link"> 📖 用語集 </router-link>
       </div>
@@ -111,6 +111,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import BackButton from "@/components/BackButton.vue";
 import ComparisonControls from "@/components/ComparisonControls.vue";
 import FreeLayoutControls from "@/components/FreeLayoutControls.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
@@ -290,17 +291,6 @@ watch(
   { immediate: true },
 );
 
-// vue-routerのhistoryモードはhistory.stateに前後のルートパスを持つため、
-// アプリ内遷移の履歴があるときだけrouter.back()で遷移元（一覧画面/マトリクス画面の
-// どちらか実際にいた方）へ戻す。履歴が無い（URL直打ち等）場合のみ一覧画面へ固定する
-function goBack(): void {
-  if (window.history.state?.back) {
-    router.back();
-  } else {
-    router.push("/");
-  }
-}
-
 // 比較画面から比較画面への移動は「同じ画面の表示内容を変える」操作のため、
 // pushではなくreplaceを使う。pushにすると、履歴に比較画面が積み重なり、
 // ブラウザバックで一覧画面へ戻るまでに何度も比較画面を経由することになる
@@ -322,31 +312,20 @@ function onSelectB(id: string): void {
 
 <style scoped>
 .comparison-page {
-  padding: 24px 40px 40px;
+  padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
 }
 
 .comparison-page__header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.comparison-page__back-button {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: var(--shadow-card);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  cursor: pointer;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .comparison-page__title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-xl);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -354,27 +333,27 @@ function onSelectB(id: string): void {
 .comparison-page__glossary-link {
   margin-left: auto;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-sm);
   font-weight: 700;
-  color: #374151;
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .comparison-page__legend {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
   font-weight: bold;
 }
 
 .comparison-page__legend-item {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .comparison-page__legend-item::before {
@@ -400,8 +379,8 @@ function onSelectB(id: string): void {
   border-radius: 8px;
   font-weight: bold;
   box-shadow: var(--shadow-card);
-  background: #f9fafb;
-  border: 2px solid #9ca3af;
+  background: var(--color-surface-sub);
+  border: 2px solid var(--color-border-strong);
   animation: comparison-verdict-pop-in 0.5s ease-out both;
   animation-delay: 0.7s;
 }
@@ -439,8 +418,8 @@ function onSelectB(id: string): void {
 }
 
 .comparison-page__verdict--even {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--color-surface-sub);
+  border-color: var(--color-border-strong);
 }
 
 .comparison-page__verdict--even::before {
@@ -458,7 +437,7 @@ function onSelectB(id: string): void {
 .comparison-page__main {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  gap: var(--space-lg);
   flex-wrap: wrap;
 }
 
@@ -466,7 +445,7 @@ function onSelectB(id: string): void {
   position: relative;
   flex: 2 1 520px;
   max-width: 800px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: var(--shadow-card);
 }
@@ -480,32 +459,33 @@ function onSelectB(id: string): void {
 .comparison-page__radar {
   flex: 1 1 320px;
   max-width: 360px;
-  background: #ffffff;
-  border-radius: 10px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--color-border);
-  padding: 16px 20px;
+  padding: var(--space-md) var(--space-lg);
 }
 
 .comparison-page__radar-title {
-  margin: 0 0 8px;
-  font-size: 15px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-md);
   font-weight: 700;
   color: var(--color-text);
 }
 
 .comparison-page__advantages {
   display: flex;
-  gap: 24px;
-  margin-top: 24px;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+  flex-wrap: wrap;
 }
 
 .comparison-page__advantage-column {
-  flex: 1;
-  background: #ffffff;
-  border-radius: 10px;
+  flex: 1 1 260px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 16px 20px;
+  padding: var(--space-md) var(--space-lg);
   border: 2px solid var(--color-border);
 }
 
@@ -532,11 +512,11 @@ function onSelectB(id: string): void {
 
 .comparison-page__simulate-button {
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
   box-shadow: var(--shadow-card);
   padding: 12px 28px;
-  font-size: 15px;
+  font-size: var(--font-md);
   font-weight: 700;
   color: #ffffff;
   cursor: pointer;
@@ -545,5 +525,19 @@ function onSelectB(id: string): void {
 .comparison-page__simulate-button:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .comparison-page {
+    padding: var(--space-md) var(--space-md) var(--space-xl);
+  }
+
+  .comparison-page__pitch-overlay {
+    max-width: 100%;
+  }
+
+  .comparison-page__glossary-link {
+    margin-left: 0;
+  }
 }
 </style>

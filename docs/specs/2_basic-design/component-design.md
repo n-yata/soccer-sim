@@ -403,6 +403,87 @@ function restart(): void; // questions/currentIndex/answersをすべて作り直
   `components/QuizQuestionCard.vue`, `vue-router`
 - 依存禁止: なし
 
+## UIレイヤー: App（`App.vue`）
+
+**責務**:
+- ルートコンポーネント。全画面共通の`AppHeader`を配置し、`<router-view />`で各画面を描画する
+- カップ戦導線の出し分け（`formations.length === CUP_REQUIRED_FORMATION_COUNT`）を判定し、
+  `AppHeader`へ`showCupLink` propとして渡す。`components/`は`data/`配下の静的データ定義に
+  直接依存できないため（後述`AppHeader`の依存関係）、判定は呼び出し元である`App.vue`が担う
+
+**インターフェース**:
+```typescript
+// App.vue が data/formations.ts から算出して AppHeader へ渡す
+const showCupLink: ComputedRef<boolean>;
+```
+
+**依存関係**:
+- 依存可能: `data/formations.ts`（`CUP_REQUIRED_FORMATION_COUNT`・件数判定）,
+  `components/AppHeader.vue`
+- 依存禁止: なし（ルートコンポーネントは`pages/`の親であり、レイヤー制約の対象外）
+
+## UIレイヤー: AppHeader（`components/AppHeader.vue`）
+
+**責務**:
+- 全画面共通のグローバルナビゲーション。一覧・相性表・リーグ戦・カップ戦・理解度チェック・
+  用語集への遷移導線を常時提供する
+- 現在のルート名（`useRoute().name`）と一致するナビ項目に`aria-current="page"`を付与する
+- モバイル幅（640px以下）ではハンバーガーボタンでナビをたたむ。ナビ項目のクリックで開閉状態を
+  閉じる（`closeMenu`）
+- カップ戦導線は`showCupLink` propsが`true`のときのみ表示する（判定はApp.vueが担う。下記
+  「依存関係」参照）
+
+**インターフェース**:
+```typescript
+interface AppHeaderProps {
+  showCupLink: boolean;
+}
+```
+
+**依存関係**:
+- 依存可能: `vue-router`（`useRoute`。現在地判定のため画面遷移は行わない）
+- 依存禁止: `pages/`, `data/`配下の静的データ定義（`formations.ts`等）。カップ戦導線の
+  出し分けに必要な`formations.length`はコンポーネントが自ら参照せず、呼び出し元（`App.vue`）が
+  propsとして渡す（`repository-structure.md`「components/の依存関係」原則に従う）
+
+## UIレイヤー: PageHeader（`components/PageHeader.vue`）
+
+**責務**:
+- グラデーション背景のページヘッダー（タイトル・サブタイトル）を表示する共通コンポーネント
+  （`FormationListPage`/`GlossaryPage`で個別実装されていたグラデーションヘッダーを統合した）
+- デフォルトスロットで、タイトル行右側のアクション領域（ボタン・リンク群）を差し込めるようにする
+
+**インターフェース**:
+```typescript
+interface PageHeaderProps {
+  title: string;
+  subtitle?: string;
+}
+```
+
+**依存関係**:
+- 依存可能: なし
+- 依存禁止: `pages/`, `data/`（コンポーネントはpropsとスロット経由でのみ内容を受け取る）
+
+## UIレイヤー: BackButton（`components/BackButton.vue`）
+
+**責務**:
+- 「← 戻る」ボタンの表示と、押下時の戻り先解決を1箇所に集約する（`MatrixPage`/`QuizPage`/
+  `LeaguePage`/`CupPage`/`ComparisonPage`で同一ロジックが重複していたものを統合した）
+- `window.history.state?.back`の有無を判定し、アプリ内遷移の履歴があれば`router.back()`、
+  無ければ`fallbackTo`（既定`"/"`）へ`router.push()`する
+
+**インターフェース**:
+```typescript
+interface BackButtonProps {
+  fallbackTo?: string; // 既定値: "/"
+}
+```
+
+**依存関係**:
+- 依存可能: `vue-router`（`useRouter`）
+- 依存禁止: `pages/`, `data/`
+
 ## データレイヤー: termAnnotation / quiz（`data/termAnnotation.ts`, `data/quiz.ts`）
 
 **責務**:
@@ -476,6 +557,9 @@ export function clearProgress(): LearningProgress;
 // data/formations.ts
 export const formations: Formation[]; // 各要素は stats: FormationStats を含む
 export function getFormationById(id: string): Formation | undefined;
+// カップ戦（8フォーメーション固定のノックアウト方式）の導線出し分けに使う閾値。
+// App.vue（AppHeaderへのprops）とFormationListPage.vueの双方が参照し、値の二重定義を避ける
+export const CUP_REQUIRED_FORMATION_COUNT: number;
 
 // data/matchups.ts
 export const matchups: Matchup[];
