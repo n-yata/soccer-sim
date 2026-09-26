@@ -13,7 +13,7 @@
 | ルート(FE) | `/compare/:formationAId/:formationBId` |
 | 対応コンポーネント | `ComparisonPage` |
 | 関連API | 該当なし（本プロダクトはバックエンドAPIを持たない） |
-| 関連機能 | FR-03, FR-04, FR-09, FR-11, FR-13 |
+| 関連機能 | FR-03, FR-04, FR-05, FR-06, FR-09, FR-11, FR-13, FR-14, FR-15, FR-18, FR-19 |
 
 外部設計（レイアウト・画面項目定義・画面イベント一覧）は
 [`screen-design.md`](../../2_basic-design/screen-design.md)「画面2: 比較画面」を参照。
@@ -25,18 +25,33 @@
 ComparisonPage
 ├── ComparisonControls（formations, formationAId, formationBId を渡し、
 │                       swap/select-a/select-b イベントを受け取る）
-├── MatchupPitchDiagram（formationA, formationB を渡し、1つのピッチ図上に両チームを重ねて描画）
-└── TermAnnotatedText（優位ポイント各行・総合判定理由ごとに配置し、textを渡す）
+├── FreeLayoutControls（isActive を渡し、toggle/reset イベントを受け取る。FR-15）
+├── SquadConditionControls（isActive を渡し、toggle/reroll イベントを受け取る。FR-18）
+├── MatchupPitchDiagram（自由配置モードOFF時。formationA, formationB を渡し、
+│                       1つのピッチ図上に両チームを重ねて描画）
+├── FreeLayoutPitchDiagram（自由配置モードON時。effectiveFormationA, effectiveFormationB を渡し、
+│                       update-position/update-position-end イベントを受け取る。FR-15）
+├── RadarChart（radarSeries を渡し、フォーメーション特性を表示）
+├── TermAnnotatedText（優位ポイント各行・総合判定理由ごとに配置し、textを渡す）
+├── MatchSimulationPanel（halftimeResult または simulationResult を渡す。FR-14/FR-19）
+└── HalftimeTacticsModal（ハーフタイムモーダルOPEN時。effectiveFormationA/B, halftimeResult を渡し、
+                        confirm/cancel イベントを受け取る。FR-19）
 ```
 
 ### props / state 設計
 
 | コンポーネント | props | 内部 state |
 |---|---|---|
-| `ComparisonPage` | — | ルートパラメータ由来の `computed`: `formationA`, `formationB`, `matchup`（いずれも `undefined` になりうる） |
+| `ComparisonPage` | — | ルートパラメータ由来の `computed`: `formationA`, `formationB`, `matchup`（いずれも `undefined` になりうる）。加えて`isFreeLayoutMode`/`freePositionsA`/`freePositionsB`（FR-15）、`squadConditionSeed`（FR-18）、`simulationResult`/`matchProgress`/`halftimeResult`/`isHalftimeModalOpen`（FR-14/FR-19）。詳細は`component-design.md`「ComparisonPage」参照 |
 | `ComparisonControls` | `formations: Formation[]`, `formationAId: string`, `formationBId: string` | なし（表示専用。emits `swap`/`select-a`/`select-b`。`component-design.md`参照） |
 | `MatchupPitchDiagram` | `formationA: Formation`, `formationB: Formation` | なし（表示専用。`component-design.md`参照） |
 | `TermAnnotatedText` | `text: string` | 開いているポップオーバーのindex（`component-design.md`参照） |
+| `FreeLayoutControls` | `isActive: boolean` | なし（表示専用。emits `toggle`/`reset`。`component-design.md`参照） |
+| `FreeLayoutPitchDiagram` | `formationA: Formation`, `formationB: Formation` | なし（表示専用。emits `update-position`/`update-position-end`。`component-design.md`参照） |
+| `SquadConditionControls` | `isActive: boolean` | なし（表示専用。emits `toggle`/`reroll`。`component-design.md`参照） |
+| `RadarChart` | `axes`, `maxValue`, `series` | 内部debounceタイマー（aria-live通知用。`component-design.md`参照） |
+| `MatchSimulationPanel` | `result: MatchSimulationResult`, `formationAName: string`, `formationBName: string` | なし（表示専用。`component-design.md`参照） |
+| `HalftimeTacticsModal` | `formationA: Formation`, `formationB: Formation`, `halftimeResult: MatchSimulationResult` | `draftPositionsA`/`draftPositionsB`（一時的なドラフト配置）、フォーカス管理用の内部ref。emits `confirm`/`cancel`。`component-design.md`参照 |
 
 ## 状態管理（クエリキー設計）
 
@@ -102,6 +117,87 @@ TanStack Query等のデータ取得ライブラリは使用しない。
    `openIndex`が`null`に戻り、ポップオーバーが閉じる（同時に開くのは1つ）。
 4. `text`（表示する文）自体が差し替わった場合（A/B入れ替え・切替）、`openIndex`は自動的に
    `null`にリセットされる（開いていたindexが差し替え後の別の用語を指してしまうのを防ぐ）。
+
+### 自由配置モード（FR-15）
+
+1. ユーザーが`FreeLayoutControls`のトグルをクリックする（OFF→ON）。
+2. `toggleFreeLayoutMode()`が、`data/freeLayoutStorage.ts`の`applyOverrides`で
+   フォーメーションID単位の保存済み配置（無ければcanonical定義）を`freePositionsA`/
+   `freePositionsB`に設定し、`isFreeLayoutMode`を`true`にする。表示中の試合シミュレーション
+   結果（`simulationResult`/`halftimeResult`等）はすべて破棄する。
+3. テンプレート側は`isFreeLayoutMode`がtrueの間、`MatchupPitchDiagram`の代わりに
+   `FreeLayoutPitchDiagram`を`effectiveFormationA`/`effectiveFormationB`（`freePositionsA`/`B`を
+   反映したFormation）付きで表示する。
+4. ユーザーが選手をドラッグ、またはTab+矢印キーで移動する。
+   - `update-position`（ドラッグのpointermove・キーのkeydownのたびに発火）: 該当する
+     `freePositionsA`/`B`を更新し、表示のみ再計算する（`onUpdatePosition`）。
+   - `update-position-end`（ドラッグのpointerup・キーのkeyupのタイミングで1回のみ発火）:
+     `savePositionOverride(formation.id, positionId, x, y)`で永続化する（`onUpdatePositionEnd`）。
+5. `effectiveFormationA`/`B`の変化により、`matchup`（`freePositionsA`/`B`のいずれかが
+   非nullなら`generateMatchup`を都度呼び直す）・`effectiveStatsA`/`B`（`estimateStats`で
+   タグ差分から概算）が再計算され、優位ポイント・総合判定・レーダーチャート
+   （変更したチーム側）が更新される。Aチームの配置変更はBチームの表示に影響しない
+   （`effectiveStatsB`はfreePositionsBのみに依存）。
+6. リセットボタン（`resetFreeLayout()`）を押すと、A・B両方について
+   `clearFormationOverride(formation.id)`で保存データを削除したうえで、
+   `freePositionsA`/`B`をcanonical定義で上書きする。
+7. トグルをクリックする（ON→OFF）と、`freePositionsA`/`B`を`null`に戻し
+   `isFreeLayoutMode`を`false`にする（保存データ自体は削除しない。次回ONにすると復元される）。
+8. フォーメーションの組み合わせを切り替える（`route.params`の変化）と、
+   `isFreeLayoutMode`/`freePositionsA`/`B`はすべてリセットされる（保存データは
+   フォーメーションIDに紐づくため消えない）。
+
+### 選手個体差（FR-18）
+
+1. ユーザーが`SquadConditionControls`のトグルをクリックする（OFF→ON）。
+2. `toggleSquadCondition()`が`Math.random()`ベースの新しいシードを`squadConditionSeed`に
+   設定し、表示中の試合シミュレーション結果を破棄する。
+3. 「🔄 スカッドを組み直す」ボタン（`rerollSquadCondition()`）で、有効なシードを選び直す
+   （表示中の結果は同様に破棄する）。
+4. 試合シミュレーション実行時（`runSimulation()`/`onHalftimeConfirm()`/
+   `proceedWithoutChange()`）、`squadConditionSeed`が非nullなら
+   `composables/squadCondition.ts`の`applySquadVariance(stats, seed)`でA/B双方の実効statsを
+   算出し（Bのシードは`seed + 1`でオフセットし、A/Bで異なる乱数列にする）、
+   その実効statsを持つ一時的なFormationを`startMatch`/`resumeMatch`へ渡す。
+5. `matchup`（タグ・優位ポイント・総合判定）・レーダーチャートには実効statsを一切使わない
+   （常に`effectiveFormationA`/`B`の元のstatsで計算する）。
+6. トグルをOFFにする、またはフォーメーションの組み合わせを切り替えると、
+   `squadConditionSeed`は`null`に戻る（永続化しない）。
+
+### 試合シミュレーション・ハーフタイム采配（FR-14, FR-19）
+
+1. ユーザーが「⚽ 試合をシミュレートする」をクリックする（`runSimulation()`）。
+2. `effectiveFormationA`/`B`（自由配置モードの変更を含む）に`squadConditionSeed`があれば
+   実効statsを適用し、`composables/matchSimulation.ts`の`startMatch(a, b, matchup, 45)`を
+   呼ぶ。戻り値の`progress`を`matchProgress`に、`result`（前半45分の部分結果）を
+   `halftimeResult`に設定する。
+3. テンプレート側は`halftimeResult`が非nullかつ`simulationResult`がnullの間、
+   `MatchSimulationPanel`（前半の部分結果）と「🔧 配置を変更する」「▶ 後半を開始する」の
+   2操作を表示する。
+4. 「🔧 配置を変更する」（`openHalftimeTactics()`）で`isHalftimeModalOpen`を`true`にし、
+   `HalftimeTacticsModal`を`effectiveFormationA`/`B`・`halftimeResult`付きで開く。
+5. モーダル内で選手をドラッグ/キー操作すると、モーダル内部の`draftPositionsA`/`B`
+   （一時状態、`localStorage`へは永続化しない）のみが更新される。
+6. モーダルの「▶ この配置で後半を開始する」（`onHalftimeConfirm(positionsA, positionsB)`）:
+   - `draftPositionsA`/`B`が`effectiveFormationA`/`B`の元の配置と一致するか
+     （`samePositions`）をA・Bそれぞれ判定する。
+   - 変更が無ければ`matchup`（既存の値）をそのまま使い、変更があれば変更後の配置から
+     `generateMatchup`で総合判定を再計算する。「配置を変更しなければFR-14と完全に同じ結果に
+     なる」という後方互換性を、入力を変えないことで担保する。
+   - `squadConditionSeed`があれば実効statsを適用したうえで、
+     `resumeMatch(matchProgress, a, b, matchup)`を呼ぶ。結果を`simulationResult`に設定し、
+     `matchProgress`/`halftimeResult`を`null`に、`isHalftimeModalOpen`を`false`に戻す。
+7. モーダルを`Escape`・閉じるボタン（✕）・背景クリックのいずれかで閉じる
+   （`closeHalftimeTactics()`）と、`isHalftimeModalOpen`のみ`false`に戻り、
+   ハーフタイム結果パネルの表示に留まる（後半は開始されない）。
+8. ハーフタイムパネル側の「▶ 後半を開始する」（`proceedWithoutChange()`）は、
+   配置変更なしで`resumeMatch(matchProgress, effectiveFormationA, effectiveFormationB, matchup)`
+   を呼ぶ（6.と同じ後始末を行う）。
+9. `simulationResult`が非nullの間、テンプレート側は最終結果の`MatchSimulationPanel`
+   （90分ぶん）を表示する。
+10. フォーメーションの組み合わせを切り替えると、`simulationResult`/`matchProgress`/
+    `halftimeResult`/`isHalftimeModalOpen`はすべてリセットされる
+    （表示中のフォーメーションと結果が食い違わないようにするため）。
 
 ### 画面遷移イベント
 

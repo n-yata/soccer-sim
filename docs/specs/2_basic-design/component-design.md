@@ -119,6 +119,22 @@ interface FormationMiniPitchProps {
   `ComparisonControls` に委譲し、そこから受け取る `swap`/`select-a`/`select-b` イベントを
   `router.replace` による画面遷移に変換する（ルーティングの責務は`pages/`側に残す）
 - 用語集画面（`/glossary`）への導線を提供する（FR-10）
+- 自由配置モード（FR-15）: `isFreeLayoutMode`/`freePositionsA`/`freePositionsB`を保持し、
+  `FreeLayoutControls`のtoggle/resetイベントを受けて`FreeLayoutPitchDiagram`へ切り替える。
+  `data/freeLayoutStorage.ts`（`applyOverrides`/`savePositionOverride`/`clearFormationOverride`）
+  でフォーメーションID単位の永続化を行う。変更後の配置（`effectiveFormationA`/`B`）を元に
+  `generateMatchup`・`estimateStats`を呼び直し、matchup・レーダースコアをその場で再計算する
+- 選手個体差（FR-18）: `squadConditionSeed`（`null`=無効）を保持し、`SquadConditionControls`の
+  toggle/rerollイベントを受けてシードを生成・破棄する。試合シミュレーション実行時のみ
+  `composables/squadCondition.ts`の`applySquadVariance`で実効statsを算出し、
+  `matchup`・レーダーチャートには一切反映させない
+- 試合シミュレーション・ハーフタイム采配（FR-14, FR-19）: 「試合をシミュレートする」押下で
+  `composables/matchSimulation.ts`の`startMatch`を45分（前半）で呼び、`MatchProgress`
+  （不透明な途中経過。乱数インスタンス・累積統計を保持）と前半の部分結果を保持する。
+  「配置を変更する」で`HalftimeTacticsModal`を開き、confirmイベント（変更後のA/B配置）を
+  受けて`resumeMatch`で後半を継続する。配置に変更が無ければ`matchup`は再計算せず既存の値を
+  再利用し、変更があれば`generateMatchup`で再計算してから`resumeMatch`に渡す
+  （「変更しなければFR-14と完全に同じ結果になる」という後方互換性を、入力を変えないことで担保する）
 
 **インターフェース**:
 ```typescript
@@ -137,6 +153,20 @@ interface ComparisonPageState {
   // matchup.advantagesForA/advantagesForB は、それぞれ formationA/formationB の優位ポイント
   // （getMatchupが呼び出し順序に正規化済みのため、入れ替えを意識する必要はない）。
   matchup: Matchup | undefined;
+
+  // FR-15: 自由配置モード。両方nullなら通常表示（effectiveFormationA/B = formationA/B）
+  isFreeLayoutMode: boolean;
+  freePositionsA: Position[] | null;
+  freePositionsB: Position[] | null;
+
+  // FR-18: 選手個体差。nullなら無効（試合シミュレーション結果に影響しない）
+  squadConditionSeed: number | null;
+
+  // FR-14/FR-19: 試合シミュレーション。matchProgressが非nullの間はハーフタイム状態
+  simulationResult: MatchSimulationResult | null; // 90分ぶんの最終結果
+  matchProgress: MatchProgress | null; // startMatchが返す不透明な途中経過
+  halftimeResult: MatchSimulationResult | null; // 45分時点の部分結果
+  isHalftimeModalOpen: boolean;
 }
 
 // ComparisonControlsのswapイベントハンドラ。router.replaceで
@@ -147,12 +177,37 @@ function swap(): void;
 // 現在の相手側IDでrouter.replaceする
 function onSelectA(id: string): void;
 function onSelectB(id: string): void;
+
+// FR-15: FreeLayoutControlsのtoggle/resetハンドラ
+function toggleFreeLayoutMode(): void;
+function resetFreeLayout(): void;
+// FreeLayoutPitchDiagramのupdate-position/update-position-endハンドラ
+function onUpdatePosition(team: "A" | "B", positionId: string, x: number, y: number): void;
+function onUpdatePositionEnd(team: "A" | "B", positionId: string, x: number, y: number): void;
+
+// FR-18: SquadConditionControlsのtoggle/rerollハンドラ
+function toggleSquadCondition(): void;
+function rerollSquadCondition(): void;
+
+// FR-14/FR-19: 試合シミュレーション・ハーフタイム采配のハンドラ
+function runSimulation(): void; // startMatch(a, b, matchup, 45)
+function openHalftimeTactics(): void;
+function closeHalftimeTactics(): void;
+// HalftimeTacticsModalのconfirmハンドラ。配置が変わっていればgenerateMatchupで
+// totalを再計算してからresumeMatchへ渡す
+function onHalftimeConfirm(positionsA: Position[], positionsB: Position[]): void;
+function proceedWithoutChange(): void; // resumeMatch(matchProgress, a, b, matchup)
 ```
 
 **依存関係**:
-- 依存可能: `data/formations.ts`, `data/matchups.ts`, `data/radarAxes.ts`,
-  `data/learningProgress.ts`, `components/ComparisonControls.vue`,
-  `components/MatchupPitchDiagram.vue`, `components/RadarChart.vue`,
+- 依存可能: `data/formations.ts`, `data/matchups.ts`, `data/matchupGenerator.ts`,
+  `data/radarAxes.ts`, `data/formationTags.ts`, `data/radarScoreEstimator.ts`,
+  `data/learningProgress.ts`, `data/freeLayoutStorage.ts`,
+  `composables/matchSimulation.ts`, `composables/squadCondition.ts`,
+  `components/ComparisonControls.vue`, `components/MatchupPitchDiagram.vue`,
+  `components/FreeLayoutPitchDiagram.vue`, `components/FreeLayoutControls.vue`,
+  `components/SquadConditionControls.vue`, `components/MatchSimulationPanel.vue`,
+  `components/HalftimeTacticsModal.vue`, `components/RadarChart.vue`,
   `components/TermAnnotatedText.vue`, `vue-router`
 - 依存禁止: なし
 
@@ -242,6 +297,144 @@ interface RadarChartProps {
 - 依存可能: `types/formation.ts`（`FormationStats`型）, `data/radarAxes.ts`（`RadarAxisMeta`型）
 - 依存禁止: `data/formations.ts`, `data/matchups.ts`（`MatchupPitchDiagram`と同様、表示専用
   コンポーネントとしデータモジュールを直接インポートしない）
+
+## UIレイヤー: FreeLayoutControls（`components/FreeLayoutControls.vue`）
+
+**責務**:
+- 自由配置モード（FR-15）のON/OFFトグルボタンと、ON時のみ表示するリセットボタンを表示する
+- ルーティング・永続化は行わない。`toggle`/`reset`イベントをemitするだけの表示専用コンポーネント
+
+**インターフェース**:
+```typescript
+interface FreeLayoutControlsProps {
+  isActive: boolean; // trueのときaria-pressed="true"、リセットボタンを表示
+}
+
+interface FreeLayoutControlsEmits {
+  toggle: [];
+  reset: [];
+}
+```
+
+**依存関係**:
+- 依存可能: なし
+- 依存禁止: `pages/`, `data/`（コンポーネントは props 経由でデータを受け取る）
+
+## UIレイヤー: FreeLayoutPitchDiagram（`components/FreeLayoutPitchDiagram.vue`）
+
+**責務**:
+- 自由配置モード（FR-15）・ハーフタイム采配（FR-19）で共用するピッチ図。A・B両チームの
+  選手を実座標(0-100)で描画し、ドラッグ操作、およびTab+矢印キーによるキーボード操作
+  （WCAG 2.1.1対応）を受け付ける
+- 内部にドラッグ/キー操作中の座標stateを持たない。`update-position`イベント
+  （ドラッグのpointermove・キーのkeydownのたびに発火、表示更新用）・
+  `update-position-end`イベント（ドラッグのpointerup・キーのkeyupのタイミングで1回のみ発火、
+  永続化用）をチーム種別・positionId・x・y付きで呼び出し元へ通知する
+- ルート要素は`role="group"`のラッパー`div`。内部のSVGに`role="img"`のような
+  剪定ロールを持たせず、装飾要素（背景・ライン・ペナルティエリア）と選手ラベルの`<text>`には
+  `aria-hidden="true"`を付与する。選手`<circle>`は`tabindex="0"`+`aria-label`のみを持ち、
+  `role="button"`は付与しない（Enter/Space未対応のままロールを名乗るとARIA契約違反になるため）
+- `components/freeLayoutCoordinates.ts`で実座標とSVG座標を線形マッピングする
+
+**インターフェース**:
+```typescript
+interface FreeLayoutPitchDiagramProps {
+  formationA: Formation;
+  formationB: Formation;
+}
+
+interface FreeLayoutPitchDiagramEmits {
+  "update-position": [team: "A" | "B", positionId: string, x: number, y: number];
+  "update-position-end": [team: "A" | "B", positionId: string, x: number, y: number];
+}
+```
+
+**依存関係**:
+- 依存可能: `types/formation.ts`, `components/freeLayoutCoordinates.ts`
+- 依存禁止: `pages/`, `data/`（表示専用コンポーネント。永続化は呼び出し元が
+  `update-position-end`を受けて行う）
+
+## UIレイヤー: SquadConditionControls（`components/SquadConditionControls.vue`）
+
+**責務**:
+- 選手個体差（FR-18）のON/OFFトグルボタンと、ON時のみ表示する再生成（リロール）ボタンを表示する
+- ルーティング・シード生成は行わない。`toggle`/`reroll`イベントをemitするだけの表示専用コンポーネント
+
+**インターフェース**:
+```typescript
+interface SquadConditionControlsProps {
+  isActive: boolean; // trueのときaria-pressed="true"、リロールボタンを表示
+}
+
+interface SquadConditionControlsEmits {
+  toggle: [];
+  reroll: [];
+}
+```
+
+**依存関係**:
+- 依存可能: なし
+- 依存禁止: `pages/`, `data/`（コンポーネントは props 経由でデータを受け取る）
+
+## UIレイヤー: MatchSimulationPanel（`components/MatchSimulationPanel.vue`）
+
+**責務**:
+- 試合シミュレーション結果（`MatchSimulationResult`）を、スコアボード・ボール保持率バー・
+  シュート/枠内シュート数・試合サマリー文・分刻みのハイライトタイムラインとして表示する
+  （FR-14）。ハーフタイム（FR-19）の前半45分ぶんの部分結果でも同じコンポーネントを再利用する
+  ため、「90分」と決め打ちしない文言にする（タイムライン0件時の代替文言等）
+- スコア・ボール保持率は`aria-live="polite"`/`role="img"`+`aria-label`で動的な値をスクリーンリーダーへ伝える
+- サマリー文は`TermAnnotatedText`経由で表示し、含まれるサッカー用語をその場で確認できるようにする（FR-11との整合）
+
+**インターフェース**:
+```typescript
+interface MatchSimulationPanelProps {
+  result: MatchSimulationResult;
+  formationAName: string;
+  formationBName: string;
+}
+```
+
+**依存関係**:
+- 依存可能: `types/formation.ts`, `components/TermAnnotatedText.vue`
+- 依存禁止: `pages/`, `data/`（表示専用コンポーネント。シミュレーション計算は行わない）
+
+## UIレイヤー: HalftimeTacticsModal（`components/HalftimeTacticsModal.vue`）
+
+**責務**:
+- ハーフタイム采配（FR-19）のモーダルダイアログ。前半45分時点のスコアと、A/B両チームの
+  ドラフト配置（`draftPositionsA`/`draftPositionsB`。呼び出し時の配置を複製した一時状態で、
+  `localStorage`へは永続化しない）を保持する
+- 内部で`FreeLayoutPitchDiagram`を再利用し、選手のドラッグ・キーボード操作を受け付ける
+  （`update-position`のみ購読。`update-position-end`は永続化用のため無視してよい）
+- フォーカス管理（WCAG 2.4.3）: マウント時に閉じるボタンへフォーカスを移し、
+  アンマウント時に開く前にフォーカスされていた要素へ戻す（DOMから取り除かれていた場合は
+  `document.body`へ一時的にフォールバックする）。モーダル内の最初/最後のフォーカス可能要素で
+  `Tab`/`Shift+Tab`を押すと反対側へ折り返すフォーカストラップを持つ
+- `Escape`キー・閉じるボタン（✕）・背景（`role="presentation"`のバックドロップ）クリックの
+  いずれでも、変更を確定せず`cancel`イベントをemitして閉じる
+- 「この配置で後半を開始する」で、ドラフト配置を`confirm`イベントとしてemitする
+- 配置を元に戻すリセット操作がある（ドラフト配置をpropsの`formationA`/`formationB`の
+  positionsで作り直す）
+
+**インターフェース**:
+```typescript
+interface HalftimeTacticsModalProps {
+  formationA: Formation;
+  formationB: Formation;
+  halftimeResult: MatchSimulationResult; // 前半45分の部分結果（スコア表示用）
+}
+
+interface HalftimeTacticsModalEmits {
+  confirm: [positionsA: Position[], positionsB: Position[]];
+  cancel: [];
+}
+```
+
+**依存関係**:
+- 依存可能: `types/formation.ts`, `components/FreeLayoutPitchDiagram.vue`
+- 依存禁止: `pages/`, `data/`（表示専用コンポーネント。永続化・シミュレーション継続は
+  呼び出し元の`ComparisonPage`が行う）
 
 ## UIレイヤー: MatrixPage（`pages/MatrixPage.vue`）
 
@@ -484,6 +677,71 @@ interface BackButtonProps {
 - 依存可能: `vue-router`（`useRouter`）
 - 依存禁止: `pages/`, `data/`
 
+## UIレイヤー: LeaguePage（`pages/LeaguePage.vue`）
+
+**責務**:
+- 全フォーメーションの総当たり1回戦（`n(n-1)/2`試合）を`composables/leagueSimulation.ts`の
+  `runLeagueSimulation`で決定的に実行し、勝ち点表（順位・試合数・勝分敗・得失点・勝ち点）と
+  全対戦結果一覧を表示する（FR-16）
+- `formations`/`getMatchup`は静的データで実行中に変化しないため、結果は`computed`で1回だけ
+  計算する
+- `runLeagueSimulation`がマッチアップ欠落（データ不整合）時に投げる`Error`を`catch`して
+  `null`へ倒し、エラー表示に切り替える（`ComparisonPage`/`MatrixPage`と同じ「劣化表示」方針）
+- 全対戦結果の各行から対応する比較画面への導線を提供する
+
+**インターフェース**:
+```typescript
+// runLeagueSimulation(formations, getMatchup)の結果をそのまま保持するcomputed。
+// 集計失敗時はnull（エラー表示に切り替える）
+type LeaguePageState = LeagueSimulationResult | null;
+
+function formatSigned(value: number): string; // 得失点差を符号付き文字列にする
+```
+
+戻るボタンは共有コンポーネント`BackButton`（`fallback-to="/"`）を使う。独自の`goBack()`は持たない
+（`BackButton`の責務は上記「BackButton」節を参照）。
+
+**依存関係**:
+- 依存可能: `data/formations.ts`, `data/matchups.ts`, `composables/leagueSimulation.ts`,
+  `components/BackButton.vue`, `vue-router`
+- 依存禁止: なし
+
+## UIレイヤー: CupPage（`pages/CupPage.vue`）
+
+**責務**:
+- 8フォーメーション固定のノックアウト方式トーナメント（準々決勝4試合→準決勝2試合→決勝1試合）を
+  `composables/cupSimulation.ts`の`runCupSimulation`で決定的に実行し、3ラウンドのブラケットと
+  優勝フォーメーションを表示する（FR-17）
+- `runCupSimulation`が`formations.length !== 8`・マッチアップ欠落時に投げる`Error`を`catch`して
+  `null`へ倒し、エラー表示に切り替える（原因調査のため`console.error`にログを残す）
+- 各対戦カードの勝者側に、色（`--color-primary`）に加えて太字・🏆アイコン（`aria-hidden`）・
+  視覚的に隠した「（勝者）」テキストを付与し、色だけに依存しない表示にする（WCAG 1.4.1）
+- 各対戦カードから対応する比較画面への導線を提供する
+
+**インターフェース**:
+```typescript
+// runCupSimulation(formations, getMatchup)の結果をそのまま保持するcomputed。
+// 集計失敗時はnull（エラー表示に切り替える）
+type CupPageState = CupSimulationResult | null;
+
+// cup.quarterfinals/semifinals/finalを「準々決勝」「準決勝」「決勝」の
+// 見出し付きセクションとして描画するための算出プロパティ
+interface CupRound {
+  title: string;
+  matches: CupMatch[];
+}
+```
+
+戻るボタンは共有コンポーネント`BackButton`（`fallback-to="/"`）を使う。独自の`goBack()`は持たない。
+
+**依存関係**:
+- 依存可能: `data/formations.ts`, `data/matchups.ts`, `composables/cupSimulation.ts`,
+  `components/BackButton.vue`, `vue-router`
+- 依存禁止: なし
+
+> **フォーメーション一覧画面からの導線**: `FormationListPage`は`formations.length === 8`の
+> ときのみ「🥇 カップ戦」ボタンを表示する（`CUP_REQUIRED_FORMATION_COUNT`定数で判定）。
+
 ## データレイヤー: termAnnotation / quiz（`data/termAnnotation.ts`, `data/quiz.ts`）
 
 **責務**:
@@ -586,3 +844,152 @@ export const soccerTerms: SoccerTerm[]; // matchups.ts等の実文言から抽�
 > このレイヤーは外部依存を持たない純粋なデータ・関数のみで構成される。UIレイヤーへの依存も
 > 無いため、`getFormationById` / `getMatchup` は単体テストの対象として最もテストしやすい層である
 > （`requirements-definition.md` §5 NFR-03「保守性」に対応）。
+
+## ロジック層: matchSimulation（`composables/matchSimulation.ts`）
+
+**責務**:
+- 2つのフォーメーションの対戦を90分・1分刻みのイベント駆動で決定的にシミュレーションする
+  （FR-14）。乱数は`matchup.id`から`fnv1aHash`+`mulberry32`で導出し、同じ組み合わせは
+  常に同じ結果になる
+- `matchup.id`が示す正準順（`${正準A}_vs_${正準B}`の前半をAとする）で内部計算を行い、
+  呼び出し時のa/bが正準順と逆であれば結果を鏡写しにして返す。これにより、A/Bを入れ替えて
+  呼んでも同じ90分の展開になる（呼び出し順に依存しない決定性）
+- ハーフタイム采配（FR-19）向けに、90分を1回で計算する`simulateMatch`とは別に、
+  前半のみ計算して不透明な途中経過（`MatchProgress`）を返す`startMatch`と、その続きから
+  90分目までを計算する`resumeMatch`を提供する。同じ`MatchProgress`を2回`resumeMatch`に
+  渡すと二重加算になるため、2回目の呼び出しは`Error`を投げるガードを持つ
+- `composables/`は`data/`に依存しない設計方針のため、`data/matchupGenerator.ts`の
+  ハッシュ関数と同方式のものを`fnv1aHash`として自前で重複実装する
+- `fnv1aHash`/`mulberry32`/`clamp`は同一レイヤー内の共通ユーティリティとして
+  `cupSimulation.ts`（PK戦）・`squadCondition.ts`（選手個体差）へexportする
+
+**インターフェース**:
+```typescript
+export function simulateMatch(a: Formation, b: Formation, matchup: Matchup): MatchSimulationResult;
+
+// 試合の途中経過を表す不透明な状態。呼び出し側はフィールドを直接読み書きしない
+export interface MatchProgress {
+  reversed: boolean;
+  random: () => number;
+  acc: /* 内部の累積統計 */ unknown;
+  throughMinute: number;
+  consumed: boolean; // resumeMatchで一度消費されたか
+}
+
+// 試合開始からthroughMinute分（既定45=前半終了）までを計算する
+export function startMatch(
+  a: Formation, b: Formation, matchup: Matchup, throughMinute?: number,
+): { progress: MatchProgress; result: MatchSimulationResult };
+
+// startMatchの続きから90分目までを計算する。同じprogressを2回渡すとErrorを投げる
+export function resumeMatch(
+  progress: MatchProgress, a: Formation, b: Formation, matchup: Matchup,
+): MatchSimulationResult;
+
+// 決定的な乱数関連ユーティリティ（同一レイヤー内で再利用するためexport）
+export function fnv1aHash(input: string): number;
+export function mulberry32(seed: number): () => number;
+export function clamp(value: number, min: number, max: number): number;
+```
+
+**依存関係**: `types/formation.ts` のみ（外部依存なし）。`data/`には依存しない。
+
+## ロジック層: leagueSimulation（`composables/leagueSimulation.ts`）
+
+**責務**:
+- 全フォーメーションの総当たり1回戦（`n(n-1)/2`試合）を`simulateMatch`で決定的に実行し、
+  勝ち点表（試合数・勝分敗・得失点・勝ち点・順位）と全対戦結果を集計する（FR-16）
+- 順位は勝ち点→得失点差→総得点の順で決定し、すべて同値の場合は同着順位方式
+  （1, 2, 2, 4, ...）で採番する
+- マッチアップ導出（`getMatchup`）・試合シミュレーション（`simulateMatch`）は呼び出し側から
+  関数として注入するDI方式（`composables/`は`data/`に依存しない設計方針のため）。
+  テストでは固定スコアを返すスタブに差し替えられる
+
+**インターフェース**:
+```typescript
+export function runLeagueSimulation(
+  formations: Formation[],
+  getMatchupFn: (formationAId: string, formationBId: string) => Matchup | undefined,
+  simulateMatchFn?: (a: Formation, b: Formation, matchup: Matchup) => MatchSimulationResult, // 既定値: simulateMatch
+): LeagueSimulationResult; // { standings: LeagueStanding[]; matches: LeagueMatchResult[] }
+```
+
+**依存関係**: `types/formation.ts`, `composables/matchSimulation.ts`（既定の`simulateMatchFn`として）。`data/`には依存しない。
+
+## ロジック層: cupSimulation（`composables/cupSimulation.ts`）
+
+**責務**:
+- 8フォーメーション固定のノックアウト方式トーナメント（準々決勝4試合→準決勝2試合→決勝1試合）を
+  `simulateMatch`で決定的に実行する（FR-17）
+- 対戦カードは`formations`配列の並び順を固定シードとする（`[0]vs[1], [2]vs[3], ...`が
+  準々決勝）。`formations.length !== 8`の場合は`Error`を投げる
+- 90分で同点の場合、`matchup.id`から導出した別シード（本体の乱数列とは独立）でPK戦を
+  決定的にシミュレーションし、必ず勝者を1人決める。PK戦の勝者判定も、試合本体と同じく
+  `matchup.id`が示す正準順で解決してから呼び出し順へマッピングし、対戦カードの呼び出し順に
+  依存しないようにする
+- マッチアップ導出・試合シミュレーションはDI方式（`leagueSimulation.ts`と同じ方針）
+
+**インターフェース**:
+```typescript
+export function runCupSimulation(
+  formations: Formation[], // 必ず8件
+  getMatchupFn: (formationAId: string, formationBId: string) => Matchup | undefined,
+  simulateMatchFn?: (a: Formation, b: Formation, matchup: Matchup) => MatchSimulationResult, // 既定値: simulateMatch
+): CupSimulationResult; // { quarterfinals, semifinals, final: CupMatch[]|CupMatch; championId; championName }
+```
+
+**依存関係**: `types/formation.ts`, `composables/matchSimulation.ts`（`fnv1aHash`/`mulberry32`/既定の`simulateMatchFn`として）。`data/`には依存しない。
+
+## ロジック層: squadCondition（`composables/squadCondition.ts`）
+
+**責務**:
+- 選手個体差（FR-18）: フォーメーションの5軸`stats`に、シードから決定的に導出した
+  小さな乱数変動（±10%、0-100にクランプ）を加えた実効statsを返す純粋関数を提供する
+- 影響範囲は呼び出し側（`ComparisonPage`）が`simulateMatch`に渡すFormationのstatsに限定する。
+  この関数自体はマッチアップ判定・タグ導出を一切呼ばない
+
+**インターフェース**:
+```typescript
+export function applySquadVariance(stats: FormationStats, seed: number): FormationStats;
+```
+
+**依存関係**: `types/formation.ts`, `composables/matchSimulation.ts`（`mulberry32`/`clamp`として）。`data/`には依存しない。
+
+## データレイヤー: freeLayoutStorage（`data/freeLayoutStorage.ts`）
+
+**責務**:
+- 自由配置モード（FR-15）でドラッグした配置を、フォーメーションID単位で`localStorage`へ
+  読み書きする。`data/`配下で学習進捗（`learningProgress.ts`）と並ぶ、副作用を持つモジュール
+- 保存形式は`Record<formationId, Record<positionId, {x, y}>>`。読み込み時に型を検証し、
+  `__proto__`/`constructor`/`prototype`等のプロトタイプ汚染キーを含め、期待から外れた値は
+  無視する（`localStorage`の中身は利用者が自由に書き換えられるため、信用して適用しない）
+- 読み込み・書き込み・削除のすべてを`try/catch`で囲み、`localStorage`が使えない環境でも
+  例外を外へ伝播させない
+
+**インターフェース**:
+```typescript
+export function applyOverrides(positions: Position[], formationId: string): Position[];
+export function savePositionOverride(formationId: string, positionId: string, x: number, y: number): void;
+export function clearFormationOverride(formationId: string): void;
+```
+
+**依存関係**: `types/formation.ts` のみ（外部依存なし）。呼び出し元は`pages/ComparisonPage.vue`に限る。
+
+## データレイヤー: freeLayoutCoordinates（`components/freeLayoutCoordinates.ts`）
+
+**責務**:
+- `FreeLayoutPitchDiagram.vue`専用の座標変換（実座標(0-100)↔SVG座標、ピッチ範囲へのクランプ）を
+  行う、DOM非依存の純粋関数群。往復可能な単純な線形変換のみを行う
+  （`MatchupPitchDiagram`のクラスタリング・列アンカー補間・衝突回避とは異なる目的）
+
+**インターフェース**:
+```typescript
+export function xToCy(x: number): number;
+export function cyToX(cy: number): number;
+export function depthToCx(team: "A" | "B", y: number): number; // チームごとに展開方向が鏡映する
+export function cxToDepth(team: "A" | "B", cx: number): number;
+export function clampToPitchRange(value: number): number;
+```
+
+**依存関係**: なし（外部依存なし）。`components/`配下だが表示コンポーネントではなく
+純粋関数群のため、`FreeLayoutPitchDiagram.vue`から直接importする例外を認める。

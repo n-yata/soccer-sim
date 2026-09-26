@@ -67,7 +67,7 @@
           <span class="match-simulation-panel__event-text">{{ event.text }}</span>
         </li>
         <li v-if="result.timeline.length === 0" class="match-simulation-panel__event-empty">
-          <!-- ハーフタイム(FR-17)の前半45分ぶんの部分結果でもこのパネルを再利用するため、
+          <!-- ハーフタイム(FR-19)の前半45分ぶんの部分結果でもこのパネルを再利用するため、
                「90分」と決め打ちしない時間帯に依存しない文言にする -->
           目立った決定機のない時間帯だった
         </li>
