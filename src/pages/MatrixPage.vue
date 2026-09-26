@@ -1,7 +1,7 @@
 <template>
   <div class="matrix-page">
     <div class="matrix-page__header">
-      <button type="button" class="matrix-page__back-button" @click="goBack">← 戻る</button>
+      <BackButton class="matrix-page__back-button" fallback-to="/" />
       <h1 class="matrix-page__title">相性マトリクス</h1>
     </div>
     <p class="matrix-page__subtitle">
@@ -42,7 +42,11 @@
           <button type="button" class="matrix-page__clear-confirm" @click="onClearProgress">
             消去する
           </button>
-          <button type="button" class="matrix-page__clear-cancel" @click="isConfirmingClear = false">
+          <button
+            type="button"
+            class="matrix-page__clear-cancel"
+            @click="isConfirmingClear = false"
+          >
             やめる
           </button>
         </template>
@@ -103,18 +107,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
+import BackButton from "@/components/BackButton.vue";
 import { formations } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
-import {
-  buildPairKey,
-  clearProgress,
-  countAllPairs,
-  loadProgress,
-} from "@/data/learningProgress";
+import { buildPairKey, clearProgress, countAllPairs, loadProgress } from "@/data/learningProgress";
 import type { Formation, LearningProgress, Matchup } from "@/types/formation";
-
-const router = useRouter();
 
 // FR-13: 進捗はマウント時に一度読み、以降は画面内の状態として扱う。
 // 消去操作でのみ変化するため、描画のたびに localStorage を読み直す必要はない
@@ -130,14 +127,13 @@ const viewedSet = computed(() => new Set(progress.value.viewedPairs));
 // 分子は「現在のフォーメーションで実在する組み合わせ」に限る。
 // 保存済みキーをそのまま数えると、データから消えたフォーメーションの記録が
 // 残っている場合に分子が分母を超える
-const viewedCount = computed(
-  () =>
-    formations.reduce((count, row, rowIndex) => {
-      const pairsInRow = formations
-        .slice(rowIndex + 1)
-        .filter((col) => viewedSet.value.has(buildPairKey(row.id, col.id))).length;
-      return count + pairsInRow;
-    }, 0),
+const viewedCount = computed(() =>
+  formations.reduce((count, row, rowIndex) => {
+    const pairsInRow = formations
+      .slice(rowIndex + 1)
+      .filter((col) => viewedSet.value.has(buildPairKey(row.id, col.id))).length;
+    return count + pairsInRow;
+  }, 0),
 );
 
 const isComplete = computed(() => totalPairs.value > 0 && viewedCount.value === totalPairs.value);
@@ -178,67 +174,45 @@ function formatCellLabel(row: Formation, col: Formation): string {
   if (edge === "B") return `${row.name} vs ${col.name}: ${col.name}がやや優位${viewed}`;
   return `${row.name} vs ${col.name}: 互角${viewed}`;
 }
-
-// vue-routerのhistoryモードはhistory.stateに前後のルートパスを持つため、
-// アプリ内遷移の履歴があるときだけrouter.back()で遷移元（一覧画面/マトリクス画面の
-// どちらか実際にいた方）へ戻す。履歴が無い（URL直打ち等）場合のみ一覧画面へ固定する
-function goBack(): void {
-  if (window.history.state?.back) {
-    router.back();
-  } else {
-    router.push("/");
-  }
-}
 </script>
 
 <style scoped>
 .matrix-page {
-  padding: 24px 40px 40px;
+  padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
 }
 
 .matrix-page__header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
-}
-
-.matrix-page__back-button {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: var(--shadow-card);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  cursor: pointer;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
 .matrix-page__title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-xl);
   font-weight: 700;
   color: var(--color-text);
 }
 
 .matrix-page__subtitle {
-  margin: 0 0 16px;
-  font-size: 13px;
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-sm);
   color: var(--color-text-sub);
 }
 
 .matrix-page__legend {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
   font-weight: bold;
+  flex-wrap: wrap;
 }
 
 .matrix-page__legend-item {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .matrix-page__legend-item::before {
@@ -260,13 +234,13 @@ function goBack(): void {
 
 .matrix-page__legend-item--even {
   color: var(--color-text-sub);
-  background: #f9fafb;
+  background: var(--color-surface-sub);
   border: 1px solid var(--color-border);
 }
 
 .matrix-page__legend-item--viewed {
-  color: #374151;
-  background: #ffffff;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
 }
 
@@ -279,23 +253,23 @@ function goBack(): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 20px;
-  margin-bottom: 16px;
+  gap: var(--space-sm) var(--space-lg);
+  margin-bottom: var(--space-md);
 }
 
 .matrix-page__progress-text {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--color-text-sub);
 }
 
 .matrix-page__progress-text strong {
-  font-size: 18px;
+  font-size: var(--font-lg);
   color: var(--color-primary);
 }
 
 .matrix-page__progress-done {
-  margin-left: 8px;
+  margin-left: var(--space-sm);
   font-weight: 700;
   color: var(--color-primary);
 }
@@ -303,24 +277,24 @@ function goBack(): void {
 .matrix-page__progress-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .matrix-page__clear-button,
 .matrix-page__clear-confirm,
 .matrix-page__clear-cancel {
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 700;
-  color: #374151;
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
 .matrix-page__clear-button:disabled {
-  color: #9ca3af;
+  color: var(--color-border-strong);
   cursor: default;
 }
 
@@ -330,7 +304,7 @@ function goBack(): void {
 }
 
 .matrix-page__clear-confirm-text {
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -343,10 +317,10 @@ function goBack(): void {
 }
 
 .matrix-page__cell-check {
-  font-size: 20px;
+  font-size: var(--font-lg);
   font-weight: 700;
   line-height: 1;
-  color: #111827;
+  color: var(--color-text);
   opacity: 0.55;
 }
 
@@ -360,7 +334,7 @@ function goBack(): void {
 }
 
 .matrix-page__table th {
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 700;
   color: var(--color-text);
   padding: 4px 8px;
@@ -373,7 +347,7 @@ function goBack(): void {
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
   text-decoration: none;
 }
@@ -381,10 +355,10 @@ function goBack(): void {
 .matrix-page__cell--diagonal {
   background: repeating-linear-gradient(
     45deg,
-    #f3f4f6,
-    #f3f4f6 4px,
-    #e5e7eb 4px,
-    #e5e7eb 8px
+    var(--color-surface-hover),
+    var(--color-surface-hover) 4px,
+    var(--color-border) 4px,
+    var(--color-border) 8px
   );
   border: 1px solid var(--color-border);
 }
@@ -400,8 +374,8 @@ function goBack(): void {
 }
 
 .matrix-page__cell--even {
-  background: #f9fafb;
-  border: 2px solid #9ca3af;
+  background: var(--color-surface-sub);
+  border: 2px solid var(--color-border-strong);
 }
 
 .matrix-page__cell--unknown {
@@ -416,5 +390,20 @@ a.matrix-page__cell:hover {
 a.matrix-page__cell:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .matrix-page {
+    padding: var(--space-md) var(--space-md) var(--space-xl);
+  }
+
+  .matrix-page__cell {
+    width: 36px;
+    height: 36px;
+  }
+
+  .matrix-page__table {
+    border-spacing: 4px;
+  }
 }
 </style>

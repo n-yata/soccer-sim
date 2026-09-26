@@ -44,7 +44,10 @@ soccer-sim/
 │   │   ├── TermPopover.vue          # サッカー用語1件の説明を表示する吹き出し
 │   │   ├── QuizQuestionCard.vue     # クイズの設問1問の表示・回答受付コンポーネント
 │   │   ├── MatchSimulationPanel.vue # 試合シミュレーション結果（スコア・ポゼッション・タイムライン）表示コンポーネント
-│   │   └── HalftimeTacticsModal.vue # ハーフタイム采配（FR-19）: A/B両チームの配置変更UIを持つモーダル
+│   │   ├── HalftimeTacticsModal.vue # ハーフタイム采配（FR-19）: A/B両チームの配置変更UIを持つモーダル
+│   │   ├── AppHeader.vue            # 全画面共通のグローバルナビゲーション
+│   │   ├── PageHeader.vue           # グラデーション背景のページヘッダー
+│   │   └── BackButton.vue           # 「← 戻る」ボタン（遷移先解決を集約）
 │   ├── composables/
 │   │   ├── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`。ハーフタイム采配用に`startMatch`/`resumeMatch`も提供）
 │   │   └── leagueSimulation.ts  # 総当たり1回戦の集計・順位算出ロジック（純粋関数。`runLeagueSimulation`）
@@ -142,6 +145,15 @@ soccer-sim/
   （変更後または元のpositionsA/B）、`Escape`キー・閉じるボタン（✕）・バックドロップ
   クリックのいずれかで`cancel`をemitするだけで、後半のシミュレーション実行自体は
   呼び出し元の`ComparisonPage`が行う
+- `AppHeader.vue`: 全画面共通のグローバルナビゲーション。`App.vue`から配置され、現在地
+  ハイライト・モバイル幅でのハンバーガー折りたたみを行う。カップ戦導線の出し分けは
+  `showCupLink` propsで受け取り（判定は`App.vue`が`data/formations.ts`を見て行う）、
+  自身は`data/`配下の静的データを直接参照しない
+- `PageHeader.vue`: グラデーション背景のページヘッダー（タイトル・サブタイトル）を表示する
+  表示専用コンポーネント。`FormationListPage.vue`/`GlossaryPage.vue`が使用する
+- `BackButton.vue`: 「← 戻る」ボタンの表示と遷移先解決（履歴があれば`router.back()`、
+  無ければ`fallbackTo` propsへ`router.push()`）を行う。`MatrixPage.vue`/`QuizPage.vue`/
+  `LeaguePage.vue`/`CupPage.vue`/`ComparisonPage.vue`が使用する
 
 **依存関係**:
 - 依存可能: `types/`

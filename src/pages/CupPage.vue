@@ -1,7 +1,7 @@
 <template>
   <div class="cup-page">
     <div class="cup-page__header">
-      <button type="button" class="cup-page__back-button" @click="goBack">← 戻る</button>
+      <BackButton class="cup-page__back-button" fallback-to="/" />
       <h1 class="cup-page__title">カップ戦</h1>
     </div>
 
@@ -15,7 +15,10 @@
       <section v-for="round in rounds" :key="round.title" class="cup-page__round">
         <h2 class="cup-page__round-title">{{ round.title }}</h2>
         <ul class="cup-page__matches">
-          <li v-for="match in round.matches" :key="`${match.formationAId}_vs_${match.formationBId}`">
+          <li
+            v-for="match in round.matches"
+            :key="`${match.formationAId}_vs_${match.formationBId}`"
+          >
             <router-link
               :to="{
                 name: 'comparison',
@@ -58,13 +61,11 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRouter } from "vue-router";
+import BackButton from "@/components/BackButton.vue";
 import { formations } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
 import { runCupSimulation } from "@/composables/cupSimulation";
 import type { CupMatch, CupSimulationResult } from "@/types/formation";
-
-const router = useRouter();
 
 // formationsは静的データで実行中に変化しないため、カップ戦の結果は1回計算すれば十分
 // （LeaguePage.vueのleagueと同じ方針）。
@@ -91,67 +92,46 @@ const rounds = computed<{ title: string; matches: CupMatch[] }[]>(() => {
     { title: "決勝", matches: [cup.value.final] },
   ];
 });
-
-// LeaguePage.vue/MatrixPage.vueと同じgoBack方針
-function goBack(): void {
-  if (window.history.state?.back) {
-    router.back();
-  } else {
-    router.push("/");
-  }
-}
 </script>
 
 <style scoped>
 .cup-page {
-  padding: 24px 40px 40px;
+  padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
 }
 
 .cup-page__header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
-}
-
-.cup-page__back-button {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: var(--shadow-card);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  cursor: pointer;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
 .cup-page__title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-xl);
   font-weight: 700;
   color: var(--color-text);
 }
 
 .cup-page__subtitle {
-  margin: 0 0 8px;
-  font-size: 13px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-sm);
   color: var(--color-text-sub);
 }
 
 .cup-page__champion {
-  margin: 0 0 24px;
-  font-size: 18px;
+  margin: 0 0 var(--space-lg);
+  font-size: var(--font-lg);
   font-weight: 700;
   color: var(--color-primary);
 }
 
 .cup-page__round {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-lg);
 }
 
 .cup-page__round-title {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-sm);
   font-size: 16px;
   font-weight: 700;
   color: var(--color-text);
@@ -162,27 +142,27 @@ function goBack(): void {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .cup-page__match-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-md);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: #ffffff;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
   padding: 10px 16px;
-  font-size: 13px;
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--color-text);
   text-decoration: none;
 }
 
 .cup-page__match-link:hover {
-  background: #f3f4f6;
+  background: var(--color-surface-hover);
 }
 
 .cup-page__match-link:focus-visible {
@@ -218,5 +198,16 @@ function goBack(): void {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .cup-page {
+    padding: var(--space-md) var(--space-md) var(--space-xl);
+  }
+
+  .cup-page__match-link {
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-md);
+  }
 }
 </style>

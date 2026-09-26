@@ -1,7 +1,7 @@
 <template>
   <div class="quiz-page">
     <div class="quiz-page__header">
-      <button type="button" class="quiz-page__back-button" @click="goBack">← 戻る</button>
+      <BackButton class="quiz-page__back-button" fallback-to="/" />
       <h1 class="quiz-page__title">理解度チェック</h1>
       <router-link to="/glossary" class="quiz-page__glossary-link"> 📖 用語集 </router-link>
     </div>
@@ -49,14 +49,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
+import BackButton from "@/components/BackButton.vue";
 import QuizQuestionCard from "@/components/QuizQuestionCard.vue";
 import { formations } from "@/data/formations";
 import { matchups } from "@/data/matchups";
 import { buildQuiz } from "@/data/quiz";
 import type { QuizQuestion } from "@/types/formation";
-
-const router = useRouter();
 
 const questions = ref<QuizQuestion[]>([]);
 const currentIndex = ref(0);
@@ -115,48 +113,26 @@ function restart(): void {
 }
 
 restart();
-
-// vue-routerのhistoryモードはhistory.stateに前後のルートパスを持つため、
-// アプリ内遷移の履歴があるときだけrouter.back()で遷移元へ戻す。
-// 履歴が無い（URL直打ち等）場合のみ一覧画面へ固定する
-function goBack(): void {
-  if (window.history.state?.back) {
-    router.back();
-  } else {
-    router.push("/");
-  }
-}
 </script>
 
 <style scoped>
 .quiz-page {
   max-width: 640px;
   margin: 0 auto;
-  padding: 24px 20px 40px;
+  padding: var(--space-lg) var(--space-md) var(--space-xl);
 }
 
 .quiz-page__header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.quiz-page__back-button {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: var(--shadow-card);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  cursor: pointer;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .quiz-page__title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--font-xl);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -164,20 +140,20 @@ function goBack(): void {
 .quiz-page__glossary-link {
   margin-left: auto;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #ffffff;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-sm);
   font-weight: 700;
-  color: #374151;
+  color: var(--color-text-muted);
   text-decoration: none;
 }
 
 .quiz-page__empty {
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-card);
-  padding: 24px;
+  padding: var(--space-lg);
   font-size: 14px;
   line-height: 1.8;
   color: var(--color-text-sub);
@@ -185,8 +161,8 @@ function goBack(): void {
 }
 
 .quiz-page__progress {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--color-text-sub);
 }
@@ -198,14 +174,15 @@ function goBack(): void {
 .quiz-page__actions {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 16px;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .quiz-page__next-button,
 .quiz-page__retry-button {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(90deg, var(--color-primary), var(--color-primary-end));
   padding: 12px 24px;
   font-size: 14px;
@@ -223,33 +200,33 @@ function goBack(): void {
 .quiz-page__result {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
-  padding: 32px 24px;
+  padding: var(--space-xl) var(--space-lg);
   text-align: center;
 }
 
 .quiz-page__result-title {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-sm);
   font-size: 20px;
   font-weight: 700;
   color: var(--color-text);
 }
 
 .quiz-page__result-score {
-  margin: 0 0 8px;
-  font-size: 16px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-md);
   color: var(--color-text);
 }
 
 .quiz-page__result-score strong {
-  font-size: 28px;
+  font-size: var(--font-2xl);
   color: var(--color-primary);
 }
 
 .quiz-page__result-comment {
-  margin: 0 0 8px;
-  font-size: 13px;
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-sm);
   line-height: 1.8;
   color: var(--color-text-sub);
 }
@@ -259,7 +236,7 @@ function goBack(): void {
 }
 
 .quiz-page__result-link {
-  font-size: 13px;
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--color-primary);
 }
