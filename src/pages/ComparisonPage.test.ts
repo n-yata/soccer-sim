@@ -840,6 +840,47 @@ describe("ComparisonPage", () => {
     });
   });
 
+  // 表示オプションパネル（自由配置・選手個体差のグルーピング。2026-09-28）
+  describe("表示オプションパネル", () => {
+    function panel(wrapper: ReturnType<typeof mount>) {
+      return wrapper.find(".comparison-page__options");
+    }
+
+    function isOpen(wrapper: ReturnType<typeof mount>): boolean {
+      return (panel(wrapper).element as HTMLDetailsElement).open;
+    }
+
+    it("初期表示では閉じている", () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      expect(isOpen(wrapper)).toBe(false);
+    });
+
+    it("自由配置モードをONにすると、パネルが自動的に開く", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".free-layout-controls__toggle").trigger("click");
+      expect(isOpen(wrapper)).toBe(true);
+    });
+
+    it("選手個体差をONにすると、パネルが自動的に開く", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".squad-condition-controls__toggle").trigger("click");
+      expect(isOpen(wrapper)).toBe(true);
+    });
+
+    // detailsのopenをVueの式へ直結すると、ユーザーがクリックして開閉した直後に
+    // 式の再評価でDOMが上書きされ、パネルが勝手に閉じてしまう回帰を防ぐ
+    it("手動で開いたあと機能をON→OFFしても、パネルは開いたままになる", async () => {
+      const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+      await wrapper.find(".comparison-page__options-summary").trigger("click");
+      expect(isOpen(wrapper)).toBe(true);
+
+      await wrapper.find(".free-layout-controls__toggle").trigger("click"); // ON
+      await wrapper.find(".free-layout-controls__toggle").trigger("click"); // OFF
+
+      expect(isOpen(wrapper)).toBe(true);
+    });
+  });
+
   it("各セレクトで、相手側に選択済みのフォーメーションがdisabledになっている", () => {
     const wrapper = mount(ComparisonPage, {
       global: { stubs: { RouterLink: routerLinkStub } },

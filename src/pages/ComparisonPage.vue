@@ -19,16 +19,28 @@
           @select-a="onSelectA"
           @select-b="onSelectB"
         />
-        <FreeLayoutControls
-          :is-active="isFreeLayoutMode"
-          @toggle="toggleFreeLayoutMode"
-          @reset="resetFreeLayout"
-        />
-        <SquadConditionControls
-          :is-active="squadConditionSeed !== null"
-          @toggle="toggleSquadCondition"
-          @reroll="rerollSquadCondition"
-        />
+        <details
+          class="comparison-page__options"
+          :open="isOptionsOpen"
+          @toggle="isOptionsOpen = ($event.target as HTMLDetailsElement).open"
+        >
+          <summary class="comparison-page__options-summary">
+            <AppIcon :icon="Settings2" size="sm" />
+            表示オプション
+          </summary>
+          <div class="comparison-page__options-body">
+            <FreeLayoutControls
+              :is-active="isFreeLayoutMode"
+              @toggle="toggleFreeLayoutMode"
+              @reset="resetFreeLayout"
+            />
+            <SquadConditionControls
+              :is-active="squadConditionSeed !== null"
+              @toggle="toggleSquadCondition"
+              @reroll="rerollSquadCondition"
+            />
+          </div>
+        </details>
         <p
           class="comparison-page__verdict"
           :class="`comparison-page__verdict--${matchup.overallEdge}`"
@@ -141,7 +153,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { Play, Scale, Trophy, Wrench } from "@lucide/vue";
+import { Play, Scale, Settings2, Trophy, Wrench } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
 import ComparisonControls from "@/components/ComparisonControls.vue";
 import FreeLayoutControls from "@/components/FreeLayoutControls.vue";
@@ -292,6 +304,19 @@ const isHalftimeModalOpen = ref(false);
 // 一切影響させない（design.md「実装対象の機能」参照）。シードの「引き方」はUIの関心事、
 // 「シードから実効statsを作る」のはcomposables/squadCondition.tsの関心事、という責務分離を保つ
 const squadConditionSeed = ref<number | null>(null);
+
+// 表示オプションパネルの開閉。detailsのopen属性はユーザーのクリックでDOMが直接
+// 書き換わるため、:openを式に直結すると次の再評価でVueがDOMを上書きし、
+// ユーザーが開閉した直後に勝手に閉じる（あるいは開かない）。refを正本にし、
+// ネイティブのtoggleイベントで同期する。機能が有効化されたら強制的に開くが、
+// 無効化してもユーザーが開いたままにしていれば閉じない（片方向の強制はONのみ）
+const isOptionsOpen = ref(false);
+
+watch([isFreeLayoutMode, () => squadConditionSeed.value !== null], ([freeLayoutOn, squadOn]) => {
+  if (freeLayoutOn || squadOn) {
+    isOptionsOpen.value = true;
+  }
+});
 
 function resetMatchState(): void {
   simulationResult.value = null;
@@ -473,6 +498,42 @@ function onSelectB(id: string): void {
   padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.comparison-page__options {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sub);
+}
+
+.comparison-page__options-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.comparison-page__options-summary::-webkit-details-marker {
+  display: none;
+}
+
+.comparison-page__options-body {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 var(--space-md) var(--space-md);
+}
+
+.comparison-page__options-body :deep(.free-layout-controls),
+.comparison-page__options-body :deep(.squad-condition-controls) {
+  margin-bottom: 0;
 }
 
 .comparison-page__legend {

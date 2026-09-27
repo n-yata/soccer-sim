@@ -114,12 +114,15 @@
                 <mxCell id="comparison-select-b" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#EF4444;fontSize=12;align=left;spacingLeft=12;fontColor=#B91C1C;" value="3-5-2 ▾" vertex="1">
                     <mxGeometry height="36" width="140" x="250" y="184" as="geometry"/>
                 </mxCell>
-                <!-- FreeLayoutControls / SquadConditionControls トグル（FR-15/FR-18。旧図では未反映だった） -->
-                <mxCell id="freelayout-toggle" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;fontSize=12;align=center;verticalAlign=middle;fontColor=#374151;" value="🖐️ 自由に配置を調整する" vertex="1">
+                <!-- 表示オプション: FreeLayoutControls（自由配置。FR-15）/ SquadConditionControls
+                     （選手個体差。FR-18）をひとつの折りたたみパネルにグルーピング（2026-09-28。
+                     個別の常時表示ボタン2つはチーム選択と見た目が区別できず視覚的階層が無かった
+                     ため、既定で閉じたdetails/summaryに変更） -->
+                <mxCell id="options-panel" parent="1" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F9FAFB;strokeColor=#E5E7EB;strokeWidth=1;" value="" vertex="1">
                     <mxGeometry height="34" width="220" x="40" y="234" as="geometry"/>
                 </mxCell>
-                <mxCell id="squadcondition-toggle" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;fontSize=12;align=center;verticalAlign=middle;fontColor=#374151;" value="🎲 選手個体差を反映する" vertex="1">
-                    <mxGeometry height="34" width="220" x="270" y="234" as="geometry"/>
+                <mxCell id="options-toggle" parent="1" style="text;html=1;fontSize=12;fontStyle=1;align=left;verticalAlign=middle;fontColor=#374151;" value="⚙️ 表示オプション ▾" vertex="1">
+                    <mxGeometry height="34" width="188" x="56" y="234" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-5" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=2;align=left;verticalAlign=top;spacingTop=10;spacingLeft=16;fontSize=14;fontStyle=1;fontColor=#7C2D12;" value="🏆 3-5-2がやや優位&#xa;5レーンの構成と中盤の実質的な数的優位を両立でき、噛み合わせで上回りやすい" vertex="1">
                     <mxGeometry height="60" width="784" x="40" y="280" as="geometry"/>
