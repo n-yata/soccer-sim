@@ -13,13 +13,13 @@
       <section v-for="group in groupedTerms" :key="group.category" class="glossary-page__category">
         <h2 class="glossary-page__category-title">{{ group.category }}</h2>
         <dl class="glossary-page__list">
-          <template v-for="term in group.terms" :key="term.id">
+          <div v-for="term in group.terms" :key="term.id" class="glossary-page__entry">
             <dt class="glossary-page__term">
               {{ term.term }}
               <span class="glossary-page__reading">（{{ term.reading }}）</span>
             </dt>
             <dd class="glossary-page__description">{{ term.description }}</dd>
-          </template>
+          </div>
         </dl>
       </section>
     </div>
@@ -51,7 +51,7 @@ const groupedTerms = computed(() =>
 <style scoped>
 .glossary-page__body {
   padding: var(--space-xl) var(--space-2xl);
-  max-width: 720px;
+  max-width: 1000px;
 }
 
 .glossary-page__category {
@@ -69,6 +69,20 @@ const groupedTerms = computed(() =>
 
 .glossary-page__list {
   margin: 0;
+}
+
+/* 広い画面幅では2カラムに段組みし、縦スクロール量を減らす。
+   dt/ddのペアが段の境目で分断されないよう、divでペアをまとめてbreak-insideを指定する
+   （dl直下へのdiv配置はHTML5仕様上、dt/ddのグルーピングとして許容されている） */
+@media (min-width: 769px) {
+  .glossary-page__list {
+    columns: 2;
+    column-gap: var(--space-xl);
+  }
+}
+
+.glossary-page__entry {
+  break-inside: avoid;
 }
 
 .glossary-page__term {

@@ -204,12 +204,6 @@ describe("QuizPage", () => {
     expect(wrapper.find(".quiz-page__progress").text()).toContain("正解 0 問");
   });
 
-  it("用語集画面へのリンクが'/quiz'ではなく'/glossary'を指す", () => {
-    const wrapper = mountPage();
-
-    expect(wrapper.find("a.quiz-page__glossary-link").attributes("href")).toBe("/glossary");
-  });
-
   it("履歴が無い場合、「戻る」は一覧画面へ遷移する", async () => {
     window.history.replaceState({}, "");
     const wrapper = mountPage();

@@ -240,6 +240,19 @@ describe("ComparisonPage", () => {
     wrapper.unmount();
   });
 
+  it("comparison-page__bodyがページ全体の上限幅を持ち、広い画面幅で中央寄せされる", () => {
+    const wrapper = mount(ComparisonPage, {
+      attachTo: document.body,
+      global: { stubs: { RouterLink: routerLinkStub } },
+    });
+    const body = wrapper.find(".comparison-page__body");
+    const bodyStyle = getComputedStyle(body.element);
+    expect(bodyStyle.maxWidth).toBe("1400px");
+    expect(bodyStyle.marginLeft).toBe("auto");
+    expect(bodyStyle.marginRight).toBe("auto");
+    wrapper.unmount();
+  });
+
   it("「⇄ 入れ替え」をクリックすると、A/Bが逆順のURLでrouter.replaceが呼ばれる", async () => {
     const wrapper = mount(ComparisonPage, {
       global: { stubs: { RouterLink: routerLinkStub } },
@@ -270,14 +283,6 @@ describe("ComparisonPage", () => {
     expect(replaceMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).toHaveBeenCalledWith("/compare/4-2-3-1/3-5-2");
     expect(pushMock).not.toHaveBeenCalled();
-  });
-
-  it("用語集画面へのリンクが'/glossary'を指す", () => {
-    const wrapper = mount(ComparisonPage, {
-      global: { stubs: { RouterLink: routerLinkStub } },
-    });
-    const link = wrapper.find("a.comparison-page__glossary-link");
-    expect(link.attributes("href")).toBe("/glossary");
   });
 
   // FR-11: 解説文中の用語をその場で引ける

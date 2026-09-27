@@ -4,17 +4,6 @@
       <template #title-icon>
         <AppIcon :icon="Goal" size="lg" />
       </template>
-      <button type="button" class="formation-list-page__matrix-button" @click="goToMatrix">
-        相性表を見る
-      </button>
-      <router-link to="/quiz" class="formation-list-page__quiz-link">
-        <AppIcon :icon="PencilLine" />
-        理解度チェック
-      </router-link>
-      <router-link to="/glossary" class="formation-list-page__glossary-link">
-        <AppIcon :icon="BookOpen" />
-        用語集
-      </router-link>
       <a
         href="https://www.jleague.jp/j1/special/"
         target="_blank"
@@ -43,7 +32,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { BookOpen, ExternalLink, Goal, PencilLine } from "@lucide/vue";
+import { ExternalLink, Goal } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
 import FormationCard from "@/components/FormationCard.vue";
 import PageHeader from "@/components/PageHeader.vue";
@@ -51,10 +40,6 @@ import { formations } from "@/data/formations";
 
 const router = useRouter();
 const selectedIds = ref<string[]>([]);
-
-function goToMatrix(): void {
-  router.push("/matrix");
-}
 
 function toggleSelection(id: string): void {
   const index = selectedIds.value.indexOf(id);
@@ -80,37 +65,13 @@ watch(
 </script>
 
 <style scoped>
-.formation-list-page__matrix-button {
-  /* 半透明の白オーバーレイでは、緑背景に対し白文字がAA(4.5:1)未達になるため、
-     既存の戻るボタン等と同じ「不透明な白背景+濃色テキスト」に統一する */
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  box-sizing: border-box;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.formation-list-page__matrix-button:hover {
-  background: var(--color-surface-hover);
-}
-
-.formation-list-page__glossary-link,
-.formation-list-page__quiz-link,
 .formation-list-page__jleague-link {
+  /* 外部サイトへの遷移であることを、他の内部導線と区別できるよう破線枠にする */
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px dashed rgba(255, 255, 255, 0.6);
   border-radius: var(--radius-pill);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
@@ -120,15 +81,8 @@ watch(
   transition: background-color 0.15s ease;
 }
 
-.formation-list-page__glossary-link:hover,
-.formation-list-page__quiz-link:hover,
 .formation-list-page__jleague-link:hover {
   background: rgba(255, 255, 255, 0.15);
-}
-
-.formation-list-page__jleague-link {
-  /* 外部サイトへの遷移であることを、他の内部導線と区別できるよう破線枠にする */
-  border-style: dashed;
 }
 
 .formation-list-page__body {
@@ -137,10 +91,10 @@ watch(
 
 .formation-list-page__grid {
   display: grid;
-  /* 最大3列の可変グリッド（狭幅画面では自動的に列数が減る。screen-design.md参照） */
+  /* 画面幅に応じて列数が増減する可変グリッド（screen-design.md参照） */
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--space-md);
-  max-width: 640px;
+  max-width: 1200px;
 }
 
 .formation-list-page__footer {
@@ -166,9 +120,6 @@ watch(
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .formation-list-page__matrix-button,
-  .formation-list-page__glossary-link,
-  .formation-list-page__quiz-link,
   .formation-list-page__jleague-link {
     transition: none;
   }

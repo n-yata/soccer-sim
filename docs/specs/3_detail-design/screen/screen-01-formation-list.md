@@ -77,7 +77,6 @@ FormationListPage
 | 操作 | 遷移先 | 備考 |
 |---|---|---|
 | 2件目のフォーメーションカードを選択 | `/compare/:formationAId/:formationBId`（`ComparisonPage`） | パスパラメータは `selectedIds` の選択順（`[0]` → `formationAId`, `[1]` → `formationBId`） |
-| 用語集ボタンをクリック | `/glossary`（`GlossaryPage`） | `router-link` による静的遷移（`selectedIds` の状態には影響しない） |
 
 ## 例外・エラー表示
 

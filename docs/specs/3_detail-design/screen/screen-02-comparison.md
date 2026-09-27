@@ -205,7 +205,6 @@ TanStack Query等のデータ取得ライブラリは使用しない。
 |---|---|---|
 | 「戻る」（アイコン: ArrowLeft）をクリック | `/`（`FormationListPage`） | — |
 | エラー表示中のリンクをクリック | `/`（`FormationListPage`） | 戻るボタンと同じ遷移 |
-| 用語集ボタンをクリック | `/glossary`（`GlossaryPage`） | `router-link` による静的遷移 |
 | 「入れ替え」（アイコン: ArrowLeftRight）をクリック | `/compare/:formationBId/:formationAId`（`ComparisonPage`） | `router.replace`。履歴を積まない |
 | 青チーム変更セレクトを変更 | `/compare/:選択したID/:formationBId`（`ComparisonPage`） | `router.replace`。履歴を積まない |
 | 赤チーム変更セレクトを変更 | `/compare/:formationAId/:選択したID`（`ComparisonPage`） | `router.replace`。履歴を積まない |

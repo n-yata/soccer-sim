@@ -62,4 +62,40 @@ describe("GlossaryPage", () => {
     expect(backMock).toHaveBeenCalledTimes(1);
     expect(pushMock).not.toHaveBeenCalled();
   });
+
+  it("広い画面幅では用語リストが2カラムに段組みされる", () => {
+    // このテストはCSSOM（スタイルシートに登録されたルール）だけを検査するため、
+    // コンポーネントをDOMへマウントする必要はない（GlossaryPage.vueは冒頭で
+    // 静的importされておりstyleは既に読み込み時点で登録済み。vite.config.tsの
+    // test.css:trueにより実CSSがjsdomへ適用される）
+    //
+    // jsdomは@mediaをgetComputedStyleへ反映しないため、スタイルシートに登録された
+    // 実際のCSSOMルールを直接検査する（ComparisonPage.test.tsのflex-wrap検証とは異なり、
+    // 本ケースはメディアクエリ配下のためgetComputedStyle経由では検証できない）
+    const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
+    const hasTwoColumnRule = Array.from(document.styleSheets).some((sheet) => {
+      let rules: CSSRuleList;
+      try {
+        rules = sheet.cssRules;
+      } catch {
+        return false;
+      }
+      return Array.from(rules).some(
+        (rule) =>
+          rule instanceof CSSMediaRule &&
+          normalize(rule.conditionText).includes("min-width: 769px") &&
+          Array.from(rule.cssRules).some((inner) => {
+            if (!(inner instanceof CSSStyleRule)) return false;
+            if (!inner.selectorText.includes("glossary-page__list")) return false;
+            // `columns`はショートハンド（column-width + column-count）のため、
+            // ブラウザによって "2" / "auto 2" 等シリアライズが異なりうる。
+            // column-count・columnsのいずれかに列数"2"が含まれるかで判定する
+            const columns = inner.style.getPropertyValue("columns");
+            const columnCount = inner.style.getPropertyValue("column-count");
+            return columns.split(/\s+/).includes("2") || columnCount === "2";
+          }),
+      );
+    });
+    expect(hasTwoColumnRule).toBe(true);
+  });
 });
