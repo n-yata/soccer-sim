@@ -221,16 +221,19 @@ stateDiagram-v2
     FormationListPage --> ComparisonPage: 2つのフォーメーションを選択
     ComparisonPage --> FormationListPage: 戻る
     ComparisonPage --> ComparisonPage: A/B入れ替え・切替
-    FormationListPage --> MatrixPage: 「相性表を見る」
+    FormationListPage --> MatrixPage: 相性表（AppHeader経由）
     MatrixPage --> FormationListPage: 戻る
     MatrixPage --> ComparisonPage: セルを選択
-    FormationListPage --> GlossaryPage: 用語集を見る
-    ComparisonPage --> GlossaryPage: 用語集を見る
-    GlossaryPage --> FormationListPage: 一覧画面へ戻る
-    FormationListPage --> QuizPage: 理解度チェック
+    FormationListPage --> GlossaryPage: 用語集（AppHeader経由）
+    GlossaryPage --> FormationListPage: 戻る
+    FormationListPage --> QuizPage: 理解度チェック（AppHeader経由）
     QuizPage --> FormationListPage: 戻る/一覧画面へ戻る
-    QuizPage --> GlossaryPage: 用語集を見る
 ```
+
+> **AppHeaderについて**: 「（AppHeader経由）」と付記した遷移は、`AppHeader`（全画面共通の
+> グローバルナビ）から到達できることを示す。`AppHeader`は全画面に常時表示されるため、実際には
+> 図中のどの画面からでも一覧・相性表・理解度チェック・用語集へ遷移できる（2026-09-27に
+> `AppHeader`導入後の実態に合わせて整理。それ以前は各画面が個別にリンクを持っていた）。
 
 ### 表示仕様
 

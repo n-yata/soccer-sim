@@ -1,8 +1,6 @@
 <template>
   <div class="quiz-page">
-    <PageHeader show-back-button title="理解度チェック">
-      <router-link to="/glossary" class="quiz-page__glossary-link"> 📖 用語集 </router-link>
-    </PageHeader>
+    <PageHeader show-back-button title="理解度チェック" />
     <div class="quiz-page__body">
       <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
       <p v-if="questions.length === 0" class="quiz-page__empty">
@@ -119,25 +117,6 @@ restart();
   max-width: 640px;
   margin: 0 auto;
   padding: var(--space-lg) var(--space-md) var(--space-xl);
-}
-
-.quiz-page__glossary-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: var(--radius-pill);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  color: #ffffff;
-  text-decoration: none;
-  transition: background-color 0.15s ease;
-}
-
-.quiz-page__glossary-link:hover {
-  background: rgba(255, 255, 255, 0.15);
 }
 
 .quiz-page__empty {
@@ -260,8 +239,7 @@ restart();
 
 @media (prefers-reduced-motion: reduce) {
   .quiz-page__next-button,
-  .quiz-page__retry-button,
-  .quiz-page__glossary-link {
+  .quiz-page__retry-button {
     transition: none;
   }
 

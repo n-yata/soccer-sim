@@ -4,35 +4,65 @@
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
+                <!-- AppHeader: 全画面共通のグローバルナビ（2026-09-27追加。一覧/相性表/理解度チェック/用語集） -->
+                <mxCell id="app-header-bar" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;" value="" vertex="1">
+                    <mxGeometry height="50" width="827" x="0" y="0" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-brand" parent="1" style="text;html=1;fontSize=14;fontStyle=1;align=left;verticalAlign=middle;fontColor=#111827;" value="⚽ フォーメーションラボ" vertex="1">
+                    <mxGeometry height="24" width="220" x="20" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-1" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#15803D;" value="一覧" vertex="1">
+                    <mxGeometry height="24" width="60" x="480" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-2" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="相性表" vertex="1">
+                    <mxGeometry height="24" width="60" x="550" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-3" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="✏️ 理解度チェック" vertex="1">
+                    <mxGeometry height="24" width="120" x="620" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-4" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="📖 用語集" vertex="1">
+                    <mxGeometry height="24" width="90" x="740" y="13" as="geometry"/>
+                </mxCell>
+                <!-- PageHeader: タイトル・説明文 + Jリーグ外部リンク（AppHeaderと重複しない唯一のアクション） -->
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#16A34A;gradientColor=#0D9488;gradientDirection=east;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="150" width="827" as="geometry"/>
+                    <mxGeometry height="150" width="827" x="0" y="50" as="geometry"/>
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-2" parent="1" style="text;html=1;fontSize=28;fontStyle=1;align=left;verticalAlign=middle;fontColor=#FFFFFF;" value="⚽ フォーメーションラボ" vertex="1">
-                    <mxGeometry height="44" width="500" x="40" y="42" as="geometry"/>
+                    <mxGeometry height="44" width="500" x="40" y="92" as="geometry"/>
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-3" parent="1" style="text;html=1;fontSize=13;align=left;verticalAlign=middle;fontColor=#E6FBEF;" value="比較したいフォーメーションを2つ選んでください" vertex="1">
-                    <mxGeometry height="30" width="600" x="40" y="95" as="geometry"/>
+                    <mxGeometry height="30" width="600" x="40" y="145" as="geometry"/>
                 </mxCell>
+                <mxCell id="jleague-link" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;dashed=1;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" value="⚽ Jリーグ情報（外部サイト）" vertex="1">
+                    <mxGeometry height="34" width="220" x="567" y="92" as="geometry"/>
+                </mxCell>
+                <!-- フォーメーションカード一覧: 8種類すべて確定済み（拡張候補は無い） -->
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-4" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="4-4-2" vertex="1">
-                    <mxGeometry height="130" width="180" x="40" y="190" as="geometry"/>
+                    <mxGeometry height="130" width="180" x="40" y="240" as="geometry"/>
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-5" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="4-3-3" vertex="1">
-                    <mxGeometry height="130" width="180" x="240" y="190" as="geometry"/>
+                    <mxGeometry height="130" width="180" x="240" y="240" as="geometry"/>
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-6" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFF4EC;strokeColor=#FF6B35;strokeWidth=3;shadow=1;fontSize=18;fontStyle=1;fontColor=#B44712;" value="✓ 選択中&#xa;4-2-3-1" vertex="1">
-                    <mxGeometry height="130" width="180" x="440" y="190" as="geometry"/>
+                    <mxGeometry height="130" width="180" x="440" y="240" as="geometry"/>
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-7" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="3-5-2" vertex="1">
-                    <mxGeometry height="130" width="180" x="40" y="340" as="geometry"/>
+                    <mxGeometry height="130" width="180" x="40" y="390" as="geometry"/>
                 </mxCell>
-                <mxCell id="YYDaz3asoqjhuKTv_TAZ-8" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#F9FAFB;strokeColor=#E5E7EB;strokeWidth=1;dashed=1;fontSize=14;fontColor=#9CA3AF;" value="4-1-4-1&#xa;(拡張候補)" vertex="1">
-                    <mxGeometry height="130" width="180" x="240" y="340" as="geometry"/>
+                <mxCell id="card-5-3-2" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="5-3-2" vertex="1">
+                    <mxGeometry height="130" width="180" x="240" y="390" as="geometry"/>
                 </mxCell>
-                <mxCell id="YYDaz3asoqjhuKTv_TAZ-9" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#F9FAFB;strokeColor=#E5E7EB;strokeWidth=1;dashed=1;fontSize=14;fontColor=#9CA3AF;" value="3-4-3&#xa;(拡張候補)" vertex="1">
-                    <mxGeometry height="130" width="180" x="440" y="340" as="geometry"/>
+                <mxCell id="YYDaz3asoqjhuKTv_TAZ-8" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="4-1-4-1" vertex="1">
+                    <mxGeometry height="130" width="180" x="440" y="390" as="geometry"/>
+                </mxCell>
+                <mxCell id="YYDaz3asoqjhuKTv_TAZ-9" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="3-4-3" vertex="1">
+                    <mxGeometry height="130" width="180" x="40" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="card-4-1-2-1-2" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="4-1-2-1-2" vertex="1">
+                    <mxGeometry height="130" width="180" x="240" y="540" as="geometry"/>
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-10" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#BBF7D0;fontColor=#166534;fontSize=12;fontStyle=2;" value="2つ選択すると自動的に比較画面へ遷移します" vertex="1">
-                    <mxGeometry height="34" width="400" x="40" y="510" as="geometry"/>
+                    <mxGeometry height="34" width="400" x="40" y="710" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
@@ -42,182 +72,224 @@
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
+                <!-- AppHeader: 全画面共通のグローバルナビ（2026-09-27追加） -->
+                <mxCell id="app-header-bar-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;" value="" vertex="1">
+                    <mxGeometry height="50" width="827" x="0" y="0" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-brand-2" parent="1" style="text;html=1;fontSize=14;fontStyle=1;align=left;verticalAlign=middle;fontColor=#111827;" value="⚽ フォーメーションラボ" vertex="1">
+                    <mxGeometry height="24" width="220" x="20" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-1-2" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="一覧" vertex="1">
+                    <mxGeometry height="24" width="60" x="480" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-2-2" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="相性表" vertex="1">
+                    <mxGeometry height="24" width="60" x="550" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-3-2" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="✏️ 理解度チェック" vertex="1">
+                    <mxGeometry height="24" width="120" x="620" y="13" as="geometry"/>
+                </mxCell>
+                <mxCell id="app-header-nav-4-2" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="📖 用語集" vertex="1">
+                    <mxGeometry height="24" width="90" x="740" y="13" as="geometry"/>
+                </mxCell>
+                <!-- PageHeader: 戻るボタン + タイトルのみ（AppHeaderと重複する用語集リンクは2026-09-27に削除） -->
                 <mxCell id="v3a-1" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;fontSize=13;fontColor=#374151;fontStyle=1;" value="← 戻る" vertex="1">
-                    <mxGeometry height="34" width="100" x="40" y="40" as="geometry"/>
+                    <mxGeometry height="34" width="100" x="40" y="90" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-2" parent="1" style="text;html=1;fontSize=24;fontStyle=1;align=left;verticalAlign=middle;fontColor=#111827;" value="4-3-3 vs 3-5-2" vertex="1">
-                    <mxGeometry height="38" width="400" x="160" y="38" as="geometry"/>
+                    <mxGeometry height="38" width="400" x="160" y="88" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-3" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#2563EB;fontSize=13;fontStyle=1;fontColor=#1D4ED8;" value="● 4-3-3" vertex="1">
-                    <mxGeometry height="30" width="110" x="40" y="94" as="geometry"/>
+                    <mxGeometry height="30" width="110" x="40" y="144" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-4" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;fontSize=13;fontStyle=1;fontColor=#B91C1C;" value="● 3-5-2" vertex="1">
-                    <mxGeometry height="30" width="110" x="160" y="94" as="geometry"/>
+                    <mxGeometry height="30" width="110" x="160" y="144" as="geometry"/>
+                </mxCell>
+                <!-- ComparisonControls: A/B切替セレクト + 入れ替えボタン（2026-09-13実装。旧図では未反映だった） -->
+                <mxCell id="comparison-select-a" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;fontSize=12;align=left;spacingLeft=12;fontColor=#1D4ED8;" value="4-3-3 ▾" vertex="1">
+                    <mxGeometry height="36" width="140" x="40" y="184" as="geometry"/>
+                </mxCell>
+                <mxCell id="comparison-swap" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;fontSize=16;align=center;verticalAlign=middle;fontColor=#374151;" value="⇄" vertex="1">
+                    <mxGeometry height="36" width="50" x="190" y="184" as="geometry"/>
+                </mxCell>
+                <mxCell id="comparison-select-b" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#EF4444;fontSize=12;align=left;spacingLeft=12;fontColor=#B91C1C;" value="3-5-2 ▾" vertex="1">
+                    <mxGeometry height="36" width="140" x="250" y="184" as="geometry"/>
+                </mxCell>
+                <!-- FreeLayoutControls / SquadConditionControls トグル（FR-15/FR-18。旧図では未反映だった） -->
+                <mxCell id="freelayout-toggle" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;fontSize=12;align=center;verticalAlign=middle;fontColor=#374151;" value="🖐️ 自由に配置を調整する" vertex="1">
+                    <mxGeometry height="34" width="220" x="40" y="234" as="geometry"/>
+                </mxCell>
+                <mxCell id="squadcondition-toggle" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;fontSize=12;align=center;verticalAlign=middle;fontColor=#374151;" value="🎲 選手個体差を反映する" vertex="1">
+                    <mxGeometry height="34" width="220" x="270" y="234" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-5" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;shadow=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=2;align=left;verticalAlign=top;spacingTop=10;spacingLeft=16;fontSize=14;fontStyle=1;fontColor=#7C2D12;" value="🏆 3-5-2がやや優位&#xa;5レーンの構成と中盤の実質的な数的優位を両立でき、噛み合わせで上回りやすい" vertex="1">
-                    <mxGeometry height="60" width="784" x="40" y="140" as="geometry"/>
+                    <mxGeometry height="60" width="784" x="40" y="280" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-6" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#3CB043;gradientColor=#1B5E20;gradientDirection=south;strokeColor=#14532D;strokeWidth=2;" value="" vertex="1">
-                    <mxGeometry height="420" width="500" x="40" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="500" x="40" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;fillOpacity=6;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="420" width="62.5" x="102.5" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="62.5" x="102.5" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;fillOpacity=6;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="420" width="62.5" x="227.5" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="62.5" x="227.5" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;fillOpacity=6;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="420" width="62.5" x="352.5" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="62.5" x="352.5" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000000;fillOpacity=6;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="420" width="62.5" x="477.5" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="62.5" x="477.5" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;fillOpacity=70;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="420" width="1.3" x="288.7" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="1.3" x="288.7" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-12" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;strokeWidth=2;opacity=70;" value="" vertex="1">
-                    <mxGeometry height="76.5" width="76.5" x="251.7" y="386.8" as="geometry"/>
+                    <mxGeometry height="76.5" width="76.5" x="251.7" y="526.8" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-13" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;strokeWidth=2;opacity=70;" value="" vertex="1">
-                    <mxGeometry height="200" width="22.3" x="40" y="325" as="geometry"/>
+                    <mxGeometry height="200" width="22.3" x="40" y="465" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3a-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;strokeWidth=2;opacity=70;" value="" vertex="1">
-                    <mxGeometry height="200" width="22.3" x="477.7" y="325" as="geometry"/>
+                    <mxGeometry height="200" width="22.3" x="477.7" y="465" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-1" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="GK" vertex="1">
-                    <mxGeometry height="24" width="24" x="44.9" y="416.4" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="44.9" y="556.4" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-2" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="LB" vertex="1">
-                    <mxGeometry height="24" width="24" x="117.0" y="250.4" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="117.0" y="390.4" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-3" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CB" vertex="1">
-                    <mxGeometry height="24" width="24" x="117.6" y="359.4" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="117.6" y="499.4" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-4" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CB" vertex="1">
-                    <mxGeometry height="24" width="24" x="117.6" y="468.6" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="117.6" y="608.6" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-5" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="RB" vertex="1">
-                    <mxGeometry height="24" width="24" x="117.6" y="577.6" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="117.6" y="717.6" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-6" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CM" vertex="1">
-                    <mxGeometry height="24" width="24" x="236.4" y="294.7" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="236.4" y="434.7" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-7" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CM" vertex="1">
-                    <mxGeometry height="24" width="24" x="236.4" y="418.1" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="236.4" y="558.1" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-8" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CM" vertex="1">
-                    <mxGeometry height="24" width="24" x="236.4" y="533.3" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="236.4" y="673.3" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-9" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="LW" vertex="1">
-                    <mxGeometry height="24" width="24" x="373.8" y="261.3" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="373.8" y="401.3" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-10" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="ST" vertex="1">
-                    <mxGeometry height="24" width="24" x="373.8" y="415" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="373.8" y="555" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-11" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="RW" vertex="1">
-                    <mxGeometry height="24" width="24" x="373.8" y="566.7" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="373.8" y="706.7" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-12" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="GK" vertex="1">
-                    <mxGeometry height="24" width="24" x="521.1" y="414" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="521.1" y="554" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-13" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CB" vertex="1">
-                    <mxGeometry height="24" width="24" x="439.0" y="305" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="439.0" y="445" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-14" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CB" vertex="1">
-                    <mxGeometry height="24" width="24" x="439.0" y="414" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="439.0" y="554" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CB" vertex="1">
-                    <mxGeometry height="24" width="24" x="439.0" y="523.1" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="439.0" y="663.1" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-16" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=8;fontStyle=1;shadow=1;" value="LWB" vertex="1">
-                    <mxGeometry height="24" width="24" x="306.6" y="247" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="306.6" y="387" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-17" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CM" vertex="1">
-                    <mxGeometry height="24" width="24" x="306.6" y="329.4" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="306.6" y="469.4" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-18" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CM" vertex="1">
-                    <mxGeometry height="24" width="24" x="306.6" y="417.9" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="306.6" y="557.9" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-19" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="CM" vertex="1">
-                    <mxGeometry height="24" width="24" x="306.6" y="499.6" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="306.6" y="639.6" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-20" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=8;fontStyle=1;shadow=1;" value="RWB" vertex="1">
-                    <mxGeometry height="24" width="24" x="306.6" y="581.1" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="306.6" y="721.1" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-21" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="ST" vertex="1">
-                    <mxGeometry height="24" width="24" x="180.6" y="337.6" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="180.6" y="477.6" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-22" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#ffffff;strokeWidth=3;fontColor=#ffffff;fontSize=9;fontStyle=1;shadow=1;" value="ST" vertex="1">
-                    <mxGeometry height="24" width="24" x="180.6" y="490.4" as="geometry"/>
+                    <mxGeometry height="24" width="24" x="180.6" y="630.4" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-card" parent="1" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;shadow=1;" value="" vertex="1">
-                    <mxGeometry height="420" width="247" x="560" y="215" as="geometry"/>
+                    <mxGeometry height="420" width="247" x="560" y="355" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-title" parent="1" style="text;html=1;fontSize=15;fontStyle=1;align=left;verticalAlign=middle;fontColor=#111827;" value="フォーメーション特性" vertex="1">
-                    <mxGeometry height="24" width="220" x="575" y="228" as="geometry"/>
+                    <mxGeometry height="24" width="220" x="575" y="368" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-outline" style="endArrow=none;startArrow=none;html=1;fillColor=none;strokeColor=#E5E7EB;strokeWidth=1;rounded=0;" edge="1" parent="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="680" y="350" as="sourcePoint"/>
-                        <mxPoint x="680" y="350" as="targetPoint"/>
+                        <mxPoint x="680" y="490" as="sourcePoint"/>
+                        <mxPoint x="680" y="490" as="targetPoint"/>
                         <Array as="points">
-                            <mxPoint x="746.6" y="398.4"/>
-                            <mxPoint x="721.2" y="476.6"/>
-                            <mxPoint x="638.8" y="476.6"/>
-                            <mxPoint x="613.4" y="398.4"/>
-                            <mxPoint x="680" y="350"/>
+                            <mxPoint x="746.6" y="538.4"/>
+                            <mxPoint x="721.2" y="616.6"/>
+                            <mxPoint x="638.8" y="616.6"/>
+                            <mxPoint x="613.4" y="538.4"/>
+                            <mxPoint x="680" y="490"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="v3-radar-series-a" style="endArrow=none;startArrow=none;html=1;fillColor=none;strokeColor=#2563EB;strokeWidth=2;rounded=0;" edge="1" parent="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="680" y="364" as="sourcePoint"/>
-                        <mxPoint x="680" y="364" as="targetPoint"/>
+                        <mxPoint x="680" y="504" as="sourcePoint"/>
+                        <mxPoint x="680" y="504" as="targetPoint"/>
                         <Array as="points">
-                            <mxPoint x="719.9" y="407.0"/>
-                            <mxPoint x="706.8" y="456.8"/>
-                            <mxPoint x="651.2" y="459.6"/>
-                            <mxPoint x="656.7" y="412.4"/>
-                            <mxPoint x="680" y="364"/>
+                            <mxPoint x="719.9" y="547.0"/>
+                            <mxPoint x="706.8" y="596.8"/>
+                            <mxPoint x="651.2" y="599.6"/>
+                            <mxPoint x="656.7" y="552.4"/>
+                            <mxPoint x="680" y="504"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="v3-radar-series-b" style="endArrow=none;startArrow=none;html=1;fillColor=none;strokeColor=#EF4444;strokeWidth=2;rounded=0;" edge="1" parent="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="680" y="381.5" as="sourcePoint"/>
-                        <mxPoint x="680" y="381.5" as="targetPoint"/>
+                        <mxPoint x="680" y="521.5" as="sourcePoint"/>
+                        <mxPoint x="680" y="521.5" as="targetPoint"/>
                         <Array as="points">
-                            <mxPoint x="713.3" y="409.2"/>
-                            <mxPoint x="702.6" y="451.1"/>
-                            <mxPoint x="642.9" y="471.0"/>
-                            <mxPoint x="640.1" y="407.0"/>
-                            <mxPoint x="680" y="381.5"/>
+                            <mxPoint x="713.3" y="549.2"/>
+                            <mxPoint x="702.6" y="591.1"/>
+                            <mxPoint x="642.9" y="611.0"/>
+                            <mxPoint x="640.1" y="547.0"/>
+                            <mxPoint x="680" y="521.5"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="v3-radar-label-1" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="攻撃力" vertex="1">
-                    <mxGeometry height="18" width="64" x="648" y="321" as="geometry"/>
+                    <mxGeometry height="18" width="64" x="648" y="461" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-label-2" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="守備力" vertex="1">
-                    <mxGeometry height="18" width="64" x="733" y="383" as="geometry"/>
+                    <mxGeometry height="18" width="64" x="733" y="523" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-label-3" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="バランス" vertex="1">
-                    <mxGeometry height="18" width="72" x="697" y="484" as="geometry"/>
+                    <mxGeometry height="18" width="72" x="697" y="624" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-label-4" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="スペース支配力" vertex="1">
-                    <mxGeometry height="18" width="90" x="582" y="484" as="geometry"/>
+                    <mxGeometry height="18" width="90" x="582" y="624" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3-radar-label-5" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=center;verticalAlign=middle;fontColor=#6B7280;" value="プレッシング強度" vertex="1">
-                    <mxGeometry height="18" width="96" x="546" y="383" as="geometry"/>
+                    <mxGeometry height="18" width="96" x="546" y="523" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-23" parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;shadow=1;fillColor=#FFFFFF;strokeColor=#2563EB;strokeWidth=2;fontSize=13;align=left;verticalAlign=top;spacingTop=14;spacingLeft=16;fontColor=#1E3A5F;" value="4-3-3の優位ポイント&#xa;&#xa;・両ウイングが相手のウイングバックの裏のスペースを突きやすい&#xa;・中央3枚は運動量とプレッシングの速さで、数的に上回る相手の中盤に食らいつきやすい" vertex="1">
-                    <mxGeometry height="140" width="380" x="40" y="655" as="geometry"/>
+                    <mxGeometry height="140" width="380" x="40" y="795" as="geometry"/>
                 </mxCell>
                 <mxCell id="v3b-24" parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;shadow=1;fillColor=#FFFFFF;strokeColor=#EF4444;strokeWidth=2;fontSize=13;align=left;verticalAlign=top;spacingTop=14;spacingLeft=16;fontColor=#5F1E1E;" value="3-5-2の優位ポイント&#xa;&#xa;・DF3枚とウイングバックによる5レーンの構成で、相手のウイングとサイドバックの連携を分断しやすい&#xa;・中盤の実質的な人数（5枚）で数的優位を握りやすい" vertex="1">
-                    <mxGeometry height="140" width="380" x="440" y="655" as="geometry"/>
+                    <mxGeometry height="140" width="380" x="440" y="795" as="geometry"/>
                 </mxCell>
-                <mxCell id="v3b-25" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#9CA3AF;fontStyle=2;" value="※対戦演出（ピッチ図のスライドイン→総合判定のポップイン）。レーダーチャートはピッチ図の右側に配置。詳細は screen-design.md 参照" vertex="1">
-                    <mxGeometry height="30" width="784" x="40" y="815" as="geometry"/>
+                <!-- 試合シミュレートボタン（FR-14。旧図では未反映だった。ハーフタイム采配モーダル等の
+                     詳細は screen-design.md の文章記述を参照し、本図では省略する -->
+                <mxCell id="simulate-button" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#16A34A;gradientColor=#0D9488;gradientDirection=east;strokeColor=none;shadow=1;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" value="⚽ 試合をシミュレートする" vertex="1">
+                    <mxGeometry height="40" width="240" x="294" y="955" as="geometry"/>
+                </mxCell>
+                <mxCell id="v3b-25" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#9CA3AF;fontStyle=2;" value="※対戦演出（ピッチ図のスライドイン→総合判定のポップイン）。レーダーチャートはピッチ図の右側に配置。ハーフタイム采配モーダル・試合結果パネル等の内部詳細は screen-design.md 参照" vertex="1">
+                    <mxGeometry height="30" width="784" x="40" y="1015" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

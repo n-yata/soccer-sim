@@ -49,20 +49,6 @@ describe("FormationListPage", () => {
     expect(cards.every((card) => card.props("selected") === false)).toBe(true);
   });
 
-  // 先頭の <a> を掴むとヘッダーにリンクが増えたとき別要素を検証したまま緑になるため、
-  // クラスで名指しする
-  it("用語集画面へのリンクが'/glossary'を指す", () => {
-    const wrapper = mountPage();
-    const link = wrapper.find("a.formation-list-page__glossary-link");
-    expect(link.attributes("href")).toBe("/glossary");
-  });
-
-  it("理解度チェック画面へのリンクが'/quiz'を指す", () => {
-    const wrapper = mountPage();
-    const link = wrapper.find("a.formation-list-page__quiz-link");
-    expect(link.attributes("href")).toBe("/quiz");
-  });
-
   it("1件目を選択すると、そのカードのみselected=trueになる", async () => {
     const wrapper = mountPage();
     await findCard(wrapper, "4-4-2")?.vm.$emit("select", "4-4-2");
@@ -116,14 +102,15 @@ describe("FormationListPage", () => {
     expect(link.attributes("rel")).toBe("noopener noreferrer");
   });
 
-  it("「相性表を見る」ボタンをクリックするとrouter.pushが'/matrix'で1回呼ばれる", async () => {
-    const wrapper = mountPage();
-    const button = wrapper
-      .findAll("button")
-      .find((b) => b.text() === "相性表を見る");
-    expect(button).toBeDefined();
-    await button?.trigger("click");
-    expect(pushMock).toHaveBeenCalledTimes(1);
-    expect(pushMock).toHaveBeenCalledWith("/matrix");
+  it("カード一覧のグリッドが広い画面幅を活かせるmax-widthを持つ（最大3列固定を廃止）", () => {
+    const wrapper = mount(FormationListPage, {
+      attachTo: document.body,
+      global: { stubs: { RouterLink: routerLinkStub } },
+    });
+    const grid = wrapper.find(".formation-list-page__grid");
+    // 640px（旧上限。auto-fill+minmax(160px,1fr)では最大3列相当）のままだと
+    // 広い画面でも列数が増えず、8種類のカードが縦に伸び続けてスクロールが増える
+    expect(getComputedStyle(grid.element).maxWidth).toBe("1200px");
+    wrapper.unmount();
   });
 });

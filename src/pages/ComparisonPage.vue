@@ -1,9 +1,7 @@
 <template>
   <div class="comparison-page">
     <template v-if="formationA && formationB && matchup">
-      <PageHeader show-back-button :title="`${formationA.name} vs ${formationB.name}`">
-        <router-link to="/glossary" class="comparison-page__glossary-link"> 📖 用語集 </router-link>
-      </PageHeader>
+      <PageHeader show-back-button :title="`${formationA.name} vs ${formationB.name}`" />
       <div class="comparison-page__body">
         <div class="comparison-page__legend">
           <span class="comparison-page__legend-item comparison-page__legend-item--blue">
@@ -454,30 +452,14 @@ function onSelectB(id: string): void {
 <style scoped>
 .comparison-page__body {
   padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .comparison-page__error {
   padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
-}
-
-.comparison-page__glossary-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: var(--radius-pill);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  color: #ffffff;
-  white-space: nowrap;
-  text-decoration: none;
-  transition: background-color 0.15s ease;
-}
-
-.comparison-page__glossary-link:hover {
-  background: rgba(255, 255, 255, 0.15);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .comparison-page__legend {
@@ -737,8 +719,7 @@ function onSelectB(id: string): void {
 @media (prefers-reduced-motion: reduce) {
   .comparison-page__simulate-button,
   .comparison-page__halftime-tactics-button,
-  .comparison-page__halftime-continue-button,
-  .comparison-page__glossary-link {
+  .comparison-page__halftime-continue-button {
     transition: none;
   }
 

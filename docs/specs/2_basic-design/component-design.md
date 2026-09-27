@@ -11,8 +11,9 @@
 - フォーメーション一覧の表示（FR-01）
 - 比較対象2件の選択状態の管理（FR-02）
 - 2件選択された時点で比較画面（`/compare/:formationAId/:formationBId`）へ遷移する
-- 相性マトリクス画面（`/matrix`）への導線を提供する（FR-07）
-- 用語集画面（`/glossary`）への導線を提供する（FR-10）
+- Jリーグ公式サイトへの外部リンクを提供する（要件外の任意追加リンク）
+- 相性マトリクス画面・理解度チェック画面・用語集画面への導線は`AppHeader`（全画面共通の
+  グローバルナビ）が提供するため、本画面では重複させない（2026-09-27に整理）
 
 **インターフェース**:
 ```typescript
@@ -26,9 +27,6 @@ function toggleSelection(id: string): void;
 
 // selectedIds が2件になった時点で呼ばれる。比較画面へ router.push する
 function navigateToComparison(): void;
-
-// 「相性表を見る」ボタン押下時に呼ばれる。相性マトリクス画面へ router.push する
-function goToMatrix(): void;
 ```
 
 **依存関係**:
@@ -118,7 +116,6 @@ interface FormationMiniPitchProps {
 - A/Bの入れ替え、およびA側・B側フォーメーションの切替を行う（FR-09）。UIは
   `ComparisonControls` に委譲し、そこから受け取る `swap`/`select-a`/`select-b` イベントを
   `router.replace` による画面遷移に変換する（ルーティングの責務は`pages/`側に残す）
-- 用語集画面（`/glossary`）への導線を提供する（FR-10）
 - 自由配置モード（FR-15）: `isFreeLayoutMode`/`freePositionsA`/`freePositionsB`を保持し、
   `FreeLayoutControls`のtoggle/resetイベントを受けて`FreeLayoutPitchDiagram`へ切り替える。
   `data/freeLayoutStorage.ts`（`applyOverrides`/`savePositionOverride`/`clearFormationOverride`）
@@ -585,7 +582,8 @@ interface QuizQuestionCardEmits {
 - 「もう一度挑戦する」で、設問一覧・現在位置・回答状態のすべてを作り直す（個別フィールドを
   消すのではなく状態オブジェクトごと作り直すことで、消し忘れによる持ち越しを防ぐ）
 - `buildQuiz`が空配列を返した場合（出題できる設問が無い）、クラッシュせずその旨を表示する
-- 一覧画面への「戻る」、用語集画面への導線を提供する
+- 一覧画面への「戻る」を提供する（用語集への導線は`AppHeader`が提供するため重複させない。
+  2026-09-27に整理）
 
 **インターフェース**:
 ```typescript
