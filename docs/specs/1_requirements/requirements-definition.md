@@ -492,8 +492,13 @@ P0=必須 / P1=重要 / P2=できれば、とする。
   FR-14として正式にMVPへ組み込んだ。`Formation.stats`と噛み合わせルールの総合判定
   （overallEdge）を入力に、90分・1分刻みのイベント駆動シミュレーションとして実装した
   （`.steering/20260913-match-simulation/` 参照）
-- 一般公開するかどうかは未定だが、公開前提でのアクセシビリティ・SEO/OGP対応を
-  先行して着手する方針とした（2026-09-12）
+- ~~一般公開するかどうかは未定だが、公開前提でのアクセシビリティ・SEO/OGP対応を
+  先行して着手する方針とした（2026-09-12）~~
+  → 解決（2026-09-27）: 公開先をGitHub Pages（`https://n-yata.github.io/soccer-sim/`）に
+  確定した。絵文字アイコンのSVG化（`.steering/20260927-icon-migration/`）に続き、
+  OGP画像・favicon類・canonicalタグ・GitHub Pagesのサブパス配信に必要なbase path設定を
+  実施した（`.steering/20260927-seo-ogp/`参照）。GitHub Actionsでの自動デプロイ整備は
+  別タスクとして残っている
 
 ---
 

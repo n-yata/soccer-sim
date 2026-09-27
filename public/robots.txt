@@ -1,0 +1,9 @@
+# 注意: GitHub Pagesのプロジェクトページ配信では、このファイルは
+# https://n-yata.github.io/soccer-sim/robots.txt に置かれる。robots.txtは
+# オリジン直下（https://n-yata.github.io/robots.txt）でのみ有効という仕様のため、
+# 本ファイルはクローラーから参照されない可能性が高い。sitemapの登録はGoogle Search
+# Console等から直接送信する運用とする（architecture-overview.md参照）。
+User-agent: *
+Allow: /
+
+Sitemap: https://n-yata.github.io/soccer-sim/sitemap.xml

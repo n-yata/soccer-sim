@@ -3,6 +3,9 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
+  // GitHub Pagesのプロジェクトページ配信（https://n-yata.github.io/soccer-sim/）に合わせた
+  // サブパス。ローカル開発サーバー（npm run dev）ではViteが自動でこのbaseを反映する
+  base: "/soccer-sim/",
   plugins: [vue()],
   resolve: {
     alias: {

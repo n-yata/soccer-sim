@@ -6,7 +6,7 @@ import GlossaryPage from "@/pages/GlossaryPage.vue";
 import QuizPage from "@/pages/QuizPage.vue";
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: "/", name: "formation-list", component: FormationListPage },
     {

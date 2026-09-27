@@ -58,9 +58,15 @@ soccer-sim/
 │   │   ├── quiz.ts              # フォーメーション・マッチアップからクイズ設問を生成する純粋関数（副作用なし）
 │   │   ├── radarScoreEstimator.ts # 自由配置モード用: タグ差分からレーダースコアを概算する純粋関数
 │   │   └── learningProgress.ts  # 学習進捗の読み書き（`localStorage`。副作用を持つ唯一のdata/モジュール）
-│   └── types/
-│       └── formation.ts         # Formation・Position・Matchup・SoccerTerm・QuizQuestion・LearningProgress 等の型定義
-├── public/                      # 静的アセット（favicon等）
+│   ├── types/
+│   │   └── formation.ts         # Formation・Position・Matchup・SoccerTerm・QuizQuestion・LearningProgress 等の型定義
+│   └── vite-env.d.ts            # Vite組み込み型（import.meta.env等）の参照
+├── public/                      # 静的アセット
+│   ├── favicon.svg              # ファビコン
+│   ├── apple-touch-icon.png     # iOSホーム画面用アイコン（2026-09-27追加）
+│   ├── og-image.png             # OGP/Twitter Card用シェア画像 1200x630（2026-09-27追加）
+│   ├── robots.txt               # クローラー向け設定（2026-09-27追加）
+│   └── sitemap.xml              # 静的4画面のサイトマップ（2026-09-27追加。動的な/compare/は対象外）
 ├── docs/                        # プロジェクトドキュメント
 ├── index.html                   # Vite エントリーHTML
 ├── vite.config.ts               # Vite設定

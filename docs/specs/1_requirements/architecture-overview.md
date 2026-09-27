@@ -128,6 +128,30 @@
 - **OS**: ブラウザが動作する環境であれば問わない（Windows, macOS, iOS, Android 等）
 - **必要な外部依存**: 無し（オフラインでも動作する静的サイト）
 
+### デプロイ・公開先（2026-09-27確定）
+- **ホスティング**: GitHub Pages（プロジェクトページ配信）
+- **公開URL**: `https://n-yata.github.io/soccer-sim/`
+- **base path**: GitHub Pagesのプロジェクトページはリポジトリ名のサブパス配信になるため、
+  `vite.config.ts`で`base: "/soccer-sim/"`を設定し、Vue Routerの`createWebHistory()`にも
+  `import.meta.env.BASE_URL`を渡している（`src/router/index.ts`）
+- **SPAフォールバック（404.html）**: GitHub PagesはHTML5 historyモードのSPAに対する
+  フォールバックを持たないため、ビルドスクリプト（`package.json`の`build`）で
+  `dist/index.html`を`dist/404.html`としてコピーしている。これが無いと`/matrix`等への
+  直接アクセス・リロード・クローラー巡回がすべて404になる（2026-09-28、コミット前レビューで
+  発覚し追加）
+- **robots.txt/sitemap.xmlの制約**: `robots.txt`はオリジン直下でのみ有効という仕様のため、
+  `https://n-yata.github.io/soccer-sim/robots.txt`はクローラーから参照されない可能性が高い。
+  sitemapの登録は`https://n-yata.github.io/soccer-sim/sitemap.xml`をGoogle Search Console等へ
+  直接送信する運用とする
+- **自動デプロイ**: 未整備（GitHub Actionsワークフローの追加は別タスク）
+- **独自ドメインへ移行する場合に修正が必要な箇所**（9箇所、`https://n-yata.github.io/soccer-sim/`
+  を書き換える）:
+  - `vite.config.ts`の`base`、`src/router/index.ts`は`import.meta.env.BASE_URL`が
+    自動追随するため変更不要（`base`を`/`に戻すのみ）
+  - `index.html`: canonical・`og:url`・`og:image`・`twitter:image`（計4箇所）
+  - `public/sitemap.xml`: 4箇所の`<loc>`
+  - `public/robots.txt`: `Sitemap:`行（1箇所）
+
 ### パフォーマンス制約
 - 特になし（`requirements-definition.md` §5 のとおり、性能の数値目標は対象外としている）。
 
