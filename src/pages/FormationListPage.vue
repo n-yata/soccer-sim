@@ -1,17 +1,19 @@
 <template>
   <div class="formation-list-page">
-    <PageHeader
-      title="⚽ フォーメーションラボ"
-      subtitle="比較したいフォーメーションを2つ選んでください"
-    >
+    <PageHeader title="フォーメーションラボ" subtitle="比較したいフォーメーションを2つ選んでください">
+      <template #title-icon>
+        <AppIcon :icon="Goal" size="lg" />
+      </template>
       <button type="button" class="formation-list-page__matrix-button" @click="goToMatrix">
         相性表を見る
       </button>
       <router-link to="/quiz" class="formation-list-page__quiz-link">
-        ✏️ 理解度チェック
+        <AppIcon :icon="PencilLine" />
+        理解度チェック
       </router-link>
       <router-link to="/glossary" class="formation-list-page__glossary-link">
-        📖 用語集
+        <AppIcon :icon="BookOpen" />
+        用語集
       </router-link>
       <a
         href="https://www.jleague.jp/j1/special/"
@@ -19,7 +21,8 @@
         rel="noopener noreferrer"
         class="formation-list-page__jleague-link"
       >
-        🔗 Jリーグの試合日程・キャンペーン情報（外部サイト・新規タブ）
+        <AppIcon :icon="ExternalLink" />
+        Jリーグの試合日程・キャンペーン情報（外部サイト・新規タブ）
       </a>
     </PageHeader>
     <div class="formation-list-page__body">
@@ -40,6 +43,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { BookOpen, ExternalLink, Goal, PencilLine } from "@lucide/vue";
+import AppIcon from "@/components/AppIcon.vue";
 import FormationCard from "@/components/FormationCard.vue";
 import PageHeader from "@/components/PageHeader.vue";
 import { formations } from "@/data/formations";

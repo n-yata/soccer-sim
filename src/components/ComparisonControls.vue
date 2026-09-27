@@ -25,7 +25,8 @@
       aria-label="青チームと赤チームを入れ替える"
       @click="$emit('swap')"
     >
-      ⇄ 入れ替え
+      <AppIcon :icon="ArrowLeftRight" />
+      入れ替え
     </button>
     <div class="comparison-controls__select-group">
       <label for="comparison-select-b" class="comparison-controls__select-label--red">
@@ -50,7 +51,9 @@
 </template>
 
 <script setup lang="ts">
+import { ArrowLeftRight } from "@lucide/vue";
 import type { Formation } from "@/types/formation";
+import AppIcon from "./AppIcon.vue";
 
 defineProps<{
   formations: Formation[];
@@ -110,6 +113,9 @@ defineEmits<{
 }
 
 .comparison-controls__swap-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);

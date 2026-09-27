@@ -46,7 +46,8 @@ soccer-sim/
 │   │   ├── HalftimeTacticsModal.vue # ハーフタイム采配（FR-19）: A/B両チームの配置変更UIを持つモーダル
 │   │   ├── AppHeader.vue            # 全画面共通のグローバルナビゲーション
 │   │   ├── PageHeader.vue           # グラデーション背景のページヘッダー
-│   │   └── BackButton.vue           # 「← 戻る」ボタン（遷移先解決を集約）
+│   │   ├── BackButton.vue           # 戻るボタン（遷移先解決を集約）
+│   │   └── AppIcon.vue              # @lucide/vueアイコンの共通ラッパー（aria-hidden・サイズを一元管理）
 │   ├── composables/
 │   │   └── matchSimulation.ts   # 試合シミュレーションの計算ロジック（純粋関数。`simulateMatch`。ハーフタイム采配用に`startMatch`/`resumeMatch`も提供）
 │   ├── data/
@@ -138,7 +139,7 @@ soccer-sim/
   `FreeLayoutPitchDiagram.vue`でA/B両チームの配置ドラフトを保持する（永続化用の
   `update-position-end`イベントは受けず、`update-position`のみで表示用ドラフトを更新する。
   ハーフタイム采配の変更は`localStorage`へ保存しないため）。「確定」で`confirm`
-  （変更後または元のpositionsA/B）、`Escape`キー・閉じるボタン（✕）・バックドロップ
+  （変更後または元のpositionsA/B）、`Escape`キー・閉じるボタン（Xアイコン）・バックドロップ
   クリックのいずれかで`cancel`をemitするだけで、後半のシミュレーション実行自体は
   呼び出し元の`ComparisonPage`が行う
 - `AppHeader.vue`: 全画面共通のグローバルナビゲーション。`App.vue`から配置され、現在地
@@ -149,14 +150,18 @@ soccer-sim/
   画面ごとに不揃いだったため、`PageHeader.vue`経由に統一した）。
   `FormationListPage.vue`/`GlossaryPage.vue`/`ComparisonPage.vue`/`MatrixPage.vue`/
   `QuizPage.vue`のすべてが使用する
-- `BackButton.vue`: 「← 戻る」ボタンの表示と遷移先解決（履歴があれば`router.back()`、
+- `BackButton.vue`: 戻るボタンの表示と遷移先解決（履歴があれば`router.back()`、
   無ければ`fallbackTo` propsへ`router.push()`）を行う。`PageHeader.vue`から使用される
   （`components/`層内での同一層コンポーネント合成であり、`FormationCard.vue`→
   `FormationMiniPitch.vue`と同じパターン）
+- `AppIcon.vue`: `@lucide/vue`のアイコンコンポーネントを受け取り、`aria-hidden="true"` /
+  `focusable="false"`とサイズ（`sm`/`md`/`lg`）を一元管理する共通ラッパー（2026-09-27追加。
+  絵文字によるアイコン表現をSVGアイコンへ全面置換した際に導入）。`components/`・`pages/`の
+  ほぼ全ファイルから使用される
 
 **依存関係**:
 - 依存可能: `types/`、同階層の`components/`（コンポーネント合成。例: `PageHeader.vue`→
-  `BackButton.vue`、`FormationCard.vue`→`FormationMiniPitch.vue`）
+  `BackButton.vue`、`FormationCard.vue`→`FormationMiniPitch.vue`）、`@lucide/vue`（`AppIcon.vue`のみ）
 - 依存禁止: `pages/`、`composables/`、`data/`配下の**静的データ定義**（`formations.ts` /
   `matchups.ts` / `soccerTerms.ts`）と**副作用を持つモジュール**（`learningProgress.ts`）
 - **例外的に依存可能**: `data/`配下の**副作用を持たない純粋関数**（`termAnnotation.ts`）。

@@ -9,7 +9,10 @@
       @keydown.tab="onTabKeydown"
     >
       <div class="halftime-modal__header">
-        <h2 class="halftime-modal__title">🔧 ハーフタイム采配</h2>
+        <h2 class="halftime-modal__title">
+          <AppIcon :icon="Wrench" />
+          ハーフタイム采配
+        </h2>
         <button
           ref="closeButtonRef"
           type="button"
@@ -17,7 +20,7 @@
           aria-label="閉じる"
           @click="onCancel"
         >
-          ✕
+          <AppIcon :icon="X" />
         </button>
       </div>
       <p class="halftime-modal__score">
@@ -33,9 +36,13 @@
         @update-position="onUpdatePosition"
       />
       <div class="halftime-modal__actions">
-        <button type="button" class="halftime-modal__reset" @click="onReset">↺ 配置をリセット</button>
+        <button type="button" class="halftime-modal__reset" @click="onReset">
+          <AppIcon :icon="RotateCcw" />
+          配置をリセット
+        </button>
         <button type="button" class="halftime-modal__confirm" @click="onConfirm">
-          ▶ この配置で後半を開始する
+          <AppIcon :icon="Play" />
+          この配置で後半を開始する
         </button>
       </div>
     </div>
@@ -44,6 +51,8 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { Play, RotateCcw, Wrench, X } from "@lucide/vue";
+import AppIcon from "@/components/AppIcon.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import type { Formation, MatchSimulationResult, Position } from "@/types/formation";
 
@@ -223,6 +232,9 @@ watch(
 }
 
 .halftime-modal__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   margin: 0;
   font-size: 18px;
   font-weight: 700;
@@ -238,6 +250,9 @@ watch(
 }
 
 .halftime-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 44px;
   min-height: 44px;
   border: none;
@@ -282,6 +297,9 @@ watch(
 
 .halftime-modal__reset,
 .halftime-modal__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: none;

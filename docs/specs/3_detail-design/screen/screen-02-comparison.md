@@ -85,12 +85,12 @@ TanStack Query等のデータ取得ライブラリは使用しない。
 
 ### 戻るボタン
 
-1. ユーザーが「← 戻る」をクリックする。
+1. ユーザーが「戻る」（アイコン: ArrowLeft）をクリックする。
 2. `router.push('/')` を呼び、フォーメーション一覧画面へ遷移する。
 
 ### A/B入れ替え・切替（FR-09）
 
-1. ユーザーが「⇄ 入れ替え」ボタンをクリックする、またはA側・B側のセレクトで別の
+1. ユーザーが「入れ替え」（アイコン: ArrowLeftRight）ボタンをクリックする、またはA側・B側のセレクトで別の
    フォーメーションを選ぶ。
 2. いずれの操作も `router.replace()` を呼ぶ（`push` ではない）。比較画面から比較画面への
    移動は「同じ画面の表示内容を変える」操作であり、`push` にすると履歴に比較画面が
@@ -152,7 +152,7 @@ TanStack Query等のデータ取得ライブラリは使用しない。
 1. ユーザーが`SquadConditionControls`のトグルをクリックする（OFF→ON）。
 2. `toggleSquadCondition()`が`Math.random()`ベースの新しいシードを`squadConditionSeed`に
    設定し、表示中の試合シミュレーション結果を破棄する。
-3. 「🔄 スカッドを組み直す」ボタン（`rerollSquadCondition()`）で、有効なシードを選び直す
+3. 「スカッドを組み直す」（アイコン: RefreshCw）ボタン（`rerollSquadCondition()`）で、有効なシードを選び直す
    （表示中の結果は同様に破棄する）。
 4. 試合シミュレーション実行時（`runSimulation()`/`onHalftimeConfirm()`/
    `proceedWithoutChange()`）、`squadConditionSeed`が非nullなら
@@ -166,19 +166,19 @@ TanStack Query等のデータ取得ライブラリは使用しない。
 
 ### 試合シミュレーション・ハーフタイム采配（FR-14, FR-19）
 
-1. ユーザーが「⚽ 試合をシミュレートする」をクリックする（`runSimulation()`）。
+1. ユーザーが「試合をシミュレートする」（アイコン: Play）をクリックする（`runSimulation()`）。
 2. `effectiveFormationA`/`B`（自由配置モードの変更を含む）に`squadConditionSeed`があれば
    実効statsを適用し、`composables/matchSimulation.ts`の`startMatch(a, b, matchup, 45)`を
    呼ぶ。戻り値の`progress`を`matchProgress`に、`result`（前半45分の部分結果）を
    `halftimeResult`に設定する。
 3. テンプレート側は`halftimeResult`が非nullかつ`simulationResult`がnullの間、
-   `MatchSimulationPanel`（前半の部分結果）と「🔧 配置を変更する」「▶ 後半を開始する」の
+   `MatchSimulationPanel`（前半の部分結果）と「配置を変更する」（アイコン: Wrench）「後半を開始する」（アイコン: Play）の
    2操作を表示する。
-4. 「🔧 配置を変更する」（`openHalftimeTactics()`）で`isHalftimeModalOpen`を`true`にし、
+4. 「配置を変更する」（アイコン: Wrench）（`openHalftimeTactics()`）で`isHalftimeModalOpen`を`true`にし、
    `HalftimeTacticsModal`を`effectiveFormationA`/`B`・`halftimeResult`付きで開く。
 5. モーダル内で選手をドラッグ/キー操作すると、モーダル内部の`draftPositionsA`/`B`
    （一時状態、`localStorage`へは永続化しない）のみが更新される。
-6. モーダルの「▶ この配置で後半を開始する」（`onHalftimeConfirm(positionsA, positionsB)`）:
+6. モーダルの「この配置で後半を開始する」（アイコン: Play）（`onHalftimeConfirm(positionsA, positionsB)`）:
    - `draftPositionsA`/`B`が`effectiveFormationA`/`B`の元の配置と一致するか
      （`samePositions`）をA・Bそれぞれ判定する。
    - 変更が無ければ`matchup`（既存の値）をそのまま使い、変更があれば変更後の配置から
@@ -187,10 +187,10 @@ TanStack Query等のデータ取得ライブラリは使用しない。
    - `squadConditionSeed`があれば実効statsを適用したうえで、
      `resumeMatch(matchProgress, a, b, matchup)`を呼ぶ。結果を`simulationResult`に設定し、
      `matchProgress`/`halftimeResult`を`null`に、`isHalftimeModalOpen`を`false`に戻す。
-7. モーダルを`Escape`・閉じるボタン（✕）・背景クリックのいずれかで閉じる
+7. モーダルを`Escape`・閉じるボタン（Xアイコン）・背景クリックのいずれかで閉じる
    （`closeHalftimeTactics()`）と、`isHalftimeModalOpen`のみ`false`に戻り、
    ハーフタイム結果パネルの表示に留まる（後半は開始されない）。
-8. ハーフタイムパネル側の「▶ 後半を開始する」（`proceedWithoutChange()`）は、
+8. ハーフタイムパネル側の「後半を開始する」（アイコン: Play）（`proceedWithoutChange()`）は、
    配置変更なしで`resumeMatch(matchProgress, effectiveFormationA, effectiveFormationB, matchup)`
    を呼ぶ（6.と同じ後始末を行う）。
 9. `simulationResult`が非nullの間、テンプレート側は最終結果の`MatchSimulationPanel`
@@ -203,10 +203,10 @@ TanStack Query等のデータ取得ライブラリは使用しない。
 
 | 操作 | 遷移先 | 備考 |
 |---|---|---|
-| 「← 戻る」をクリック | `/`（`FormationListPage`） | — |
+| 「戻る」（アイコン: ArrowLeft）をクリック | `/`（`FormationListPage`） | — |
 | エラー表示中のリンクをクリック | `/`（`FormationListPage`） | 戻るボタンと同じ遷移 |
 | 用語集ボタンをクリック | `/glossary`（`GlossaryPage`） | `router-link` による静的遷移 |
-| 「⇄ 入れ替え」をクリック | `/compare/:formationBId/:formationAId`（`ComparisonPage`） | `router.replace`。履歴を積まない |
+| 「入れ替え」（アイコン: ArrowLeftRight）をクリック | `/compare/:formationBId/:formationAId`（`ComparisonPage`） | `router.replace`。履歴を積まない |
 | 青チーム変更セレクトを変更 | `/compare/:選択したID/:formationBId`（`ComparisonPage`） | `router.replace`。履歴を積まない |
 | 赤チーム変更セレクトを変更 | `/compare/:formationAId/:選択したID`（`ComparisonPage`） | `router.replace`。履歴を積まない |
 

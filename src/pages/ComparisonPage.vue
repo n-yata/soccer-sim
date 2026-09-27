@@ -2,7 +2,10 @@
   <div class="comparison-page">
     <template v-if="formationA && formationB && matchup">
       <PageHeader show-back-button :title="`${formationA.name} vs ${formationB.name}`">
-        <router-link to="/glossary" class="comparison-page__glossary-link"> 📖 用語集 </router-link>
+        <router-link to="/glossary" class="comparison-page__glossary-link">
+          <AppIcon :icon="BookOpen" />
+          用語集
+        </router-link>
       </PageHeader>
       <div class="comparison-page__body">
         <div class="comparison-page__legend">
@@ -35,6 +38,7 @@
           class="comparison-page__verdict"
           :class="`comparison-page__verdict--${matchup.overallEdge}`"
         >
+          <AppIcon :icon="verdictIcon" size="lg" class="comparison-page__verdict-icon" />
           {{ verdictHeadline }}<br />
           <span class="comparison-page__verdict-reason">
             <TermAnnotatedText :text="matchup.overallReason" />
@@ -91,7 +95,8 @@
             class="comparison-page__simulate-button"
             @click="runSimulation"
           >
-            ⚽ 試合をシミュレートする
+            <AppIcon :icon="Play" />
+            試合をシミュレートする
           </button>
           <template v-if="halftimeResult && !simulationResult">
             <MatchSimulationPanel
@@ -101,10 +106,12 @@
             />
             <div class="comparison-page__halftime-actions">
               <button type="button" class="comparison-page__halftime-tactics-button" @click="openHalftimeTactics">
-                🔧 配置を変更する
+                <AppIcon :icon="Wrench" />
+                配置を変更する
               </button>
               <button type="button" class="comparison-page__halftime-continue-button" @click="proceedWithoutChange">
-                ▶ 後半を開始する
+                <AppIcon :icon="Play" />
+                後半を開始する
               </button>
             </div>
             <Transition name="halftime-modal-fade">
@@ -139,6 +146,8 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { BookOpen, Play, Scale, Trophy, Wrench } from "@lucide/vue";
+import AppIcon from "@/components/AppIcon.vue";
 import ComparisonControls from "@/components/ComparisonControls.vue";
 import FreeLayoutControls from "@/components/FreeLayoutControls.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
@@ -404,6 +413,13 @@ const verdictHeadline = computed(() => {
   return `${winner}がやや優位`;
 });
 
+// overallEdgeが"A"/"B"のときのみ優勝トロフィーを表示する（"even"は互角、それ以外は
+// 未確定を意味しうるため、両方ともScaleにフォールバックする方が意図に忠実）
+const verdictIcon = computed(() => {
+  const edge = matchup.value?.overallEdge;
+  return edge === "A" || edge === "B" ? Trophy : Scale;
+});
+
 // レーダーチャート用の系列データ。formationA/Bが両方揃っている（v-ifの範囲内）ことを
 // 前提に、未定義の場合は空配列でチャート側に何も渡さない
 const radarSeries = computed(() => {
@@ -543,11 +559,6 @@ function onSelectB(id: string): void {
   color: #1e3a5f;
 }
 
-.comparison-page__verdict--A::before,
-.comparison-page__verdict--B::before {
-  content: "🏆 ";
-}
-
 .comparison-page__verdict--B {
   background: var(--color-team-b-bg);
   border-color: var(--color-team-b);
@@ -559,8 +570,9 @@ function onSelectB(id: string): void {
   border-color: var(--color-border-strong);
 }
 
-.comparison-page__verdict--even::before {
-  content: "⚖️ ";
+.comparison-page__verdict-icon {
+  vertical-align: -0.15em;
+  margin-right: var(--space-xs);
 }
 
 .comparison-page__verdict-reason {
@@ -648,6 +660,9 @@ function onSelectB(id: string): void {
 }
 
 .comparison-page__simulate-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: none;
@@ -680,6 +695,9 @@ function onSelectB(id: string): void {
 
 .comparison-page__halftime-tactics-button,
 .comparison-page__halftime-continue-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: none;

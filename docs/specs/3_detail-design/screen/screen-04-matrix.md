@@ -75,7 +75,7 @@ MatrixPage（単独。子コンポーネントは持たない）
 | 操作 | 遷移先 | 備考 |
 |---|---|---|
 | マッチアップが存在するセルをクリック | `/compare/:rowId/:colId`（`ComparisonPage`） | `router-link` による静的遷移 |
-| 「← 戻る」をクリック | 履歴があれば遷移元、無ければ `/`（`FormationListPage`） | `window.history.state.back` の有無で分岐 |
+| 「戻る」（アイコン: ArrowLeft）をクリック | 履歴があれば遷移元、無ければ `/`（`FormationListPage`） | `window.history.state.back` の有無で分岐 |
 
 ## 例外・エラー表示
 

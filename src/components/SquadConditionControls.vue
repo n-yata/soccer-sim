@@ -6,7 +6,8 @@
       :aria-pressed="isActive"
       @click="$emit('toggle')"
     >
-      {{ isActive ? "✅ 選手個体差を反映中" : "🎲 選手個体差を反映する" }}
+      <AppIcon :icon="isActive ? Check : Dices" />
+      {{ isActive ? "選手個体差を反映中" : "選手個体差を反映する" }}
     </button>
     <button
       v-if="isActive"
@@ -14,12 +15,16 @@
       class="squad-condition-controls__reroll"
       @click="$emit('reroll')"
     >
-      🔄 スカッドを組み直す
+      <AppIcon :icon="RefreshCw" />
+      スカッドを組み直す
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Check, Dices, RefreshCw } from "@lucide/vue";
+import AppIcon from "./AppIcon.vue";
+
 defineProps<{
   isActive: boolean;
 }>();
@@ -39,6 +44,9 @@ defineEmits<{
 
 .squad-condition-controls__toggle,
 .squad-condition-controls__reroll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);

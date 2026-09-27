@@ -10,7 +10,10 @@
         <span class="matrix-page__legend-item matrix-page__legend-item--row">行が有利</span>
         <span class="matrix-page__legend-item matrix-page__legend-item--col">列が有利</span>
         <span class="matrix-page__legend-item matrix-page__legend-item--even">互角</span>
-        <span class="matrix-page__legend-item matrix-page__legend-item--viewed">✓ 確認済み</span>
+        <span class="matrix-page__legend-item matrix-page__legend-item--viewed">
+          <AppIcon :icon="Check" size="sm" />
+          確認済み
+        </span>
       </div>
 
       <!--
@@ -20,7 +23,10 @@
       <div class="matrix-page__progress">
         <p class="matrix-page__progress-text">
           確認済み <strong>{{ viewedCount }}</strong> / 全 {{ totalPairs }} 組み合わせ
-          <span v-if="isComplete" class="matrix-page__progress-done">🎉 すべて確認しました</span>
+          <span v-if="isComplete" class="matrix-page__progress-done">
+            <AppIcon :icon="PartyPopper" />
+            すべて確認しました
+          </span>
         </p>
         <div class="matrix-page__progress-actions">
           <button
@@ -89,12 +95,12 @@
                     「行有利 / 列有利 / 互角」に使われており、そこへ色を重ねると
                     どちらの意味なのか判別できなくなる
                   -->
-                  <span
+                  <AppIcon
                     v-if="isViewed(row.id, col.id)"
+                    :icon="Check"
+                    size="lg"
                     class="matrix-page__cell-check"
-                    aria-hidden="true"
-                    >✓</span
-                  >
+                  />
                 </router-link>
               </td>
             </tr>
@@ -107,6 +113,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { Check, PartyPopper } from "@lucide/vue";
+import AppIcon from "@/components/AppIcon.vue";
 import PageHeader from "@/components/PageHeader.vue";
 import { formations } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
@@ -190,6 +198,9 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   border-radius: var(--radius-pill);
   padding: 6px 14px;
   font-size: var(--font-sm);
@@ -197,7 +208,6 @@ function formatCellLabel(row: Formation, col: Formation): string {
 
 .matrix-page__legend-item::before {
   content: "●";
-  margin-right: 4px;
 }
 
 .matrix-page__legend-item--row {
@@ -224,7 +234,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
   border: 1px solid var(--color-border);
 }
 
-/* 「✓ 確認済み」はラベル自体に記号を持つので、共通の ● は付けない */
+/* 「確認済み」はラベル自体にチェックアイコンを持つので、共通の ● は付けない */
 .matrix-page__legend-item--viewed::before {
   content: none;
 }
@@ -249,6 +259,9 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__progress-done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   margin-left: var(--space-sm);
   font-weight: 700;
   color: var(--color-primary);
@@ -306,9 +319,6 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__cell-check {
-  font-size: var(--font-lg);
-  font-weight: 700;
-  line-height: 1;
   color: var(--color-text);
   opacity: 0.55;
 }

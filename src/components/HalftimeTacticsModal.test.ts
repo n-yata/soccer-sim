@@ -131,6 +131,13 @@ describe("HalftimeTacticsModal", () => {
     expect(wrapper.emitted("cancel")).toHaveLength(1);
   });
 
+  // 閉じるボタンは記号のみ（テキストラベル無し）でアクセシブルネームをaria-labelに
+  // 依存しているため、アイコン化後もこの属性が失われていないことを固定する
+  it("閉じるボタンにaria-label='閉じる'が維持されている", () => {
+    const wrapper = mountWithTrigger();
+    expect(wrapper.find(".halftime-modal__close").attributes("aria-label")).toBe("閉じる");
+  });
+
   it("Escapeキーでcancelがemitされる", () => {
     const wrapper = mountWithTrigger();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));

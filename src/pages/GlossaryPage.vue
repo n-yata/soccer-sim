@@ -2,9 +2,13 @@
   <div class="glossary-page">
     <PageHeader
       show-back-button
-      title="📖 サッカー用語集"
+      title="サッカー用語集"
       subtitle="解説文に出てくる用語を、専門知識なしでも分かる言葉で説明します"
-    />
+    >
+      <template #title-icon>
+        <AppIcon :icon="BookOpen" size="lg" />
+      </template>
+    </PageHeader>
     <div class="glossary-page__body">
       <section v-for="group in groupedTerms" :key="group.category" class="glossary-page__category">
         <h2 class="glossary-page__category-title">{{ group.category }}</h2>
@@ -24,6 +28,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { BookOpen } from "@lucide/vue";
+import AppIcon from "@/components/AppIcon.vue";
 import PageHeader from "@/components/PageHeader.vue";
 import { soccerTerms } from "@/data/soccerTerms";
 import type { SoccerTermCategory } from "@/types/formation";

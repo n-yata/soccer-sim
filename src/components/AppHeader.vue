@@ -2,7 +2,8 @@
   <header class="app-header">
     <div class="app-header__bar">
       <router-link to="/" class="app-header__brand" @click="closeMenu">
-        ⚽ フォーメーションラボ
+        <AppIcon :icon="Goal" size="md" />
+        フォーメーションラボ
       </router-link>
       <button
         type="button"
@@ -11,7 +12,7 @@
         aria-controls="app-header-nav"
         @click="isMenuOpen = !isMenuOpen"
       >
-        <span aria-hidden="true">☰</span>
+        <AppIcon :icon="Menu" />
         <span class="app-header__toggle-label">メニュー</span>
       </button>
       <nav
@@ -41,7 +42,8 @@
           :aria-current="isActive('quiz')"
           @click="closeMenu"
         >
-          ✏️ 理解度チェック
+          <AppIcon :icon="PencilLine" />
+          理解度チェック
         </router-link>
         <router-link
           to="/glossary"
@@ -49,7 +51,8 @@
           :aria-current="isActive('glossary')"
           @click="closeMenu"
         >
-          📖 用語集
+          <AppIcon :icon="BookOpen" />
+          用語集
         </router-link>
       </nav>
     </div>
@@ -59,6 +62,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRoute } from "vue-router";
+import { BookOpen, Goal, Menu, PencilLine } from "@lucide/vue";
+import AppIcon from "./AppIcon.vue";
 
 const route = useRoute();
 const isMenuOpen = ref(false);
@@ -89,6 +94,9 @@ function closeMenu(): void {
 }
 
 .app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   font-size: var(--font-md);
   font-weight: 700;
   color: var(--color-text);
@@ -128,6 +136,7 @@ function closeMenu(): void {
 .app-header__link {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-xs);
   font-size: var(--font-sm);
   font-weight: 700;
   color: var(--color-text-sub);

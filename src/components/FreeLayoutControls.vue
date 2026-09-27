@@ -6,7 +6,8 @@
       :aria-pressed="isActive"
       @click="$emit('toggle')"
     >
-      {{ isActive ? "✅ 自由配置モード中" : "🖐️ 自由に配置を調整する" }}
+      <AppIcon :icon="isActive ? Check : Hand" />
+      {{ isActive ? "自由配置モード中" : "自由に配置を調整する" }}
     </button>
     <button
       v-if="isActive"
@@ -14,12 +15,16 @@
       class="free-layout-controls__reset"
       @click="$emit('reset')"
     >
-      ↺ 配置をリセット
+      <AppIcon :icon="RotateCcw" />
+      配置をリセット
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Check, Hand, RotateCcw } from "@lucide/vue";
+import AppIcon from "./AppIcon.vue";
+
 defineProps<{
   isActive: boolean;
 }>();
@@ -39,6 +44,9 @@ defineEmits<{
 
 .free-layout-controls__toggle,
 .free-layout-controls__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);

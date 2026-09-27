@@ -1,9 +1,14 @@
 <template>
-  <button type="button" class="back-button" @click="goBack">← 戻る</button>
+  <button type="button" class="back-button" @click="goBack">
+    <AppIcon :icon="ArrowLeft" />
+    戻る
+  </button>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from "vue-router";
+import { ArrowLeft } from "@lucide/vue";
+import AppIcon from "./AppIcon.vue";
 
 const props = withDefaults(defineProps<{ fallbackTo?: string }>(), {
   fallbackTo: "/",
@@ -25,6 +30,9 @@ function goBack(): void {
 
 <style scoped>
 .back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);

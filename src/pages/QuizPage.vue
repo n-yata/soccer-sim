@@ -1,7 +1,10 @@
 <template>
   <div class="quiz-page">
     <PageHeader show-back-button title="理解度チェック">
-      <router-link to="/glossary" class="quiz-page__glossary-link"> 📖 用語集 </router-link>
+      <router-link to="/glossary" class="quiz-page__glossary-link">
+        <AppIcon :icon="BookOpen" />
+        用語集
+      </router-link>
     </PageHeader>
     <div class="quiz-page__body">
       <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
@@ -48,6 +51,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { BookOpen } from "@lucide/vue";
+import AppIcon from "@/components/AppIcon.vue";
 import PageHeader from "@/components/PageHeader.vue";
 import QuizQuestionCard from "@/components/QuizQuestionCard.vue";
 import { formations } from "@/data/formations";
@@ -124,6 +129,7 @@ restart();
 .quiz-page__glossary-link {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-xs);
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.6);

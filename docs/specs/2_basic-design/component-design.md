@@ -421,7 +421,7 @@ interface MatchSimulationPanelProps {
   アンマウント時に開く前にフォーカスされていた要素へ戻す（DOMから取り除かれていた場合は
   `document.body`へ一時的にフォールバックする）。モーダル内の最初/最後のフォーカス可能要素で
   `Tab`/`Shift+Tab`を押すと反対側へ折り返すフォーカストラップを持つ
-- `Escape`キー・閉じるボタン（✕）・背景（`role="presentation"`のバックドロップ）クリックの
+- `Escape`キー・閉じるボタン（Xアイコン）・背景（`role="presentation"`のバックドロップ）クリックの
   いずれでも、変更を確定せず`cancel`イベントをemitして閉じる
 - 「この配置で後半を開始する」で、ドラフト配置を`confirm`イベントとしてemitする
 - 配置を元に戻すリセット操作がある（ドラフト配置をpropsの`formationA`/`formationB`の
@@ -442,7 +442,7 @@ interface HalftimeTacticsModalEmits {
 ```
 
 **依存関係**:
-- 依存可能: `types/formation.ts`, `components/FreeLayoutPitchDiagram.vue`
+- 依存可能: `types/formation.ts`, `components/FreeLayoutPitchDiagram.vue`, `components/AppIcon.vue`
 - 依存禁止: `pages/`, `data/`（表示専用コンポーネント。永続化・シミュレーション継続は
   呼び出し元の`ComparisonPage`が行う）
 
@@ -638,6 +638,9 @@ function restart(): void; // questions/currentIndex/answersをすべて作り直
   統一した）
 - デフォルトスロットで、タイトル行右側のアクション領域（ボタン・リンク群）を差し込めるようにする
 - `showBackButton`が真のとき、タイトルの左に`BackButton`を描画する
+- 名前付きスロット`#title-icon`で、タイトル文字列の直前にアイコン（`AppIcon`想定）を
+  差し込めるようにする（2026-09-27追加。絵文字アイコン刷新に伴い、`title`propに
+  絵文字を埋め込む方式から分離した）
 
 **インターフェース**:
 ```typescript
@@ -654,10 +657,42 @@ interface PageHeaderProps {
   `FormationCard.vue`→`FormationMiniPitch.vue`と同じパターン）
 - 依存禁止: `pages/`, `data/`（コンポーネントはpropsとスロット経由でのみ内容を受け取る）
 
+## UIレイヤー: AppIcon（`components/AppIcon.vue`）
+
+**責務**:
+- `@lucide/vue`のアイコンコンポーネントを受け取り、`aria-hidden="true"` /
+  `focusable="false"`を常に付与して描画する共通ラッパー（2026-09-27新規。絵文字による
+  アイコン表現をSVGアイコンへ全面置換した際に導入）
+- `size`（`sm`/`md`/`lg`）に応じたCSSクラスを付与し、`tokens.css`の`--icon-*`変数で
+  実サイズを決める。色は指定せず、SVGの既定`stroke="currentColor"`により呼び出し元の
+  テキスト色をそのまま継承する
+
+**インターフェース**:
+```typescript
+interface AppIconProps {
+  icon: LucideIcon; // @lucide/vueのアイコンコンポーネント（例: BookOpen, ArrowLeft）
+  size?: "sm" | "md" | "lg"; // 既定値: "md"
+}
+```
+
+**依存関係**:
+- 依存可能: `@lucide/vue`
+- 依存禁止: `pages/`, `data/`
+- **利用側**: `AppHeader`/`BackButton`/`FormationCard`/`HalftimeTacticsModal`等、
+  アイコンを表示する全コンポーネント・画面から使用される
+
+**アクセシビリティ方針**:
+- 装飾用途（テキストラベル併記）が既定であり、`aria-hidden`により読み上げから除外される
+- 記号のみでテキストラベルを持たない箇所（例: `HalftimeTacticsModal`の閉じるボタン）は、
+  `AppIcon`自体ではなく**呼び出し元のbutton/aへ`aria-label`を付与**することで
+  アクセシブルネームを確保する（`AppIcon`は常に`aria-hidden`のため、単体ではアクセシブル
+  ネームを持てない設計）
+
 ## UIレイヤー: BackButton（`components/BackButton.vue`）
 
 **責務**:
-- 「← 戻る」ボタンの表示と、押下時の戻り先解決を1箇所に集約する
+- 戻るボタン（`AppIcon`の`ArrowLeft`+「戻る」テキスト）の表示と、押下時の戻り先解決を
+  1箇所に集約する
 - `window.history.state?.back`の有無を判定し、アプリ内遷移の履歴があれば`router.back()`、
   無ければ`fallbackTo`（既定`"/"`）へ`router.push()`する
 

@@ -86,7 +86,7 @@ QuizPage
 | 操作 | 遷移先 | 備考 |
 |---|---|---|
 | 用語集ボタンをクリック | `/glossary`（`GlossaryPage`） | `router-link` による静的遷移 |
-| 「← 戻る」をクリック | 履歴があれば遷移元、無ければ `/`（`FormationListPage`） | `window.history.state.back` の有無で分岐 |
+| 「戻る」（アイコン: ArrowLeft）をクリック | 履歴があれば遷移元、無ければ `/`（`FormationListPage`） | `window.history.state.back` の有無で分岐 |
 | 結果画面の「一覧画面へ戻る」をクリック | `/`（`FormationListPage`） | `router-link` による静的遷移 |
 
 ## 例外・エラー表示

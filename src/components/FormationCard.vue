@@ -11,7 +11,10 @@
   >
     <div class="formation-card__header">
       <span class="formation-card__name">{{ formation.name }}</span>
-      <span v-if="selected" class="formation-card__badge">✓ 選択中</span>
+      <span v-if="selected" class="formation-card__badge">
+        <AppIcon :icon="Check" />
+        選択中
+      </span>
     </div>
     <FormationMiniPitch class="formation-card__pitch" :formation="formation" />
     <p class="formation-card__description">{{ formation.description }}</p>
@@ -19,7 +22,9 @@
 </template>
 
 <script setup lang="ts">
+import { Check } from "@lucide/vue";
 import type { Formation } from "@/types/formation";
+import AppIcon from "./AppIcon.vue";
 import FormationMiniPitch from "./FormationMiniPitch.vue";
 
 defineProps<{
@@ -75,6 +80,9 @@ defineEmits<{
 }
 
 .formation-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;

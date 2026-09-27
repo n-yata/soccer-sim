@@ -4,7 +4,7 @@
       <div class="page-header__heading">
         <BackButton v-if="showBackButton" :fallback-to="backFallbackTo" />
         <div>
-          <h1 class="page-header__title">{{ title }}</h1>
+          <h1 class="page-header__title"><slot name="title-icon" />{{ title }}</h1>
           <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
         </div>
       </div>
@@ -54,6 +54,9 @@ withDefaults(
 }
 
 .page-header__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
   margin: 0;
   font-size: var(--font-2xl);
   font-weight: 700;
