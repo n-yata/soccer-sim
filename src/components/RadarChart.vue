@@ -295,7 +295,7 @@ onBeforeUnmount(() => {
 
 .radar-chart__axis-label {
   font-size: 7px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   fill: var(--color-text-sub, #6b7280);
 }
 

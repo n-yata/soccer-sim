@@ -26,13 +26,29 @@
   --space-xl: 32px;
   --space-2xl: 40px;
 
-  /* font-size scale */
-  --font-xs: 12px;
-  --font-sm: 13px;
-  --font-md: 15px;
-  --font-lg: 18px;
-  --font-xl: 24px;
-  --font-2xl: 28px;
+  /* font family */
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", "Helvetica Neue", "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans JP", sans-serif;
+
+  /* font-size scale（rem。ブラウザの文字サイズ設定に追随させるため px を使わない） */
+  --font-xs: 0.75rem; /* 12px */
+  --font-sm: 0.875rem; /* 14px */
+  --font-md: 1rem; /* 16px */
+  --font-lg: 1.25rem; /* 20px */
+  --font-xl: 1.5rem; /* 24px */
+  --font-2xl: 2rem; /* 32px */
+
+  /* font weight scale */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* line height scale */
+  --leading-tight: 1.25; /* 見出し */
+  --leading-normal: 1.6; /* UI・既定 */
+  --leading-relaxed: 1.8; /* 読み物（解説文・用語集・クイズ） */
 
   /* radius scale */
   --radius-sm: 8px;

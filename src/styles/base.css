@@ -1,0 +1,75 @@
+/* グローバル基盤CSS: ブラウザ既定スタイルのリセットとアプリ全体の既定値。
+   tokens.css の値を参照するため、必ず tokens.css の後に読み込むこと（main.ts）。 */
+
+/* 1. ボックスモデル ------------------------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 2. マージンのリセット -------------------------------------------- */
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+/* 3. ルート --------------------------------------------------------- */
+:root {
+  color-scheme: light; /* ダークモード対応は Phase 3。現状は light 固定を明示 */
+}
+
+/* 4. body ----------------------------------------------------------- */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-md);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 5. 見出しの既定ウェイトと行間 -------------------------------------- */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+/* 6. フォーム要素へのフォント継承 ------------------------------------ */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* 7. メディア要素 ---------------------------------------------------- */
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* 8. フォーカスリング（a11y） ---------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

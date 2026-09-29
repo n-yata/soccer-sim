@@ -193,7 +193,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
   display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
-  font-weight: bold;
+  font-weight: var(--weight-medium);
   flex-wrap: wrap;
 }
 
@@ -263,7 +263,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
   align-items: center;
   gap: var(--space-xs);
   margin-left: var(--space-sm);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-primary);
 }
 
@@ -283,7 +283,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
   background: var(--color-surface);
   padding: 6px 14px;
   font-size: var(--font-xs);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: var(--color-text-muted);
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -307,7 +307,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
 
 .matrix-page__clear-confirm-text {
   font-size: var(--font-xs);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
 
@@ -334,7 +334,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
 
 .matrix-page__table th {
   font-size: var(--font-xs);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: var(--color-text);
   padding: 4px 8px;
   white-space: nowrap;

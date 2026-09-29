@@ -84,8 +84,8 @@ defineEmits<{
 }
 
 .comparison-controls__select-group label {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
 }
 
 .comparison-controls__select-label--blue {
@@ -102,7 +102,7 @@ defineEmits<{
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 6px 10px;
-  font-size: 13px;
+  font-size: var(--font-sm);
   background: #ffffff;
   color: var(--color-text);
   transition: border-color 0.15s ease;
@@ -123,8 +123,8 @@ defineEmits<{
   background: #ffffff;
   box-shadow: var(--shadow-card);
   padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
   color: #374151;
   cursor: pointer;
   transition:

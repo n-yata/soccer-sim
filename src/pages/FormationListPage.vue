@@ -75,7 +75,7 @@ watch(
   border-radius: var(--radius-pill);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: #ffffff;
   white-space: nowrap;
   transition: background-color 0.15s ease;

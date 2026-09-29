@@ -124,8 +124,8 @@ defineProps<{
 }
 
 .match-simulation-panel__team {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
 }
 
 .match-simulation-panel__team--a {
@@ -137,8 +137,8 @@ defineProps<{
 }
 
 .match-simulation-panel__score {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: var(--font-2xl);
+  font-weight: var(--weight-bold);
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
 }
@@ -146,8 +146,8 @@ defineProps<{
 .match-simulation-panel__summary {
   margin: 0 0 16px;
   text-align: center;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: var(--font-sm);
+  line-height: var(--leading-relaxed);
   color: #374151;
 }
 
@@ -157,8 +157,8 @@ defineProps<{
 
 .match-simulation-panel__stats-title {
   margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
   color: var(--color-text-sub);
 }
 
@@ -187,8 +187,8 @@ defineProps<{
   display: flex;
   justify-content: space-between;
   margin-top: 4px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
   color: var(--color-text-sub);
 }
 
@@ -203,7 +203,7 @@ defineProps<{
   align-items: center;
   padding: 6px 0;
   border-top: 1px solid var(--color-border);
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .match-simulation-panel__shot-row dt {
@@ -214,14 +214,14 @@ defineProps<{
   margin: 0;
   width: 32px;
   text-align: center;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
 
 .match-simulation-panel__timeline-title {
   margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
   color: var(--color-text-sub);
 }
 
@@ -241,7 +241,7 @@ defineProps<{
   gap: 10px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .match-simulation-panel__event:last-child {
@@ -251,7 +251,7 @@ defineProps<{
 .match-simulation-panel__event-minute {
   flex: 0 0 auto;
   width: 36px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-sub);
   font-variant-numeric: tabular-nums;
 }
@@ -263,7 +263,7 @@ defineProps<{
 
 .match-simulation-panel__event--goal {
   background: var(--color-accent-bg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .match-simulation-panel__event--team-a .match-simulation-panel__event-minute {
@@ -278,6 +278,6 @@ defineProps<{
   padding: 16px 12px;
   text-align: center;
   color: var(--color-text-sub);
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 </style>

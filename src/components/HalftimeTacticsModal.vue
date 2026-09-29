@@ -236,8 +236,8 @@ watch(
   align-items: center;
   gap: var(--space-xs);
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--font-lg);
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
 
@@ -259,8 +259,7 @@ watch(
   border-radius: var(--radius-sm);
   background: none;
   padding: 4px 8px;
-  font-size: 16px;
-  line-height: 1;
+  font-size: var(--font-md);
   color: var(--color-text-sub);
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -277,14 +276,14 @@ watch(
 
 .halftime-modal__score {
   margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
 
 .halftime-modal__hint {
   margin: 0 0 16px;
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--color-text-sub);
 }
 
@@ -305,8 +304,8 @@ watch(
   border: none;
   border-radius: 999px;
   padding: 10px 20px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
   cursor: pointer;
   transition:
     background-color 0.15s ease,

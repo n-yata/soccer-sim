@@ -98,7 +98,7 @@ function closeMenu(): void {
   align-items: center;
   gap: var(--space-xs);
   font-size: var(--font-md);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
   text-decoration: none;
   white-space: nowrap;
@@ -115,7 +115,7 @@ function closeMenu(): void {
   background: var(--color-surface);
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--font-sm);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: var(--color-text-muted);
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -138,7 +138,7 @@ function closeMenu(): void {
   align-items: center;
   gap: var(--space-xs);
   font-size: var(--font-sm);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: var(--color-text-sub);
   text-decoration: none;
   white-space: nowrap;

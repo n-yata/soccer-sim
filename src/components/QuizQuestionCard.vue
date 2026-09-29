@@ -118,9 +118,9 @@ function markerText(choice: QuizChoice): string {
 
 .quiz-question-card__prompt {
   margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.7;
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-relaxed);
   color: var(--color-text);
 }
 
@@ -148,8 +148,8 @@ function markerText(choice: QuizChoice): string {
   border-radius: 10px;
   background: #ffffff;
   padding: 12px 14px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
   text-align: left;
   color: var(--color-text);
   cursor: pointer;
@@ -186,8 +186,7 @@ function markerText(choice: QuizChoice): string {
 }
 
 .quiz-question-card__marker {
-  font-size: 16px;
-  line-height: 1;
+  font-size: var(--font-md);
 }
 
 .quiz-question-card__result {
@@ -220,8 +219,8 @@ function markerText(choice: QuizChoice): string {
 
 .quiz-question-card__verdict {
   margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
 }
 
 .quiz-question-card__verdict--correct {
@@ -234,8 +233,8 @@ function markerText(choice: QuizChoice): string {
 
 .quiz-question-card__explanation {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.8;
+  font-size: var(--font-sm);
+  line-height: var(--leading-relaxed);
   color: #374151;
 }
 

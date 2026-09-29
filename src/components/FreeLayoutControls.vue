@@ -54,8 +54,8 @@ defineEmits<{
   background: #ffffff;
   box-shadow: var(--shadow-card);
   padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
   color: #374151;
   cursor: pointer;
   transition:

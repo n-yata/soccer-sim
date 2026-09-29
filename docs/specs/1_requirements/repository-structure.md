@@ -60,6 +60,9 @@ soccer-sim/
 │   │   └── learningProgress.ts  # 学習進捗の読み書き（`localStorage`。副作用を持つ唯一のdata/モジュール）
 │   ├── types/
 │   │   └── formation.ts         # Formation・Position・Matchup・SoccerTerm・QuizQuestion・LearningProgress 等の型定義
+│   ├── styles/
+│   │   ├── tokens.css           # デザイントークン（色・スペーシング・タイポグラフィ・角丸・影等のCSSカスタムプロパティ）
+│   │   └── base.css             # グローバル基盤CSS（ブラウザ既定スタイルのリセット・フォント等の既定値。tokens.cssの後に読み込む）
 │   └── vite-env.d.ts            # Vite組み込み型（import.meta.env等）の参照
 ├── public/                      # 静的アセット
 │   ├── favicon.svg              # ファビコン
