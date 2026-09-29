@@ -41,7 +41,7 @@ function goBack(): void {
   box-shadow: var(--shadow-card);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: var(--color-text-muted);
   cursor: pointer;
   transition:

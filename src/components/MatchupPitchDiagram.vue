@@ -265,7 +265,7 @@ const itemsB = computed(() => resolvedItems.value.b);
 
 .matchup-pitch__label {
   font-size: 3.5px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   fill: #ffffff;
   paint-order: stroke;
   stroke: #000000;

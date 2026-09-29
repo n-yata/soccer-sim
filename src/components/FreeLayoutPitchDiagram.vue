@@ -321,7 +321,7 @@ function onKeyUp(team: "A" | "B", item: Item, event: KeyboardEvent): void {
 
 .free-layout-pitch__label {
   font-size: 3.5px;
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   fill: #ffffff;
   paint-order: stroke;
   stroke: #000000;

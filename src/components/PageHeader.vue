@@ -59,13 +59,13 @@ withDefaults(
   gap: var(--space-sm);
   margin: 0;
   font-size: var(--font-2xl);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .page-header__subtitle {
   margin: var(--space-sm) 0 0;
   font-size: var(--font-sm);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: #ffffff;
   /* text-shadowはWCAGのコントラスト比計算に算入されない。AA(4.5:1)を満たすため、
      白文字と組み合わせて--color-primary/--color-primary-end自体を暗めの値にしている

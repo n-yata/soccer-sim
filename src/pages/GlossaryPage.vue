@@ -60,8 +60,8 @@ const groupedTerms = computed(() =>
 
 .glossary-page__category-title {
   margin: 0 0 var(--space-sm);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
   color: var(--color-primary);
   border-bottom: 2px solid var(--color-border);
   padding-bottom: 6px;
@@ -87,21 +87,21 @@ const groupedTerms = computed(() =>
 
 .glossary-page__term {
   font-size: var(--font-md);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
   margin-top: var(--space-md);
 }
 
 .glossary-page__reading {
   font-size: var(--font-xs);
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   color: var(--color-text-sub);
 }
 
 .glossary-page__description {
   margin: 4px 0 0;
   font-size: var(--font-sm);
-  line-height: 1.6;
+  line-height: var(--leading-relaxed);
   color: var(--color-text-sub);
 }
 

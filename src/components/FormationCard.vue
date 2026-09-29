@@ -75,16 +75,16 @@ defineEmits<{
 }
 
 .formation-card__name {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--font-lg);
+  font-weight: var(--weight-semibold);
 }
 
 .formation-card__badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
@@ -97,9 +97,9 @@ defineEmits<{
 
 .formation-card__description {
   margin: 0;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.5;
+  font-size: var(--font-xs);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-normal);
   color: var(--color-text-sub);
 }
 

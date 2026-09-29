@@ -49,22 +49,22 @@ defineProps<{
 }
 
 .term-popover__term {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
 
 .term-popover__reading {
   margin-left: 6px;
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--color-text-sub);
 }
 
 .term-popover__description {
   display: block;
-  font-size: 12px;
-  line-height: 1.6;
-  font-weight: 400;
+  font-size: var(--font-xs);
+  line-height: var(--leading-relaxed);
+  font-weight: var(--weight-normal);
   color: #374151;
 }
 

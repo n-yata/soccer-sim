@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
   padding: 0;
   font: inherit;
   color: var(--color-primary);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   cursor: help;
   transition: background-color 0.15s ease;
 }

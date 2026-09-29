@@ -514,7 +514,7 @@ function onSelectB(id: string): void {
   min-height: 44px;
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: var(--color-text-muted);
   cursor: pointer;
   list-style: none;
@@ -540,7 +540,7 @@ function onSelectB(id: string): void {
   display: flex;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
-  font-weight: bold;
+  font-weight: var(--weight-medium);
 }
 
 .comparison-page__legend-item {
@@ -570,7 +570,7 @@ function onSelectB(id: string): void {
   margin: 0 0 16px;
   padding: 12px 16px;
   border-radius: 8px;
-  font-weight: bold;
+  font-weight: var(--weight-bold);
   box-shadow: var(--shadow-card);
   background: var(--color-surface-sub);
   border: 2px solid var(--color-border-strong);
@@ -617,8 +617,8 @@ function onSelectB(id: string): void {
 
 .comparison-page__verdict-reason {
   display: block;
-  font-weight: normal;
-  font-size: 0.9em;
+  font-weight: var(--weight-normal);
+  font-size: var(--font-sm);
   color: #444444;
   margin-top: 4px;
 }
@@ -658,7 +658,7 @@ function onSelectB(id: string): void {
 .comparison-page__radar-title {
   margin: 0 0 var(--space-sm);
   font-size: var(--font-md);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
 
@@ -686,6 +686,13 @@ function onSelectB(id: string): void {
   border-color: var(--color-team-b);
 }
 
+.comparison-page__label {
+  /* base.cssのマージンリセットでブラウザ既定のh2余白が消えるため明示する
+     （直下のulとの間隔を確保。フォントサイズ等のトークン化は
+     「コンポーネント層のトークン統一」フェーズで別途行う） */
+  margin: 0 0 var(--space-sm);
+}
+
 .comparison-page__label--blue {
   color: var(--color-team-a);
 }
@@ -711,7 +718,7 @@ function onSelectB(id: string): void {
   box-shadow: var(--shadow-card);
   padding: 12px 28px;
   font-size: var(--font-md);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   color: #ffffff;
   cursor: pointer;
   transition: transform 0.15s ease;
@@ -745,7 +752,7 @@ function onSelectB(id: string): void {
   box-shadow: var(--shadow-card);
   padding: 10px 20px;
   font-size: var(--font-sm);
-  font-weight: 700;
+  font-weight: var(--weight-medium);
   cursor: pointer;
   transition:
     background-color 0.15s ease,
