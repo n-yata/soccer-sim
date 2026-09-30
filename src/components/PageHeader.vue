@@ -33,9 +33,10 @@ withDefaults(
 
 <style scoped>
 .page-header {
-  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-end));
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
   padding: var(--space-xl) var(--space-2xl);
-  color: #ffffff;
+  color: var(--color-text);
 }
 
 .page-header__row {
@@ -66,11 +67,7 @@ withDefaults(
   margin: var(--space-sm) 0 0;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
-  color: #ffffff;
-  /* text-shadowはWCAGのコントラスト比計算に算入されない。AA(4.5:1)を満たすため、
-     白文字と組み合わせて--color-primary/--color-primary-end自体を暗めの値にしている
-     （tokens.css）。text-shadowは可読性の補助のみ */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  color: var(--color-text-sub);
 }
 
 .page-header__actions {

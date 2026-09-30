@@ -13,9 +13,10 @@
       @pointercancel="onPointerUp"
     >
       <defs>
+        <!-- 芝生の演出は維持しつつ、上下の明度差を縮めて主張を弱める（旧: #3cb043→#1b5e20） -->
         <linearGradient id="freeLayoutPitchGradient" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#3cb043" />
-          <stop offset="100%" stop-color="#1b5e20" />
+          <stop offset="100%" stop-color="#2e7d32" />
         </linearGradient>
       </defs>
       <rect x="0" y="0" width="260" height="160" class="free-layout-pitch__field" aria-hidden="true" />

@@ -110,9 +110,9 @@ function markerText(choice: QuizChoice): string {
 <style scoped>
 .quiz-question-card {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-lg);
   background: #ffffff;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   padding: 20px;
 }
 
@@ -145,7 +145,7 @@ function markerText(choice: QuizChoice): string {
   min-height: 44px;
   box-sizing: border-box;
   border: 2px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: #ffffff;
   padding: 12px 14px;
   font-size: var(--font-sm);

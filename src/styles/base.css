@@ -36,7 +36,7 @@ body {
   font-weight: var(--weight-normal);
   line-height: var(--leading-normal);
   color: var(--color-text);
-  background-color: var(--color-surface);
+  background-color: var(--color-canvas);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

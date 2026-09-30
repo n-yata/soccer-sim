@@ -34,9 +34,9 @@ defineProps<{
   max-width: min(280px, 72vw);
   box-sizing: border-box;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
   padding: 10px 12px;
   text-align: left;
   white-space: normal;

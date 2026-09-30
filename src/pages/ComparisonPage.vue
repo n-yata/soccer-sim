@@ -569,11 +569,12 @@ function onSelectB(id: string): void {
 .comparison-page__verdict {
   margin: 0 0 16px;
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-weight: var(--weight-bold);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   background: var(--color-surface-sub);
-  border: 2px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border-strong);
   animation: comparison-verdict-pop-in 0.5s ease-out both;
   animation-delay: 0.7s;
 }
@@ -595,19 +596,19 @@ function onSelectB(id: string): void {
 
 .comparison-page__verdict--A {
   background: var(--color-team-a-bg);
-  border-color: var(--color-team-a);
+  border-left-color: var(--color-team-a);
   color: #1e3a5f;
 }
 
 .comparison-page__verdict--B {
   background: var(--color-team-b-bg);
-  border-color: var(--color-team-b);
+  border-left-color: var(--color-team-b);
   color: #5f1e1e;
 }
 
 .comparison-page__verdict--even {
   background: var(--color-surface-sub);
-  border-color: var(--color-border-strong);
+  border-left-color: var(--color-border-strong);
 }
 
 .comparison-page__verdict-icon {
@@ -619,7 +620,7 @@ function onSelectB(id: string): void {
   display: block;
   font-weight: var(--weight-normal);
   font-size: var(--font-sm);
-  color: #444444;
+  color: var(--color-text-muted);
   margin-top: 4px;
 }
 
@@ -636,7 +637,7 @@ function onSelectB(id: string): void {
   max-width: 800px;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -650,7 +651,7 @@ function onSelectB(id: string): void {
   max-width: 360px;
   background: var(--color-surface);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--color-border);
   padding: var(--space-md) var(--space-lg);
 }
@@ -673,17 +674,9 @@ function onSelectB(id: string): void {
   flex: 1 1 260px;
   background: var(--color-surface);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   padding: var(--space-md) var(--space-lg);
-  border: 2px solid var(--color-border);
-}
-
-.comparison-page__advantage-column--blue {
-  border-color: var(--color-team-a);
-}
-
-.comparison-page__advantage-column--red {
-  border-color: var(--color-team-b);
+  border: 1px solid var(--color-border);
 }
 
 .comparison-page__label {
@@ -714,8 +707,8 @@ function onSelectB(id: string): void {
   box-sizing: border-box;
   border: none;
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
-  box-shadow: var(--shadow-card);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-md);
   padding: 12px 28px;
   font-size: var(--font-md);
   font-weight: var(--weight-medium);
@@ -749,7 +742,7 @@ function onSelectB(id: string): void {
   box-sizing: border-box;
   border: none;
   border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   padding: 10px 20px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
@@ -770,7 +763,7 @@ function onSelectB(id: string): void {
 }
 
 .comparison-page__halftime-continue-button {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
+  background: var(--color-primary);
   color: #ffffff;
 }
 

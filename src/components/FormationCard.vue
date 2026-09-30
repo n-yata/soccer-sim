@@ -41,28 +41,33 @@ defineEmits<{
 .formation-card {
   position: relative;
   box-sizing: border-box;
-  background: #ffffff;
-  border: 3px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   padding: 16px;
   text-align: center;
   color: var(--color-text);
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: box-shadow 0.15s ease;
 }
 
 .formation-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-lg);
 }
 
 .formation-card.selected {
+  /* border-widthは状態によらず1px固定（レイアウトジャンプ防止）。
+     リングはbox-shadowで表現するためフロー幅に影響しない */
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
   background-color: var(--color-accent-bg);
-  color: #b44712;
+}
+
+.formation-card.selected:hover {
+  box-shadow:
+    0 0 0 2px var(--color-accent),
+    var(--shadow-lg);
 }
 
 .formation-card__header {
@@ -91,7 +96,7 @@ defineEmits<{
 .formation-card__pitch {
   margin: 0 auto 8px;
   max-width: 120px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -103,17 +108,9 @@ defineEmits<{
   color: var(--color-text-sub);
 }
 
-.formation-card.selected .formation-card__description {
-  color: #b44712;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .formation-card {
     transition: none;
-  }
-
-  .formation-card:hover {
-    transform: none;
   }
 }
 </style>

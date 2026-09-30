@@ -196,9 +196,9 @@ watch(
   max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-lg);
   background: #ffffff;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-lg);
   padding: 24px;
 }
 
@@ -302,7 +302,7 @@ watch(
   min-height: 44px;
   box-sizing: border-box;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 10px 20px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
@@ -323,9 +323,9 @@ watch(
 }
 
 .halftime-modal__confirm {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
+  background: var(--color-primary);
   color: #ffffff;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
 }
 
 .halftime-modal__confirm:hover {

@@ -38,7 +38,7 @@ function goBack(): void {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
