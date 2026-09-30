@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 .term-annotated-text__term {
   border: 0;
   border-bottom: 1px dotted var(--color-primary);
-  border-radius: 2px;
+  /* border-radiusは指定しない: border-bottomのみのため視覚効果を持たない */
   background: none;
   padding: 0;
   font: inherit;

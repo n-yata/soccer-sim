@@ -100,7 +100,7 @@ defineEmits<{
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 6px 10px;
   font-size: var(--font-sm);
   background: #ffffff;
@@ -119,9 +119,9 @@ defineEmits<{
   min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #ffffff;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   padding: 8px 14px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);

@@ -364,17 +364,17 @@ function formatCellLabel(row: Formation, col: Formation): string {
 
 .matrix-page__cell--row {
   background: var(--color-team-a-bg);
-  border: 2px solid var(--color-team-a);
+  border: 1px solid var(--color-team-a);
 }
 
 .matrix-page__cell--col {
   background: var(--color-team-b-bg);
-  border: 2px solid var(--color-team-b);
+  border: 1px solid var(--color-team-b);
 }
 
 .matrix-page__cell--even {
   background: var(--color-surface-sub);
-  border: 2px solid var(--color-border-strong);
+  border: 1px solid var(--color-border-strong);
 }
 
 .matrix-page__cell--unknown {

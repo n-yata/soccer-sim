@@ -1,22 +1,73 @@
 :root {
-  --color-primary: #15803d;
-  --color-primary-end: #115e59;
-  --color-accent: #ff6b35;
-  --color-accent-bg: #fff4ec;
-  --color-team-a: #2563eb;
-  --color-team-a-bg: #eff6ff;
-  --color-team-b: #ef4444;
-  --color-team-b-bg: #fef2f2;
+  /* ============================================================
+     プリミティブ層: 色の生の値。コンポーネントから直接参照しない。
+     参照してよいのは下の「セマンティック層」のみ。
+     ============================================================ */
+
+  /* ニュートラル（構造の主役） */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* ブランド（アクセントに限定） */
+  --color-green-50: #f0fdf4;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+
+  /* アクセント（選択状態。旧#ff6b35から彩度を落とす） */
+  --color-orange-50: #fff7ed;
+  --color-orange-700: #c2410c;
+
+  /* チームカラー（情報色。値は変更しない） */
+  --color-blue-50: #eff6ff;
+  --color-blue-600: #2563eb;
+  --color-red-50: #fef2f2;
+  --color-red-500: #ef4444;
+
+  /* ピッチ（情報色。従来どおり維持） */
   --color-pitch: #3cb043;
   --color-pitch-dark: #1b5e20;
-  --color-text: #111827;
-  --color-text-sub: #6b7280;
-  --color-text-muted: #374151;
-  --color-border: #e5e7eb;
-  --color-border-strong: #9ca3af;
-  --color-surface: #ffffff;
-  --color-surface-sub: #f9fafb;
-  --color-surface-hover: #f3f4f6;
+
+  /* ============================================================
+     セマンティック層: 用途名で色を提供する。
+     コンポーネントが参照してよいのはここだけ。
+     ============================================================ */
+
+  /* 面 */
+  --color-canvas: var(--color-neutral-50);
+  --color-surface: var(--color-neutral-0);
+  --color-surface-sub: var(--color-neutral-100);
+  --color-surface-hover: var(--color-neutral-100);
+
+  /* 文字 */
+  --color-text: var(--color-neutral-900);
+  --color-text-muted: var(--color-neutral-700);
+  --color-text-sub: var(--color-neutral-600);
+
+  /* 境界 */
+  --color-border: var(--color-neutral-200);
+  --color-border-strong: var(--color-neutral-300);
+
+  /* ブランド・状態 */
+  --color-primary: var(--color-green-700);
+  --color-primary-soft: var(--color-green-50);
+  --color-accent: var(--color-orange-700);
+  --color-accent-bg: var(--color-orange-50);
+
+  /* チーム（情報色。functional-overview.md の正本） */
+  --color-team-a: var(--color-blue-600);
+  --color-team-a-bg: var(--color-blue-50);
+  --color-team-b: var(--color-red-500);
+  --color-team-b-bg: var(--color-red-50);
 
   /* spacing scale */
   --space-xs: 4px;
@@ -50,13 +101,18 @@
   --leading-normal: 1.6; /* UI・既定 */
   --leading-relaxed: 1.8; /* 読み物（解説文・用語集・クイズ） */
 
-  /* radius scale */
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-card: 14px;
+  /* radius scale（3段階 + pill） */
+  --radius-sm: 6px; /* バッジ・小ボタン */
+  --radius-md: 10px; /* ボタン・入力・表セル */
+  --radius-lg: 16px; /* カード・パネル・モーダル */
   --radius-pill: 999px;
 
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* shadow scale（3段階） */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06); /* 地に接している要素（表ヘッダ・チップ） */
+  --shadow-md:
+    0 2px 8px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.04); /* カード・パネル（既定） */
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12); /* 浮遊物（モーダル・ポップオーバー） */
 
   /* icon size scale */
   --icon-sm: 14px;

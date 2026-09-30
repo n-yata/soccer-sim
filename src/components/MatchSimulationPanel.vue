@@ -90,9 +90,9 @@ defineProps<{
 <style scoped>
 .match-simulation-panel {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-lg);
   background: #ffffff;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-md);
   padding: 20px;
   margin-top: 16px;
   animation: match-simulation-panel-appear 0.4s ease-out both;
@@ -166,7 +166,7 @@ defineProps<{
   display: flex;
   width: 100%;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
   background: var(--color-border);
 }
@@ -232,7 +232,7 @@ defineProps<{
   max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .match-simulation-panel__event {
