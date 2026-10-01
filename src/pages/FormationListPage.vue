@@ -9,7 +9,8 @@
         <AppIcon :icon="Goal" size="lg" />
       </template>
       <a
-        href="https://www.jleague.jp/j1/special/"
+        v-if="jleagueUrl"
+        :href="jleagueUrl"
         target="_blank"
         rel="noopener noreferrer"
         class="formation-list-page__jleague-link"
@@ -22,6 +23,9 @@
       <div class="formation-list-page__section-intro">
         <span class="formation-list-page__eyebrow">STEP 1</span>
         <h2 class="formation-list-page__section-title">比較したい2つを選ぶ</h2>
+        <p class="formation-list-page__selection-status" role="status" aria-live="polite">
+          {{ selectionStatus }}
+        </p>
       </div>
       <div class="formation-list-page__grid">
         <FormationCard
@@ -38,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ExternalLink, Goal } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
@@ -47,7 +51,29 @@ import PageHeader from "@/components/PageHeader.vue";
 import { formations } from "@/data/formations";
 
 const router = useRouter();
+const jleagueUrl = configuredJleagueUrl();
+
+function configuredJleagueUrl(): string | undefined {
+  const configured = import.meta.env.VITE_JLEAGUE_URL?.trim();
+  if (!configured) return undefined;
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== "https:" || url.username || url.password) return undefined;
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
+
 const selectedIds = ref<string[]>([]);
+const selectionStatus = computed(() => {
+  if (selectedIds.value.length === 0) return "あと2つ選ぶと比較を始めます";
+  if (selectedIds.value.length === 1) {
+    const selected = formations.find((formation) => formation.id === selectedIds.value[0]);
+    return `${selected?.name ?? "1つ"}を選択中。あと1つ選ぶと比較画面へ進みます`;
+  }
+  return "比較画面を開きます";
+});
 
 function toggleSelection(id: string): void {
   const index = selectedIds.value.indexOf(id);
@@ -85,7 +111,9 @@ watch(
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
   color: var(--color-text-muted);
-  white-space: nowrap;
+  white-space: normal;
+  gap: var(--space-xs);
+  max-width: 100%;
   transition: background-color 0.15s ease;
 }
 
@@ -117,6 +145,12 @@ watch(
   font-size: var(--font-xl);
   font-weight: var(--weight-semibold);
   letter-spacing: -0.01em;
+}
+
+.formation-list-page__selection-status {
+  margin-top: var(--space-sm);
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
 }
 
 .formation-list-page__grid {

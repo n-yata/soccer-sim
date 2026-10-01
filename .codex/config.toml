@@ -1,0 +1,8 @@
+[mcp_servers.spec-kit]
+command = "powershell.exe"
+args = ["-NoProfile", "-Command", "& $env:KIT_MCP_BIN -root $env:KIT_MCP_ROOT"]
+env_vars = ["KIT_MCP_BIN", "KIT_MCP_ROOT"]
+
+[mcp_servers.drawio]
+command = "cmd"
+args = ["/c", "npx", "-y", "drawio-mcp-server", "--editor"]

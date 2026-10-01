@@ -1,46 +1,12 @@
 <template>
   <div class="comparison-page">
     <template v-if="formationA && formationB && matchup">
-      <PageHeader show-back-button :title="`${formationA.name} vs ${formationB.name}`" />
+      <PageHeader
+        show-back-button
+        :title="`${formationA.name} vs ${formationB.name}`"
+        subtitle="結論から配置と理由へ。2つの陣形の噛み合わせを読み解く"
+      />
       <div class="comparison-page__body">
-        <div class="comparison-page__legend">
-          <span class="comparison-page__legend-item comparison-page__legend-item--blue">
-            {{ formationA.name }}
-          </span>
-          <span class="comparison-page__legend-item comparison-page__legend-item--red">
-            {{ formationB.name }}
-          </span>
-        </div>
-        <ComparisonControls
-          :formations="formations"
-          :formation-a-id="formationA.id"
-          :formation-b-id="formationB.id"
-          @swap="swap"
-          @select-a="onSelectA"
-          @select-b="onSelectB"
-        />
-        <details
-          class="comparison-page__options"
-          :open="isOptionsOpen"
-          @toggle="isOptionsOpen = ($event.target as HTMLDetailsElement).open"
-        >
-          <summary class="comparison-page__options-summary">
-            <AppIcon :icon="Settings2" size="sm" />
-            表示オプション
-          </summary>
-          <div class="comparison-page__options-body">
-            <FreeLayoutControls
-              :is-active="isFreeLayoutMode"
-              @toggle="toggleFreeLayoutMode"
-              @reset="resetFreeLayout"
-            />
-            <SquadConditionControls
-              :is-active="squadConditionSeed !== null"
-              @toggle="toggleSquadCondition"
-              @reroll="rerollSquadCondition"
-            />
-          </div>
-        </details>
         <p
           class="comparison-page__verdict"
           :class="`comparison-page__verdict--${matchup.overallEdge}`"
@@ -51,8 +17,20 @@
             <TermAnnotatedText :text="matchup.overallReason" />
           </span>
         </p>
+        <div class="comparison-page__legend">
+          <span class="comparison-page__legend-item comparison-page__legend-item--blue">
+            A：{{ formationA.name }}
+          </span>
+          <span class="comparison-page__legend-item comparison-page__legend-item--red">
+            B：{{ formationB.name }}
+          </span>
+        </div>
         <div class="comparison-page__main">
           <div class="comparison-page__pitch-overlay">
+            <h2 class="comparison-page__section-heading">ピッチで配置を読む</h2>
+            <p class="comparison-page__section-description">
+              青がA、赤がB。選手の位置と間のスペースを見比べます。
+            </p>
             <FreeLayoutPitchDiagram
               v-if="isFreeLayoutMode && effectiveFormationA && effectiveFormationB"
               :formation-a="effectiveFormationA"
@@ -95,7 +73,50 @@
           </div>
         </div>
 
+        <section class="comparison-page__explore" aria-labelledby="comparison-explore-title">
+          <h2 id="comparison-explore-title" class="comparison-page__section-heading">
+            別の組み合わせ・条件で試す
+          </h2>
+          <p class="comparison-page__section-description">
+            対戦する陣形を入れ替えたり、選手の配置や状態を変えたりできます。
+          </p>
+          <ComparisonControls
+            :formations="formations"
+            :formation-a-id="formationA.id"
+            :formation-b-id="formationB.id"
+            @swap="swap"
+            @select-a="onSelectA"
+            @select-b="onSelectB"
+          />
+          <details
+            class="comparison-page__options"
+            :open="isOptionsOpen"
+            @toggle="isOptionsOpen = ($event.target as HTMLDetailsElement).open"
+          >
+            <summary class="comparison-page__options-summary">
+              <AppIcon :icon="Settings2" size="sm" />
+              配置と選手の設定
+            </summary>
+            <div class="comparison-page__options-body">
+              <FreeLayoutControls
+                :is-active="isFreeLayoutMode"
+                @toggle="toggleFreeLayoutMode"
+                @reset="resetFreeLayout"
+              />
+              <SquadConditionControls
+                :is-active="squadConditionSeed !== null"
+                @toggle="toggleSquadCondition"
+                @reroll="rerollSquadCondition"
+              />
+            </div>
+          </details>
+        </section>
+
         <div class="comparison-page__simulation">
+          <h2 class="comparison-page__section-heading">試合で確かめる</h2>
+          <p class="comparison-page__section-description">
+            この組み合わせで前半を進め、ハーフタイムに配置を変えて後半を試せます。
+          </p>
           <button
             v-if="!simulationResult && !halftimeResult"
             type="button"
@@ -112,11 +133,19 @@
               :formation-b-name="formationB.name"
             />
             <div class="comparison-page__halftime-actions">
-              <button type="button" class="comparison-page__halftime-tactics-button" @click="openHalftimeTactics">
+              <button
+                type="button"
+                class="comparison-page__halftime-tactics-button"
+                @click="openHalftimeTactics"
+              >
                 <AppIcon :icon="Wrench" />
                 配置を変更する
               </button>
-              <button type="button" class="comparison-page__halftime-continue-button" @click="proceedWithoutChange">
+              <button
+                type="button"
+                class="comparison-page__halftime-continue-button"
+                @click="proceedWithoutChange"
+              >
                 <AppIcon :icon="Play" />
                 後半を開始する
               </button>
@@ -173,7 +202,11 @@ import { generateMatchup } from "@/data/matchupGenerator";
 import { getTags } from "@/data/formationTags";
 import { estimateStats } from "@/data/radarScoreEstimator";
 import { markPairViewed } from "@/data/learningProgress";
-import { applyOverrides, clearFormationOverride, savePositionOverride } from "@/data/freeLayoutStorage";
+import {
+  applyOverrides,
+  clearFormationOverride,
+  savePositionOverride,
+} from "@/data/freeLayoutStorage";
 import { radarAxes } from "@/data/radarAxes";
 import type { Formation, MatchSimulationResult, Position } from "@/types/formation";
 
@@ -381,11 +414,21 @@ function samePositions(a: readonly Position[], b: readonly Position[]): boolean 
 function onHalftimeConfirm(positionsA: Position[], positionsB: Position[]): void {
   // 前半の入力はeffectiveFormationA/B（自由配置モードの変更を含む）だったため、
   // 「変更が無い」の基準もformationA/B.valueではなくeffectiveFormationA/B.valueにする
-  if (!effectiveFormationA.value || !effectiveFormationB.value || !matchProgress.value || !matchup.value) return;
+  if (
+    !effectiveFormationA.value ||
+    !effectiveFormationB.value ||
+    !matchProgress.value ||
+    !matchup.value
+  )
+    return;
   const changedA = !samePositions(positionsA, effectiveFormationA.value.positions);
   const changedB = !samePositions(positionsB, effectiveFormationB.value.positions);
-  const baseA: Formation = changedA ? { ...effectiveFormationA.value, positions: positionsA } : effectiveFormationA.value;
-  const baseB: Formation = changedB ? { ...effectiveFormationB.value, positions: positionsB } : effectiveFormationB.value;
+  const baseA: Formation = changedA
+    ? { ...effectiveFormationA.value, positions: positionsA }
+    : effectiveFormationA.value;
+  const baseB: Formation = changedB
+    ? { ...effectiveFormationB.value, positions: positionsB }
+    : effectiveFormationB.value;
   // matchup（タグ・総合判定）は配置のみで決まるため、スカッド適用前のFormationから算出する
   const nextMatchup = changedA || changedB ? generateMatchup(baseA, baseB) : matchup.value;
   const nextA = withSquadVariance(baseA, squadConditionSeed.value, 0);
@@ -398,7 +441,13 @@ function onHalftimeConfirm(positionsA: Position[], positionsB: Position[]): void
 }
 
 function proceedWithoutChange(): void {
-  if (!effectiveFormationA.value || !effectiveFormationB.value || !matchProgress.value || !matchup.value) return;
+  if (
+    !effectiveFormationA.value ||
+    !effectiveFormationB.value ||
+    !matchProgress.value ||
+    !matchup.value
+  )
+    return;
   const nextA = withSquadVariance(effectiveFormationA.value, squadConditionSeed.value, 0);
   const nextB = withSquadVariance(effectiveFormationB.value, squadConditionSeed.value, 1);
   simulationResult.value = resumeMatch(matchProgress.value, nextA, nextB, matchup.value);
@@ -498,6 +547,23 @@ function onSelectB(id: string): void {
   padding: var(--space-lg) var(--gutter) var(--gutter);
   max-width: var(--width-wide);
   margin: 0 auto;
+}
+
+.comparison-page__explore {
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.comparison-page__section-heading {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.comparison-page__section-description {
+  margin: var(--space-xs) 0 var(--space-md);
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
 }
 
 .comparison-page__options {
@@ -645,6 +711,15 @@ function onSelectB(id: string): void {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-lg);
+}
+
+.comparison-page__pitch-overlay > .comparison-page__section-heading,
+.comparison-page__pitch-overlay > .comparison-page__section-description {
+  padding-inline: var(--space-md);
+}
+
+.comparison-page__pitch-overlay > .comparison-page__section-heading {
+  padding-top: var(--space-md);
 }
 
 @media (prefers-reduced-motion: reduce) {

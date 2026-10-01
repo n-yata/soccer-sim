@@ -41,6 +41,24 @@ describe("ComparisonPage", () => {
     window.localStorage.clear();
   });
 
+  it("結論とピッチを表示オプションより先に読み進められる", () => {
+    const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+    try {
+      const html = wrapper.html();
+      expect(wrapper.find(".comparison-page__verdict").exists()).toBe(true);
+      expect(wrapper.find(".comparison-page__pitch-overlay").exists()).toBe(true);
+      expect(wrapper.find(".comparison-page__options").exists()).toBe(true);
+      expect(html.indexOf('class="comparison-page__verdict')).toBeLessThan(
+        html.indexOf('class="comparison-page__options'),
+      );
+      expect(html.indexOf('class="comparison-page__pitch-overlay')).toBeLessThan(
+        html.indexOf('class="comparison-page__options'),
+      );
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   // FR-13: 表示できた組み合わせを学習進捗として記録する
   describe("学習進捗の記録", () => {
     // routeStateはreactiveな共有オブジェクトのため、mountしたコンポーネントを
@@ -383,7 +401,9 @@ describe("ComparisonPage", () => {
       expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(true);
       expect(wrapper.find(".comparison-page__halftime-continue-button").exists()).toBe(true);
       // 前半の部分結果であることの直接的な証拠（buildHalftimeSummaryの文言）
-      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain("前半終了");
+      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain(
+        "前半終了",
+      );
     });
 
     it("配置を変更せず「後半を開始する」を押すと、simulateMatchの90分通し結果と完全に一致する最終結果になる", async () => {
@@ -443,7 +463,9 @@ describe("ComparisonPage", () => {
 
       expect(wrapper.find(".halftime-modal-backdrop").exists()).toBe(false);
       expect(wrapper.find(".comparison-page__halftime-tactics-button").exists()).toBe(true);
-      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain("前半終了");
+      expect(wrapper.findComponent(MatchSimulationPanel).props("result").summary).toContain(
+        "前半終了",
+      );
     });
 
     it("ハーフタイム状態で組み合わせが変わると、ハーフタイムパネル・モーダルもリセットされる", async () => {
@@ -496,8 +518,9 @@ describe("ComparisonPage", () => {
       // 変わるか」を比較することで、update-positionが実際にfreePositionsAへ反映され、
       // タグ再導出→matchup/estimateStatsの再計算まで駆動されていることを検証する
       const radarChartBefore = wrapper.findComponent(RadarChart);
-      const statsBefore = (radarChartBefore.props("series") as { values: Record<string, number> }[])[0]
-        .values;
+      const statsBefore = (
+        radarChartBefore.props("series") as { values: Record<string, number> }[]
+      )[0].values;
       const advantagesBefore = wrapper
         .findAll(".comparison-page__advantage-column--blue li")
         .map((li) => li.text());
@@ -527,8 +550,9 @@ describe("ComparisonPage", () => {
       // レーダーチャート: 守備的MF2枚(defense+5/pressIntensity+5)が消え、
       // アンカー1枚(defense-5/balance-5)が立つ差分が、baseStatsに対して適用される
       const radarChartAfter = wrapper.findComponent(RadarChart);
-      const statsAfter = (radarChartAfter.props("series") as { values: Record<string, number> }[])[0]
-        .values;
+      const statsAfter = (
+        radarChartAfter.props("series") as { values: Record<string, number> }[]
+      )[0].values;
       expect(statsAfter).not.toEqual(statsBefore);
       expect(statsAfter.defense).toBe(statsBefore.defense - 10);
       expect(statsAfter.balance).toBe(statsBefore.balance - 5);
@@ -621,8 +645,9 @@ describe("ComparisonPage", () => {
       await wrapper.vm.$nextTick();
 
       freeLayout = wrapper.findComponent(FreeLayoutPitchDiagram);
-      expect(freeLayout.props("formationB")?.positions.find((p: { id: string }) => p.id === cm1.id))
-        .toMatchObject({ x: cm1.x, y: 90 });
+      expect(
+        freeLayout.props("formationB")?.positions.find((p: { id: string }) => p.id === cm1.id),
+      ).toMatchObject({ x: cm1.x, y: 90 });
 
       const radarChartAfter = wrapper.findComponent(RadarChart);
       const statsAfter = (
@@ -671,7 +696,9 @@ describe("ComparisonPage", () => {
 
     describe("自由配置の永続化", () => {
       it("配置変更後、トグルをOFF→ONにすると、直前にドラッグした配置が復元される", async () => {
-        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        const wrapper = mount(ComparisonPage, {
+          global: { stubs: { RouterLink: routerLinkStub } },
+        });
         await findToggle(wrapper).trigger("click");
 
         const formationA = getFormationById("4-2-3-1")!;
@@ -693,7 +720,9 @@ describe("ComparisonPage", () => {
       });
 
       it("ページ再読み込み相当（コンポーネント再マウント）後も、保存済みの配置が復元される", async () => {
-        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        const wrapper = mount(ComparisonPage, {
+          global: { stubs: { RouterLink: routerLinkStub } },
+        });
         await findToggle(wrapper).trigger("click");
 
         const formationA = getFormationById("4-2-3-1")!;
@@ -705,7 +734,9 @@ describe("ComparisonPage", () => {
         wrapper.unmount();
 
         // 再マウント = リロード後の再訪問を模擬（localStorageは維持されたまま）
-        const remounted = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        const remounted = mount(ComparisonPage, {
+          global: { stubs: { RouterLink: routerLinkStub } },
+        });
         await findToggle(remounted).trigger("click");
 
         const restoredLayout = remounted.findComponent(FreeLayoutPitchDiagram);
@@ -717,7 +748,9 @@ describe("ComparisonPage", () => {
       });
 
       it("同じフォーメーションを別の組み合わせで表示しても、保存済みの配置が復元される", async () => {
-        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        const wrapper = mount(ComparisonPage, {
+          global: { stubs: { RouterLink: routerLinkStub } },
+        });
         await findToggle(wrapper).trigger("click");
 
         const formationA = getFormationById("4-2-3-1")!;
@@ -740,7 +773,9 @@ describe("ComparisonPage", () => {
       });
 
       it("リセット操作後は保存データも削除され、再度ONにしても元の配置から始まる", async () => {
-        const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+        const wrapper = mount(ComparisonPage, {
+          global: { stubs: { RouterLink: routerLinkStub } },
+        });
         await findToggle(wrapper).trigger("click");
 
         const formationA = getFormationById("4-2-3-1")!;

@@ -20,8 +20,7 @@ vi.mock("@/data/formations", () => ({
 }));
 
 vi.mock("@/data/matchups", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/data/matchups")>("@/data/matchups");
+  const actual = await vi.importActual<typeof import("@/data/matchups")>("@/data/matchups");
   return {
     getMatchup: (formationAId: string, formationBId: string) => {
       const forced = state.forceUndefinedFor;
@@ -95,6 +94,7 @@ describe("MatrixPage", () => {
     expect(link.attributes("href")).toBe("/compare/4-4-2/4-2-3-1");
     expect(cell.find(".matrix-page__cell--col").exists()).toBe(true);
     expect(cell.find(".matrix-page__cell--row").exists()).toBe(false);
+    expect(link.text()).toContain("列");
   });
 
   it("row=4-2-3-1, col=4-4-2（呼び出し順が逆転しoverallEdgeがAへ反転、行有利）のセルが行有利の色クラスを持つ", () => {
@@ -106,6 +106,7 @@ describe("MatrixPage", () => {
     expect(link.attributes("href")).toBe("/compare/4-2-3-1/4-4-2");
     expect(cell.find(".matrix-page__cell--row").exists()).toBe(true);
     expect(cell.find(".matrix-page__cell--col").exists()).toBe(false);
+    expect(link.text()).toContain("行");
   });
 
   it("row=4-4-2, col=4-3-3（overallEdge=even）のセルが互角の色クラスを持つ", () => {
@@ -114,6 +115,7 @@ describe("MatrixPage", () => {
     const colIndex = realFormations.findIndex((f) => f.id === "4-3-3");
     const cell = wrapper.findAll("tbody tr")[rowIndex].findAll("td")[colIndex];
     expect(cell.find(".matrix-page__cell--even").exists()).toBe(true);
+    expect(cell.find("a").text()).toContain("互角");
   });
 
   it("getMatchupがundefinedを返す組み合わせは、互角とは区別される非リンクの「データ未定義」セルになる", () => {

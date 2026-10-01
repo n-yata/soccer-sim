@@ -43,7 +43,10 @@ async function goNext(wrapper: ReturnType<typeof mountPage>) {
  * （画面の表示と食い違ったまま緑になる）ため、画面の表示から取る
  */
 function totalQuestions(wrapper: ReturnType<typeof mountPage>): number {
-  const matched = wrapper.find(".quiz-page__progress").text().match(/全 (\d+) 問/);
+  const matched = wrapper
+    .find(".quiz-page__progress")
+    .text()
+    .match(/全 (\d+) 問/);
   expect(matched, "進捗表示から全問数を読み取れること").not.toBeNull();
   return Number(matched![1]);
 }
@@ -82,6 +85,17 @@ describe("QuizPage", () => {
     expect(displayed).toBeGreaterThan(0);
     // 表示している分母と、実際に進める問題数が一致することは playThrough 側で担保する
     expect(displayed).toBe(buildQuiz(formations, matchups, { shuffle: (i) => [...i] }).length);
+  });
+
+  it("進捗バーが回答後の次問で進み、出題数を上限にする", async () => {
+    const wrapper = mountPage();
+    const total = totalQuestions(wrapper);
+    const progress = wrapper.find("progress.quiz-page__progress-bar");
+    expect(progress.attributes("value")).toBe("1");
+    expect(progress.attributes("max")).toBe(String(total));
+    await answerCurrent(wrapper, true);
+    await goNext(wrapper);
+    expect(wrapper.find("progress.quiz-page__progress-bar").attributes("value")).toBe("2");
   });
 
   it("回答するまで「次の問題へ」は表示されない", () => {
@@ -134,6 +148,21 @@ describe("QuizPage", () => {
 
     expect(wrapper.findComponent(QuizQuestionCard).props("answeredChoiceId")).toBeNull();
     expect(wrapper.find(".quiz-question-card__result").exists()).toBe(false);
+  });
+
+  it("次の設問へ進むと新しい問題領域へフォーカスを移す", async () => {
+    const wrapper = mount(QuizPage, {
+      attachTo: document.body,
+      global: { stubs: { RouterLink: routerLinkStub } },
+    });
+    try {
+      await answerCurrent(wrapper, true);
+      await goNext(wrapper);
+      expect(document.activeElement).toBe(wrapper.find(".quiz-page__question-section").element);
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("第2問");
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it("全問回答すると結果が表示され、正答数が出る", async () => {

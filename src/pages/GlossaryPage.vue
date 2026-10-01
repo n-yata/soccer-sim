@@ -10,6 +10,35 @@
       </template>
     </PageHeader>
     <div class="glossary-page__body">
+      <div class="glossary-page__search">
+        <label for="glossary-search" class="glossary-page__search-label">用語を探す</label>
+        <div class="glossary-page__search-row">
+          <input
+            id="glossary-search"
+            ref="searchInput"
+            v-model="searchQuery"
+            type="search"
+            class="glossary-page__search-input"
+            placeholder="用語や説明から検索"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="glossary-page__clear-search"
+            @click="clearSearch"
+          >
+            検索を消す
+          </button>
+        </div>
+        <p class="glossary-page__search-count" role="status">{{ filteredCount }}件の用語</p>
+      </div>
+      <p v-if="groupedTerms.length === 0" class="glossary-page__empty">
+        {{
+          searchQuery
+            ? "一致する用語が見つかりません。検索語を変えてください。"
+            : "表示できる用語がありません。"
+        }}
+      </p>
       <section v-for="group in groupedTerms" :key="group.category" class="glossary-page__category">
         <h2 class="glossary-page__category-title">{{ group.category }}</h2>
         <dl class="glossary-page__list">
@@ -24,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { BookOpen } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
 import PageHeader from "@/components/PageHeader.vue";
@@ -33,13 +62,27 @@ import type { SoccerTermCategory } from "@/types/formation";
 
 // 表示順を固定するため、データ配列の登場順ではなくこの順序でカテゴリを並べる
 const categoryOrder: SoccerTermCategory[] = ["ポジション", "陣形・戦術", "攻守の考え方"];
+const searchQuery = ref("");
+const searchInput = ref<HTMLInputElement | null>(null);
+
+function clearSearch(): void {
+  searchQuery.value = "";
+  searchInput.value?.focus();
+}
+const normalizedQuery = computed(() => searchQuery.value.trim().toLocaleLowerCase());
+const filteredTerms = computed(() =>
+  soccerTerms.filter((term) =>
+    `${term.term} ${term.description}`.toLocaleLowerCase().includes(normalizedQuery.value),
+  ),
+);
+const filteredCount = computed(() => filteredTerms.value.length);
 
 // カテゴリごとに用語をグルーピングし、該当する用語が1件も無いカテゴリは除外する
 const groupedTerms = computed(() =>
   categoryOrder
     .map((category) => ({
       category,
-      terms: soccerTerms.filter((term) => term.category === category),
+      terms: filteredTerms.value.filter((term) => term.category === category),
     }))
     .filter((group) => group.terms.length > 0),
 );
@@ -50,6 +93,54 @@ const groupedTerms = computed(() =>
   padding: var(--space-xl) var(--gutter);
   max-width: var(--width-wide);
   margin: 0 auto;
+}
+
+.glossary-page__search {
+  max-width: var(--width-narrow);
+  margin-bottom: var(--space-xl);
+}
+
+.glossary-page__search-label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.glossary-page__search-row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.glossary-page__search-input {
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.glossary-page__clear-search {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.glossary-page__search-count {
+  margin-top: var(--space-xs);
+  color: var(--color-text-sub);
+  font-size: var(--font-sm);
+}
+
+.glossary-page__empty {
+  color: var(--color-text-sub);
+  line-height: var(--leading-relaxed);
 }
 
 .glossary-page__category {
