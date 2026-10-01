@@ -83,7 +83,9 @@ describe("GlossaryPage", () => {
       return Array.from(rules).some(
         (rule) =>
           rule instanceof CSSMediaRule &&
-          normalize(rule.conditionText).includes("min-width: 769px") &&
+          // UI/UXモダナイゼーションPhase3（ブレークポイントの統一）により、769pxから
+          // 901px（mobile640px/tablet900pxの2値に統一したうえでの「tablet超」の意）へ変更
+          normalize(rule.conditionText).includes("min-width: 901px") &&
           Array.from(rule.cssRules).some((inner) => {
             if (!(inner instanceof CSSStyleRule)) return false;
             if (!inner.selectorText.includes("glossary-page__list")) return false;

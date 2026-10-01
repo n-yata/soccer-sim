@@ -9,14 +9,14 @@
     @keydown.enter="$emit('select', formation.id)"
     @keydown.space.prevent="$emit('select', formation.id)"
   >
-    <div class="formation-card__header">
-      <span class="formation-card__name">{{ formation.name }}</span>
-      <span v-if="selected" class="formation-card__badge">
-        <AppIcon :icon="Check" />
-        選択中
-      </span>
+    <span v-if="selected" class="formation-card__badge">
+      <AppIcon :icon="Check" size="sm" />
+      選択中
+    </span>
+    <div class="formation-card__pitch-frame">
+      <FormationMiniPitch class="formation-card__pitch" :formation="formation" />
     </div>
-    <FormationMiniPitch class="formation-card__pitch" :formation="formation" />
+    <span class="formation-card__name">{{ formation.name }}</span>
     <p class="formation-card__description">{{ formation.description }}</p>
   </div>
 </template>
@@ -41,19 +41,30 @@ defineEmits<{
 .formation-card {
   position: relative;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
-  padding: 16px;
+  padding: 20px 16px;
   text-align: center;
   color: var(--color-text);
   cursor: pointer;
-  transition: box-shadow 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .formation-card:hover {
-  box-shadow: var(--shadow-lg);
+  /* 2026-10-01: 4pxリフト+強い影は「浮き上がるカード」演出としてカジュアルに
+     寄りすぎていた（指摘: モダンに見えない）ため撤回。Linear/Vercel系に倣い、
+     レイヤーを動かさずborder-colorと背景の微変化だけで状態を示すフラットな
+     ホバーへ変更する */
+  border-color: var(--color-border-strong);
+  background-color: var(--color-surface-hover);
 }
 
 .formation-card.selected {
@@ -65,43 +76,48 @@ defineEmits<{
 }
 
 .formation-card.selected:hover {
-  box-shadow:
-    0 0 0 2px var(--color-accent),
-    var(--shadow-lg);
-}
-
-.formation-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 20px;
-  margin-bottom: 8px;
-}
-
-.formation-card__name {
-  font-size: var(--font-lg);
-  font-weight: var(--weight-semibold);
+  background-color: var(--color-accent-bg);
 }
 
 .formation-card__badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
+  background: var(--color-accent);
+  color: var(--color-surface);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px 3px 8px;
   font-size: var(--font-xs);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   white-space: nowrap;
 }
 
+.formation-card__pitch-frame {
+  width: 100%;
+  max-width: 128px;
+  margin: 4px auto 14px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+}
+
 .formation-card__pitch {
-  margin: 0 auto 8px;
-  max-width: 120px;
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
+.formation-card__name {
+  font-size: var(--font-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
 .formation-card__description {
-  margin: 0;
+  margin: 6px 0 0;
   font-size: var(--font-xs);
   font-weight: var(--weight-normal);
   line-height: var(--leading-normal);

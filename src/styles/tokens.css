@@ -30,12 +30,27 @@
   /* チームカラー（情報色。値は変更しない） */
   --color-blue-50: #eff6ff;
   --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-900: #1e3a5f;
   --color-red-50: #fef2f2;
   --color-red-500: #ef4444;
+  --color-red-700: #b91c1c;
+  --color-red-900: #7f1d1d;
+  --color-red-900-strong: #5f1e1e; /* 総合判定ボックス専用。red-900とは別値（既存デザインの踏襲） */
+
+  /* 成功フィードバック用グリーン（green-700/50とは別軸。クイズ正誤表示の濃色テキスト） */
+  --color-green-900: #14532d;
+
+  /* 相性表「未定義」セル用アンバー */
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-700: #d97706;
 
   /* ピッチ（情報色。従来どおり維持） */
   --color-pitch: #3cb043;
-  --color-pitch-dark: #1b5e20;
+  /* 2026-10-01: Phase2でグラデーションの明度差を縮小した際の実値(#2e7d32)に合わせて更新
+     （旧#1b5e20はコンポーネント側で使われなくなり孤立していた） */
+  --color-pitch-dark: #2e7d32;
 
   /* ============================================================
      セマンティック層: 用途名で色を提供する。
@@ -68,6 +83,32 @@
   --color-team-a-bg: var(--color-blue-50);
   --color-team-b: var(--color-red-500);
   --color-team-b-bg: var(--color-red-50);
+  /* チーム強調文字: チップ・バッジ等、team-*-bg上に置く太字テキスト用 */
+  --color-team-a-accent-text: var(--color-blue-700);
+  --color-team-b-accent-text: var(--color-red-700);
+  /* チーム強調文字: 総合判定ボックス等、大きな塗り面に置く文字用 */
+  --color-team-a-strong-text: var(--color-blue-900);
+  --color-team-b-strong-text: var(--color-red-900-strong);
+
+  /* 成功/危険: チームとは無関係な意味的フィードバック（クイズの正誤表示等）。
+     値は現状ブランドグリーン/チームBレッドと一致するが意味が異なるため、
+     チーム用トークンとは別に持つ（将来チームカラーだけ変更しても連動しない） */
+  --color-success: var(--color-primary);
+  --color-success-bg: var(--color-primary-soft);
+  --color-success-text: var(--color-green-900);
+  --color-danger: var(--color-red-700);
+  --color-danger-bg: var(--color-red-50);
+  --color-danger-text: var(--color-red-900);
+
+  /* 相性表「未定義」セル */
+  --color-undefined-bg: var(--color-amber-100);
+  --color-undefined-bg-alt: var(--color-amber-200);
+  --color-undefined-border: var(--color-amber-700);
+
+  /* オーバーレイ（モーダル背景）。rgb三つ組はneutral-900と同じ値で、
+     rgba()の引数内では変数展開できないためここに直書きする（正本） */
+  --color-overlay: rgba(15, 23, 42, 0.55);
+  --color-overlay-transparent: rgba(15, 23, 42, 0);
 
   /* spacing scale */
   --space-xs: 4px;
@@ -76,6 +117,16 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-2xl: 40px;
+
+  /* コンテンツ最大幅（画面本文とヘッダーで共有する）。
+     2026-10-01: 画面ごとに幅が変わること自体が「サイトとしての統一感がない」との
+     指摘を受け、全画面の外枠を--width-wideに統一した（元々4段階あった） */
+  --width-narrow: 640px; /* クイズ画面の読み物カラムなど、1カラム本文の内側だけに使う */
+  --width-wide: 1200px; /* 全画面共通の外枠（ヘッダー・本文） */
+
+  /* 左右ガター */
+  --gutter: var(--space-2xl); /* デスクトップ */
+  --gutter-mobile: var(--space-md); /* 640px 以下 */
 
   /* font family */
   --font-sans:
@@ -89,6 +140,7 @@
   --font-lg: 1.25rem; /* 20px */
   --font-xl: 1.5rem; /* 24px */
   --font-2xl: 2rem; /* 32px */
+  --font-3xl: 2.75rem; /* 44px。ヒーロー見出し専用 */
 
   /* font weight scale */
   --weight-normal: 400;
@@ -101,24 +153,33 @@
   --leading-normal: 1.6; /* UI・既定 */
   --leading-relaxed: 1.8; /* 読み物（解説文・用語集・クイズ） */
 
-  /* radius scale（3段階 + pill） */
-  --radius-sm: 6px; /* バッジ・小ボタン */
-  --radius-md: 10px; /* ボタン・入力・表セル */
-  --radius-lg: 16px; /* カード・パネル・モーダル */
+  /* radius scale（3段階 + pill）
+     2026-10-01: 「モダンに見えない」という指摘を受け、Linear/Vercel系の
+     引き締まった見た目を参照に角丸を全体的に縮小（丸みの強さ＝カジュアルさの演出に
+     偏りすぎていたため、情報ツールとしての締まった印象へ寄せる） */
+  --radius-sm: 4px; /* バッジ・小ボタン */
+  --radius-md: 6px; /* ボタン・入力・表セル */
+  --radius-lg: 8px; /* カード・パネル・モーダル */
+  --radius-xl: 10px; /* 強調カード（一覧カード等） */
   --radius-pill: 999px;
 
-  /* shadow scale（3段階） */
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06); /* 地に接している要素（表ヘッダ・チップ） */
-  --shadow-md:
-    0 2px 8px rgba(15, 23, 42, 0.08),
-    0 1px 2px rgba(15, 23, 42, 0.04); /* カード・パネル（既定） */
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12); /* 浮遊物（モーダル・ポップオーバー） */
+  /* shadow scale（3段階）
+     2026-10-01: 柔らかく大きいドロップシャドウは「とりあえずカードっぽくした」
+     印象の主因だったため、ごく控えめなhairline寄りの影へ縮小。面の境界は
+     影ではなくborder(--color-border)で示す方針に統一する */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04); /* 地に接している要素（表ヘッダ・チップ） */
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06); /* カード・パネル（既定） */
+  --shadow-lg: 0 4px 16px rgba(15, 23, 42, 0.10); /* 浮遊物（モーダル・ポップオーバー） */
+  --shadow-token: 0 0.5px 1px rgba(0, 0, 0, 0.4); /* SVG選手トークンの小さな影 */
 
   /* icon size scale */
   --icon-sm: 14px;
   --icon-md: 16px;
   --icon-lg: 20px;
 
-  /* breakpoints (参照用。@mediaには直接使えないため値をコメントとして残す) */
-  /* --breakpoint-mobile: 640px; --breakpoint-tablet: 768px; */
+  /* breakpoints: CSSカスタムプロパティは@mediaの条件式内では使えないため、
+     ここに値を置くのではなく、使用する2値を docs/specs/2_basic-design/screen-design.md
+     「共通事項 > ブレークポイント」に正本として記載し、@media側は値を直書きする運用とする。
+     mobile: max-width: 640px / tablet: max-width: 900px（または901px以上で"tablet超"）。
+     新しい@mediaを書く際は、この2値以外を使わないこと（UI/UXモダナイゼーションPhase3） */
 }

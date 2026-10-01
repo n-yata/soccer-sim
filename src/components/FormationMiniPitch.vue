@@ -50,14 +50,14 @@ defineProps<{
 .formation-mini-pitch__line,
 .formation-mini-pitch__line-shape {
   fill: none;
-  stroke: #ffffff;
+  stroke: var(--color-surface);
   stroke-opacity: 0.7;
   stroke-width: 0.8;
 }
 
 .formation-mini-pitch__player {
   fill: var(--color-text);
-  stroke: #ffffff;
+  stroke: var(--color-surface);
   stroke-width: 1;
 }
 </style>

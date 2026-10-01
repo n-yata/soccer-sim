@@ -25,7 +25,7 @@
       aria-label="青チームと赤チームを入れ替える"
       @click="$emit('swap')"
     >
-      <AppIcon :icon="ArrowLeftRight" />
+      <AppIcon :icon="ArrowLeftRight" class="comparison-controls__swap-icon" />
       入れ替え
     </button>
     <div class="comparison-controls__select-group">
@@ -103,7 +103,7 @@ defineEmits<{
   border-radius: var(--radius-md);
   padding: 6px 10px;
   font-size: var(--font-sm);
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-text);
   transition: border-color 0.15s ease;
 }
@@ -120,21 +120,26 @@ defineEmits<{
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-md);
   padding: 8px 14px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
-  color: #374151;
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    transform 0.15s ease;
+  transition: background-color 0.15s ease;
+}
+
+.comparison-controls__swap-icon {
+  transition: transform 0.15s ease;
 }
 
 @media (hover: hover) {
   .comparison-controls__swap-button:hover {
     background: var(--color-surface-hover);
+  }
+
+  .comparison-controls__swap-button:hover .comparison-controls__swap-icon {
     transform: rotate(180deg);
   }
 }
@@ -145,7 +150,11 @@ defineEmits<{
     transition: none;
   }
 
-  .comparison-controls__swap-button:hover {
+  .comparison-controls__swap-icon {
+    transition: none;
+  }
+
+  .comparison-controls__swap-button:hover .comparison-controls__swap-icon {
     transform: none;
   }
 }

@@ -2,42 +2,44 @@
   <div class="quiz-page">
     <PageHeader show-back-button title="理解度チェック" />
     <div class="quiz-page__body">
-      <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
-      <p v-if="questions.length === 0" class="quiz-page__empty">
-        出題できる問題がありません。フォーメーションのデータが追加されると出題できるようになります。
-      </p>
-
-      <template v-else-if="currentQuestion">
-        <p class="quiz-page__progress">
-          第 {{ currentIndex + 1 }} 問 / 全 {{ questions.length }} 問
-          <span class="quiz-page__score">（正解 {{ correctCount }} 問）</span>
+      <div class="quiz-page__column">
+        <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
+        <p v-if="questions.length === 0" class="quiz-page__empty">
+          出題できる問題がありません。フォーメーションのデータが追加されると出題できるようになります。
         </p>
 
-        <QuizQuestionCard
-          :key="currentQuestion.id"
-          :question="currentQuestion"
-          :answered-choice-id="currentAnswer"
-          @answer="onAnswer"
-        />
+        <template v-else-if="currentQuestion">
+          <p class="quiz-page__progress">
+            第 {{ currentIndex + 1 }} 問 / 全 {{ questions.length }} 問
+            <span class="quiz-page__score">（正解 {{ correctCount }} 問）</span>
+          </p>
 
-        <div v-if="currentAnswer !== null" class="quiz-page__actions">
-          <button type="button" class="quiz-page__next-button" @click="goNext">
-            {{ isLastQuestion ? "結果を見る" : "次の問題へ" }}
-          </button>
-        </div>
-      </template>
+          <QuizQuestionCard
+            :key="currentQuestion.id"
+            :question="currentQuestion"
+            :answered-choice-id="currentAnswer"
+            @answer="onAnswer"
+          />
 
-      <div v-else class="quiz-page__result">
-        <h2 class="quiz-page__result-title">おつかれさま！</h2>
-        <p class="quiz-page__result-score">
-          {{ questions.length }} 問中 <strong>{{ correctCount }}</strong> 問 正解
-        </p>
-        <p class="quiz-page__result-comment">{{ resultComment }}</p>
-        <div class="quiz-page__actions">
-          <button type="button" class="quiz-page__retry-button" @click="restart">
-            もう一度挑戦する
-          </button>
-          <router-link to="/" class="quiz-page__result-link">一覧画面へ戻る</router-link>
+          <div v-if="currentAnswer !== null" class="quiz-page__actions">
+            <button type="button" class="quiz-page__next-button" @click="goNext">
+              {{ isLastQuestion ? "結果を見る" : "次の問題へ" }}
+            </button>
+          </div>
+        </template>
+
+        <div v-else class="quiz-page__result">
+          <h2 class="quiz-page__result-title">おつかれさま！</h2>
+          <p class="quiz-page__result-score">
+            {{ questions.length }} 問中 <strong>{{ correctCount }}</strong> 問 正解
+          </p>
+          <p class="quiz-page__result-comment">{{ resultComment }}</p>
+          <div class="quiz-page__actions">
+            <button type="button" class="quiz-page__retry-button" @click="restart">
+              もう一度挑戦する
+            </button>
+            <router-link to="/" class="quiz-page__result-link">一覧画面へ戻る</router-link>
+          </div>
         </div>
       </div>
     </div>
@@ -114,9 +116,16 @@ restart();
 
 <style scoped>
 .quiz-page__body {
-  max-width: 640px;
+  max-width: var(--width-wide);
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md) var(--space-xl);
+  padding: var(--space-lg) var(--gutter) var(--space-xl);
+}
+
+/* 本文の外枠は他画面と揃えて--width-wideだが、読み物としての1カラムは
+   幅を絞ったほうが読みやすいため、内側だけ--width-narrowに収める */
+.quiz-page__column {
+  max-width: var(--width-narrow);
+  margin: 0 auto;
 }
 
 .quiz-page__empty {
@@ -158,7 +167,7 @@ restart();
   padding: 12px 24px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
-  color: #ffffff;
+  color: var(--color-surface);
   cursor: pointer;
   transition:
     transform 0.15s ease,
@@ -221,9 +230,9 @@ restart();
   color: var(--color-primary);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .quiz-page__body {
-    padding: var(--space-md) var(--space-sm) var(--space-lg);
+    padding: var(--space-md) var(--gutter-mobile) var(--space-lg);
   }
 
   .quiz-page__actions {

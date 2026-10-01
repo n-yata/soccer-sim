@@ -187,7 +187,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--color-overlay);
   padding: 16px;
 }
 
@@ -197,7 +197,7 @@ watch(
   max-height: 90vh;
   overflow-y: auto;
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-lg);
   padding: 24px;
 }
@@ -222,7 +222,7 @@ watch(
 
 .halftime-modal-fade-enter-from,
 .halftime-modal-fade-leave-to {
-  background-color: rgba(15, 23, 42, 0);
+  background-color: var(--color-overlay-transparent);
 }
 
 .halftime-modal-fade-enter-from .halftime-modal,
@@ -314,8 +314,8 @@ watch(
 
 .halftime-modal__reset {
   border: 1px solid var(--color-border);
-  background: #ffffff;
-  color: #374151;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
 }
 
 .halftime-modal__reset:hover {
@@ -324,7 +324,7 @@ watch(
 
 .halftime-modal__confirm {
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-surface);
   box-shadow: var(--shadow-md);
 }
 

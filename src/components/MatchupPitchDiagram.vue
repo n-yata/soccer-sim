@@ -6,10 +6,11 @@
     :aria-label="`${formationA.name}と${formationB.name}のフォーメーション配置を重ねたピッチ図`"
   >
     <defs>
-      <!-- 芝生の演出は維持しつつ、上下の明度差を縮めて主張を弱める（旧: #3cb043→#1b5e20） -->
+      <!-- 芝生の演出は維持しつつ、上下の明度差を縮めて主張を弱める。
+           stop-colorはCSSプロパティとしても有効なため、クラス経由でトークンを参照する -->
       <linearGradient id="matchupPitchGradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#3cb043" />
-        <stop offset="100%" stop-color="#2e7d32" />
+        <stop offset="0%" class="matchup-pitch__gradient-start" />
+        <stop offset="100%" class="matchup-pitch__gradient-end" />
       </linearGradient>
     </defs>
     <rect x="-5" y="0" width="270" height="160" class="matchup-pitch__field" />
@@ -225,51 +226,59 @@ const itemsB = computed(() => resolvedItems.value.b);
   fill: url(#matchupPitchGradient);
 }
 
+.matchup-pitch__gradient-start {
+  stop-color: var(--color-pitch);
+}
+
+.matchup-pitch__gradient-end {
+  stop-color: var(--color-pitch-dark);
+}
+
 .matchup-pitch__stripe {
-  fill: #000000;
+  fill: var(--color-text);
   fill-opacity: 0.06;
 }
 
 .matchup-pitch__outline {
   fill: none;
-  stroke: #ffffff;
+  stroke: var(--color-surface);
   stroke-opacity: 0.7;
   stroke-width: 1;
 }
 
 .matchup-pitch__line {
-  stroke: #ffffff;
+  stroke: var(--color-surface);
   stroke-opacity: 0.7;
   stroke-width: 0.8;
 }
 
 .matchup-pitch__line-shape {
   fill: none;
-  stroke: #ffffff;
+  stroke: var(--color-surface);
   stroke-opacity: 0.7;
   stroke-width: 0.8;
 }
 
 .matchup-pitch__player.blue {
-  fill: #2563eb;
-  stroke: #ffffff;
+  fill: var(--color-team-a);
+  stroke: var(--color-surface);
   stroke-width: 1;
-  filter: drop-shadow(0 0.5px 1px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(var(--shadow-token));
 }
 
 .matchup-pitch__player.red {
-  fill: #ef4444;
-  stroke: #ffffff;
+  fill: var(--color-team-b);
+  stroke: var(--color-surface);
   stroke-width: 1;
-  filter: drop-shadow(0 0.5px 1px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(var(--shadow-token));
 }
 
 .matchup-pitch__label {
   font-size: 3.5px;
   font-weight: var(--weight-semibold);
-  fill: #ffffff;
+  fill: var(--color-surface);
   paint-order: stroke;
-  stroke: #000000;
+  stroke: var(--color-text);
   stroke-width: 0.6px;
 }
 

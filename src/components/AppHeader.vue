@@ -81,6 +81,7 @@ function closeMenu(): void {
 .app-header {
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+  padding: 0 var(--gutter);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -90,7 +91,9 @@ function closeMenu(): void {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-sm) var(--space-2xl);
+  max-width: var(--width-wide);
+  margin: 0 auto;
+  padding: var(--space-sm) 0;
 }
 
 .app-header__brand {
@@ -159,8 +162,12 @@ function closeMenu(): void {
 }
 
 @media (max-width: 640px) {
+  .app-header {
+    padding: 0 var(--gutter-mobile);
+  }
+
   .app-header__bar {
-    padding: var(--space-sm) var(--space-md);
+    padding: var(--space-sm) 0;
     flex-wrap: wrap;
   }
 

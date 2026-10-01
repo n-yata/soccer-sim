@@ -247,7 +247,11 @@ describe("ComparisonPage", () => {
     });
     const body = wrapper.find(".comparison-page__body");
     const bodyStyle = getComputedStyle(body.element);
-    expect(bodyStyle.maxWidth).toBe("1400px");
+    // jsdomはCSSカスタムプロパティを解決しないため、期待値は「正しいトークン参照を
+    // 使っているか」で検証する（design.md「jsdomのCSS変数非解決によるテスト期待値の更新」参照）
+    // UI/UXモダナイゼーションPhase3（コンテナ幅の全画面統一）により、
+    // 画面ごとに異なるトークン(--width-full)ではなく他画面と同じ--width-wideへ変更
+    expect(bodyStyle.maxWidth).toBe("var(--width-wide)");
     expect(bodyStyle.marginLeft).toBe("auto");
     expect(bodyStyle.marginRight).toBe("auto");
     wrapper.unmount();
