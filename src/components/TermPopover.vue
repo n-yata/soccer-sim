@@ -65,7 +65,7 @@ defineProps<{
   font-size: var(--font-xs);
   line-height: var(--leading-relaxed);
   font-weight: var(--weight-normal);
-  color: #374151;
+  color: var(--color-text-muted);
 }
 
 /* 吹き出しの下向きしっぽ。枠線ぶんずらした白い三角を重ねて縁取りを作る */
@@ -84,7 +84,7 @@ defineProps<{
 
 .term-popover::after {
   top: calc(100% - 1px);
-  border-top-color: #ffffff;
+  border-top-color: var(--color-surface);
 }
 
 .term-popover-fade-enter-active,

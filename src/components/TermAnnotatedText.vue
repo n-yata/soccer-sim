@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
 }
 
 .term-annotated-text__term:hover {
-  background: #f0fdf4;
+  background: var(--color-primary-soft);
 }
 
 .term-annotated-text__term:focus-visible {

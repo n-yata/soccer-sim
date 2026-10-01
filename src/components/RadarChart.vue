@@ -284,19 +284,19 @@ onBeforeUnmount(() => {
 
 .radar-chart__grid {
   fill: none;
-  stroke: var(--color-border, #e5e7eb);
+  stroke: var(--color-border);
   stroke-width: 1;
 }
 
 .radar-chart__axis-line {
-  stroke: var(--color-border, #e5e7eb);
+  stroke: var(--color-border);
   stroke-width: 1;
 }
 
 .radar-chart__axis-label {
   font-size: 7px;
   font-weight: var(--weight-semibold);
-  fill: var(--color-text-sub, #6b7280);
+  fill: var(--color-text-sub);
 }
 
 .radar-chart__series {
@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
 
 .radar-chart__vertex {
   fill: var(--series-color);
-  stroke: #ffffff;
+  stroke: var(--color-surface);
   stroke-width: 1;
 }
 </style>
