@@ -58,8 +58,11 @@
         </div>
       </div>
 
+      <p id="matrix-instructions" class="matrix-page__table-caption">
+        行と列の交点を選ぶと比較へ進みます。狭い画面では表を横にスクロールできます。
+      </p>
       <div class="matrix-page__table-wrapper">
-        <table class="matrix-page__table">
+        <table class="matrix-page__table" aria-describedby="matrix-instructions">
           <thead>
             <tr>
               <th scope="col"></th>
@@ -76,13 +79,15 @@
                   v-if="row.id === col.id"
                   class="matrix-page__cell matrix-page__cell--diagonal"
                   aria-hidden="true"
-                ></span>
+                  >—</span
+                >
                 <span
                   v-else-if="!hasMatchup(row.id, col.id)"
                   class="matrix-page__cell matrix-page__cell--unknown"
                   role="img"
                   :aria-label="`${row.name} vs ${col.name}: データ未定義`"
-                ></span>
+                  >—</span
+                >
                 <router-link
                   v-else
                   :to="`/compare/${row.id}/${col.id}`"
@@ -90,6 +95,7 @@
                   :class="buildCellClass(row.id, col.id)"
                   :aria-label="formatCellLabel(row, col)"
                 >
+                  <span class="matrix-page__cell-result">{{ formatCellText(row.id, col.id) }}</span>
                   <!--
                     確認済みは色ではなくチェック印で示す。セルの色は既に
                     「行有利 / 列有利 / 互角」に使われており、そこへ色を重ねると
@@ -172,6 +178,13 @@ function buildCellClass(rowId: string, colId: string): string {
   if (edge === "A") return "matrix-page__cell--row";
   if (edge === "B") return "matrix-page__cell--col";
   return "matrix-page__cell--even";
+}
+
+function formatCellText(rowId: string, colId: string): string {
+  const edge = resolveEdge(rowId, colId);
+  if (edge === "A") return "行優位";
+  if (edge === "B") return "列優位";
+  return "互角";
 }
 
 function formatCellLabel(row: Formation, col: Formation): string {
@@ -329,6 +342,20 @@ function formatCellLabel(row: Formation, col: Formation): string {
   overflow-x: auto;
 }
 
+.matrix-page__table-caption {
+  text-align: left;
+  padding: var(--space-sm);
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
+}
+
+.matrix-page__table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-canvas);
+}
+
 .matrix-page__table {
   margin: 0 auto;
   border-collapse: separate;
@@ -345,6 +372,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
 
 .matrix-page__cell {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 48px;
@@ -352,6 +380,14 @@ function formatCellLabel(row: Formation, col: Formation): string {
   border-radius: var(--radius-sm);
   box-sizing: border-box;
   text-decoration: none;
+  font-size: var(--font-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+.matrix-page__cell-result {
+  white-space: nowrap;
 }
 
 .matrix-page__cell--diagonal {
@@ -406,8 +442,8 @@ a.matrix-page__cell:focus-visible {
   }
 
   .matrix-page__cell {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 
   .matrix-page__table {

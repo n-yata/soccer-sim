@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import type { Formation } from "@/types/formation";
@@ -38,8 +38,13 @@ function findCard(wrapper: ReturnType<typeof mount>, id: string) {
 
 describe("FormationListPage", () => {
   beforeEach(() => {
+    vi.stubEnv("VITE_JLEAGUE_URL", "https://example.com/fixtures/");
     pushMock.mockClear();
     state.formations = realFormations;
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("マウント時にformationsと同数のFormationCardが描画され、すべてselected=falseである", () => {
@@ -55,6 +60,18 @@ describe("FormationListPage", () => {
     await nextTick();
     expect(findCard(wrapper, "4-4-2")?.props("selected")).toBe(true);
     expect(findCard(wrapper, "4-3-3")?.props("selected")).toBe(false);
+  });
+
+  it("選択した名前と残りの選択数を操作場所で知らせ、解除すると初期案内へ戻る", async () => {
+    const wrapper = mountPage();
+    expect(wrapper.find(".formation-list-page__selection-status").text()).toContain("あと2つ");
+    await findCard(wrapper, "4-4-2")?.vm.$emit("select", "4-4-2");
+    await nextTick();
+    expect(wrapper.find(".formation-list-page__selection-status").text()).toContain("4-4-2");
+    expect(wrapper.find(".formation-list-page__selection-status").text()).toContain("あと1つ");
+    await findCard(wrapper, "4-4-2")?.vm.$emit("select", "4-4-2");
+    await nextTick();
+    expect(wrapper.find(".formation-list-page__selection-status").text()).toContain("あと2つ");
   });
 
   it("2件目を選択すると、選択順どおりrouter.pushが1回呼ばれる", async () => {
@@ -97,9 +114,34 @@ describe("FormationListPage", () => {
   it("Jリーグ外部リンクが新規タブでtarget=_blank・rel=noopener noreferrerを持つ", () => {
     const wrapper = mountPage();
     const link = wrapper.find("a.formation-list-page__jleague-link");
-    expect(link.attributes("href")).toBe("https://www.jleague.jp/j1/special/");
+    expect(link.attributes("href")).toBe("https://example.com/fixtures/");
     expect(link.attributes("target")).toBe("_blank");
     expect(link.attributes("rel")).toBe("noopener noreferrer");
+  });
+
+  it.each([
+    undefined,
+    "",
+    "   ",
+    "not-a-url",
+    "http://example.com/",
+    "javascript:alert(1)",
+    "https://user:password@example.com/",
+  ])("外部リンクの設定が未設定・不正・安全でない場合は表示しない（%s）", (value) => {
+    vi.stubEnv("VITE_JLEAGUE_URL", value);
+    const wrapper = mountPage();
+    expect(wrapper.find("a.formation-list-page__jleague-link").exists()).toBe(false);
+    expect(wrapper.findAllComponents(FormationCard)).toHaveLength(realFormations.length);
+    wrapper.unmount();
+  });
+
+  it("外部リンクの設定の前後空白を除いて利用する", () => {
+    vi.stubEnv("VITE_JLEAGUE_URL", "  https://example.com/fixtures/  ");
+    const wrapper = mountPage();
+    expect(wrapper.find("a.formation-list-page__jleague-link").attributes("href")).toBe(
+      "https://example.com/fixtures/",
+    );
+    wrapper.unmount();
   });
 
   // 一覧画面下部（フッター注記の近く）に置くと、カード枚数が多い環境でスクロールしないと
@@ -108,7 +150,9 @@ describe("FormationListPage", () => {
     const wrapper = mountPage();
     const linkInHeader = wrapper.find(".page-header__actions a.formation-list-page__jleague-link");
     expect(linkInHeader.exists()).toBe(true);
-    const linkInBody = wrapper.find(".formation-list-page__body a.formation-list-page__jleague-link");
+    const linkInBody = wrapper.find(
+      ".formation-list-page__body a.formation-list-page__jleague-link",
+    );
     expect(linkInBody.exists()).toBe(false);
   });
 

@@ -1,6 +1,10 @@
 <template>
   <div class="quiz-page">
-    <PageHeader show-back-button title="理解度チェック" />
+    <PageHeader
+      show-back-button
+      title="理解度チェック"
+      subtitle="配置と噛み合わせを答えて、解説で理解を確かめる"
+    />
     <div class="quiz-page__body">
       <div class="quiz-page__column">
         <!-- データが足りず1問も作れない場合。クラッシュさせずに状況を伝える -->
@@ -13,13 +17,26 @@
             第 {{ currentIndex + 1 }} 問 / 全 {{ questions.length }} 問
             <span class="quiz-page__score">（正解 {{ correctCount }} 問）</span>
           </p>
-
-          <QuizQuestionCard
-            :key="currentQuestion.id"
-            :question="currentQuestion"
-            :answered-choice-id="currentAnswer"
-            @answer="onAnswer"
+          <progress
+            class="quiz-page__progress-bar"
+            :value="currentIndex + 1"
+            :max="questions.length"
+            aria-label="問題の進み具合"
           />
+
+          <div
+            ref="questionSection"
+            class="quiz-page__question-section"
+            tabindex="-1"
+            :aria-label="`第${currentIndex + 1}問`"
+          >
+            <QuizQuestionCard
+              :key="currentQuestion.id"
+              :question="currentQuestion"
+              :answered-choice-id="currentAnswer"
+              @answer="onAnswer"
+            />
+          </div>
 
           <div v-if="currentAnswer !== null" class="quiz-page__actions">
             <button type="button" class="quiz-page__next-button" @click="goNext">
@@ -28,17 +45,25 @@
           </div>
         </template>
 
-        <div v-else class="quiz-page__result">
+        <div
+          v-else
+          ref="resultSection"
+          class="quiz-page__result"
+          tabindex="-1"
+          aria-label="クイズの結果"
+        >
           <h2 class="quiz-page__result-title">おつかれさま！</h2>
           <p class="quiz-page__result-score">
             {{ questions.length }} 問中 <strong>{{ correctCount }}</strong> 問 正解
           </p>
           <p class="quiz-page__result-comment">{{ resultComment }}</p>
           <div class="quiz-page__actions">
-            <button type="button" class="quiz-page__retry-button" @click="restart">
+            <button type="button" class="quiz-page__retry-button" @click="restart()">
               もう一度挑戦する
             </button>
-            <router-link to="/" class="quiz-page__result-link">一覧画面へ戻る</router-link>
+            <router-link to="/" class="quiz-page__result-link"
+              >フォーメーションを比較する</router-link
+            >
           </div>
         </div>
       </div>
@@ -47,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import PageHeader from "@/components/PageHeader.vue";
 import QuizQuestionCard from "@/components/QuizQuestionCard.vue";
 import { formations } from "@/data/formations";
@@ -57,6 +82,8 @@ import type { QuizQuestion } from "@/types/formation";
 
 const questions = ref<QuizQuestion[]>([]);
 const currentIndex = ref(0);
+const questionSection = ref<HTMLDivElement | null>(null);
+const resultSection = ref<HTMLDivElement | null>(null);
 // 設問id -> 選んだ選択肢id。配列のindexではなくidで持つことで、
 // 再挑戦で出題順が変わっても前回の回答が混ざらない
 const answers = ref<Record<string, string>>({});
@@ -99,19 +126,25 @@ function onAnswer(choiceId: string): void {
   answers.value = { ...answers.value, [question.id]: choiceId };
 }
 
-function goNext(): void {
+async function goNext(): Promise<void> {
   currentIndex.value += 1;
+  await nextTick();
+  (questionSection.value ?? resultSection.value)?.focus();
 }
 
 // 状態を個別に消すのではなく、すべて作り直す。
 // 消し忘れた状態が次の挑戦へ持ち越されるのは、静かに誤る典型的な欠陥
-function restart(): void {
+async function restart(shouldFocus = true): Promise<void> {
   questions.value = buildQuiz(formations, matchups);
   currentIndex.value = 0;
   answers.value = {};
+  if (shouldFocus) {
+    await nextTick();
+    questionSection.value?.focus();
+  }
 }
 
-restart();
+restart(false);
 </script>
 
 <style scoped>
@@ -147,6 +180,14 @@ restart();
 
 .quiz-page__score {
   font-weight: var(--weight-normal);
+}
+
+.quiz-page__progress-bar {
+  display: block;
+  width: 100%;
+  height: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  accent-color: var(--color-primary);
 }
 
 .quiz-page__actions {
@@ -225,6 +266,10 @@ restart();
 }
 
 .quiz-page__result-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
   color: var(--color-primary);

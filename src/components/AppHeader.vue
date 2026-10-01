@@ -17,6 +17,7 @@
       </button>
       <nav
         id="app-header-nav"
+        aria-label="主な画面"
         class="app-header__nav"
         :class="{ 'app-header__nav--open': isMenuOpen }"
       >
@@ -26,7 +27,7 @@
           :aria-current="isActive('formation-list')"
           @click="closeMenu"
         >
-          一覧
+          フォーメーションを選ぶ
         </router-link>
         <router-link
           to="/matrix"
@@ -68,7 +69,8 @@ import AppIcon from "./AppIcon.vue";
 const route = useRoute();
 const isMenuOpen = ref(false);
 
-function isActive(name: string): "page" | undefined {
+function isActive(name: string): "page" | "location" | undefined {
+  if (name === "formation-list" && route.name === "comparison") return "location";
   return route.name === name ? "page" : undefined;
 }
 
@@ -98,6 +100,7 @@ function closeMenu(): void {
 
 .app-header__brand {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: var(--space-xs);
   font-size: var(--font-md);
@@ -138,6 +141,7 @@ function closeMenu(): void {
 
 .app-header__link {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: var(--space-xs);
   font-size: var(--font-sm);
@@ -156,7 +160,7 @@ function closeMenu(): void {
   color: var(--color-text);
 }
 
-.app-header__link[aria-current="page"] {
+.app-header__link[aria-current] {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
 }

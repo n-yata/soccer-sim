@@ -30,8 +30,17 @@ describe("AppHeader", () => {
     expect(wrapper.find("a.app-header__link[href='/matrix']").attributes("aria-current")).toBe(
       "page",
     );
+    expect(wrapper.find("a.app-header__link[href='/']").attributes("aria-current")).toBeUndefined();
+  });
+
+  it("比較画面ではフォーメーション選択を現在のセクションとして示す", () => {
+    routeState.name = "comparison";
+    const wrapper = mountHeader();
+    expect(wrapper.find("a.app-header__link[href='/']").attributes("aria-current")).toBe(
+      "location",
+    );
     expect(
-      wrapper.find("a.app-header__link[href='/']").attributes("aria-current"),
+      wrapper.find("a.app-header__link[href='/matrix']").attributes("aria-current"),
     ).toBeUndefined();
   });
 });

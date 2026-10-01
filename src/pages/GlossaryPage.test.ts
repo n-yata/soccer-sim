@@ -44,6 +44,63 @@ describe("GlossaryPage", () => {
     expect(wrapper.findAll("dt")).toHaveLength(0);
   });
 
+  it("用語名で検索して対象だけを表示し、検索を消すと全件に戻る", async () => {
+    state.soccerTerms = realTerms;
+    const wrapper = mount(GlossaryPage);
+    const term = realTerms[0];
+    const search = wrapper.find<HTMLInputElement>(".glossary-page__search-input");
+    await search.setValue(term.term);
+    const expectedTerms = realTerms.filter((entry) =>
+      `${entry.term} ${entry.description}`.includes(term.term),
+    );
+    expect(wrapper.findAll("dt").map((entry) => entry.text())).toEqual(
+      expectedTerms.map((entry) => entry.term),
+    );
+    await wrapper.find(".glossary-page__clear-search").trigger("click");
+    expect(wrapper.findAll("dt")).toHaveLength(realTerms.length);
+  });
+
+  it("用語名に含まれない説明の語句でも検索できる", async () => {
+    state.soccerTerms = realTerms;
+    const wrapper = mount(GlossaryPage);
+    await wrapper.find(".glossary-page__search-input").setValue("体を張って止める");
+    expect(wrapper.findAll("dt").map((entry) => entry.text())).toEqual(["センターバック"]);
+    wrapper.unmount();
+  });
+
+  it("検索語の前後空白と英字の大小を無視し、空白だけなら全件を表示する", async () => {
+    state.soccerTerms = realTerms;
+    const wrapper = mount(GlossaryPage);
+    await wrapper.find(".glossary-page__search-input").setValue("  mf  ");
+    expect(wrapper.findAll("dt").map((entry) => entry.text())).toEqual(["守備的MF", "攻撃的MF"]);
+    await wrapper.find(".glossary-page__search-input").setValue("   ");
+    expect(wrapper.findAll("dt")).toHaveLength(realTerms.length);
+    wrapper.unmount();
+  });
+
+  it("一致しない検索語では空状態を示し、検索解除で復帰できる", async () => {
+    state.soccerTerms = realTerms;
+    const wrapper = mount(GlossaryPage);
+    await wrapper.find(".glossary-page__search-input").setValue("該当しない用語XYZ");
+    expect(wrapper.findAll("dt")).toHaveLength(0);
+    expect(wrapper.find(".glossary-page__empty").text()).toContain("見つかりません");
+    await wrapper.find(".glossary-page__clear-search").trigger("click");
+    expect(wrapper.findAll("dt")).toHaveLength(realTerms.length);
+  });
+
+  it("検索解除後に入力欄へフォーカスを戻し、続けて検索できる", async () => {
+    state.soccerTerms = realTerms;
+    const wrapper = mount(GlossaryPage, { attachTo: document.body });
+    try {
+      await wrapper.find(".glossary-page__search-input").setValue("存在しない用語");
+      await wrapper.find(".glossary-page__clear-search").trigger("click");
+      expect(document.activeElement).toBe(wrapper.find(".glossary-page__search-input").element);
+      expect(wrapper.findAll("dt")).toHaveLength(realTerms.length);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it("「← 戻る」をクリックするとrouter.pushが'/'で1回呼ばれる（履歴が無い場合）", async () => {
     window.history.replaceState({}, "");
     state.soccerTerms = realTerms;
