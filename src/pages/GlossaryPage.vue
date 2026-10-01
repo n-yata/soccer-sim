@@ -14,10 +14,7 @@
         <h2 class="glossary-page__category-title">{{ group.category }}</h2>
         <dl class="glossary-page__list">
           <div v-for="term in group.terms" :key="term.id" class="glossary-page__entry">
-            <dt class="glossary-page__term">
-              {{ term.term }}
-              <span class="glossary-page__reading">（{{ term.reading }}）</span>
-            </dt>
+            <dt class="glossary-page__term">{{ term.term }}</dt>
             <dd class="glossary-page__description">{{ term.description }}</dd>
           </div>
         </dl>
@@ -50,8 +47,9 @@ const groupedTerms = computed(() =>
 
 <style scoped>
 .glossary-page__body {
-  padding: var(--space-xl) var(--space-2xl);
-  max-width: 1000px;
+  padding: var(--space-xl) var(--gutter);
+  max-width: var(--width-wide);
+  margin: 0 auto;
 }
 
 .glossary-page__category {
@@ -74,7 +72,7 @@ const groupedTerms = computed(() =>
 /* 広い画面幅では2カラムに段組みし、縦スクロール量を減らす。
    dt/ddのペアが段の境目で分断されないよう、divでペアをまとめてbreak-insideを指定する
    （dl直下へのdiv配置はHTML5仕様上、dt/ddのグルーピングとして許容されている） */
-@media (min-width: 769px) {
+@media (min-width: 901px) {
   .glossary-page__list {
     columns: 2;
     column-gap: var(--space-xl);
@@ -92,12 +90,6 @@ const groupedTerms = computed(() =>
   margin-top: var(--space-md);
 }
 
-.glossary-page__reading {
-  font-size: var(--font-xs);
-  font-weight: var(--weight-normal);
-  color: var(--color-text-sub);
-}
-
 .glossary-page__description {
   margin: 4px 0 0;
   font-size: var(--font-sm);
@@ -107,7 +99,7 @@ const groupedTerms = computed(() =>
 
 @media (max-width: 640px) {
   .glossary-page__body {
-    padding: var(--space-lg) var(--space-md);
+    padding: var(--space-lg) var(--gutter-mobile);
   }
 }
 </style>

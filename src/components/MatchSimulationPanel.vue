@@ -91,7 +91,7 @@ defineProps<{
 .match-simulation-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-md);
   padding: 20px;
   margin-top: 16px;
@@ -148,7 +148,7 @@ defineProps<{
   text-align: center;
   font-size: var(--font-sm);
   line-height: var(--leading-relaxed);
-  color: #374151;
+  color: var(--color-text-muted);
 }
 
 .match-simulation-panel__stats {

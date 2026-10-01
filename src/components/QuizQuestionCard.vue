@@ -111,7 +111,7 @@ function markerText(choice: QuizChoice): string {
 .quiz-question-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-md);
   padding: 20px;
 }
@@ -146,7 +146,7 @@ function markerText(choice: QuizChoice): string {
   box-sizing: border-box;
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 12px 14px;
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
@@ -161,7 +161,7 @@ function markerText(choice: QuizChoice): string {
 
 .quiz-question-card__choice:hover:not(:disabled) {
   border-color: var(--color-primary);
-  background: #f0fdf4;
+  background: var(--color-primary-soft);
 }
 
 .quiz-question-card__choice:focus-visible {
@@ -174,15 +174,15 @@ function markerText(choice: QuizChoice): string {
 }
 
 .quiz-question-card__choice--correct {
-  border-color: #15803d;
-  background: #f0fdf4;
-  color: #14532d;
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .quiz-question-card__choice--incorrect {
-  border-color: #b91c1c;
-  background: #fef2f2;
-  color: #7f1d1d;
+  border-color: var(--color-danger);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .quiz-question-card__marker {
@@ -224,18 +224,18 @@ function markerText(choice: QuizChoice): string {
 }
 
 .quiz-question-card__verdict--correct {
-  color: #15803d;
+  color: var(--color-success);
 }
 
 .quiz-question-card__verdict--incorrect {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 .quiz-question-card__explanation {
   margin: 0;
   font-size: var(--font-sm);
   line-height: var(--leading-relaxed);
-  color: #374151;
+  color: var(--color-text-muted);
 }
 
 /* 視覚的には隠すが読み上げには残す */

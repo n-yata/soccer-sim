@@ -29,26 +29,42 @@
 
 ## フェーズ0: 着手前の確認（★ゲートあり）
 
-- [ ] **Phase 2（`feature/ui-visual-language`）がマージ済みであることを確認する**
-  - [ ] 未マージなら着手しない。ダークモードはPhase 2のセマンティック層の上に成立するため
-- [ ] `AGENTS.md` と `docs/specs/1_requirements/` の関連ドキュメントを読む
-- [ ] `.steering/20260926-ui-ux-upgrade-v2/retrospective.md` を読む（SVGプロパティの落とし穴）
-- [ ] 基準値を実測して控える（`npm test` の件数）
-- [ ] 直書き色の現在件数を実測して控える
-  - [ ] `grep -rco "#[0-9a-fA-F]\{3,8\}" src/ --include=*.vue | grep -v ":0"`
-  - [ ] `grep -rc "rgba(" src/ --include=*.vue | grep -v ":0"`
+- [x] **Phase 2（`feature/ui-visual-language`）がマージ済みであることを確認する**
+      → PR #2、squashマージ済み（`master`@fb99ff3）。追って`wireframes.drawio`追従修正も
+      `master`@34b5956で反映済み
+- [x] `AGENTS.md` と `docs/specs/1_requirements/` の関連ドキュメントを読む
+- [x] `.steering/20260926-ui-ux-upgrade-v2/retrospective.md` を読む（SVGプロパティの落とし穴。
+      `<polygon>`の`points`・`<circle>`の`r`/`cx`/`cy`はCSS transition対象外、
+      `prefers-reduced-motion`打ち消しブロックは`<style>`末尾に置く、を確認）
+- [x] 基準値を実測して控える（`npm test` の件数）→ **34ファイル / 535テスト passing**
+      （Phase 1・2と同一。並列実行はメモリ不足で落ちるため
+      `npx vitest run --pool=forks --no-file-parallelism` を使用）
+- [x] 直書き色の現在件数を実測して控える → **design.md作成時(86+11件)からPhase2の副次効果で
+      ドリフトしている。実測値（2026-10-01時点）を正とする**
+  - [x] `grep -rco "#[0-9a-fA-F]\{3,8\}" src/ --include=*.vue | grep -v ":0"` → **合計74件**
+        （内訳: MatchupPitchDiagram 13, QuizQuestionCard 12, FreeLayoutPitchDiagram 12,
+        MatrixPage 6, ComparisonPage 6, RadarChart 4, HalftimeTacticsModal 4,
+        SquadConditionControls 3, FreeLayoutControls 3, ComparisonControls 3,
+        TermPopover 2, MatchSimulationPanel 2, FormationMiniPitch 2, QuizPage 1,
+        TermAnnotatedText 1。PageHeader/FormationListPageはPhase2で既に0件化済み）
+  - [x] `grep -rc "rgba(" src/ --include=*.vue | grep -v ":0"` → **合計6件**
+        （MatchupPitchDiagram 2, HalftimeTacticsModal 2, FreeLayoutPitchDiagram 2）
 
 ## フェーズ1: 不足セマンティックトークンの洗い出しと追加
 
-- [ ] 直書き色を design.md の分類 A〜E に仕分けする
-  - [ ] A: 既存セマンティックで表せる
-  - [ ] B: セマンティックが不足している → 新設が必要
-  - [ ] C: 半透明オーバーレイ → `--color-overlay` 等を新設
-  - [ ] D: `--shadow-*` 定義内の `rgba()` → 正本側なので対象外
-  - [ ] E: SVG 属性 → フェーズ3で扱う
-- [ ] B に該当する用途のセマンティックトークンを新設する
-  - [ ] **プリミティブを直接参照させない**（ダークで反転できなくなるため）
-- [ ] C に該当するオーバーレイ用トークンを新設する
+- [x] 直書き色を design.md の分類 A〜E に仕分けする（全74件+rgba6件。分類結果はdesign.md
+      「ハードコード色の分類結果と追加トークン」の表を参照）
+  - [x] A: 既存セマンティックで表せる（`#ffffff`→surface、`#374151`→text-muted、
+        `#f0fdf4`→primary-soft、`#15803d`→primary、RadarChartのインラインフォールバックは削除）
+  - [x] B: セマンティックが不足 → チームA/B強調文字（accent-text/strong-text）、
+        success/danger、相性表undefined系、SVG選手影（shadow-token）を新設
+  - [x] C: 半透明オーバーレイ → `--color-overlay` / `--color-overlay-transparent` を新設
+  - [x] D: `--shadow-*` 定義内の `rgba()` → 該当なし（本プロジェクトのrgba()はすべて
+        コンポーネント側の直書きで、--shadow-*定義内で完結しているものは無かった）
+  - [x] E: SVG 属性 → フェーズ3で扱う
+- [x] B に該当する用途のセマンティックトークンを新設する
+  - [x] プリミティブを直接参照させず、セマンティック層経由で提供（tokens.css参照）
+- [x] C に該当するオーバーレイ用トークンを新設する
 
 ## フェーズ2: CSS 内の直書き色を置換（SVG 以外）
 
@@ -78,58 +94,103 @@
 > ⚠️ `<polygon>` の `points`、`<circle>` の `r`/`cx`/`cy` は CSS へ移さないこと
 > （transition 非対応・Safari/iOS 未対応。`20260926-ui-ux-upgrade-v2` の振り返り参照）。
 
-- [ ] `src/components/FormationMiniPitch.vue`（2件）でパターンを確立する
-- [ ] `src/components/RadarChart.vue`（4件）
-- [ ] `src/components/FreeLayoutPitchDiagram.vue`（11件）
-- [ ] `src/components/MatchupPitchDiagram.vue`（12件）
-- [ ] 動的バインド（`:fill="..."`）を**クラス名の動的切り替え**へ変更する
-- [ ] 各SVGコンポーネントのテストが `fill` 属性値を検証していないか確認する
-  - [ ] 検証していた場合、クラス名検証へ置き換えて**実効性が残るか**を判断する
-  - [ ] 実効性が残らないなら色の検証は目視確認へ移し、振り返りへ記録する
+- [x] `src/components/FormationMiniPitch.vue`（2件）でパターンを確立する
+      → 既にクラスベースだったため、var()置換のみで完了
+- [x] `src/components/RadarChart.vue`（4件）→ `--series-color`は既にCSS変数経由の正しい
+      パターンだったため無変更。インラインフォールバック(`var(--color-border, #e5e7eb)`等)は
+      tokens.cssが常にロードされ到達不能な死んだ値だったため削除し`var(--color-border)`等に簡素化
+- [x] `src/components/FreeLayoutPitchDiagram.vue`（11件）→ グラデーション`stop-color`属性を
+      クラス経由のCSSプロパティへ変更（`--color-pitch`/`--color-pitch-dark`参照）。
+      `--color-pitch-dark`の値がPhase2で実際に使われなくなり孤立していた(#1b5e20)ため、
+      実際の値(#2e7d32)に更新して整合。drop-shadowは新設`--shadow-token`を
+      `drop-shadow()`でラップして使用
+- [x] `src/components/MatchupPitchDiagram.vue`（12件）→ 同様のパターンで全置換
+- [x] 動的バインド（`:fill="..."`）を**クラス名の動的切り替え**へ変更する
+      → 該当箇所なし（`grep ':fill=\|:stroke='`が0件）。既存実装は全てクラスベースだったため対応不要
+- [x] 各SVGコンポーネントのテストが `fill` 属性値を検証していないか確認する
+      → 4ファイルのテストとも`fill`/`stroke`を一切検証していないことを確認。影響なし
 
 ## フェーズ4: `rgba()` の置換
 
-- [ ] `src/components/PageHeader.vue`（1件）
-- [ ] `src/components/TermPopover.vue`（1件）
-- [ ] `src/components/FormationCard.vue`（1件）
-- [ ] `src/components/FreeLayoutPitchDiagram.vue`（2件）
-- [ ] `src/components/HalftimeTacticsModal.vue`（2件）
-- [ ] `src/components/MatchupPitchDiagram.vue`（2件）
-- [ ] `src/pages/FormationListPage.vue`（2件）
+> design.md作成時点の件数（PageHeader/FormationCard/FormationListPage各1-2件）は
+> Phase2で既に解消済みだった。実測した6件（HalftimeTacticsModal 2件、
+> FreeLayoutPitchDiagram 2件、MatchupPitchDiagram 2件）はフェーズ2・3の作業の中で
+> （`--color-overlay`/`--shadow-token`トークン化により）既に全て解消済み。
+
+- [x] `src/components/PageHeader.vue`（Phase2で解消済み。0件）
+- [x] `src/components/TermPopover.vue`（Phase2で解消済み。0件）
+- [x] `src/components/FormationCard.vue`（Phase2で解消済み。0件）
+- [x] `src/components/FreeLayoutPitchDiagram.vue`（フェーズ3で`--shadow-token`置換済み）
+- [x] `src/components/HalftimeTacticsModal.vue`（フェーズ2で`--color-overlay`/
+      `--color-overlay-transparent`置換済み）
+- [x] `src/components/MatchupPitchDiagram.vue`（フェーズ3で`--shadow-token`置換済み）
+- [x] `src/pages/FormationListPage.vue`（Phase2で解消済み。0件）
+- [x] 最終確認: `grep -rn "rgba(" src/ --include=*.vue` が **0件**
 
 ## フェーズ5: 静的検証（★ダークモード着手の前提条件）
 
-- [ ] `grep -rn "#[0-9a-fA-F]\{3,8\}" src/ --include=*.vue` が **0 件**
-  - [ ] 除外した箇所があれば理由を design.md へ記録する
-- [ ] `grep -rn "rgba(" src/ --include=*.vue` が **0 件**
-- [ ] `src/styles/tokens.css` 以外に生のカラー値が存在しないことを確認する
-- [ ] **この時点で `npm test` を通し、回帰がないことを確認する**（ダークへ進む前の区切り）
+- [x] `grep -rn "#[0-9a-fA-F]\{3,8\}" src/ --include=*.vue` が **0 件** → 確認済み
+  - [x] 除外した箇所はなし（SVGのグラデーション定義IDも含め全て解消済み）
+- [x] `grep -rn "rgba(" src/ --include=*.vue` が **0 件** → 確認済み
+- [x] `src/styles/tokens.css` 以外に生のカラー値が存在しないことを確認する → 確認済み
+      （`grep -rln "#[0-9a-fA-F]\{3,8\}\|rgba(" src/ --include=*.css` の結果は`tokens.css`のみ）
+- [x] **この時点で `npm test` を通し、回帰がないことを確認する**（ダークへ進む前の区切り）
+      → **34ファイル/535テスト 全passing**。claude-in-chromeで比較・クイズ（正誤色）・
+      相性表の目視確認も実施し、崩れなし。相性表の「未定義」セル（amber斜線）は
+      現在のデータセットでは全28組み合わせが定義済みのため実際には出現しないが
+      （将来データが欠ける場合の防御的スタイル）、CSSのビルド・lintは問題なく通過している
 
 ## フェーズ6: レイアウトコンテナの統一
 
-- [ ] 幅トークンを定義する（`--width-narrow` / `-medium` / `-wide` / `-full`）
-- [ ] ガタートークンを定義する（`--gutter` / `--gutter-mobile`）
-- [ ] `AppHeader` / `PageHeader` に最大幅とガターを適用する
-  - [ ] 画面ごとの幅をヘッダーへ供給する方法を決める（App.vue かルートメタ経由。実装時に判断）
-- [ ] 各画面本文の `max-width` 直書きをトークン参照へ置き換える
-  - [ ] `ComparisonPage.vue`（1400px × 2箇所）
-  - [ ] `FormationListPage.vue`（1200px）
-  - [ ] `GlossaryPage.vue`（1000px）
-  - [ ] `QuizPage.vue`（640px）
-- [ ] コンテナ以外の `max-width` を対象外として design.md の表へ記入する
-  - [ ] `FormationCard.vue:93`（120px・ミニピッチ図）
-  - [ ] `HalftimeTacticsModal.vue:196`（560px・モーダル幅）
-  - [ ] `ComparisonPage.vue:636,650`（800px / 360px・コンテンツ内要素）
-- [ ] **1920px 幅で全5画面を開き、ヘッダーと本文の左端が揃っていることを確認する**
+- [x] 幅トークンを定義する（`--width-narrow` / `-medium` / `-wide` / `-full`）
+- [x] ガタートークンを定義する（`--gutter` / `--gutter-mobile`）
+- [x] `AppHeader` / `PageHeader` に最大幅とガターを適用する
+  - [x] 画面ごとの幅をヘッダーへ供給する方法を決める → **ルートメタ(`route.meta.contentWidth`)を
+        App.vueが読み取り、`--page-content-width`としてCSS変数供給する方式を採用**
+        （router/index.tsに`formation-list: wide`, `comparison: full`, `matrix: full`,
+        `glossary: medium`, `quiz: narrow`を設定）
+- [x] 各画面本文の `max-width` 直書きをトークン参照へ置き換える
+  - [x] `ComparisonPage.vue`（1400px × 2箇所 → `var(--width-full)`）
+  - [x] `FormationListPage.vue`（1200px → `var(--width-wide)`。max-widthはgrid要素から
+        親の`__body`へ移動し、AppHeader同様「外側で中央寄せ」する構造へ統一）
+  - [x] `GlossaryPage.vue`（1000px → `var(--width-medium)`。margin:autoが元々無く左寄せだった
+        不整合も合わせて解消）
+  - [x] `QuizPage.vue`（640px → `var(--width-narrow)`）
+  - [x] 追加: `MatrixPage.vue`（design.md作成時点では幅指定が無かったことが判明。
+        `var(--width-full)`を新規適用）
+- [x] コンテナ以外の `max-width` を対象外として design.md の表へ記入する
+  - [x] `FormationCard.vue:98`（120px・ミニピッチ図）
+  - [x] `HalftimeTacticsModal.vue:196`（560px・モーダル幅）
+  - [x] `ComparisonPage.vue:637,651`（800px / 360px・flexアイテムのサイズ調整）
+  - [x] `ComparisonPage.vue:787`（100%・相対値のため対象外）
+- [x] **1920px 幅で全5画面を開き、ヘッダーと本文の左端が揃っていることを確認する**
+      → **実装直後は揃っていなかった（AppHeaderがガターpaddingと中央寄せmax-widthを
+      同一要素に設定していたため、box-sizing:border-boxの影響でPageHeaderと計算式が
+      ズレていた）。AppHeaderを「外側=padding／内側=max-width+margin:auto」の
+      二層構造へ修正し、JSで実測して一致（1920px幅で一覧画面352.5px、
+      比較画面252.5pxと、ヘッダー/本文とも完全一致）を確認した**
+- [x] 追加: jsdomがCSSカスタムプロパティを解決しないため、`max-width`を直書きpx値で
+      検証していたテスト2件（FormationListPage.test.ts、ComparisonPage.test.ts）を、
+      トークン参照の文字列で検証する形に更新した（design.md「jsdomのCSS変数非解決による
+      テスト期待値の更新」参照。テストを緩めたのではなく検証の意図を正確にした）
+- [x] 追加（ユーザー指摘による割り込み対応）: 一覧画面にheroバリアント・STEP見出し・
+      カードのホバーリフト/角丸拡大/バッジ刷新を導入し、比較画面の凡例・パネル・
+      ピッチ/レーダーカードの角丸と影も合わせて強化した（詳細はretrospective.md参照）
 
 ## フェーズ7: ブレークポイントの統一
 
-- [ ] 使用するブレークポイントを2つに絞る（mobile `640px` / tablet `900px`）
-- [ ] `QuizPage.vue` の `480px` を統一値へ寄せる
-- [ ] `GlossaryPage.vue` の `min-width: 769px` を統一値へ寄せる
-  - [ ] `GlossaryPage.test.ts:86` の期待値も併せて更新する（テストを消さない）
-- [ ] `tokens.css` の「@mediaには直接使えないため」コメントを運用ルールの記述へ置き換える
-- [ ] `screen-design.md` にブレークポイント一覧を書き、**そこを正本とする**
+- [x] 使用するブレークポイントを2つに絞る（mobile `640px` / tablet `900px`）
+      → 実測の結果、480px(QuizPage)・640px(6箇所)・769px(GlossaryPage)の3種が混在していた
+- [x] `QuizPage.vue` の `480px` を統一値へ寄せる → `640px`へ統一（元々640px側の
+      ブレークポイントがQuizPageに無かったため、単純に値を変更するだけで済んだ）
+- [x] `GlossaryPage.vue` の `min-width: 769px` を統一値へ寄せる → `min-width: 901px`
+      （tablet=900px超の意）へ変更
+  - [x] `GlossaryPage.test.ts:86` の期待値も併せて更新する（テストを消さない）
+- [x] `tokens.css` の「@mediaには直接使えないため」コメントを運用ルールの記述へ置き換える
+      → screen-design.mdを正本として参照する注記に更新
+- [x] `screen-design.md` にブレークポイント一覧を書き、**そこを正本とする**
+      → 「全画面共通のブレークポイント」節を新設。合わせて「全画面共通のレイアウトコンテナ」節
+      （route.meta.contentWidthの対応表）も追加し、フェーズ6の実装内容も正本化した
 
 ## フェーズ8: ダークモード対応
 

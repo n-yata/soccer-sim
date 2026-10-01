@@ -1,6 +1,10 @@
 <template>
   <div class="formation-list-page">
-    <PageHeader title="フォーメーションラボ" subtitle="比較したいフォーメーションを2つ選んでください">
+    <PageHeader
+      title="フォーメーションラボ"
+      subtitle="2つのフォーメーションがどう噛み合うかを、ピッチ図とレーダーチャートで一目にする"
+      variant="hero"
+    >
       <template #title-icon>
         <AppIcon :icon="Goal" size="lg" />
       </template>
@@ -15,6 +19,10 @@
       </a>
     </PageHeader>
     <div class="formation-list-page__body">
+      <div class="formation-list-page__section-intro">
+        <span class="formation-list-page__eyebrow">STEP 1</span>
+        <h2 class="formation-list-page__section-title">比較したい2つを選ぶ</h2>
+      </div>
       <div class="formation-list-page__grid">
         <FormationCard
           v-for="formation in formations"
@@ -86,7 +94,29 @@ watch(
 }
 
 .formation-list-page__body {
-  padding: var(--space-xl) var(--space-2xl);
+  max-width: var(--width-wide);
+  margin: 0 auto;
+  padding: var(--space-xl) var(--gutter);
+}
+
+.formation-list-page__section-intro {
+  margin-bottom: var(--space-lg);
+}
+
+.formation-list-page__eyebrow {
+  display: inline-block;
+  font-size: var(--font-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  color: var(--color-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.formation-list-page__section-title {
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
 }
 
 .formation-list-page__grid {
@@ -94,7 +124,6 @@ watch(
   /* 画面幅に応じて列数が増減する可変グリッド（screen-design.md参照） */
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--space-md);
-  max-width: 1200px;
 }
 
 .formation-list-page__footer {
@@ -110,7 +139,7 @@ watch(
 
 @media (max-width: 640px) {
   .formation-list-page__body {
-    padding: var(--space-lg) var(--space-md);
+    padding: var(--space-lg) var(--gutter-mobile);
   }
 
   .formation-list-page__grid {

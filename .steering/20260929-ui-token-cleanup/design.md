@@ -100,6 +100,58 @@ SVG では色を CSS プロパティとしても属性としても書けるた�
   実現方法は実装時に判断すること（有力案: `App.vue` またはルートメタで画面ごとの
   幅トークンを CSS 変数として供給し、ヘッダーがそれを参照する）。
 
+> **2026-10-01 改定**: 上記「画面ごとに最大幅が違ってよい」の判断は撤回した。
+> `route.meta.contentWidth` でヘッダーへ幅を供給する仕組みを実装し、一覧=wide(1200px)・
+> 比較/相性表=full(1400px)・用語集=medium(1000px)・クイズ=narrow(640px) の4段階を実際に
+> 出し分けたが、ユーザーレビューで「画面ごとに横幅が変わる」「相性表だけ左寄せに見える」
+> という具体的な指摘を受けた。外枠の幅が画面遷移のたびに変わること自体が
+> サイトとしての一貫性のなさとして体感されるため、**外枠（本文ルート要素・ヘッダー）は
+> 全画面で `--width-wide`(1200px) に固定**し、`route.meta.contentWidth` と
+> `--page-content-width` の仕組みごと削除した。`--width-full`/`--width-medium` は
+> 使用箇所が無くなったため `tokens.css` から削除。`--width-narrow` のみ、クイズ画面の
+> 読み物カラム（`.quiz-page__column`）という**外枠の内側の部分幅**として残した。
+> 相性表(MatrixPage)の表が中央寄せコンテナの中で左寄りに見えた件は、表そのものに
+> `margin: 0 auto` が無く、コンテナ幅より狭い表が素直に左詰めで描画されていたことが原因
+> だったため、`.matrix-page__table` に `margin: 0 auto` を追加して解消した。
+>
+> さらに、外枠を`--width-wide`へ統一した後もユーザー実機では「まだ画面によって横幅が
+> 数pxずれる」との指摘があった。`getBoundingClientRect()`で実測したところ、
+> ページの縦の長さによって縦スクロールバーの有無が切り替わり、
+> `document.documentElement.clientWidth`が約15px変動（スクロールバーがあると
+> 1905px、無いと1920px @1920px物理幅）していたことが原因だった。`margin:0 auto`の
+> 中央寄せはこの可変の基準幅から計算されるため、スクロールバーの有無で左端が
+> 約7.5px（スクロールバー幅の半分）ずれていた。`base.css`の`:root`へ
+> `scrollbar-gutter: stable`を追加し、スクロールバーの有無に関わらず常にその分の
+> 余白を確保することで、全画面で基準幅を固定して解消した（`getBoundingClientRect()`
+> による実測で5画面すべて352.5pxに一致することを確認済み）。
+>
+> **教訓**: レイアウト幅の統一は、スクリーンショットの目視だけでなく
+> `getBoundingClientRect()`等による実測で複数画面を横並び比較しないと、
+> スクロールバーのような見落としやすい要因による数px単位のずれを検出できない。
+
+### 4. 「モダンに見えない」への対応（2026-10-01追加）
+
+ユーザーレビューで「全体的にモダンじゃない」「最近のトレンドを理解していない」との
+指摘を受けた。指摘者の感性を言語化できないまま個人の感覚で装飾（ヒーローのグラデーション、
+カードのホバーリフト、大きめの角丸・柔らかい影）を足しても「無難に整えただけ」に
+留まる懸念があったため、参照スタイルを**Linear / Vercel系**（ニュートラル基調、
+アクセント色は最小限、角丸は小さめ、影はほぼ使わずborderで面を分ける、ホバーは
+レイヤーを動かさずcolorのみ変化）に固定し、次のルールを機械的に適用した。
+
+- `--radius-sm/md/lg/xl` を `6/10/16/20px` → `4/6/8/10px` へ縮小。
+  丸みの強さ＝カジュアルさの演出に寄りすぎていたため。
+- `--shadow-sm/md/lg` の不透明度・ぼかしを大幅に縮小（`shadow-md`は
+  `0 2px 8px + 0 1px 2px` → `0 1px 3px`の単純な形へ）。面の境界は影ではなく
+  `border: 1px solid var(--color-border)` で示す方針に統一。
+- `PageHeader.vue`の`--hero`バリアントから、2方向のradial-gradientによる
+  アンビエント演出を撤去。フラットな面のまま、タイポグラフィの大きさだけで強調する。
+- `FormationCard.vue`のホバーから`translateY(-4px)` + `shadow-lg`の
+  「浮き上がるカード」演出を撤去し、border-colorと背景色の変化だけに統一。
+
+> **注記**: この対応は「見た目の方向性を定量的な参照点（著名プロダクトのスタイル）に
+> 固定する」ことで、個人の感覚に依存した堂々巡りを避けるための判断。ユーザーからの
+> 明示的な選択（Linear/Vercel系を指定の上で「任せる」）に基づく。
+
 > **除外してよい `max-width`**: `FormationCard.vue` の `120px`（ミニピッチ図の寸法）、
 > `HalftimeTacticsModal.vue` の `560px`（モーダル幅）、`ComparisonPage.vue` の
 > `800px` / `360px`（コンテンツ内の要素幅）。これらはコンテナ幅ではないため対象外。
@@ -284,13 +336,134 @@ docs/specs/1_requirements/
   ルート要素に属性を付けるだけで実現できる。**本フェーズで併記しておくことを推奨する**
   （コストがほぼゼロで、後から入れるより安い）。
 
-## 対象外とした `max-width` の一覧
+## ハードコード色の分類結果と追加トークン（2026-10-01実装時に確定）
 
-> 実装時にここへ記入すること（受け入れ条件 2 の証跡）。
+### 分類結果（実測74件の内訳）
+
+| 値 | 分類 | 対処 | 該当箇所数 |
+|---|---|---|---|
+| `#ffffff` | A | `var(--color-surface)` | 多数（背景・SVGストローク共通） |
+| `#374151` | A | `var(--color-text-muted)`（旧トークン値と一致） | 複数 |
+| `#f0fdf4` | A | `var(--color-primary-soft)` | 複数 |
+| `#15803d` | A | `var(--color-primary)` | QuizQuestionCard正解表示 |
+| `var(--color-border, #e5e7eb)` 等のインラインフォールバック | A | フォールバックを削除し `var(--color-border)` のみに簡素化（tokens.cssが常にロードされるため到達不能な死んだ値） | RadarChart 2件 |
+| `#1d4ed8` / `#1e3a5f` | B | チームA強調文字用トークンを新設（下記） | MatrixPage/ComparisonPage/FreeLayoutControls/SquadConditionControls |
+| `#b91c1c` / `#5f1e1e` / `#7f1d1d` | B | チームB強調文字・danger系トークンを新設（下記） | 同上 + QuizQuestionCard |
+| `#14532d` | B | success系トークンを新設 | QuizQuestionCard正解文字 |
+| `#fef3c7` / `#fde68a` / `#d97706` | B | 相性表「未定義」セル専用トークンを新設 | MatrixPage |
+| `rgba(15, 23, 42, 0.55)` / `rgba(15, 23, 42, 0)` | C | `--color-overlay` / `--color-overlay-transparent` を新設 | HalftimeTacticsModal |
+| `rgba(0, 0, 0, 0.4)`（drop-shadow） | B | `--shadow-token` を新設（SVG選手トークンの影） | MatchupPitchDiagram/FreeLayoutPitchDiagram 各2件 |
+| SVGの `fill`/`stroke` 属性直書き | E | フェーズ3で対応（クラス化） | MatchupPitchDiagram/FreeLayoutPitchDiagram/RadarChart/FormationMiniPitch |
+
+### 追加するプリミティブ
+
+```css
+/* 青・赤スケールの拡張（既存のblue-600/red-500に追加） */
+--color-blue-700: #1d4ed8;
+--color-blue-900: #1e3a5f;
+--color-red-700: #b91c1c;
+--color-red-900: #7f1d1d;
+--color-red-900-strong: #5f1e1e; /* 総合判定ボックス専用。red-900とは別値（既存デザインの踏襲） */
+--color-green-900: #14532d;
+
+/* 未定義（相性表）用アンバー */
+--color-amber-100: #fef3c7;
+--color-amber-200: #fde68a;
+--color-amber-700: #d97706;
+```
+
+### 追加するセマンティック
+
+```css
+/* チーム強調文字（チップ・バッジ等、team-*-bg上に置く太字テキスト用） */
+--color-team-a-accent-text: var(--color-blue-700);
+--color-team-b-accent-text: var(--color-red-700);
+/* チーム強調文字（総合判定ボックス等、大きな塗り面に置く文字用） */
+--color-team-a-strong-text: var(--color-blue-900);
+--color-team-b-strong-text: var(--color-red-900-strong);
+
+/* 成功/危険（チームとは無関係な意味的フィードバック。クイズの正誤表示用）
+   値は現状ブランドグリーン/チームBレッドと一致するが、意味が異なるため
+   チーム用トークンとは別に持つ（将来チームカラーだけ変更しても連動しない） */
+--color-success: var(--color-primary);
+--color-success-bg: var(--color-primary-soft);
+--color-success-text: var(--color-green-900);
+--color-danger: var(--color-red-700);
+--color-danger-bg: var(--color-red-50);
+--color-danger-text: var(--color-red-900);
+
+/* 相性表「未定義」セル */
+--color-undefined-bg: var(--color-amber-100);
+--color-undefined-bg-alt: var(--color-amber-200);
+--color-undefined-border: var(--color-amber-700);
+
+/* オーバーレイ（モーダル背景） */
+--color-overlay: rgba(15, 23, 42, 0.55);
+--color-overlay-transparent: rgba(15, 23, 42, 0);
+
+/* SVG要素の小さな影（選手トークン） */
+--shadow-token: 0 0.5px 1px rgba(0, 0, 0, 0.4);
+```
+
+> `--color-overlay`/`--color-overlay-transparent`はrgb三つ組(15,23,42)を直接埋め込む
+> （neutral-900の値と同じ）。CSS変数は`rgba()`の引数内で個別に展開できないため、
+> tokens.css側でこの１箇所にのみ直書きし、ここを正本とする（design.mdの分類Dと同じ扱い）。
+
+## jsdomのCSS変数非解決によるテスト期待値の更新（2026-10-01実装時に判明）
+
+`max-width: var(--width-wide)` のようにCSSカスタムプロパティを使った宣言は、**jsdomの
+`getComputedStyle`では値が解決されず、`"var(--width-wide)"`という未解決の文字列がそのまま
+返る**（実ブラウザでは`"1200px"`等の解決済み値が返る。jsdomの既知の制約）。
+
+`FormationListPage.test.ts`・`ComparisonPage.test.ts`・`GlossaryPage.test.ts`・
+`QuizPage.test.ts`に、`max-width`を直書きのpx値（例: `"1200px"`）で検証しているテストが
+あり、本フェーズでトークン参照へ置き換えると**文字列が一致せず失敗する**。
+
+**対応方針**: テストを緩めるのではなく、**期待値を「正しいトークン参照を使っているか」の
+検証へ更新する**（例: `toBe("1200px")` → `toBe("var(--width-wide)")`）。これは後退ではなく、
+むしろ検証の意図がより正確になる——「広い画面幅を活かせるmax-widthを持つ」という元のテスト
+意図は、「正しい幅トークンを参照しているか」を検証することで引き続き担保される
+（直書きpx値だと、将来トークンの実値を変更したときにテストが追随せず、
+トークンから外れた直書き値へ戻っても検知できないという逆向きのリスクがあった）。
+
+対象（実装時に該当テストを更新したら、ここにチェックを入れる）:
+- [x] `FormationListPage.test.ts`: `.formation-list-page__body` の `maxWidth` →
+      `"var(--width-wide)"` に更新済み
+- [x] `ComparisonPage.test.ts`: `.comparison-page__body` の `maxWidth` →
+      `"var(--width-full)"` に更新済み
+- [x] `GlossaryPage.test.ts`: `max-width`を直接検証するテストは無かったため対象外
+- [x] `QuizPage.test.ts`: `max-width`を直接検証するテストは無かったため対象外
+- [x] `MatrixPage.test.ts`: `max-width`を直接検証するテストは無かったため対象外
+      （design.md作成時点では想定していなかったが、MatrixPageにも本フェーズで
+      `--width-full`を新規適用した。既存テストへの影響はなし）
+
+## 対象外とした `max-width` の一覧
 
 | ファイル:行 | 値 | 対象外とした理由 |
 |---|---|---|
-| （実装時に記入） | | |
+| `FormationCard.vue:98` | `120px` | ミニピッチ図の固定寸法。コンテナ幅ではなく図形サイズの指定 |
+| `HalftimeTacticsModal.vue:196` | `560px` | モーダルダイアログの幅。画面コンテナ幅とは無関係 |
+| `ComparisonPage.vue:637` | `800px` | `.comparison-page__pitch-overlay`（flexアイテム）の上限幅。
+  flexレイアウト内の個別要素サイズ調整であり、画面全体のコンテナ幅ではない |
+| `ComparisonPage.vue:651` | `360px` | `.comparison-page__radar`（flexアイテム）の上限幅。同上 |
+| `ComparisonPage.vue:787` | `100%` | モバイル幅での固定幅リセット。相対値（`%`）のためそもそも
+  マジックナンバーではなく対象外 |
+
+## コミット前レビューからの申し送り（2026-10-01、review-report.md参照）
+
+- **`--color-surface`を文字色・線色として使っている箇所**: `ComparisonPage.vue`のCTAボタン文字色、
+  `QuizPage.vue`のボタン文字色、`HalftimeTacticsModal.vue`、`FormationCard.vue`のバッジ文字色、
+  各ピッチ図・`RadarChart.vue`の`stroke`/`fill`で`var(--color-surface)`を使っている。
+  現状`--color-surface: #ffffff`なので見た目は等価だが、意味としては「面の色」を
+  「面の上に乗る文字・線の色」として流用しており、**Phase 8（ダークモード）で面色を
+  暗くすると同時にこれらの文字も暗転して読めなくなる**。Phase 8着手時に
+  `--color-text-inverse`（または`--color-on-primary`等）を新設し、置き換えること。
+- **コンテナ幅テストの検証力**: `FormationListPage.test.ts`/`ComparisonPage.test.ts`の
+  `maxWidth`検証はトークン参照の確認に留まり、トークンの実値（1200px相当であること）は
+  検証していない。Phase 8着手前に、トークンの実値を検証する専用テストの追加を検討する。
+- **`scrollbar-gutter: stable`の既知の限界**: Safari 18.2未満など非対応ブラウザでは、
+  スクロールバー有無によるページ間の左端数pxずれが解消しない。影響は軽微と判断し、
+  今回は対応を見送った。
 
 ## コントラスト比の実測結果
 

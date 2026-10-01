@@ -186,7 +186,9 @@ function formatCellLabel(row: Formation, col: Formation): string {
 
 <style scoped>
 .matrix-page__body {
-  padding: var(--space-lg) var(--space-2xl) var(--space-2xl);
+  max-width: var(--width-wide);
+  margin: 0 auto;
+  padding: var(--space-lg) var(--gutter) var(--gutter);
 }
 
 .matrix-page__legend {
@@ -211,13 +213,13 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__legend-item--row {
-  color: #1d4ed8;
+  color: var(--color-team-a-accent-text);
   background: var(--color-team-a-bg);
   border: 1px solid var(--color-team-a);
 }
 
 .matrix-page__legend-item--col {
-  color: #b91c1c;
+  color: var(--color-team-b-accent-text);
   background: var(--color-team-b-bg);
   border: 1px solid var(--color-team-b);
 }
@@ -301,8 +303,8 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__clear-confirm {
-  border-color: #b91c1c;
-  color: #b91c1c;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .matrix-page__clear-confirm-text {
@@ -328,6 +330,7 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__table {
+  margin: 0 auto;
   border-collapse: separate;
   border-spacing: 6px;
 }
@@ -378,8 +381,14 @@ function formatCellLabel(row: Formation, col: Formation): string {
 }
 
 .matrix-page__cell--unknown {
-  background: repeating-linear-gradient(45deg, #fef3c7, #fef3c7 4px, #fde68a 4px, #fde68a 8px);
-  border: 1px dashed #d97706;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-undefined-bg),
+    var(--color-undefined-bg) 4px,
+    var(--color-undefined-bg-alt) 4px,
+    var(--color-undefined-bg-alt) 8px
+  );
+  border: 1px dashed var(--color-undefined-border);
 }
 
 a.matrix-page__cell:hover {
@@ -393,7 +402,7 @@ a.matrix-page__cell:focus-visible {
 
 @media (max-width: 640px) {
   .matrix-page__body {
-    padding: var(--space-md) var(--space-md) var(--space-xl);
+    padding: var(--space-md) var(--gutter-mobile) var(--space-xl);
   }
 
   .matrix-page__cell {

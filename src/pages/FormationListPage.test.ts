@@ -112,15 +112,21 @@ describe("FormationListPage", () => {
     expect(linkInBody.exists()).toBe(false);
   });
 
-  it("カード一覧のグリッドが広い画面幅を活かせるmax-widthを持つ（最大3列固定を廃止）", () => {
+  it("本文コンテナが広い画面幅を活かせるmax-widthを持つ（最大3列固定を廃止）", () => {
     const wrapper = mount(FormationListPage, {
       attachTo: document.body,
       global: { stubs: { RouterLink: routerLinkStub } },
     });
-    const grid = wrapper.find(".formation-list-page__grid");
+    // UI/UXモダナイゼーションPhase3（レイアウトコンテナの統一）により、max-widthは
+    // grid要素から親の.formation-list-page__bodyへ移動した（AppHeader/PageHeaderと
+    // 左端を揃えるため、ヘッダー同様「外側で中央寄せ」する構造へ統一）。
     // 640px（旧上限。auto-fill+minmax(160px,1fr)では最大3列相当）のままだと
-    // 広い画面でも列数が増えず、8種類のカードが縦に伸び続けてスクロールが増える
-    expect(getComputedStyle(grid.element).maxWidth).toBe("1200px");
+    // 広い画面でも列数が増えず、8種類のカードが縦に伸び続けてスクロールが増える、という
+    // 元のテスト意図は、検証対象をbody要素に変えても同じ条件で検証できる。
+    // jsdomはCSSカスタムプロパティを解決しないため、期待値は「正しいトークン参照を
+    // 使っているか」で検証する（design.md「jsdomのCSS変数非解決によるテスト期待値の更新」参照）
+    const body = wrapper.find(".formation-list-page__body");
+    expect(getComputedStyle(body.element).maxWidth).toBe("var(--width-wide)");
     wrapper.unmount();
   });
 });
