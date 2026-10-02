@@ -13,13 +13,22 @@
 | ルート(FE) | `/compare/:formationAId/:formationBId` |
 | 対応コンポーネント | `ComparisonPage` |
 | 関連API | 該当なし（本プロダクトはバックエンドAPIを持たない） |
-| 関連機能 | FR-03, FR-04, FR-05, FR-06, FR-09, FR-11, FR-13, FR-14, FR-15, FR-18, FR-19 |
+| 関連機能 | FR-03, FR-04, FR-05, FR-06, FR-09, FR-11, FR-13, FR-14, FR-15, FR-18, FR-19, FR-20 |
 
 外部設計（レイアウト・画面項目定義・画面イベント一覧）は
 [`screen-design.md`](../../2_basic-design/screen-design.md)「画面2: 比較画面」を参照。
 本書は以下の実装レベル詳細に限定する。
 
 ## コンポーネント構成
+
+FR-20の表示部品・ファイル配置は `repository-structure.md` のcomponents補足を参照。
+比較ページがsceneを渡し、陣形IDの組み合わせをkeyにして、比較対象変更時に再生成する。
+再生部品はindex（到着状態）、progress（次状態への0〜1の補間率）、isPlaying、
+shouldReduceMotionを持つ。再生は教材のdurationMs（初回2800ms）を基準に経過時間で進め、
+32ms間隔の時計は再生中だけ有効。途中停止時のprogressを保持して再開する。
+go操作は時計を解除し、indexを有効範囲へ制限してprogressを0へ戻す。
+prefers-reduced-motion変更とvisibilitychangeを監視し、unmountで時計と監視を解除する。
+教材型の概念は `functional-overview.md`「解説付き戦術場面再生（FR-20）」を参照。
 
 ```
 ComparisonPage

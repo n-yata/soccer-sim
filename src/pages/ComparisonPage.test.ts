@@ -6,6 +6,7 @@ import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import MatchSimulationPanel from "@/components/MatchSimulationPanel.vue";
 import MatchupPitchDiagram from "@/components/MatchupPitchDiagram.vue";
 import RadarChart from "@/components/RadarChart.vue";
+import TacticalReplay from "@/components/TacticalReplay.vue";
 import { getFormationById } from "@/data/formations";
 import { getMatchup } from "@/data/matchups";
 import { buildPairKey, loadProgress } from "@/data/learningProgress";
@@ -34,6 +35,25 @@ const routerLinkStub = {
 };
 
 describe("ComparisonPage", () => {
+  it("優位ポイントの後から場面教材を開け、陣形切替時に閉じる", async () => {
+    const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
+    try {
+      const lesson = wrapper.findComponent(TacticalReplay);
+      expect(lesson.exists()).toBe(true);
+      expect(wrapper.html().indexOf('class="comparison-page__advantages')).toBeLessThan(
+        wrapper.html().indexOf('class="tactical-replay'),
+      );
+      await lesson.get('[data-testid="replay-open"]').trigger("click");
+      expect(lesson.text()).toContain("共通の戦術例");
+      expect(lesson.get('[data-testid="replay-step"]').text()).toContain("1 / 5");
+      routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('[data-testid="replay-step"]').exists()).toBe(false);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   beforeEach(() => {
     pushMock.mockClear();
     replaceMock.mockClear();
