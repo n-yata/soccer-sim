@@ -1,7 +1,7 @@
 <template>
   <div class="replay-player">
     <p class="replay-player__context">
-      共通の戦術例 · 右サイドの局面を切り出した教材です。選んだ陣形にかかわらず学べます。
+      {{ scene.context ?? "局面を切り出した戦術教材です。" }}
     </p>
     <div class="replay-player__layout">
       <div>
@@ -13,7 +13,7 @@
           :is-at-checkpoint="progress === 0"
         />
         <div class="replay-player__legend">
-          <span>● 青7・2：攻撃</span><span>■ 赤3・4：守備</span><span>○ ボール</span>
+          <span>● 青：学習する陣形</span><span>■ 赤：相手の守備</span><span>○ ボール</span>
         </div>
         <div class="replay-player__legend">
           <span>破線：走る道</span><span>黄色の矢印：パス</span>

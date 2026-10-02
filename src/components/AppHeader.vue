@@ -70,7 +70,11 @@ const route = useRoute();
 const isMenuOpen = ref(false);
 
 function isActive(name: string): "page" | "location" | undefined {
-  if (name === "formation-list" && route.name === "comparison") return "location";
+  if (
+    name === "formation-list" &&
+    (route.name === "comparison" || route.name === "formation-learning")
+  )
+    return "location";
   return route.name === name ? "page" : undefined;
 }
 

@@ -35,20 +35,12 @@ const routerLinkStub = {
 };
 
 describe("ComparisonPage", () => {
-  it("優位ポイントの後から場面教材を開け、陣形切替時に閉じる", async () => {
+  it("比較画面に陣形別の場面教材を置かない", () => {
     const wrapper = mount(ComparisonPage, { global: { stubs: { RouterLink: routerLinkStub } } });
     try {
-      const lesson = wrapper.findComponent(TacticalReplay);
-      expect(lesson.exists()).toBe(true);
-      expect(wrapper.html().indexOf('class="comparison-page__advantages')).toBeLessThan(
-        wrapper.html().indexOf('class="tactical-replay'),
-      );
-      await lesson.get('[data-testid="replay-open"]').trigger("click");
-      expect(lesson.text()).toContain("共通の戦術例");
-      expect(lesson.get('[data-testid="replay-step"]').text()).toContain("1 / 5");
-      routeState.params = { formationAId: "3-5-2", formationBId: "4-4-2" };
-      await wrapper.vm.$nextTick();
-      expect(wrapper.find('[data-testid="replay-step"]').exists()).toBe(false);
+      expect(wrapper.findComponent(TacticalReplay).exists()).toBe(false);
+      expect(wrapper.find('[data-testid="replay-open"]').exists()).toBe(false);
+      expect(wrapper.find(".comparison-page__advantages").exists()).toBe(true);
     } finally {
       wrapper.unmount();
     }

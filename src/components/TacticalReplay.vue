@@ -4,7 +4,9 @@
       <div>
         <p class="tactical-replay__eyebrow">動きで学ぶ戦術</p>
         <h2>{{ scene.title }}</h2>
-        <p>守備者を引きつけると、どこが空く？ 選手とボールの動きで確かめよう。</p>
+        <p>
+          {{ description ?? "守備者を引きつけると、どこが空く？ 選手とボールの動きで確かめよう。" }}
+        </p>
       </div>
       <button
         type="button"
@@ -31,7 +33,7 @@ import AppIcon from "./AppIcon.vue";
 import TacticalReplayPlayer from "./TacticalReplayPlayer.vue";
 import type { TacticalScene } from "@/types/tacticalReplay";
 
-defineProps<{ scene: TacticalScene }>();
+defineProps<{ scene: TacticalScene; description?: string }>();
 
 const isOpen = ref(false);
 const contentId = useId();

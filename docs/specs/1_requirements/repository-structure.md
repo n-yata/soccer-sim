@@ -182,8 +182,8 @@ soccer-sim/
 FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalReplayPlayer.vue`
 （再生状態）、`TacticalReplayPitch.vue`（SVG）に分ける。表示専用の純粋な補間ヘルパーは
 `components/tacticalReplayFrame.ts`、そのテストは隣接配置。教材データは
-`data/tacticalScenes.ts`、共有型は `types/tacticalReplay.ts` に置く。
-静的教材を読み込むのは `pages/ComparisonPage.vue` とし、scene propsで部品へ渡す。
+`data/formationLessons.ts`（陣形別索引）と `data/lessons/`（個別教材）、既存のサイド教材は `data/tacticalScenes.ts`、共有型は `types/tacticalReplay.ts` に置く。
+静的教材を読み込むのは `pages/FormationLearningPage.vue` とし、scene propsで部品へ渡す。
 これにより上記のcomponents依存規約を維持する。
 
 #### composables/

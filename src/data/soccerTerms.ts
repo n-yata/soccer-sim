@@ -1,9 +1,30 @@
 import type { SoccerTerm } from "@/types/formation";
 
 // 収録語は matchups.ts の優位ポイント・総合判定理由、radarAxes.ts の軸説明、
-// formations.ts の説明文に実際に登場する用語から抽出している（推測で追加しない）。
+// formations.ts の説明文・陣形別教材に実際に登場する用語から抽出している（推測で追加しない）。
 // 各説明文は、他のサッカー用語を使わずに書くこと（NFR-02準拠）。
 export const soccerTerms: SoccerTerm[] = [
+  {
+    id: "anchor",
+    term: "アンカー",
+    reading: "あんかー",
+    category: "ポジション",
+    description: "中央の選手たちの後ろで、守りを支えながら味方へのパスの支点になる選手",
+  },
+  {
+    id: "volante",
+    term: "ボランチ",
+    reading: "ぼらんち",
+    category: "ポジション",
+    description: "中央の低い位置で相手の攻撃を止め、味方へボールをつないで攻撃を始める選手",
+  },
+  {
+    id: "behind-striker",
+    term: "トップ下",
+    reading: "とっぷした",
+    category: "ポジション",
+    description: "一番前の攻撃選手の後ろで、パスを受けて攻撃をつなぎ、ゴールを狙う選手",
+  },
   {
     id: "side-back",
     term: "サイドバック",

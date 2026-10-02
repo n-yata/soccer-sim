@@ -4,11 +4,17 @@ import ComparisonPage from "@/pages/ComparisonPage.vue";
 import MatrixPage from "@/pages/MatrixPage.vue";
 import GlossaryPage from "@/pages/GlossaryPage.vue";
 import QuizPage from "@/pages/QuizPage.vue";
+import FormationLearningPage from "@/pages/FormationLearningPage.vue";
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: "/", name: "formation-list", component: FormationListPage },
+    {
+      path: "/formations/:formationId/learn",
+      name: "formation-learning",
+      component: FormationLearningPage,
+    },
     {
       path: "/compare/:formationAId/:formationBId",
       name: "comparison",
