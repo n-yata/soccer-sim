@@ -73,6 +73,8 @@
           </div>
         </div>
 
+        <TacticalReplay :key="`${formationA.id}-${formationB.id}`" :scene="wideOverloadScene" />
+
         <section class="comparison-page__explore" aria-labelledby="comparison-explore-title">
           <h2 id="comparison-explore-title" class="comparison-page__section-heading">
             別の組み合わせ・条件で試す
@@ -194,6 +196,7 @@ import PageHeader from "@/components/PageHeader.vue";
 import RadarChart from "@/components/RadarChart.vue";
 import SquadConditionControls from "@/components/SquadConditionControls.vue";
 import TermAnnotatedText from "@/components/TermAnnotatedText.vue";
+import TacticalReplay from "@/components/TacticalReplay.vue";
 import { startMatch, resumeMatch, type MatchProgress } from "@/composables/matchSimulation";
 import { applySquadVariance } from "@/composables/squadCondition";
 import { formations, getFormationById } from "@/data/formations";
@@ -208,6 +211,7 @@ import {
   savePositionOverride,
 } from "@/data/freeLayoutStorage";
 import { radarAxes } from "@/data/radarAxes";
+import { wideOverloadScene } from "@/data/tacticalScenes";
 import type { Formation, MatchSimulationResult, Position } from "@/types/formation";
 
 const route = useRoute();

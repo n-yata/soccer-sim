@@ -179,6 +179,13 @@ soccer-sim/
   「コンポーネントはpropsを経由してデータを受け取る」という原則を破らない
   （`quiz.ts`はpages層で呼び出し、結果をpropsで渡すため、コンポーネントからは呼ばない）
 
+FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalReplayPlayer.vue`
+（再生状態）、`TacticalReplayPitch.vue`（SVG）に分ける。表示専用の純粋な補間ヘルパーは
+`components/tacticalReplayFrame.ts`、そのテストは隣接配置。教材データは
+`data/tacticalScenes.ts`、共有型は `types/tacticalReplay.ts` に置く。
+静的教材を読み込むのは `pages/ComparisonPage.vue` とし、scene propsで部品へ渡す。
+これにより上記のcomponents依存規約を維持する。
+
 #### composables/
 
 **役割**: UIレイヤーとデータレイヤーの間に置く計算ロジック層（`architecture-overview.md`
