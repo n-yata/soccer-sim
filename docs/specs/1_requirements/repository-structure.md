@@ -24,9 +24,12 @@ soccer-sim/
 │   ├── main.ts                  # エントリーポイント
 │   ├── App.vue                  # ルートコンポーネント
 │   ├── router/
-│   │   └── index.ts             # Vue Router 定義（一覧・比較・相性マトリクス・用語集・クイズ画面のルート）
+│   │   └── index.ts             # Vue Router 定義（画面一覧はfunctional-overview.mdを参照）
 │   ├── pages/
 │   │   ├── FormationListPage.vue  # フォーメーション一覧画面
+│   │   ├── LearningListPage.vue   # 戦術学習一覧画面
+│   │   ├── FormationLearningPage.vue # 陣形別の学習画面
+│   │   ├── FreeLayoutBoardPage.vue # 独立自由配置ボード
 │   │   ├── ComparisonPage.vue     # 比較画面
 │   │   ├── MatrixPage.vue         # 相性マトリクス画面
 │   │   ├── GlossaryPage.vue       # サッカー用語集画面
@@ -49,7 +52,8 @@ soccer-sim/
 │   │   ├── soccerTerms.ts       # サッカー用語定義（静的データ）
 │   │   ├── termAnnotation.ts    # 解説文を「平文/用語」へ切り出す純粋関数（副作用なし）
 │   │   ├── quiz.ts              # フォーメーション・マッチアップからクイズ設問を生成する純粋関数（副作用なし）
-│   │   └── learningProgress.ts  # 学習進捗の読み書き（`localStorage`。副作用を持つ唯一のdata/モジュール）
+│   │   ├── freeLayoutStorage.ts # ボード配置の検証・保存
+│   │   └── learningProgress.ts  # 学習進捗の読み書き（`localStorage`）
 │   ├── types/
 │   │   └── formation.ts         # Formation・Position・Matchup・SoccerTerm・QuizQuestion・LearningProgress 等の型定義
 │   ├── styles/
@@ -79,6 +83,9 @@ soccer-sim/
 
 **配置ファイル**:
 - `FormationListPage.vue`: フォーメーション一覧表示・比較対象の選択（FR-01, FR-02, FR-08）
+- `LearningListPage.vue`: 陣形・教材から学習用カードを表示する入口（FR-20）
+- `FormationLearningPage.vue`: 陣形別教材の表示（FR-20）
+- `FreeLayoutBoardPage.vue`: チーム別の自由配置・復元・リセット（FR-21）。ピッチ操作は `FreeLayoutPitchDiagram.vue`、座標変換は `freeLayoutCoordinates.ts`、保存は `freeLayoutStorage.ts` を使用する。
 - `ComparisonPage.vue`: ピッチ図重ね合わせ表示・優位ポイント表示（用語インライン表示付き）・
   A/B入れ替え・切替・学習進捗の記録
   （FR-03, FR-04, FR-09, FR-11, FR-13）

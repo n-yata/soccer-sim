@@ -1,6 +1,6 @@
 <template>
   <main class="formation-learning-page">
-    <router-link to="/" class="formation-learning-page__back">← フォーメーション一覧へ</router-link>
+    <router-link to="/learn" class="formation-learning-page__back">← 学習一覧へ</router-link>
     <template v-if="formation && lesson">
       <PageHeader
         :title="`${formation.name}を学ぶ`"

@@ -128,3 +128,6 @@ export type Shuffle = <T>(items: readonly T[]) => T[];
 export interface LearningProgress {
   viewedPairs: string[];
 }
+
+// 独立ボードの保存座標。保存対象ID単位にポジションを保持する。
+export type FreeLayoutOverrides = Record<string, Record<string, { x: number; y: number }>>;

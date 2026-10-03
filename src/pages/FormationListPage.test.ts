@@ -37,25 +37,6 @@ function findCard(wrapper: ReturnType<typeof mount>, id: string) {
 }
 
 describe("FormationListPage", () => {
-  it("全陣形の学習リンクを比較選択と独立して表示する", async () => {
-    const wrapper = mountPage();
-    try {
-      const links = wrapper.findAll(".formation-list-page__learn");
-      expect(links).toHaveLength(realFormations.length);
-      for (const formation of realFormations) {
-        const link = wrapper.get(`a[href="/formations/${formation.id}/learn"]`);
-        expect(link.attributes("aria-label")).toBe(`${formation.name}を学ぶ`);
-        expect(findCard(wrapper, formation.id)?.find("a").exists()).toBe(false);
-        await link.trigger("click");
-      }
-      expect(
-        wrapper.findAllComponents(FormationCard).every((card) => !card.props("selected")),
-      ).toBe(true);
-      expect(pushMock).not.toHaveBeenCalled();
-    } finally {
-      wrapper.unmount();
-    }
-  });
   beforeEach(() => {
     vi.stubEnv("VITE_JLEAGUE_URL", "https://example.com/fixtures/");
     pushMock.mockClear();
@@ -64,6 +45,12 @@ describe("FormationListPage", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+  it("比較一覧に教材リンクを混在させない", () => {
+    const wrapper = mountPage();
+    expect(wrapper.findAll(".formation-list-page__learn")).toHaveLength(0);
+    expect(wrapper.findAllComponents(FormationCard)).toHaveLength(realFormations.length);
+    wrapper.unmount();
   });
 
   it("マウント時にformationsと同数のFormationCardが描画され、すべてselected=falseである", () => {

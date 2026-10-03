@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import { createMemoryHistory, createRouter } from "vue-router";
 import FormationLearningPage from "./FormationLearningPage.vue";
 import FormationListPage from "./FormationListPage.vue";
+import LearningListPage from "./LearningListPage.vue";
 import { formations } from "@/data/formations";
 import { getFormationLesson } from "@/data/formationLessons";
 
@@ -14,6 +15,7 @@ async function open(id: string) {
     history: createMemoryHistory(),
     routes: [
       { path: "/", component: FormationListPage },
+      { path: "/learn", component: LearningListPage },
       { path: "/formations/:formationId/learn", component: FormationLearningPage },
     ],
   });
@@ -72,21 +74,10 @@ describe("陣形学習画面", () => {
     }
   });
 
-  it("一覧の学習リンクが実ルーターで遷移し、比較の選択を増やさない", async () => {
-    const { router } = await open("4-4-2");
-    await router.push("/");
-    const wrapper = mount(FormationListPage, { global: { plugins: [router] } });
-    wrappers.push(wrapper);
-    await wrapper.get('a[href="/formations/3-4-3/learn"]').trigger("click");
-    await flushPromises();
-    expect(router.currentRoute.value.path).toBe("/formations/3-4-3/learn");
-    expect(wrapper.find('[aria-pressed="true"]').exists()).toBe(false);
-  });
-
   it("不明IDを案内し、一覧へ戻れる", async () => {
     const { wrapper } = await open("unknown");
     expect(wrapper.get('[role="alert"]').text()).toContain("見つかりません");
-    expect(wrapper.get('a[href="/"]').text()).toContain("一覧へ");
+    expect(wrapper.get('a[href="/learn"]').text()).toContain("一覧へ");
     expect(wrapper.find('[data-testid="replay-open"]').exists()).toBe(false);
   });
 });

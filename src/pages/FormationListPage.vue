@@ -2,7 +2,7 @@
   <div class="formation-list-page">
     <PageHeader
       title="フォーメーションラボ"
-      subtitle="陣形ごとの動きを学び、2つのフォーメーションがどう噛み合うかを比較する"
+      subtitle="2つのフォーメーションがどう噛み合うかを、ピッチ図と解説で比較する"
       variant="hero"
     >
       <template #title-icon>
@@ -22,27 +22,19 @@
     <div class="formation-list-page__body">
       <div class="formation-list-page__section-intro">
         <span class="formation-list-page__eyebrow">STEP 1</span>
-        <h2 class="formation-list-page__section-title">陣形を学ぶ・2つを比べる</h2>
-        <p>「この陣形を学ぶ」で場面再生へ。比較するときはカードを2つ選ぼう。</p>
+        <h2 class="formation-list-page__section-title">比較したい2つを選ぶ</h2>
         <p class="formation-list-page__selection-status" role="status" aria-live="polite">
           {{ selectionStatus }}
         </p>
       </div>
       <div class="formation-list-page__grid">
-        <div v-for="formation in formations" :key="formation.id" class="formation-list-page__item">
-          <FormationCard
-            :formation="formation"
-            :selected="selectedIds.includes(formation.id)"
-            @select="toggleSelection"
-          />
-          <router-link
-            :to="`/formations/${formation.id}/learn`"
-            class="formation-list-page__learn"
-            :aria-label="`${formation.name}を学ぶ`"
-          >
-            この陣形を学ぶ →
-          </router-link>
-        </div>
+        <FormationCard
+          v-for="formation in formations"
+          :key="formation.id"
+          :formation="formation"
+          :selected="selectedIds.includes(formation.id)"
+          @select="toggleSelection"
+        />
       </div>
       <p class="formation-list-page__footer">2つ選択すると自動的に比較画面へ遷移します</p>
     </div>
@@ -107,31 +99,6 @@ watch(
 </script>
 
 <style scoped>
-.formation-list-page__item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  min-width: 0;
-}
-.formation-list-page__item :deep(.formation-card) {
-  flex: 1;
-}
-.formation-list-page__learn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 44px;
-  color: var(--color-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font-size: var(--font-sm);
-  text-decoration: none;
-}
-.formation-list-page__learn:focus-visible {
-  outline: 3px solid var(--color-text);
-  outline-offset: 3px;
-}
 .formation-list-page__jleague-link {
   /* 外部サイトへの遷移であることを、他の内部導線と区別できるよう破線枠にする */
   display: inline-flex;

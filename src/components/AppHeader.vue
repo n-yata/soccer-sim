@@ -30,12 +30,28 @@
           フォーメーションを選ぶ
         </router-link>
         <router-link
+          to="/learn"
+          class="app-header__link"
+          :aria-current="isActive('learning-list')"
+          @click="closeMenu"
+        >
+          戦術を学ぶ
+        </router-link>
+        <router-link
           to="/matrix"
           class="app-header__link"
           :aria-current="isActive('matrix')"
           @click="closeMenu"
         >
           相性表
+        </router-link>
+        <router-link
+          to="/board"
+          class="app-header__link"
+          :aria-current="isActive('free-layout-board')"
+          @click="closeMenu"
+        >
+          自由配置ボード
         </router-link>
         <router-link
           to="/quiz"
@@ -70,11 +86,8 @@ const route = useRoute();
 const isMenuOpen = ref(false);
 
 function isActive(name: string): "page" | "location" | undefined {
-  if (
-    name === "formation-list" &&
-    (route.name === "comparison" || route.name === "formation-learning")
-  )
-    return "location";
+  if (name === "formation-list" && route.name === "comparison") return "location";
+  if (name === "learning-list" && route.name === "formation-learning") return "location";
   return route.name === name ? "page" : undefined;
 }
 
