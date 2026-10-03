@@ -38,6 +38,14 @@
           相性表
         </router-link>
         <router-link
+          to="/board"
+          class="app-header__link"
+          :aria-current="isActive('free-layout-board')"
+          @click="closeMenu"
+        >
+          自由配置ボード
+        </router-link>
+        <router-link
           to="/quiz"
           class="app-header__link"
           :aria-current="isActive('quiz')"

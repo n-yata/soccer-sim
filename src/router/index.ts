@@ -4,6 +4,7 @@ import ComparisonPage from "@/pages/ComparisonPage.vue";
 import MatrixPage from "@/pages/MatrixPage.vue";
 import GlossaryPage from "@/pages/GlossaryPage.vue";
 import QuizPage from "@/pages/QuizPage.vue";
+import FreeLayoutBoardPage from "@/pages/FreeLayoutBoardPage.vue";
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,5 +18,6 @@ export const router = createRouter({
     { path: "/matrix", name: "matrix", component: MatrixPage },
     { path: "/glossary", name: "glossary", component: GlossaryPage },
     { path: "/quiz", name: "quiz", component: QuizPage },
+    { path: "/board", name: "free-layout-board", component: FreeLayoutBoardPage },
   ],
 });

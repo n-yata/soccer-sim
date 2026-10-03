@@ -61,9 +61,9 @@ function parseOverrides(raw: string | null): FreeLayoutOverrides {
  * localStorage が使えない環境（プライベートモード・無効化）ではアクセス自体が
  * 例外を投げることがあるため、握って空として扱う（復元できないだけで画面は壊さない）。
  */
-function loadOverrides(): FreeLayoutOverrides {
+function loadOverrides(storageKey: string): FreeLayoutOverrides {
   try {
-    return parseOverrides(window.localStorage.getItem(STORAGE_KEY));
+    return parseOverrides(window.localStorage.getItem(storageKey));
   } catch {
     return EMPTY;
   }
@@ -72,9 +72,9 @@ function loadOverrides(): FreeLayoutOverrides {
 /**
  * オーバーライドを保存する。容量超過などで失敗しても例外を外に出さない。
  */
-function saveOverrides(overrides: FreeLayoutOverrides): void {
+function saveOverrides(overrides: FreeLayoutOverrides, storageKey: string): void {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
+    window.localStorage.setItem(storageKey, JSON.stringify(overrides));
   } catch {
     // 保存できなくても、その場の画面操作は成立させる（永続化だけが効かない）
   }
@@ -85,8 +85,12 @@ function saveOverrides(overrides: FreeLayoutOverrides): void {
  * 保存が無いポジション、保存データに含まれないポジションIDはcanonicalな値のまま残る
  * （フォーメーションのポジション構成が将来変わっても、対応するIDが無いだけで安全に無視される）。
  */
-export function applyOverrides(positions: Position[], formationId: string): Position[] {
-  const overrides = loadOverrides()[formationId];
+export function applyOverrides(
+  positions: Position[],
+  formationId: string,
+  storageKey = STORAGE_KEY,
+): Position[] {
+  const overrides = loadOverrides(storageKey)[formationId];
   if (!overrides) return positions.map((position) => ({ ...position }));
 
   return positions.map((position) => {
@@ -105,23 +109,27 @@ export function savePositionOverride(
   positionId: string,
   x: number,
   y: number,
+  storageKey = STORAGE_KEY,
 ): void {
-  const overrides = loadOverrides();
+  const overrides = loadOverrides(storageKey);
   const forFormation = overrides[formationId] ?? {};
-  saveOverrides({
-    ...overrides,
-    [formationId]: {
-      ...forFormation,
-      [positionId]: { x: clampToPitchRange(x), y: clampToPitchRange(y) },
+  saveOverrides(
+    {
+      ...overrides,
+      [formationId]: {
+        ...forFormation,
+        [positionId]: { x: clampToPitchRange(x), y: clampToPitchRange(y) },
+      },
     },
-  });
+    storageKey,
+  );
 }
 
 /** 指定フォーメーションの保存済みオーバーライドを消去する（他フォーメーションには影響しない） */
-export function clearFormationOverride(formationId: string): void {
-  const overrides = loadOverrides();
+export function clearFormationOverride(formationId: string, storageKey = STORAGE_KEY): void {
+  const overrides = loadOverrides(storageKey);
   if (!(formationId in overrides)) return;
   const next = { ...overrides };
   delete next[formationId];
-  saveOverrides(next);
+  saveOverrides(next, storageKey);
 }

@@ -9,7 +9,7 @@ vi.mock("vue-router", () => ({
 
 const routerLinkStub = {
   props: ["to"],
-  template: "<a :href=\"typeof to === 'string' ? to : to.path\"><slot /></a>",
+  template: "<a @click.prevent :href=\"typeof to === 'string' ? to : to.path\"><slot /></a>",
 };
 
 function mountHeader() {
@@ -19,6 +19,16 @@ function mountHeader() {
 }
 
 describe("AppHeader", () => {
+  it("自由配置ボードを独立項目として表示し、選択するとメニューを閉じる", async () => {
+    routeState.name = "free-layout-board";
+    const wrapper = mountHeader();
+    await wrapper.find("button").trigger("click");
+    const link = wrapper.find("a[href='/board']");
+    expect(link.text()).toBe("自由配置ボード");
+    expect(link.attributes("aria-current")).toBe("page");
+    await link.trigger("click");
+    expect(wrapper.find("button").attributes("aria-expanded")).toBe("false");
+  });
   beforeEach(() => {
     routeState.name = "formation-list";
   });
