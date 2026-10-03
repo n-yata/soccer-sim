@@ -1,6 +1,9 @@
 <template>
   <main class="board-page">
-    <PageHeader title="自由配置ボード" subtitle="選手を動かして、自由に配置を試してみよう" />
+    <PageHeader
+      title="自由配置ボード"
+      subtitle="選手とボールを動かして、自由に配置を試してみよう"
+    />
     <div class="board-page__body">
       <div class="board-page__controls">
         <section
@@ -33,8 +36,13 @@
           </button>
         </section>
       </div>
+      <div class="board-page__ball-controls">
+        <button type="button" data-testid="reset-ball" @click="resetBall">
+          ボールを中央に戻す
+        </button>
+      </div>
       <p id="board-instructions" class="board-page__instructions">
-        両チームの選手をドラッグで動かせます。Tabで選手を選び、矢印キーでも移動できます。
+        両チームの選手とボールをドラッグで動かせます。Tabで選び、矢印キーでも移動できます。
         配置はこの端末に保存されます。
       </p>
       <div class="board-page__pitch" aria-describedby="board-instructions">
@@ -44,6 +52,12 @@
           :formation-b="board.B"
           @update-position="updatePosition"
           @update-position-end="savePosition"
+        />
+        <BoardBall
+          :key="ballRevision"
+          :position="ballPosition"
+          @update-position="ballPosition = $event"
+          @update-position-end="saveBoardBallPosition"
         />
       </div>
       <div class="board-page__directions">
@@ -58,6 +72,12 @@
 import { reactive, ref } from "vue";
 import PageHeader from "@/components/PageHeader.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
+import BoardBall from "@/components/BoardBall.vue";
+import {
+  BOARD_BALL_CENTER,
+  loadBoardBallPosition,
+  saveBoardBallPosition,
+} from "@/data/boardBallStorage";
 import { formations } from "@/data/formations";
 import {
   applyOverrides,
@@ -87,6 +107,15 @@ const board = reactive<Record<Team, Formation>>({
   B: restoreFormation("B", formations[1] ?? formations[0]),
 });
 const pitchRevision = ref(0);
+const ballPosition = ref(loadBoardBallPosition());
+const ballRevision = ref(0);
+
+function resetBall(): void {
+  // ボールの操作状態だけを破棄し、リセット前の確定イベントが後から保存されるのを防ぐ。
+  ballRevision.value++;
+  ballPosition.value = { ...BOARD_BALL_CENTER };
+  saveBoardBallPosition(ballPosition.value);
+}
 
 function teamLabel(team: Team): string {
   return team === "A" ? "青チーム" : "赤チーム";
@@ -159,7 +188,8 @@ function savePosition(team: Team, positionId: string, x: number, y: number): voi
 }
 
 .board-page__team select,
-.board-page__team button {
+.board-page__team button,
+.board-page__ball-controls button {
   min-height: 44px;
   padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--color-border-strong);
@@ -183,8 +213,15 @@ function savePosition(team: Team, positionId: string, x: number, y: number): voi
   margin: var(--space-lg) 0;
 }
 .board-page__pitch {
+  position: relative;
   max-width: 960px;
   margin: 0 auto;
+}
+.board-page__pitch :deep(.free-layout-pitch) {
+  display: block;
+}
+.board-page__ball-controls {
+  margin-top: var(--space-md);
 }
 .board-page__directions {
   display: flex;
