@@ -14,6 +14,7 @@ export interface ReplayPlayer {
   label: string;
   number: number;
   team: "attack" | "defence";
+  formationPositionId?: string;
 }
 export interface ReplayRoute {
   from: ReplayPoint;
@@ -35,4 +36,13 @@ export interface TacticalScene {
   durationMs: number;
   players: ReplayPlayer[];
   steps: ReplayStep[];
+  context?: string;
+  areaLabel?: string;
+}
+
+export interface FormationLesson {
+  formationId: string;
+  objective: string;
+  caution: string;
+  scene: TacticalScene;
 }

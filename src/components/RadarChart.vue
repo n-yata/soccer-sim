@@ -118,8 +118,7 @@ const chartLabel = computed(
     props.series
       .map(
         (s) =>
-          `${s.label}は` +
-          props.axes.map((axis) => `${axis.label}${s.values[axis.id]}`).join("、"),
+          `${s.label}は` + props.axes.map((axis) => `${axis.label}${s.values[axis.id]}`).join("、"),
       )
       .join(" / "),
 );
@@ -149,9 +148,7 @@ const seriesPolygons = computed(() =>
     const vertices = props.axes.map((axis, index) => {
       // maxValueが0以下の場合、除算がNaNになりSVG座標が壊れるため0(中心)として扱う
       const ratio =
-        props.maxValue > 0
-          ? Math.max(0, Math.min(1, s.values[axis.id] / props.maxValue))
-          : 0;
+        props.maxValue > 0 ? Math.max(0, Math.min(1, s.values[axis.id] / props.maxValue)) : 0;
       const point = pointOnAxis(index, props.axes.length, radius * ratio);
       return { axisId: axis.id, x: point.x, y: point.y };
     });
@@ -190,11 +187,7 @@ function prefersReducedMotion(): boolean {
 }
 
 const RADAR_TRANSITION_MS = 300;
-// 自由配置モードのドラッグ中はpointermoveのたびにseriesPolygonsが再計算される
-// （FreeLayoutPitchDiagram.vue「1ドラッグで数十〜数百回」）。そのたびに300msの
-// 補間をゼロからやり直すと、常に目標値より遅れ続ける「追従負け」が起きる。
-// 直前の変化からこの時間未満で次の変化が来た場合は連続変化とみなし、補間せず
-// 即座に反映することで、ドラッグ中は指の動きにそのまま追従させる
+// 陣形を素早く切り替えるときは補間を何度もやり直さず、最新の値を即座に表示する。
 const RAPID_CHANGE_THRESHOLD_MS = 120;
 const displaySeries = ref<DisplaySeries[]>(cloneSeries(seriesPolygons.value));
 let rafId: number | null = null;
@@ -214,8 +207,7 @@ watch(seriesPolygons, (next) => {
     );
 
   const now = performance.now();
-  const isRapidChange =
-    lastChangeAt !== null && now - lastChangeAt < RAPID_CHANGE_THRESHOLD_MS;
+  const isRapidChange = lastChangeAt !== null && now - lastChangeAt < RAPID_CHANGE_THRESHOLD_MS;
   lastChangeAt = now;
 
   if (prefersReducedMotion() || !shapeMatches || isRapidChange) {

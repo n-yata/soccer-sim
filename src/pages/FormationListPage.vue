@@ -2,7 +2,7 @@
   <div class="formation-list-page">
     <PageHeader
       title="フォーメーションラボ"
-      subtitle="2つのフォーメーションがどう噛み合うかを、ピッチ図とレーダーチャートで一目にする"
+      subtitle="2つのフォーメーションがどう噛み合うかを、ピッチ図と解説で比較する"
       variant="hero"
     >
       <template #title-icon>

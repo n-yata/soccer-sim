@@ -97,8 +97,7 @@ export interface SoccerTerm {
 // 文字列ではなく構造として返すことで、描画側は v-html を使わずに済む
 // （用語データにHTMLが混入しても描画されない＝XSSの経路を作らない）
 export type TextSegment =
-  | { kind: "plain"; text: string }
-  | { kind: "term"; text: string; term: SoccerTerm };
+  { kind: "plain"; text: string } | { kind: "term"; text: string; term: SoccerTerm };
 
 // FR-12: クイズの選択肢。correct は1問につき必ず1つだけ true になる
 export interface QuizChoice {
@@ -130,39 +129,5 @@ export interface LearningProgress {
   viewedPairs: string[];
 }
 
-// FR-14: 試合シミュレーションの1イベント種別。
-// "chance"=枠を外れた/防がれた攻撃機会、"shot"=枠内シュート（ゴールにならなかったもの）、
-// "goal"=得点。3種類とも composables/matchSimulation.ts の段階的な確率判定に対応する
-export type MatchEventKind = "chance" | "shot" | "goal";
-
-export interface MatchEvent {
-  // 1-90（分）。同一分に複数のイベントが同時に発生することは無い設計のため、
-  // timeline内では単調非減少（実質は昇順）になる
-  minute: number;
-  team: "A" | "B";
-  kind: MatchEventKind;
-  // 平易な日本語の一文（分は含まない。分はminuteフィールド側で表現し、表示側が
-  // 「{minute}分: {text}」の形で組み立てる。例:「4-2-3-1が追加点を挙げる」）
-  text: string;
-}
-
-// FR-14: composables/matchSimulation.ts の simulateMatch が返す試合結果。
-// a/bは呼び出し時に渡した formationA/formationB にそのまま対応する
-// （getMatchup と同様、呼び出し側は「戻り値のa = 呼び出し時のformationA」を前提にできる）
-export interface MatchSimulationResult {
-  // %。a + b は常に100（bをaの補数として算出するため丸め誤差でも保証される）
-  possession: { a: number; b: number };
-  shots: { a: number; b: number };
-  // shotsOnTarget <= shots を常に満たす
-  shotsOnTarget: { a: number; b: number };
-  // score(=ゴール数) <= shotsOnTarget を常に満たす
-  score: { a: number; b: number };
-  // 分昇順のイベント一覧
-  timeline: MatchEvent[];
-  // 試合結果を要約する平易な日本語の一文（NFR-02準拠）
-  summary: string;
-}
-
-// FR-15: 自由配置モードでドラッグした配置の永続化（data/freeLayoutStorage.ts）。
-// フォーメーションID単位で保存し、組み合わせ（相手フォーメーション）には依存しない
+// 独立ボードの保存座標。保存対象ID単位にポジションを保持する。
 export type FreeLayoutOverrides = Record<string, Record<string, { x: number; y: number }>>;

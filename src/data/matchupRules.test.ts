@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { matchupRules } from "./matchupRules";
-import { soccerTerms } from "./soccerTerms";
-
-const allRuleText = matchupRules.flatMap((rule) => [...rule.advantages, rule.reason]).join("\n");
 
 describe("matchupRules", () => {
   // ある用語を1つのルールだけが運んでいる場合、そのルールの言い回しは
@@ -26,16 +23,8 @@ describe("matchupRules", () => {
     expect(missing, `${ruleId} の言い回しに「${term}」を含まないものがある`).toEqual([]);
   });
 
-  // 用語集は「実際の文言に登場する語のみを収録する」という不変条件を持ち、
-  // soccerTerms.test.ts が生成後のマッチアップ文言に対してそれを検証している。
-  // ここではその手前のルール表の段階で落とすことで、「どのルールに用語を足せばよいか」を
-  // 特定しやすくする（生成後に落ちると、どの組み合わせで語彙が欠けたのか追いにくい）。
-  it("ルール表の文言に、用語集の全用語が登場する", () => {
-    const missing = soccerTerms
-      .map((term) => term.term)
-      .filter((term) => !allRuleText.includes(term));
-    expect(missing).toEqual([]);
-  });
+  // 用語集には陣形別教材の語も収録されるため、全語が比較ルールにあるとは限らない。
+  // 実文言への登場は soccerTerms.test.ts、ルール固有語の維持は上の表で検査する。
 
   it("ルールIDが一意である", () => {
     const ids = matchupRules.map((rule) => rule.id);

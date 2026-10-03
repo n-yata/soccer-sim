@@ -23,7 +23,7 @@ const { default: FormationCard } = await import("@/components/FormationCard.vue"
 
 const routerLinkStub = {
   props: ["to"],
-  template: '<a :href="to"><slot /></a>',
+  template: '<a :href="to" @click.prevent><slot /></a>',
 };
 
 function mountPage() {
@@ -45,6 +45,12 @@ describe("FormationListPage", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+  it("比較一覧に教材リンクを混在させない", () => {
+    const wrapper = mountPage();
+    expect(wrapper.findAll(".formation-list-page__learn")).toHaveLength(0);
+    expect(wrapper.findAllComponents(FormationCard)).toHaveLength(realFormations.length);
+    wrapper.unmount();
   });
 
   it("マウント時にformationsと同数のFormationCardが描画され、すべてselected=falseである", () => {

@@ -30,6 +30,14 @@
           フォーメーションを選ぶ
         </router-link>
         <router-link
+          to="/learn"
+          class="app-header__link"
+          :aria-current="isActive('learning-list')"
+          @click="closeMenu"
+        >
+          戦術を学ぶ
+        </router-link>
+        <router-link
           to="/matrix"
           class="app-header__link"
           :aria-current="isActive('matrix')"
@@ -79,6 +87,7 @@ const isMenuOpen = ref(false);
 
 function isActive(name: string): "page" | "location" | undefined {
   if (name === "formation-list" && route.name === "comparison") return "location";
+  if (name === "learning-list" && route.name === "formation-learning") return "location";
   return route.name === name ? "page" : undefined;
 }
 

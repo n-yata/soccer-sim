@@ -40,7 +40,9 @@
     />
     <path d="M 290 73 H 297 V 93 H 290" class="replay-pitch__line" />
     <text x="20" y="28" class="replay-pitch__direction">攻撃方向 →</text>
-    <text x="20" y="44" class="replay-pitch__caption">右サイドの局面</text>
+    <text x="20" y="44" class="replay-pitch__caption">
+      {{ scene.areaLabel ?? "局面の切り出し" }}
+    </text>
     <g v-if="!isMoving && isAtCheckpoint && step.space">
       <rect
         :x="step.space.x"

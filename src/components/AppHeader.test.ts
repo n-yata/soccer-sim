@@ -19,6 +19,27 @@ function mountHeader() {
 }
 
 describe("AppHeader", () => {
+  it.each(["learning-list", "formation-learning"])(
+    "%sでは学習メニューを現在地として示し、クリックで閉じる",
+    async (routeName) => {
+      routeState.name = routeName;
+      const wrapper = mountHeader();
+      try {
+        await wrapper.get("button").trigger("click");
+        const link = wrapper.get('a[href="/learn"]');
+        expect(link.text()).toBe("戦術を学ぶ");
+        expect(link.attributes("aria-current")).toBe(
+          routeName === "learning-list" ? "page" : "location",
+        );
+        expect(wrapper.get('a[href="/"]').attributes("aria-current")).toBeUndefined();
+        await link.trigger("click");
+        expect(wrapper.get("button").attributes("aria-expanded")).toBe("false");
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
+
   it("自由配置ボードを独立項目として表示し、選択するとメニューを閉じる", async () => {
     routeState.name = "free-layout-board";
     const wrapper = mountHeader();
