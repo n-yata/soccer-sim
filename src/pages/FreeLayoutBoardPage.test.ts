@@ -11,6 +11,43 @@ function mountBoard() {
 }
 
 describe("自由配置ボード", () => {
+  it("ボールを操作・保存でき、陣形変更やチームリセットから独立する", async () => {
+    const wrapper = mountBoard();
+    const ball = wrapper.find("[aria-label='ボール。矢印キーで移動できます']");
+    const playerX = wrapper.find("circle.blue").attributes("cx");
+    await ball.trigger("keydown", { key: "ArrowRight" });
+    expect(ball.attributes("transform")).toBe("translate(136 80)");
+    expect(wrapper.find("circle.blue").attributes("cx")).toBe(playerX);
+    await ball.trigger("keyup", { key: "ArrowRight" });
+    await wrapper.find("#board-formation-a").setValue(formations[1].id);
+    await wrapper.find("[data-testid='reset-a']").trigger("click");
+    expect(ball.attributes("transform")).toBe("translate(136 80)");
+    wrapper.unmount();
+    const restored = mountBoard();
+    expect(
+      restored.find("[aria-label='ボール。矢印キーで移動できます']").attributes("transform"),
+    ).toBe("translate(136 80)");
+    await restored.find("[data-testid='reset-ball']").trigger("click");
+    restored.unmount();
+    expect(
+      mountBoard().find("[aria-label='ボール。矢印キーで移動できます']").attributes("transform"),
+    ).toBe("translate(130 80)");
+  });
+
+  it("ボールの操作途中で中央に戻しても古い位置を再保存しない", async () => {
+    const wrapper = mountBoard();
+    await wrapper
+      .find("[aria-label='ボール。矢印キーで移動できます']")
+      .trigger("keydown", { key: "ArrowRight" });
+    await wrapper.find("[data-testid='reset-ball']").trigger("click");
+    await wrapper
+      .find("[aria-label='ボール。矢印キーで移動できます']")
+      .trigger("keyup", { key: "ArrowRight" });
+    wrapper.unmount();
+    expect(
+      mountBoard().find("[aria-label='ボール。矢印キーで移動できます']").attributes("transform"),
+    ).toBe("translate(130 80)");
+  });
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
 
