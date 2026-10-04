@@ -26,6 +26,9 @@
             :label="`${formation.name}の全11人の基本配置。攻撃方向は上。`"
           />
           <p>全体の基本配置 · 攻撃方向 ↑</p>
+          <router-link :to="boardLink" class="formation-learning-page__board-link">
+            この陣形をボードで試す →
+          </router-link>
         </div>
         <div>
           <h2 id="formation-learning-overview">この陣形で学ぶこと</h2>
@@ -56,6 +59,11 @@
         </p>
       </section>
       <TacticalReplay :key="formation.id" :scene="lesson.scene" :description="lesson.objective" />
+      <p class="formation-learning-page__board-cta">
+        <router-link :to="boardLink" class="formation-learning-page__board-link">
+          この陣形をボードで試す →
+        </router-link>
+      </p>
       <details class="formation-learning-page__terms">
         <summary>この教材の用語を確認する</summary>
         <dl>
@@ -90,6 +98,8 @@ const formationId = computed(() =>
 );
 const formation = computed(() => getFormationById(formationId.value));
 const lesson = computed(() => getFormationLesson(formationId.value));
+// 学んだ陣形をそのまま自分で動かせるよう、ボードを青チームにこの陣形を選んだ状態で開く。
+const boardLink = computed(() => ({ path: "/board", query: { blue: formationId.value } }));
 const lessonTerms = computed(() => {
   if (!lesson.value) return [];
   const text = [
@@ -125,6 +135,15 @@ const lessonTerms = computed(() => {
   margin: var(--space-xs) 0 var(--space-md);
   line-height: var(--leading-normal);
   color: var(--color-text-sub);
+}
+.formation-learning-page__board-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-primary);
+}
+.formation-learning-page__board-cta {
+  margin: var(--space-md) 0 0;
 }
 .formation-learning-page__terms a {
   display: inline-flex;

@@ -26,11 +26,12 @@ FormationLearningPage
 ├── 「← 学習一覧へ」リンク（router-link。教材の有無にかかわらず表示）
 ├── PageHeader（タイトル・サブタイトル。戻るボタンなし）
 ├── 陣形切替ナビ（router-link × 陣形数）
-├── 概要（FormationMiniPitch ＋ この陣形で学ぶこと）
+├── 概要（FormationMiniPitch ＋「この陣形をボードで試す →」 ＋ この陣形で学ぶこと）
 ├── 場面に登場する役割（攻撃側選手の一覧）
 ├── TacticalReplay（key = 陣形ID）
 │   └── TacticalReplayPlayer（開いているときだけ描画）
 │       └── TacticalReplayPitch
+├── 「この陣形をボードで試す →」（router-link）
 └── 用語説明（details。用語集へのリンクを含む）
 ```
 
@@ -51,6 +52,7 @@ FormationLearningPage
 | `formation` | `getFormationById(formationId)` |
 | `lesson` | `getFormationLesson(formationId)` |
 | `lessonTerms` | 教材の目的・注意点・場面タイトル・各解説の見出し・説明・見るポイント・優位の条件を連結した文字列に、`term` が含まれる `soccerTerms` |
+| `boardLink` | `{ path: "/board", query: { blue: formationId } }`（ボードで試す導線2か所のリンク先） |
 
 ## 状態管理（クエリキー設計）
 
@@ -70,6 +72,8 @@ FormationLearningPage
    「青{番号}：{役割}（基本配置の{ポジション名}）」で表示する。ポジション名は
    `formationPositionId` を `formation.positions` から引いて得る。
 4. `TacticalReplay` を `key={formation.id}` で描画する。初期状態は閉じている。
+5. 基本配置のミニピッチの下と `TacticalReplay` の直後に、`boardLink` へ向かう「この陣形をボードで試す →」を描画する。
+   どちらも教材が見つかったときの本文の中に置くため、不明な陣形 ID では表示されない。
 
 ### 陣形切替
 
@@ -113,6 +117,7 @@ FormationLearningPage
 | 「← 学習一覧へ」をクリック | `/learn`（`LearningListPage`） | `router-link` による静的遷移 |
 | 陣形切替のリンクをクリック | `/formations/:formationId/learn` | 同一コンポーネントでパラメータのみ変わる |
 | 「用語集ですべての言葉を見る →」をクリック | `/glossary`（`GlossaryPage`） | `router-link` による静的遷移 |
+| 「この陣形をボードで試す →」をクリック | `/board?blue={formationId}`（`FreeLayoutBoardPage`） | ボードは青をこの陣形で開く（[`screen-08-free-layout-board.md`](./screen-08-free-layout-board.md) 参照） |
 
 ## 例外・エラー表示
 

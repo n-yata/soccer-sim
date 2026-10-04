@@ -486,6 +486,7 @@ const learningFormations: { formation: Formation; lesson: FormationLesson }[];
   （components 層から静的データを直接読まない規約を守るため。正本は repository-structure.md「components/」）
 - 陣形切替時は `TacticalReplay` の `key` に陣形IDを渡して再生状態を初期化する
 - 教材の文言に登場する登録用語だけを抽出し、折りたたみの用語説明に出す
+- 学習中の陣形でボードを開く導線（`/board?blue={陣形ID}`）を、基本配置の下と戦術再生の後に置く
 - 陣形または教材が見つからない場合はエラーを `role="alert"` で表示する
 
 **インターフェース**:
@@ -494,6 +495,8 @@ const formation: ComputedRef<Formation | undefined>;
 const lesson: ComputedRef<FormationLesson | undefined>;
 // objective・caution・場面の各文言を連結し、term を含む SoccerTerm を返す
 const lessonTerms: ComputedRef<SoccerTerm[]>;
+// 「この陣形をボードで試す」のリンク先
+const boardLink: ComputedRef<{ path: "/board"; query: { blue: string } }>;
 ```
 
 **依存関係**:
@@ -586,9 +589,15 @@ export function interpolateFrame(from: ReplayFrame, to: ReplayFrame, progress: n
   比較画面用の保存先とは共有しない。保存は操作確定時だけ行う
 - リセット・ボール戻しでは子コンポーネントの `key` を更新し、リセット前の操作確定イベントが
   後から保存されるのを防ぐ
+- props `initialBlueFormationId` で青の初期陣形を受け取る。実在する陣形 ID と完全一致したときだけ採用し、
+  それ以外は `formations[0]`。決めるのはマウント時の1回だけ（受け取り規則の正本は functional-overview.md の
+  FR-21 確定事項）
 
 **インターフェース**:
 ```typescript
+interface FreeLayoutBoardPageProps {
+  initialBlueFormationId?: string; // ルート定義の props 関数がクエリ blue から渡す
+}
 type Team = "A" | "B";
 function selectFormation(team: Team, formationId: string): void;
 function resetTeam(team: Team): void;
@@ -601,7 +610,12 @@ function savePosition(team: Team, positionId: string, x: number, y: number): voi
 - 依存可能: `components/PageHeader.vue`, `components/FreeLayoutPitchDiagram.vue`,
   `components/BoardBall.vue`, `data/formations.ts`, `data/freeLayoutStorage.ts`,
   `data/boardBallStorage.ts`
-- 依存禁止: `data/matchups.ts`（ボードでは戦術判定・試合再生を行わない）
+- 依存禁止: `data/matchups.ts`（ボードでは戦術判定・試合再生を行わない）、`vue-router`（クエリはルート定義の
+  `props` 関数が props へ変換して渡す。ボード画面はルーターに直接依存しない）
+
+**ルート定義（`router/index.ts`）**: `/board` のルートは `props: (route) => ({ initialBlueFormationId })` で、
+クエリ `blue` が文字列のときだけその値を、それ以外（未指定・複数指定）は `undefined` を渡す。陣形として
+実在するかの判定はボード画面が行う。
 
 ## UIレイヤー: FreeLayoutPitchDiagram（`components/FreeLayoutPitchDiagram.vue`）
 

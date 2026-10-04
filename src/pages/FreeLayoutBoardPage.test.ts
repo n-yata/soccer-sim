@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
+import { createMemoryHistory, createRouter, RouterView } from "vue-router";
 import FreeLayoutBoardPage from "./FreeLayoutBoardPage.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
 import BackButton from "@/components/BackButton.vue";
@@ -188,5 +189,87 @@ describe("自由配置ボード", () => {
     expect(redSnapshot()).toEqual(redBefore);
     expect(ball().attributes("transform")).toBe(ballBefore);
     wrapper.unmount();
+  });
+
+  describe("学習画面からの初期陣形指定（クエリ blue）", () => {
+    const BOARD_STORAGE_KEY = "formation-lab.board-layout-overrides.v1";
+
+    function boardRouteProps(path: string): unknown {
+      const route = router.resolve(path);
+      const props = route.matched[0]!.props.default;
+      expect(typeof props).toBe("function");
+      return (props as (r: typeof route) => unknown)(route);
+    }
+
+    it("ルート定義はクエリ blue の文字列だけを initialBlueFormationId として渡す", () => {
+      expect(boardRouteProps("/board?blue=3-5-2")).toEqual({ initialBlueFormationId: "3-5-2" });
+      expect(boardRouteProps("/board")).toEqual({ initialBlueFormationId: undefined });
+      expect(boardRouteProps("/board?blue=3-5-2&blue=4-3-3")).toEqual({
+        initialBlueFormationId: undefined,
+      });
+    });
+
+    it("実在する陣形 ID を受け取ると、青チームをその陣形で開き、赤とボールは既定のまま", () => {
+      const wrapper = mount(FreeLayoutBoardPage, { props: { initialBlueFormationId: "3-5-2" } });
+      const pitch = wrapper.findComponent(FreeLayoutPitchDiagram);
+      expect((wrapper.get("#board-formation-a").element as HTMLSelectElement).value).toBe("3-5-2");
+      expect(pitch.props("formationA").id).toBe("3-5-2");
+      const target = formations.find((formation) => formation.id === "3-5-2")!;
+      expect(pitch.props("formationA").positions.map(({ x, y }) => ({ x, y }))).toEqual(
+        target.positions.map(({ x, y }) => ({ x, y })),
+      );
+      expect(pitch.props("formationB").id).toBe(formations[1].id);
+      expect(
+        wrapper.find("[aria-label='ボール。矢印キーで移動できます']").attributes("transform"),
+      ).toBe("translate(130 80)");
+      wrapper.unmount();
+    });
+
+    it("指定した陣形に青の保存配置があれば復元する", () => {
+      const target = formations.find((formation) => formation.id === "3-5-2")!;
+      savePositionOverride(`A:${target.id}`, target.positions[0].id, 10, 20, BOARD_STORAGE_KEY);
+      const wrapper = mount(FreeLayoutBoardPage, { props: { initialBlueFormationId: target.id } });
+      expect(
+        wrapper.findComponent(FreeLayoutPitchDiagram).props("formationA").positions[0],
+      ).toMatchObject({ id: target.positions[0].id, x: 10, y: 20 });
+      wrapper.unmount();
+    });
+
+    it("ボード表示中にクエリなしの /board へ移っても、画面を使い回し青の陣形を変えない", async () => {
+      // 主ナビ「自由配置ボード」を押した場合と同じ遷移。ボードはその時点の状態のまま表示する（FR-21 確定事項）。
+      const memoryRouter = createRouter({
+        history: createMemoryHistory(),
+        routes: router.options.routes,
+      });
+      await memoryRouter.push("/board?blue=3-5-2");
+      await memoryRouter.isReady();
+      const wrapper = mount(RouterView, { global: { plugins: [memoryRouter] } });
+      const blueSelect = () => wrapper.get("#board-formation-a").element as HTMLSelectElement;
+      const pageUid = () => wrapper.findComponent(FreeLayoutBoardPage).vm.$.uid;
+      const uidBefore = pageUid();
+      expect(blueSelect().value).toBe("3-5-2");
+
+      await memoryRouter.push("/board");
+      await flushPromises();
+
+      expect(memoryRouter.currentRoute.value.fullPath).toBe("/board");
+      expect(pageUid()).toBe(uidBefore);
+      expect(blueSelect().value).toBe("3-5-2");
+      expect(wrapper.findComponent(FreeLayoutPitchDiagram).props("formationA").id).toBe("3-5-2");
+      wrapper.unmount();
+    });
+
+    it.each([
+      ["未指定", undefined],
+      ["空文字", ""],
+      ["実在しない陣形 ID", "9-9-9"],
+    ])("%sのときは青を既定の陣形で開き、エラーにならない", (_, initialBlueFormationId) => {
+      const wrapper = mount(FreeLayoutBoardPage, { props: { initialBlueFormationId } });
+      expect(wrapper.findComponent(FreeLayoutPitchDiagram).props("formationA").id).toBe(
+        formations[0].id,
+      );
+      expect(wrapper.findAll("circle.blue")).toHaveLength(11);
+      wrapper.unmount();
+    });
   });
 });

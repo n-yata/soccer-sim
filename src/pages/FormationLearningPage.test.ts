@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mount } from "@vue/test-utils";
-import { createMemoryHistory, createRouter } from "vue-router";
+import { flushPromises, mount } from "@vue/test-utils";
+import { createMemoryHistory, createRouter, RouterView } from "vue-router";
 import FormationLearningPage from "./FormationLearningPage.vue";
 import FormationListPage from "./FormationListPage.vue";
 import LearningListPage from "./LearningListPage.vue";
 import { formations } from "@/data/formations";
 import { getFormationLesson } from "@/data/formationLessons";
 import type { FormationLesson } from "@/types/tacticalReplay";
+import { router as appRouter } from "@/router";
 
 // 登録用語を1件も含まない教材は静的データには無いため、指定した陣形の教材だけを差し替えられるようにする。
 // 未指定のときは実関数をそのまま呼ぶので、他のテストには影響しない。
@@ -146,5 +147,46 @@ describe("陣形学習画面", () => {
     expect(terms.findAll("dt")).toHaveLength(0);
     expect(terms.get('a[href="/glossary"]').text()).toContain("用語集");
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+  });
+  it.each(formations)(
+    "$name の画面に、学習中の陣形でボードを開く導線を2か所置く",
+    async (formation) => {
+      const { wrapper } = await open(formation.id);
+      const links = wrapper.findAll("a.formation-learning-page__board-link");
+      expect(links).toHaveLength(2);
+      for (const link of links) {
+        expect(link.text()).toBe("この陣形をボードで試す →");
+        expect(link.attributes("href")).toBe(`/board?blue=${formation.id}`);
+      }
+      expect(
+        wrapper
+          .find(".formation-learning-page__pitch a.formation-learning-page__board-link")
+          .exists(),
+      ).toBe(true);
+    },
+  );
+
+  it("不明な陣形 ID の画面にはボードへの導線を出さない", async () => {
+    const { wrapper } = await open("unknown");
+    expect(wrapper.find("a.formation-learning-page__board-link").exists()).toBe(false);
+  });
+
+  it("実際のルート定義で導線をたどると、学習中の陣形を青に選んだボードが開く", async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: appRouter.options.routes,
+    });
+    await router.push("/formations/4-1-4-1/learn");
+    await router.isReady();
+    const wrapper = mount(RouterView, { global: { plugins: [router] } });
+    wrappers.push(wrapper);
+    await wrapper.findAll("a.formation-learning-page__board-link")[1]!.trigger("click");
+    await flushPromises();
+    expect(router.currentRoute.value.fullPath).toBe("/board?blue=4-1-4-1");
+    expect(wrapper.get("h1").text()).toBe("自由配置ボード");
+    expect((wrapper.get("#board-formation-a").element as HTMLSelectElement).value).toBe("4-1-4-1");
+    expect((wrapper.get("#board-formation-b").element as HTMLSelectElement).value).toBe(
+      formations[1].id,
+    );
   });
 });

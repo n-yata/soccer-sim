@@ -95,6 +95,16 @@
 | 40 | 正常系 | ボードを表示する | ヘッダーに戻るボタン（`BackButton`）が無い。ピッチ領域の `aria-describedby` が操作説明（`#board-instructions`）を指す | [x] |
 | 41 | 正常系 | 青の陣形セレクトで 3-5-2 を選ぶ | 青の選手が 3-5-2 の11人の配置になり、赤の配置とボールの位置は変わらない | [x] |
 
+### 学習画面からの初期陣形指定（クエリ `blue`）
+
+| No | 観点 | 前提・操作 | 期待結果 | 完了 |
+|---|---|---|---|:--:|
+| 42 | 正常系・異常系 | `/board?blue=3-5-2`、`/board`、`/board?blue=3-5-2&blue=4-3-3` を解決し、ルートの props 関数を適用する | それぞれ `{ initialBlueFormationId: "3-5-2" }`、`undefined`、`undefined`（複数指定は渡さない） | [x] |
+| 43 | 正常系 | `initialBlueFormationId` = 3-5-2 で表示する | 青の陣形セレクトと選手配置が 3-5-2 になる。赤は `formations[1]`、ボールは中央 `translate(130 80)` のまま | [x] |
+| 44 | 正常系 | 青の 3-5-2 の保存配置（先頭の選手を x = 10, y = 20）を置き、`initialBlueFormationId` = 3-5-2 で表示する | 青の先頭の選手が x = 10, y = 20 で復元される | [x] |
+| 45 | 異常系・境界値 | `initialBlueFormationId` が未指定・空文字・実在しない ID（`9-9-9`）で表示する | いずれも青が既定（`formations[0]`）の11人で開き、エラーにならない | [x] |
+| 46 | 境界値 | 実際のルート定義で `/board?blue=3-5-2` を表示し、主ナビと同じく `/board` へ遷移する | URL は `/board` になるが、画面は使い回され（同じコンポーネントインスタンス）、青の陣形セレクトと配置は 3-5-2 のまま | [x] |
+
 ## 備考
 
 - 完了欄が `[x]` のケースは既存テストに対応する。
@@ -103,7 +113,7 @@
   - No.14〜17: `src/data/boardBallStorage.test.ts`
   - No.18〜24: `src/components/FreeLayoutPitchDiagram.test.ts`
   - No.25〜31: `src/components/BoardBall.test.ts`
-  - No.32〜41: `src/pages/FreeLayoutBoardPage.test.ts`（No.40・41 は 2026-10-05 追加。No.41 は、陣形変更でボールが
+  - No.32〜46: `src/pages/FreeLayoutBoardPage.test.ts`（No.40〜46 は 2026-10-05 追加。No.41 は、陣形変更でボールが
     中央へ戻る不具合と区別するため、先にボールを動かしてから陣形を選び替える）
 - `freeLayoutStorage.ts` と `FreeLayoutPitchDiagram.vue` は、比較画面の自由配置（2026-10-03 に撤去）向けに
   作られ、現在は本画面だけが使う。撤去の回帰（比較画面が保存配置を参照しないこと）は

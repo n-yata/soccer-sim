@@ -86,6 +86,8 @@ import {
 } from "@/data/freeLayoutStorage";
 import type { Formation } from "@/types/formation";
 
+const props = defineProps<{ initialBlueFormationId?: string }>();
+
 type Team = "A" | "B";
 const teams: Team[] = ["A", "B"];
 const BOARD_STORAGE_KEY = "formation-lab.board-layout-overrides.v1";
@@ -102,8 +104,13 @@ function restoreFormation(team: Team, formation: Formation): Formation {
   };
 }
 
+// 実在する陣形 ID と完全一致したときだけ採用し、それ以外（未指定・空・未知の ID）は既定へ倒す。
+// 初期化はマウント時の1回だけで、操作中の配置をクエリで上書きしない。
+const initialBlue =
+  formations.find((formation) => formation.id === props.initialBlueFormationId) ?? formations[0];
+
 const board = reactive<Record<Team, Formation>>({
-  A: restoreFormation("A", formations[0]),
+  A: restoreFormation("A", initialBlue),
   B: restoreFormation("B", formations[1] ?? formations[0]),
 });
 const pitchRevision = ref(0);

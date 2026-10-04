@@ -37,7 +37,7 @@ FreeLayoutBoardPage
 
 | コンポーネント | props | 内部 state |
 |---|---|---|
-| `FreeLayoutBoardPage` | — | `board: Record<"A" \| "B", Formation>`（各チームの陣形と、保存配置を適用した選手座標）、`pitchRevision: number`（リセット時にピッチを作り直すための番号）、`ballPosition: BoardBallPosition`、`ballRevision: number`（ボールを中央へ戻すときにボールを作り直すための番号） |
+| `FreeLayoutBoardPage` | `initialBlueFormationId?: string`（ルート定義の props 関数がクエリ `blue` から渡す） | `board: Record<"A" \| "B", Formation>`（各チームの陣形と、保存配置を適用した選手座標）、`pitchRevision: number`（リセット時にピッチを作り直すための番号）、`ballPosition: BoardBallPosition`、`ballRevision: number`（ボールを中央へ戻すときにボールを作り直すための番号） |
 | `FreeLayoutPitchDiagram` | `formationA: Formation`（青。左から右へ攻撃）、`formationB: Formation`（赤。右から左へ攻撃） | `draggingTeam` / `draggingPositionId`（ドラッグ中の選手）。ドラッグ・キー操作の直近座標は非リアクティブな変数で持つ |
 | `BoardBall` | `position: BoardBallPosition`（左上基準の 0〜100） | `hitRadius`（画面幅に応じた操作領域の半径）。ドラッグ中のポインタ ID と未確定の位置は非リアクティブな変数で持つ |
 
@@ -45,7 +45,7 @@ FreeLayoutBoardPage
 
 | state | 初期値 |
 |---|---|
-| `board.A` | `formations[0]` に、保存キー `A:{陣形ID}` の配置を `applyOverrides` で適用したもの |
+| `board.A` | `initialBlueFormationId` と一致する陣形（無ければ `formations[0]`）に、保存キー `A:{陣形ID}` の配置を `applyOverrides` で適用したもの |
 | `board.B` | `formations[1]`（無ければ `formations[0]`）に、保存キー `B:{陣形ID}` の配置を適用したもの |
 | `ballPosition` | `loadBoardBallPosition()`（保存が無い・不正なら中央 `{ x: 50, y: 50 }`） |
 | `pitchRevision` / `ballRevision` | 0 |
@@ -59,14 +59,17 @@ FreeLayoutBoardPage
 | 選手配置 | `data/freeLayoutStorage.ts` | `formation-lab.board-layout-overrides.v1`（ページから渡す。モジュール既定の比較画面用キーとは別） | `{チーム}:{陣形ID}` ごとに、ポジション ID → `{ x, y }` |
 | ボール位置 | `data/boardBallStorage.ts` | モジュール内の固定キー | ボール1個の `{ x, y }` |
 
-再訪時の選択陣形は常に初期値（青 `formations[0]`・赤 `formations[1]`）へ戻り、その陣形の保存配置だけを
-復元する（選択中の陣形そのものは保存しない）。
+再訪時の選択陣形は常に初期値（青は `formations[0]`、陣形学習画面から開いた場合はクエリ `blue` の陣形。赤は `formations[1]`）
+へ戻り、その陣形の保存配置だけを復元する（選択中の陣形そのものは保存しない）。
 
 ## 画面遷移・イベント処理の詳細フロー
 
 ### 画面表示
 
-1. `board` と `ballPosition` を上記の初期値で組み立てる。
+1. `board` と `ballPosition` を上記の初期値で組み立てる。青の初期陣形は `formations.find((f) => f.id === initialBlueFormationId) ?? formations[0]`
+   で決める（完全一致だけを採用し、未指定・空・未知の ID は既定へ倒す）。決めるのはマウント時の1回だけで、props の変化には追従しない。
+   ボード表示中に主ナビで `/board` へ移る・戻る/進むで `/board?blue=X` と `/board` を行き来する場合、vue-router は同じ
+   ルートのコンポーネントを使い回すため再マウントされず、青の陣形はその時点のまま変わらない（仕様。FR-21 確定事項）。
 2. `FreeLayoutPitchDiagram` は各選手の座標（`x`: 幅方向、`y`: 深さ方向。0〜100）を
    `freeLayoutCoordinates.ts` で SVG 座標へ変換して描画する。青は左から右、赤は右から左へ攻める向き。
 3. `BoardBall` は `cx = 5 + x × 2.5`、`cy = 5 + y × 1.5` で描画する（ボール本体が端で切れないよう半径分内側へ寄せる）。
@@ -121,6 +124,7 @@ FreeLayoutBoardPage
 | 操作 | 遷移先 | 備考 |
 |---|---|---|
 | 主ナビの各項目をクリック | 各画面 | `AppHeader` の責務。本画面の配置は保存済みの分だけ次回復元される |
+| （入口）陣形学習画面の「この陣形をボードで試す →」 | 本画面（`/board?blue={陣形ID}`） | ルート定義の `props` 関数がクエリ `blue` を文字列のときだけ `initialBlueFormationId` に変換する（複数指定は `undefined`） |
 
 ## 例外・エラー表示
 
