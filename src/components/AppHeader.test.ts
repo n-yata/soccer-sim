@@ -19,6 +19,20 @@ function mountHeader() {
 }
 
 describe("AppHeader", () => {
+  it("Escapeでメニューを閉じ、開閉ボタンへフォーカスを戻す", async () => {
+    const wrapper = mount(AppHeader, {
+      attachTo: document.body,
+      global: { stubs: { RouterLink: routerLinkStub } },
+    });
+    try {
+      await wrapper.get("button").trigger("click");
+      await wrapper.get("nav").trigger("keydown", { key: "Escape" });
+      expect(wrapper.get("button").attributes("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(wrapper.get("button").element);
+    } finally {
+      wrapper.unmount();
+    }
+  });
   it.each(["learning-list", "formation-learning"])(
     "%sでは学習メニューを現在地として示し、クリックで閉じる",
     async (routeName) => {

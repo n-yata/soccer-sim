@@ -4,7 +4,9 @@
       <div class="page-header__heading">
         <BackButton v-if="showBackButton" :fallback-to="backFallbackTo" />
         <div>
-          <h1 class="page-header__title"><slot name="title-icon" />{{ title }}</h1>
+          <h1 class="page-header__title">
+            <slot name="title-icon" /><span class="page-header__title-text">{{ title }}</span>
+          </h1>
           <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
         </div>
       </div>
@@ -77,6 +79,17 @@ withDefaults(
   margin: 0;
   font-size: var(--font-2xl);
   font-weight: var(--weight-bold);
+  overflow-wrap: anywhere;
+  line-height: var(--leading-tight);
+}
+
+.page-header__title-text {
+  min-width: 0;
+  text-wrap: balance;
+}
+
+.page-header__title :deep(svg) {
+  flex-shrink: 0;
 }
 
 .page-header--hero .page-header__title {

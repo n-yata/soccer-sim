@@ -37,6 +37,22 @@ function findCard(wrapper: ReturnType<typeof mount>, id: string) {
 }
 
 describe("FormationListPage", () => {
+  it("一覧末尾で選択を確認・解除でき、解除で比較へ遷移しない", async () => {
+    const wrapper = mount(FormationListPage, {
+      attachTo: document.body,
+      global: { stubs: { RouterLink: routerLinkStub } },
+    });
+    expect(wrapper.find(".formation-list-page__clear-selection").exists()).toBe(false);
+    await findCard(wrapper, "4-4-2")?.vm.$emit("select", "4-4-2");
+    await nextTick();
+    expect(wrapper.get(".formation-list-page__selection-tray").text()).toContain("4-4-2");
+    await wrapper.get(".formation-list-page__clear-selection").trigger("click");
+    expect(findCard(wrapper, "4-4-2")?.props("selected")).toBe(false);
+    expect(wrapper.get(".formation-list-page__selection-status").text()).toContain("あと2つ");
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(wrapper.get('[data-formation-id="4-4-2"]').element);
+    wrapper.unmount();
+  });
   beforeEach(() => {
     vi.stubEnv("VITE_JLEAGUE_URL", "https://example.com/fixtures/");
     pushMock.mockClear();

@@ -1,7 +1,7 @@
 <template>
   <div class="formation-list-page">
     <PageHeader
-      title="フォーメーションラボ"
+      title="陣形の違いを、ピッチで見よう"
       subtitle="2つのフォーメーションがどう噛み合うかを、ピッチ図と解説で比較する"
       variant="hero"
     >
@@ -19,9 +19,8 @@
         Jリーグの試合日程・キャンペーン情報（外部サイト・新規タブ）
       </a>
     </PageHeader>
-    <div class="formation-list-page__body">
+    <div ref="selectionRoot" class="formation-list-page__body">
       <div class="formation-list-page__section-intro">
-        <span class="formation-list-page__eyebrow">STEP 1</span>
         <h2 class="formation-list-page__section-title">比較したい2つを選ぶ</h2>
         <p class="formation-list-page__selection-status" role="status" aria-live="polite">
           {{ selectionStatus }}
@@ -33,16 +32,36 @@
           :key="formation.id"
           :formation="formation"
           :selected="selectedIds.includes(formation.id)"
+          :data-formation-id="formation.id"
           @select="toggleSelection"
         />
       </div>
-      <p class="formation-list-page__footer">2つ選択すると自動的に比較画面へ遷移します</p>
+      <div class="formation-list-page__selection-tray" aria-label="比較対象の選択">
+        <div>
+          <strong>{{ selectedIds.length ? selectedNames : "まずは気になる陣形を選ぼう" }}</strong>
+          <p>
+            {{
+              selectedIds.length
+                ? "もう1つ選ぶと、ピッチと戦術解説を表示します"
+                : "2つ選択すると自動的に比較画面へ進みます"
+            }}
+          </p>
+        </div>
+        <button
+          v-if="selectedIds.length"
+          type="button"
+          class="formation-list-page__clear-selection"
+          @click="clearSelection"
+        >
+          選択を解除
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ExternalLink, Goal } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
@@ -66,6 +85,22 @@ function configuredJleagueUrl(): string | undefined {
 }
 
 const selectedIds = ref<string[]>([]);
+const selectionRoot = ref<HTMLElement>();
+async function clearSelection(): Promise<void> {
+  const firstId = selectedIds.value[0];
+  selectedIds.value = [];
+  await nextTick();
+  const cards = selectionRoot.value?.querySelectorAll<HTMLElement>(".formation-card");
+  Array.from(cards ?? [])
+    .find((card) => card.dataset.formationId === firstId)
+    ?.focus();
+}
+const selectedNames = computed(() =>
+  selectedIds.value
+    .map((id) => formations.find((formation) => formation.id === id)?.name)
+    .filter(Boolean)
+    .join(" / "),
+);
 const selectionStatus = computed(() => {
   if (selectedIds.value.length === 0) return "あと2つ選ぶと比較を始めます";
   if (selectedIds.value.length === 1) {
@@ -131,15 +166,6 @@ watch(
   margin-bottom: var(--space-lg);
 }
 
-.formation-list-page__eyebrow {
-  display: inline-block;
-  font-size: var(--font-xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.08em;
-  color: var(--color-primary);
-  margin-bottom: var(--space-xs);
-}
-
 .formation-list-page__section-title {
   margin: 0;
   font-size: var(--font-xl);
@@ -156,19 +182,44 @@ watch(
 .formation-list-page__grid {
   display: grid;
   /* 画面幅に応じて列数が増減する可変グリッド（screen-design.md参照） */
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
-.formation-list-page__footer {
-  display: inline-block;
+.formation-list-page__selection-tray {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
   margin-top: var(--space-lg);
-  background: var(--color-primary-soft);
-  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
   color: var(--color-primary);
-  font-size: var(--font-xs);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.formation-list-page__selection-tray p {
+  font-size: var(--font-sm);
+  color: var(--color-text-sub);
+  margin-top: var(--space-xs);
+}
+
+.formation-list-page__clear-selection {
+  min-height: 44px;
   padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .formation-list-page__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -177,7 +228,7 @@ watch(
   }
 
   .formation-list-page__grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 
