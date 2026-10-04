@@ -16,8 +16,10 @@
     <div class="formation-card__pitch-frame">
       <FormationMiniPitch class="formation-card__pitch" :formation="formation" />
     </div>
-    <span class="formation-card__name">{{ formation.name }}</span>
-    <p class="formation-card__description">{{ formation.description }}</p>
+    <div class="formation-card__content">
+      <span class="formation-card__name">{{ formation.name }}</span>
+      <p class="formation-card__description">{{ formation.description }}</p>
+    </div>
   </div>
 </template>
 
@@ -41,15 +43,16 @@ defineEmits<{
 .formation-card {
   position: relative;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: var(--space-md);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   padding: 20px 16px;
-  text-align: center;
+  text-align: left;
   color: var(--color-text);
   cursor: pointer;
   transition:
@@ -98,7 +101,7 @@ defineEmits<{
 .formation-card__pitch-frame {
   width: 100%;
   max-width: 128px;
-  margin: 4px auto 14px;
+  margin: 0 auto;
   padding: 10px;
   border-radius: var(--radius-md);
   background: var(--color-canvas);
@@ -118,10 +121,25 @@ defineEmits<{
 
 .formation-card__description {
   margin: 6px 0 0;
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
   font-weight: var(--weight-normal);
   line-height: var(--leading-normal);
   color: var(--color-text-sub);
+}
+
+@media (max-width: 900px) {
+  .formation-card {
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: start;
+  }
+  .formation-card__pitch-frame {
+    padding: var(--space-xs);
+  }
+  .formation-card__badge {
+    position: static;
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

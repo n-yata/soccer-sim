@@ -1,0 +1,212 @@
+[
+  {
+    "width": 390,
+    "page": "home",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 390,
+    "page": "learn",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 390,
+    "page": "matrix",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 390,
+    "page": "board",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 390,
+    "page": "quiz",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 390,
+    "page": "glossary",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 390,
+    "page": "compare/4-4-2/4-3-3",
+    "viewport": 390,
+    "content": 375
+  },
+  {
+    "width": 768,
+    "page": "home",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 768,
+    "page": "learn",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 768,
+    "page": "matrix",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 768,
+    "page": "board",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 768,
+    "page": "quiz",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 768,
+    "page": "glossary",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 768,
+    "page": "compare/4-4-2/4-3-3",
+    "viewport": 768,
+    "content": 753
+  },
+  {
+    "width": 900,
+    "page": "home",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 900,
+    "page": "learn",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 900,
+    "page": "matrix",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 900,
+    "page": "board",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 900,
+    "page": "quiz",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 900,
+    "page": "glossary",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 900,
+    "page": "compare/4-4-2/4-3-3",
+    "viewport": 900,
+    "content": 885
+  },
+  {
+    "width": 901,
+    "page": "home",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 901,
+    "page": "learn",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 901,
+    "page": "matrix",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 901,
+    "page": "board",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 901,
+    "page": "quiz",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 901,
+    "page": "glossary",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 901,
+    "page": "compare/4-4-2/4-3-3",
+    "viewport": 901,
+    "content": 886
+  },
+  {
+    "width": 1280,
+    "page": "home",
+    "viewport": 1280,
+    "content": 1265
+  },
+  {
+    "width": 1280,
+    "page": "learn",
+    "viewport": 1280,
+    "content": 1265
+  },
+  {
+    "width": 1280,
+    "page": "matrix",
+    "viewport": 1280,
+    "content": 1265
+  },
+  {
+    "width": 1280,
+    "page": "board",
+    "viewport": 1280,
+    "content": 1265
+  },
+  {
+    "width": 1280,
+    "page": "quiz",
+    "viewport": 1280,
+    "content": 1265
+  },
+  {
+    "width": 1280,
+    "page": "glossary",
+    "viewport": 1280,
+    "content": 1265
+  },
+  {
+    "width": 1280,
+    "page": "compare/4-4-2/4-3-3",
+    "viewport": 1280,
+    "content": 1265
+  }
+]

@@ -1,11 +1,12 @@
 <template>
-  <header class="app-header">
+  <header class="app-header" @keydown.esc="dismissMenu">
     <div class="app-header__bar">
       <router-link to="/" class="app-header__brand" @click="closeMenu">
         <AppIcon :icon="Goal" size="md" />
         フォーメーションラボ
       </router-link>
       <button
+        ref="menuToggle"
         type="button"
         class="app-header__toggle"
         :aria-expanded="isMenuOpen"
@@ -84,6 +85,13 @@ import AppIcon from "./AppIcon.vue";
 
 const route = useRoute();
 const isMenuOpen = ref(false);
+const menuToggle = ref<HTMLButtonElement>();
+
+function dismissMenu(): void {
+  if (!isMenuOpen.value) return;
+  closeMenu();
+  menuToggle.value?.focus();
+}
 
 function isActive(name: string): "page" | "location" | undefined {
   if (name === "formation-list" && route.name === "comparison") return "location";
@@ -113,6 +121,7 @@ function closeMenu(): void {
   max-width: var(--width-wide);
   margin: 0 auto;
   padding: var(--space-sm) 0;
+  flex-wrap: wrap;
 }
 
 .app-header__brand {
@@ -125,6 +134,7 @@ function closeMenu(): void {
   color: var(--color-text);
   text-decoration: none;
   white-space: nowrap;
+  flex-basis: 100%;
 }
 
 .app-header__toggle {
@@ -151,9 +161,11 @@ function closeMenu(): void {
 .app-header__nav {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   margin-left: auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  justify-content: space-between;
 }
 
 .app-header__link {
@@ -166,7 +178,7 @@ function closeMenu(): void {
   color: var(--color-text-sub);
   text-decoration: none;
   white-space: nowrap;
-  padding: var(--space-xs) 0;
+  padding: var(--space-xs) var(--space-sm);
   border-bottom: 2px solid transparent;
   transition:
     color 0.15s ease,
@@ -182,7 +194,7 @@ function closeMenu(): void {
   border-bottom-color: var(--color-primary);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .app-header {
     padding: 0 var(--gutter-mobile);
   }
@@ -196,11 +208,16 @@ function closeMenu(): void {
     display: inline-flex;
   }
 
+  .app-header__brand {
+    flex-basis: auto;
+  }
+
   .app-header__nav {
     display: none;
     width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
     gap: var(--space-sm);
     margin-left: 0;
     padding-top: var(--space-sm);
@@ -212,7 +229,10 @@ function closeMenu(): void {
 
   .app-header__link {
     min-height: 44px;
-    width: 100%;
+    flex: 1 1 200px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
   }
 }
 
