@@ -6,9 +6,48 @@ import FormationListPage from "./FormationListPage.vue";
 import LearningListPage from "./LearningListPage.vue";
 import { formations } from "@/data/formations";
 import { getFormationLesson } from "@/data/formationLessons";
+import type { FormationLesson } from "@/types/tacticalReplay";
+
+// 登録用語を1件も含まない教材は静的データには無いため、指定した陣形の教材だけを差し替えられるようにする。
+// 未指定のときは実関数をそのまま呼ぶので、他のテストには影響しない。
+const lessonState = vi.hoisted(() => ({
+  override: undefined as { id: string; lesson: FormationLesson } | undefined,
+}));
+vi.mock("@/data/formationLessons", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/formationLessons")>();
+  return {
+    ...actual,
+    getFormationLesson: (id: string) =>
+      lessonState.override?.id === id ? lessonState.override.lesson : actual.getFormationLesson(id),
+  };
+});
 
 const wrappers: ReturnType<typeof mount>[] = [];
-afterEach(() => wrappers.splice(0).forEach((wrapper) => wrapper.unmount()));
+afterEach(() => {
+  wrappers.splice(0).forEach((wrapper) => wrapper.unmount());
+  lessonState.override = undefined;
+});
+
+// 実教材の構造を保ったまま、用語抽出の対象になる文言だけを登録用語を含まない文に置き換える。
+function lessonWithoutTerms(id: string): FormationLesson {
+  const lesson = getFormationLesson(id)!;
+  return {
+    ...lesson,
+    objective: "教材の目的の文",
+    caution: "注意点の文",
+    scene: {
+      ...lesson.scene,
+      title: "場面の見出し",
+      steps: lesson.scene.steps.map((step, index) => ({
+        ...step,
+        title: `解説${index + 1}の見出し`,
+        explanation: "選手の動きを説明する文",
+        observation: "見るポイントの文",
+        advantage: "優位の条件の文",
+      })),
+    },
+  };
+}
 
 async function open(id: string) {
   const router = createRouter({
@@ -79,5 +118,33 @@ describe("陣形学習画面", () => {
     expect(wrapper.get('[role="alert"]').text()).toContain("見つかりません");
     expect(wrapper.get('a[href="/learn"]').text()).toContain("一覧へ");
     expect(wrapper.find('[data-testid="replay-open"]').exists()).toBe(false);
+  });
+
+  it("陣形切替ナビは表示中の陣形だけを現在のページとして示す", async () => {
+    const { wrapper } = await open("4-3-3");
+    const links = wrapper.findAll('nav[aria-label="学ぶ陣形を切り替える"] a');
+    expect(links).toHaveLength(formations.length);
+    const current = links.filter((link) => link.attributes("aria-current") === "page");
+    expect(current.map((link) => link.text())).toEqual(["4-3-3"]);
+    expect(links.filter((link) => link.attributes("aria-current") !== undefined)).toHaveLength(1);
+  });
+
+  it("役割一覧に攻撃側の選手だけを「青番号：役割（基本配置のポジション）」で示す", async () => {
+    const { wrapper } = await open("4-3-3");
+    const roles = wrapper
+      .findAll(".formation-learning-page__roles li")
+      .map((item) => item.text().replace(/\s+/g, ""));
+    expect(roles).toEqual(["青7：ウイング（基本配置のRW）", "青2：サイドバック（基本配置のRB）"]);
+    expect(roles.some((role) => role.includes("赤"))).toBe(false);
+  });
+
+  it("教材に登録用語が1件も無ければ、用語一覧を空にして用語集へのリンクだけを示す", async () => {
+    lessonState.override = { id: "4-3-3", lesson: lessonWithoutTerms("4-3-3") };
+    const { wrapper } = await open("4-3-3");
+    expect(wrapper.get("h1").text()).toBe("4-3-3を学ぶ");
+    const terms = wrapper.get(".formation-learning-page__terms");
+    expect(terms.findAll("dt")).toHaveLength(0);
+    expect(terms.get('a[href="/glossary"]').text()).toContain("用語集");
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 });

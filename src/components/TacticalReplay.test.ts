@@ -136,4 +136,80 @@ describe("TacticalReplay", () => {
     expect(w.get('[data-testid="replay-step"]').text()).toContain("2 / 5");
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("開閉ボタンは開く前後で文言と aria-expanded を切り替える", async () => {
+    const w = mount(TacticalReplay, { props: { scene: wideOverloadScene } });
+    wrappers.push(w);
+    const toggle = w.get('[data-testid="replay-open"]');
+    expect(toggle.text()).toContain("場面を見て学ぶ");
+    expect(toggle.attributes("aria-expanded")).toBe("false");
+    await toggle.trigger("click");
+    expect(toggle.text()).toContain("教材を閉じる");
+    expect(toggle.attributes("aria-expanded")).toBe("true");
+  });
+
+  it("移動途中で止めて「前の解説」を押すと、同じ解説の始点へ戻り1つ前へは戻らない", async () => {
+    const w = await open();
+    await w.get('[data-testid="replay-next"]').trigger("click");
+    expect(w.get('[data-testid="replay-step"]').text()).toContain("2 / 5");
+    await w.get('[data-testid="replay-play"]').trigger("click");
+    await advance(500);
+    await w.get('[data-testid="replay-play"]').trigger("click");
+    expect(w.get('[data-testid="replay-step"]').text()).toContain("移動途中");
+    await w.get('[data-testid="replay-prev"]').trigger("click");
+    expect(w.get('[data-testid="replay-step"]').text()).toContain("2 / 5");
+    expect(w.get('[data-testid="replay-step"]').text()).not.toContain("移動途中");
+    expect(w.text()).toContain(wideOverloadScene.steps[1]!.title);
+  });
+
+  it("最後の解説では再生ボタンの文言を「再生完了」にする", async () => {
+    const w = await open();
+    expect(w.get('[data-testid="replay-play"]').text()).not.toContain("再生完了");
+    for (let i = 1; i < wideOverloadScene.steps.length; i++) {
+      await w.get('[data-testid="replay-next"]').trigger("click");
+    }
+    expect(w.get('[data-testid="replay-step"]').text()).toContain("5 / 5");
+    expect(w.get('[data-testid="replay-play"]').text()).toContain("再生完了");
+  });
+
+  it("ピッチ図の読み上げを、到着時点は見出しと見るポイント、移動途中は移動中である旨にする", async () => {
+    const w = await open();
+    const first = wideOverloadScene.steps[0]!;
+    expect(w.get("svg.replay-pitch").attributes("aria-label")).toBe(
+      `${first.title}。${first.observation}`,
+    );
+    await w.get('[data-testid="replay-play"]').trigger("click");
+    await advance(500);
+    await w.get('[data-testid="replay-play"]').trigger("click");
+    expect(w.get("svg.replay-pitch").attributes("aria-label")).toBe(
+      `${first.title}から次の解説へ移動途中のピッチ図`,
+    );
+  });
+
+  it("一時停止中（移動途中）に動き抑制へ変更しても、次の解説へ到着して停止する", async () => {
+    const w = await open();
+    await w.get('[data-testid="replay-play"]').trigger("click");
+    await advance(500);
+    await w.get('[data-testid="replay-play"]').trigger("click");
+    expect(vi.getTimerCount()).toBe(0);
+    expect(w.get('[data-testid="replay-step"]').text()).toContain("1 / 5");
+    motionChange?.({ matches: true });
+    await nextTick();
+    expect(w.get('[data-testid="replay-step"]').text()).toContain("2 / 5");
+    expect(w.get('[data-testid="replay-step"]').text()).not.toContain("移動途中");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("タブが非表示の間は再生ボタンを押しても再生を開始しない", async () => {
+    const w = await open();
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    try {
+      await w.get('[data-testid="replay-play"]').trigger("click");
+      expect(vi.getTimerCount()).toBe(0);
+      expect(w.get('[data-testid="replay-step"]').text()).toContain("1 / 5");
+      expect(w.get('[data-testid="replay-step"]').text()).not.toContain("再生中");
+    } finally {
+      hidden.mockRestore();
+    }
+  });
 });
