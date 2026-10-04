@@ -528,4 +528,6 @@ GK/DF/MF/FWの深さ（横軸）は青チームと赤チームで独立した列
 - 画面を追加・変更したら、`functional-overview.md`「画面設計」の画面一覧・遷移図を先に
   更新し、本書と `wireframes.drawio` を同じ変更で追随させる（ルールの正本は
   [repository-structure.md「汎用規約からの差分」](../1_requirements/repository-structure.md#汎用規約からの差分)）。
-- 画面6〜8の詳細設計書（`3_detail-design/screen/`）と単体テスト仕様書（`4_unit-test/`）は未作成。
+- 画面ごとの詳細設計書は `3_detail-design/screen/screen-0N-*.md`、単体テスト仕様書は
+  `4_unit-test/test-screen-0N-*.md`（画面1〜8の全画面分。ファイル番号は本書の画面番号とおおむね同じだが、
+  画面3 相性マトリクスは `screen-04-matrix.md`、画面4 用語集は `screen-03-glossary.md`）。
