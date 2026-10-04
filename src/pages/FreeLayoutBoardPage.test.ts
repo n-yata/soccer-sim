@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import FreeLayoutBoardPage from "./FreeLayoutBoardPage.vue";
 import FreeLayoutPitchDiagram from "@/components/FreeLayoutPitchDiagram.vue";
+import BackButton from "@/components/BackButton.vue";
 import { formations } from "@/data/formations";
 import { applyOverrides, savePositionOverride } from "@/data/freeLayoutStorage";
 import { router } from "@/router";
@@ -147,5 +148,45 @@ describe("自由配置ボード", () => {
     const restored = mountBoard();
     expect(restored.find("circle.blue").attributes("cx")).toBe(originalX);
     restored.unmount();
+  });
+
+  it("戻るボタンを置かず、ピッチの説明として操作説明を関連付ける", () => {
+    const wrapper = mountBoard();
+    expect(wrapper.findComponent(BackButton).exists()).toBe(false);
+    const pitch = wrapper.get(".board-page__pitch");
+    expect(pitch.attributes("aria-describedby")).toBe("board-instructions");
+    expect(wrapper.get("#board-instructions").text()).toContain("矢印キー");
+    wrapper.unmount();
+  });
+
+  it("青の陣形を選び替えると青だけが新しい陣形の配置になり、赤とボールは変わらない", async () => {
+    const wrapper = mountBoard();
+    const pitch = () => wrapper.findComponent(FreeLayoutPitchDiagram);
+    // 参照のまま持つと、赤の配置をその場で書き換える不具合でも同一オブジェクト同士の比較になり通ってしまうため、値で取り出す。
+    const redSnapshot = () => {
+      const red = pitch().props("formationB");
+      return { id: red.id, positions: red.positions.map(({ id, x, y }) => ({ id, x, y })) };
+    };
+    const redBefore = redSnapshot();
+    const ball = () => wrapper.find("[aria-label='ボール。矢印キーで移動できます']");
+    // 中央のままだと「陣形変更でボールが中央へ戻る」不具合を見分けられないため、先に動かしておく。
+    await ball().trigger("keydown", { key: "ArrowRight" });
+    await ball().trigger("keyup", { key: "ArrowRight" });
+    const ballBefore = ball().attributes("transform");
+    expect(ballBefore).toBe("translate(136 80)");
+    const target = formations.find((formation) => formation.id === "3-5-2")!;
+    expect(pitch().props("formationA").id).not.toBe(target.id);
+
+    await wrapper.find("#board-formation-a").setValue(target.id);
+
+    const blue = pitch().props("formationA");
+    expect(blue.id).toBe(target.id);
+    expect(blue.positions.map(({ id, x, y }) => ({ id, x, y }))).toEqual(
+      target.positions.map(({ id, x, y }) => ({ id, x, y })),
+    );
+    expect(wrapper.findAll("circle.blue")).toHaveLength(11);
+    expect(redSnapshot()).toEqual(redBefore);
+    expect(ball().attributes("transform")).toBe(ballBefore);
+    wrapper.unmount();
   });
 });
