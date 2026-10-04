@@ -804,7 +804,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="formationLearningPage" name="wireframe-formation-learning">
-        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1222" math="0" shadow="0">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1290" math="0" shadow="0">
             <root>
                 <mxCell id="0" />
                 <mxCell id="1" parent="0" />
@@ -872,7 +872,7 @@
                     <mxGeometry height="36" width="84" x="684" y="240" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-9" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;" value="" vertex="1">
-                    <mxGeometry height="200" width="747" x="40" y="296" as="geometry" />
+                    <mxGeometry height="230" width="747" x="40" y="296" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-10" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#3CB043;gradientColor=#2E7D32;gradientDirection=south;strokeColor=#14532D;strokeWidth=2;" value="" vertex="1">
                     <mxGeometry height="150" width="104" x="56" y="312" as="geometry" />
@@ -932,133 +932,140 @@
                     <mxGeometry height="40" width="580" x="186" y="442" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-29" parent="1" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;fontColor=#0F172A;whiteSpace=wrap;" value="場面に登場する役割" vertex="1">
-                    <mxGeometry height="24" width="747" x="40" y="516" as="geometry" />
+                    <mxGeometry height="24" width="747" x="40" y="546" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-30" parent="1" style="text;html=1;fontSize=12;align=left;verticalAlign=middle;fontColor=#334155;whiteSpace=wrap;" value="・青7：ウイング（基本配置のRW）　・青2：サイドバック（基本配置のRB）" vertex="1">
-                    <mxGeometry height="22" width="747" x="40" y="544" as="geometry" />
+                    <mxGeometry height="22" width="747" x="40" y="574" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-31" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#64748B;whiteSpace=wrap;" value="下の図は局面を横向きに切り出したもの。番号は教材内の識別用です。陣形だけで勝敗や優位が決まるわけではありません。" vertex="1">
-                    <mxGeometry height="22" width="747" x="40" y="568" as="geometry" />
+                    <mxGeometry height="22" width="747" x="40" y="598" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-32" parent="1" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;" value="" vertex="1">
-                    <mxGeometry height="470" width="747" x="40" y="606" as="geometry" />
+                    <mxGeometry height="470" width="747" x="40" y="636" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-33" parent="1" style="text;html=1;fontSize=11;fontStyle=1;align=left;verticalAlign=middle;fontColor=#15803D;whiteSpace=wrap;" value="動きで学ぶ戦術" vertex="1">
-                    <mxGeometry height="18" width="300" x="56" y="616" as="geometry" />
+                    <mxGeometry height="18" width="300" x="56" y="646" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-34" parent="1" style="text;html=1;fontSize=18;fontStyle=1;align=left;verticalAlign=middle;fontColor=#0F172A;whiteSpace=wrap;" value="サイドの2対1" vertex="1">
-                    <mxGeometry height="26" width="480" x="56" y="634" as="geometry" />
+                    <mxGeometry height="26" width="480" x="56" y="664" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-35" parent="1" style="text;html=1;fontSize=12;align=left;verticalAlign=middle;fontColor=#475569;whiteSpace=wrap;" value="（教材の目的 lesson.objective）" vertex="1">
-                    <mxGeometry height="22" width="520" x="56" y="660" as="geometry" />
+                    <mxGeometry height="22" width="520" x="56" y="690" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-36" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontSize=12;fontStyle=1;fontColor=#334155;" value="⌃ 教材を閉じる" vertex="1">
-                    <mxGeometry height="36" width="160" x="611" y="626" as="geometry" />
+                    <mxGeometry height="36" width="160" x="611" y="656" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-37" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#64748B;whiteSpace=wrap;" value="（局面の説明 scene.context）" vertex="1">
-                    <mxGeometry height="22" width="715" x="56" y="690" as="geometry" />
+                    <mxGeometry height="22" width="715" x="56" y="720" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-38" parent="1" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fillColor=#3CB043;gradientColor=#2E7D32;gradientDirection=south;strokeColor=#14532D;strokeWidth=2;" value="" vertex="1">
-                    <mxGeometry height="240" width="420" x="56" y="718" as="geometry" />
+                    <mxGeometry height="240" width="420" x="56" y="748" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-39" parent="1" style="rounded=0;html=1;fillColor=#FFFFFF;fillOpacity=70;strokeColor=none;" value="" vertex="1">
-                    <mxGeometry height="240" width="1.3" x="266.0" y="718" as="geometry" />
+                    <mxGeometry height="240" width="1.3" x="266.0" y="748" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-40" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;strokeWidth=2;opacity=70;" value="" vertex="1">
-                    <mxGeometry height="86.4" width="86.4" x="222.8" y="794.8" as="geometry" />
+                    <mxGeometry height="86.4" width="86.4" x="222.8" y="824.8" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-41" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;strokeWidth=2;opacity=70;" value="" vertex="1">
-                    <mxGeometry height="115.2" width="42.0" x="56" y="780.4" as="geometry" />
+                    <mxGeometry height="115.2" width="42.0" x="56" y="810.4" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-42" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FFFFFF;strokeWidth=2;opacity=70;" value="" vertex="1">
-                    <mxGeometry height="115.2" width="42.0" x="434.0" y="780.4" as="geometry" />
+                    <mxGeometry height="115.2" width="42.0" x="434.0" y="810.4" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-43" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontSize=9;fontStyle=1;shadow=1;" value="7" vertex="1">
-                    <mxGeometry height="22" width="22" x="250" y="868" as="geometry" />
+                    <mxGeometry height="22" width="22" x="250" y="898" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-44" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#2563EB;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontSize=9;fontStyle=1;shadow=1;" value="2" vertex="1">
-                    <mxGeometry height="22" width="22" x="140" y="918" as="geometry" />
+                    <mxGeometry height="22" width="22" x="140" y="948" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-45" parent="1" style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontSize=9;fontStyle=1;shadow=1;" value="3" vertex="1">
-                    <mxGeometry height="22" width="22" x="330" y="848" as="geometry" />
+                    <mxGeometry height="22" width="22" x="330" y="878" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-46" parent="1" style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#EF4444;strokeColor=#FFFFFF;strokeWidth=2;fontColor=#FFFFFF;fontSize=9;fontStyle=1;shadow=1;" value="4" vertex="1">
-                    <mxGeometry height="22" width="22" x="400" y="778" as="geometry" />
+                    <mxGeometry height="22" width="22" x="400" y="808" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-47" parent="1" style="ellipse;html=1;fillColor=#FFFFFF;strokeColor=#111827;strokeWidth=1;" value="" vertex="1">
-                    <mxGeometry height="10" width="10" x="268" y="878" as="geometry" />
+                    <mxGeometry height="10" width="10" x="268" y="908" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-48" parent="1" style="endArrow=classic;html=1;strokeColor=#FFFFFF;strokeWidth=2;dashed=1;" edge="1">
                     <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="160" y="879" as="sourcePoint" />
-                        <mxPoint x="300" y="879" as="targetPoint" />
+                        <mxPoint x="160" y="959" as="sourcePoint" />
+                        <mxPoint x="300" y="959" as="targetPoint" />
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="fle-49" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;fillOpacity=15;strokeColor=#FFFFFF;dashed=1;fontColor=#FFFFFF;fontSize=10;" value="外の空間" vertex="1">
-                    <mxGeometry height="40" width="90" x="300" y="904" as="geometry" />
+                    <mxGeometry height="40" width="90" x="300" y="934" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-50" parent="1" style="text;html=1;fontSize=10;align=left;verticalAlign=middle;fontColor=#475569;whiteSpace=wrap;" value="● 青：学習する陣形　■ 赤：相手の守備　○ ボール　／　破線：走る道　黄色の矢印：パス" vertex="1">
-                    <mxGeometry height="18" width="420" x="56" y="964" as="geometry" />
+                    <mxGeometry height="18" width="420" x="56" y="994" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-51" parent="1" style="text;html=1;fontSize=11;fontStyle=1;align=left;verticalAlign=middle;fontColor=#64748B;whiteSpace=wrap;" value="解説 1 / 5 · 停止中" vertex="1">
-                    <mxGeometry height="18" width="279" x="492" y="718" as="geometry" />
+                    <mxGeometry height="18" width="279" x="492" y="748" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-52" parent="1" style="text;html=1;fontSize=15;fontStyle=1;align=left;verticalAlign=middle;fontColor=#0F172A;whiteSpace=wrap;" value="まず、誰が空いている？" vertex="1">
-                    <mxGeometry height="26" width="279" x="492" y="738" as="geometry" />
+                    <mxGeometry height="26" width="279" x="492" y="768" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-53" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=none;fontSize=11;fontStyle=1;fontColor=#C2410C;align=left;spacingLeft=8;" value="サイドに2対1をつくる準備" vertex="1">
-                    <mxGeometry height="24" width="279" x="492" y="766" as="geometry" />
+                    <mxGeometry height="24" width="279" x="492" y="796" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-54" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#334155;whiteSpace=wrap;verticalAlign=top;" value="青7がボールを持ち、青2が後ろから支えています。赤3が目の前を守り、赤4は中央からカバーできる位置にいます。" vertex="1">
-                    <mxGeometry height="80" width="279" x="492" y="794" as="geometry" />
+                    <mxGeometry height="80" width="279" x="492" y="824" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-55" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#E2E8F0;" value="" vertex="1">
-                    <mxGeometry height="70" width="279" x="492" y="878" as="geometry" />
+                    <mxGeometry height="70" width="279" x="492" y="908" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-56" parent="1" style="text;html=1;fontSize=11;fontStyle=1;align=left;verticalAlign=middle;fontColor=#0F172A;whiteSpace=wrap;" value="見るポイント" vertex="1">
-                    <mxGeometry height="20" width="259" x="502" y="884" as="geometry" />
+                    <mxGeometry height="20" width="259" x="502" y="914" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-57" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#334155;whiteSpace=wrap;verticalAlign=top;" value="青2と赤4の距離に注目。赤4が近づく前に使える時間は短い。" vertex="1">
-                    <mxGeometry height="36" width="259" x="502" y="904" as="geometry" />
+                    <mxGeometry height="36" width="259" x="502" y="934" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-58" parent="1" style="rounded=1;html=1;strokeColor=none;fillColor=#15803D;" value="" vertex="1">
-                    <mxGeometry height="6" width="24" x="56" y="990" as="geometry" />
+                    <mxGeometry height="6" width="24" x="56" y="1020" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-59" parent="1" style="rounded=1;html=1;strokeColor=none;fillColor=#E2E8F0;" value="" vertex="1">
-                    <mxGeometry height="6" width="24" x="86" y="990" as="geometry" />
+                    <mxGeometry height="6" width="24" x="86" y="1020" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-60" parent="1" style="rounded=1;html=1;strokeColor=none;fillColor=#E2E8F0;" value="" vertex="1">
-                    <mxGeometry height="6" width="24" x="116" y="990" as="geometry" />
+                    <mxGeometry height="6" width="24" x="116" y="1020" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-61" parent="1" style="rounded=1;html=1;strokeColor=none;fillColor=#E2E8F0;" value="" vertex="1">
-                    <mxGeometry height="6" width="24" x="146" y="990" as="geometry" />
+                    <mxGeometry height="6" width="24" x="146" y="1020" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-62" parent="1" style="rounded=1;html=1;strokeColor=none;fillColor=#E2E8F0;" value="" vertex="1">
-                    <mxGeometry height="6" width="24" x="176" y="990" as="geometry" />
+                    <mxGeometry height="6" width="24" x="176" y="1020" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-63" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontSize=12;fontStyle=1;fontColor=#334155;" value="⏮ 前の解説" vertex="1">
-                    <mxGeometry height="40" width="128" x="56" y="1006" as="geometry" />
+                    <mxGeometry height="40" width="128" x="56" y="1036" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-64" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#15803D;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" value="▶ 再生する" vertex="1">
-                    <mxGeometry height="40" width="128" x="196" y="1006" as="geometry" />
+                    <mxGeometry height="40" width="128" x="196" y="1036" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-65" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontSize=12;fontStyle=1;fontColor=#334155;" value="次の解説 ⏭" vertex="1">
-                    <mxGeometry height="40" width="128" x="336" y="1006" as="geometry" />
+                    <mxGeometry height="40" width="128" x="336" y="1036" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-66" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;fontSize=12;fontStyle=1;fontColor=#334155;" value="↺ 最初から" vertex="1">
-                    <mxGeometry height="40" width="128" x="476" y="1006" as="geometry" />
+                    <mxGeometry height="40" width="128" x="476" y="1036" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-67" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#64748B;whiteSpace=wrap;" value="要所で自動停止します。読み終えたら「続きを再生」で進もう。" vertex="1">
-                    <mxGeometry height="20" width="715" x="56" y="1052" as="geometry" />
+                    <mxGeometry height="20" width="715" x="56" y="1082" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-68" parent="1" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;fontSize=13;fontStyle=1;align=left;spacingLeft=14;fontColor=#0F172A;" value="▸ この教材の用語を確認する（展開時: 用語・説明の一覧 + 「用語集ですべての言葉を見る →」）" vertex="1">
-                    <mxGeometry height="40" width="747" x="40" y="1096" as="geometry" />
+                    <mxGeometry height="40" width="747" x="40" y="1160" as="geometry" />
                 </mxCell>
                 <mxCell id="fle-69" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#9CA3AF;fontStyle=2;whiteSpace=wrap;" value="※ピッチと解説は900px以下で縦並び、操作ボタンは640px以下で2列。陣形切替で再生状態を初期化。不明な陣形IDではエラー「陣形の教材が見つかりません」を表示" vertex="1">
-                    <mxGeometry height="40" width="747" x="40" y="1152" as="geometry" />
+                    <mxGeometry height="40" width="747" x="40" y="1216" as="geometry" />
                 </mxCell>
                 <mxCell id="responsive-nav-note" parent="1" style="text;html=1;fontSize=11;align=left;whiteSpace=wrap;fontColor=#475569;" value="900px以下: メニュー開閉 / Escapeで閉じ、ボタンへフォーカス復帰" vertex="1">
                     <mxGeometry as="geometry" height="28" width="590" x="215" y="12" />
+                </mxCell>
+                <!-- 「この陣形をボードで試す」導線（2026-10-05追加）。/board?blue={陣形ID} で青にこの陣形を選んだボードを開く -->
+                <mxCell id="fle-board-link-1" parent="1" style="text;html=1;fontSize=12;fontStyle=1;align=left;verticalAlign=middle;fontColor=#15803D;whiteSpace=wrap;" value="この陣形をボードで試す →" vertex="1">
+                    <mxGeometry height="22" width="160" x="44" y="490" as="geometry"/>
+                </mxCell>
+                <mxCell id="fle-board-link-2" parent="1" style="text;html=1;fontSize=12;fontStyle=1;align=left;verticalAlign=middle;fontColor=#15803D;whiteSpace=wrap;" value="この陣形をボードで試す →" vertex="1">
+                    <mxGeometry height="24" width="220" x="40" y="1118" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

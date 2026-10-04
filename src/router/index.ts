@@ -26,6 +26,15 @@ export const router = createRouter({
     { path: "/matrix", name: "matrix", component: MatrixPage },
     { path: "/glossary", name: "glossary", component: GlossaryPage },
     { path: "/quiz", name: "quiz", component: QuizPage },
-    { path: "/board", name: "free-layout-board", component: FreeLayoutBoardPage },
+    {
+      path: "/board",
+      name: "free-layout-board",
+      component: FreeLayoutBoardPage,
+      // 学習画面の「この陣形をボードで試す」から青の初期陣形を受け取る。クエリは利用者が書き換えられるため
+      // 文字列以外（配列・null）は渡さず、陣形として実在するかの判定はボード画面に任せる。
+      props: (route) => ({
+        initialBlueFormationId: typeof route.query.blue === "string" ? route.query.blue : undefined,
+      }),
+    },
   ],
 });
