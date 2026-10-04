@@ -240,4 +240,6 @@ docs/
 - チーム固有の取り決め
 -->
 
-（未記入）
+- 画面を変える PR でのワイヤーフレーム（`wireframes.drawio`）・画面設計の同時更新ルールは
+  [`docs/specs/1_requirements/repository-structure.md`「汎用規約からの差分」](docs/specs/1_requirements/repository-structure.md#汎用規約からの差分)
+  を参照
