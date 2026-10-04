@@ -43,16 +43,25 @@ soccer-sim/
 │   │   ├── TermPopover.vue          # サッカー用語1件の説明を表示する吹き出し
 │   │   ├── QuizQuestionCard.vue     # クイズの設問1問の表示・回答受付コンポーネント
 │   │   ├── AppHeader.vue            # 全画面共通のグローバルナビゲーション
-│   │   ├── PageHeader.vue           # グラデーション背景のページヘッダー
+│   │   ├── PageHeader.vue           # 白背景+下境界1pxのページヘッダー
 │   │   ├── BackButton.vue           # 戻るボタン（遷移先解決を集約）
-│   │   └── AppIcon.vue              # @lucide/vueアイコンの共通ラッパー（aria-hidden・サイズを一元管理）
+│   │   ├── AppIcon.vue              # @lucide/vueアイコンの共通ラッパー（aria-hidden・サイズを一元管理）
+│   │   ├── TacticalReplay.vue       # 戦術再生セクション（開閉）
+│   │   ├── TacticalReplayPlayer.vue # 戦術再生の再生状態・操作
+│   │   ├── TacticalReplayPitch.vue  # 戦術再生の局面図（SVG描画）
+│   │   ├── tacticalReplayFrame.ts   # 解説間の位置補間（純粋関数）
+│   │   ├── FreeLayoutPitchDiagram.vue # 自由配置ボードのピッチ（ドラッグ・キー操作）
+│   │   ├── freeLayoutCoordinates.ts # ボードの座標変換（純粋関数）
+│   │   └── BoardBall.vue            # 自由配置ボードのボール
 │   ├── data/
 │   │   ├── formations.ts        # フォーメーション定義（静的データ）
 │   │   ├── matchups.ts          # マッチアップ解説文（静的データ）
 │   │   ├── soccerTerms.ts       # サッカー用語定義（静的データ）
 │   │   ├── termAnnotation.ts    # 解説文を「平文/用語」へ切り出す純粋関数（副作用なし）
 │   │   ├── quiz.ts              # フォーメーション・マッチアップからクイズ設問を生成する純粋関数（副作用なし）
+│   │   ├── formationLessons.ts  # 陣形別教材の索引（lessons/ の個別教材、tacticalScenes.ts を束ねる）
 │   │   ├── freeLayoutStorage.ts # ボード配置の検証・保存
+│   │   ├── boardBallStorage.ts  # ボードのボール位置の検証・保存
 │   │   └── learningProgress.ts  # 学習進捗の読み書き（`localStorage`）
 │   ├── types/
 │   │   └── formation.ts         # Formation・Position・Matchup・SoccerTerm・QuizQuestion・LearningProgress 等の型定義
@@ -122,12 +131,11 @@ soccer-sim/
   受け取り、選択肢の表示・`answer`イベントのemit・正誤と解説の表示を行う
 - `AppHeader.vue`: 全画面共通のグローバルナビゲーション。`App.vue`から配置され、現在地
   ハイライト・モバイル幅でのハンバーガー折りたたみを行う
-- `PageHeader.vue`: グラデーション背景のページヘッダー（タイトル・サブタイトル・戻るボタン）を
+- `PageHeader.vue`: 白背景+下境界1pxのページヘッダー（タイトル・サブタイトル・戻るボタン）を
   表示する。`showBackButton` propsが真のとき`BackButton.vue`を内部で描画する
   （2026-09-27追加。それまでは各画面が個別に`BackButton`を配置しヘッダーの見た目が
   画面ごとに不揃いだったため、`PageHeader.vue`経由に統一した）。
-  `FormationListPage.vue`/`GlossaryPage.vue`/`ComparisonPage.vue`/`MatrixPage.vue`/
-  `QuizPage.vue`のすべてが使用する
+  `pages/`の全8画面が使用する
 - `BackButton.vue`: 戻るボタンの表示と遷移先解決（履歴があれば`router.back()`、
   無ければ`fallbackTo` propsへ`router.push()`）を行う。`PageHeader.vue`から使用される
   （`components/`層内での同一層コンポーネント合成であり、`FormationCard.vue`→
@@ -152,7 +160,7 @@ FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalR
 （再生状態）、`TacticalReplayPitch.vue`（SVG）に分ける。表示専用の純粋な補間ヘルパーは
 `components/tacticalReplayFrame.ts`、そのテストは隣接配置。教材データは
 `data/formationLessons.ts`（陣形別索引）と `data/lessons/`（個別教材）、既存のサイド教材は `data/tacticalScenes.ts`、共有型は `types/tacticalReplay.ts` に置く。
-静的教材を読み込むのは `pages/FormationLearningPage.vue` とし、scene propsで部品へ渡す。
+教材を部品へ渡すのは `pages/FormationLearningPage.vue` とし、scene propsで渡す（`pages/LearningListPage.vue` も一覧のカード表示のために教材を読むが、部品へは渡さない）。
 これにより上記のcomponents依存規約を維持する。
 
 #### data/
@@ -171,8 +179,12 @@ FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalR
   乱数（並べ替え）を注入可能にしており、本番コードとテストで実装を分けずに決定的な
   検証を可能にしている
 - `learningProgress.ts`: 学習進捗（確認済みの組み合わせ）を`localStorage`へ読み書きする。
-  `data/`配下で唯一副作用を持つモジュール。読み込み時に保存値の形式を検証し、
-  壊れたデータは空の進捗として扱う（利用者が`localStorage`を直接書き換えられるため）
+  読み込み時に保存値の形式を検証し、壊れたデータは空の進捗として扱う（利用者が`localStorage`を
+  直接書き換えられるため）
+- `freeLayoutStorage.ts` / `boardBallStorage.ts`: 自由配置ボードの選手配置・ボール位置を
+  `localStorage`へ読み書きする（FR-21）。`learningProgress.ts`と合わせ、`data/`配下で副作用を
+  持つのはこの3モジュールのみ。不正な保存値は無視し、保存失敗でも操作を継続させる
+- `formationLessons.ts` / `lessons/` / `tacticalScenes.ts`: 陣形別の戦術教材（FR-20）
 **依存関係**:
 - 依存可能: `types/`
 - 依存禁止: `pages/`, `components/`（データレイヤーはUIレイヤーに依存しない。
@@ -187,7 +199,9 @@ FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalR
 **配置ドキュメント**:
 - `docs/specs/1_requirements/`: 要件定義工程の成果物（要件定義書・非機能要件定義書（該当なし）・
   機能概要・アーキテクチャ概要・リポジトリ構造（本書）・用語集）
-- `docs/specs/2_basic-design/`: 基本設計（コンポーネント設計・画面設計・ワイヤーフレーム）
+- `docs/specs/2_basic-design/`: 基本設計（コンポーネント設計・画面設計・ワイヤーフレーム）。
+  ワイヤーフレームは `wireframes.drawio` 1ファイルに、ルート1つにつき1ページ（`wireframe-[画面slug]`）
+  で持つ（下記「汎用規約からの差分」参照）
 - `docs/specs/3_detail-design/`: 詳細設計（画面詳細設計書）
 - `docs/specs/4_unit-test/`: 単体テスト仕様書
 - `docs/specs/5_integration-test/`: 該当なし（本プロダクトは実DBを持たないため結合テストは対象外）
@@ -255,6 +269,30 @@ npm run dev
     上、リスクを認識した上でそのまま受容することとした（2026-09-06）。
   - **申し送り**: kit側の配布仕様の問題として、`kit-contribute` の受け渡し経路を通じて
     フィードバック済み（`.steering/20260906-initial-setup/retrospective.md` 参照）。
+
+- **画面を変える PR では、ワイヤーフレームと画面設計を同じ PR で更新する**: 次のいずれかを
+  変更する PR では、`docs/specs/2_basic-design/wireframes.drawio` の該当ページと
+  `screen-design.md` の該当画面節を同じ PR で更新する。画面の追加・削除では
+  `functional-overview.md`「画面設計」（画面一覧・遷移図・モジュール構成図）と
+  `component-design.md` も同じ PR で更新する。
+  - 対象: `src/pages/` の追加・削除・レイアウト変更、`src/router/index.ts` のルート変更、
+    `src/components/AppHeader.vue` の主ナビ変更、`PageHeader` のタイトル・説明文の変更、
+    画面に表示する要素の追加・削除・並び替え
+  - 対象外: 色・余白などトークン値だけの変更、表示を変えないリファクタリング、テストのみの変更
+  - 確認方法: drawio のページ数がルート数と一致し、全ページの主ナビが `AppHeader.vue` と同じ項目・
+    順序であること。コミット前レビューでは、上記対象の差分があるのに `wireframes.drawio` が
+    差分に含まれていなければ指摘する
+  - **理由**: 2026-10-03 の自由配置ボード・学習ハブ追加（#8〜#10）で画面は8画面・主ナビ6項目に
+    なったが、ワイヤーフレームは2ページ・旧3項目のまま残り、画面設計・コンポーネント設計も
+    追随しなかった。kit の `flow-add-feature` は「基本設計に影響があれば docs を更新」とするのみで、
+    画面変更がその判断から漏れた。kit 側への改善提案は
+    `.steering/20261004-screen-docs-alignment/retrospective.md` に記録した。
+- **ワイヤーフレームは1ファイル複数ページで持つ**: kit の `specs-basic-design` ガイドは画面ごとに
+  `wireframe-[画面slug].drawio` を作るとしているが、本プロジェクトは `wireframes.drawio` 1ファイルに
+  ページ `wireframe-[画面slug]` を並べる。
+  - **理由**: 全画面に共通のグローバルナビ・ページヘッダーを同じスタイル値で描くため、1ファイルの
+    方が画面間の不一致を見つけやすい。既存の `screen-design.md` からのリンク
+    （`wireframes.drawio` のページ名指定）も維持できる。
 
 ## 書かないこと（`/kit-guidelines` が正本）
 

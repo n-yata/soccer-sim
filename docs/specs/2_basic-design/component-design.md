@@ -363,9 +363,13 @@ function restart(): void; // questions/currentIndex/answersをすべて作り直
 ## UIレイヤー: AppHeader（`components/AppHeader.vue`）
 
 **責務**:
-- 全画面共通のグローバルナビゲーション。一覧・相性表・理解度チェック・用語集への遷移導線を
-  常時提供する
-- 現在のルート名（`useRoute().name`）と一致するナビ項目に`aria-current="page"`を付与する
+- 全画面共通のグローバルナビゲーション。ブランド（一覧画面へのリンク）と、フォーメーションを選ぶ／
+  戦術を学ぶ／相性表／自由配置ボード／理解度チェック／用語集の6項目への遷移導線を常時提供する
+  （項目と順序の正本は本コンポーネントの実装。functional-overview.md の画面遷移図と screen-design.md
+  「全画面共通のグローバルナビゲーション」は書き写しのため、変更時は同じ PR で直す）
+- 現在のルート名（`useRoute().name`）と一致するナビ項目に`aria-current="page"`を付与する。
+  下位画面は親セクションに`aria-current="location"`を付与する（比較画面→フォーメーションを選ぶ、
+  陣形学習画面→戦術を学ぶ）
 - モバイル幅（640px以下）ではハンバーガーボタンでナビをたたむ。ナビ項目のクリックで開閉状態を
   閉じる（`closeMenu`）
 
@@ -376,11 +380,12 @@ function restart(): void; // questions/currentIndex/answersをすべて作り直
 ## UIレイヤー: PageHeader（`components/PageHeader.vue`）
 
 **責務**:
-- グラデーション背景のページヘッダー（タイトル・サブタイトル・戻るボタン）を表示する共通
-  コンポーネント（`FormationListPage`/`GlossaryPage`で個別実装されていたグラデーション
+- 白背景+下境界1pxのページヘッダー（タイトル・サブタイトル・戻るボタン）を表示する共通
+  コンポーネント（2026-10-01にグラデーション背景から変更。`FormationListPage`/`GlossaryPage`で個別実装されていたグラデーション
   ヘッダーを統合したのが最初の導入。2026-09-27に、`ComparisonPage`/`MatrixPage`/`QuizPage`が
   個別に実装していた「素のdiv+`BackButton`+`h1`」ヘッダーもここへ統合し、全画面で見た目を
-  統一した）
+  統一した）。現在は全8画面が使用する
+- `variant="hero"`のとき、トップレベル画面（一覧画面）向けにタイトルを大きく強調表示する
 - デフォルトスロットで、タイトル行右側のアクション領域（ボタン・リンク群）を差し込めるようにする
 - `showBackButton`が真のとき、タイトルの左に`BackButton`を描画する
 - 名前付きスロット`#title-icon`で、タイトル文字列の直前にアイコン（`AppIcon`想定）を
@@ -394,6 +399,7 @@ interface PageHeaderProps {
   subtitle?: string;
   showBackButton?: boolean; // 既定値: false
   backFallbackTo?: string; // 既定値: "/"
+  variant?: "default" | "hero"; // 既定値: "default"
 }
 ```
 
@@ -454,6 +460,211 @@ interface BackButtonProps {
 - **利用側**: `PageHeader.vue`が内部で使用する（2026-09-27以前は`MatrixPage`/`QuizPage`/
   `ComparisonPage`が個別に配置していたが、`PageHeader`経由に統一した）
 
+## UIレイヤー: LearningListPage（`pages/LearningListPage.vue`）
+
+**責務**:
+- 主ナビ「戦術を学ぶ」から開く戦術学習の入口（FR-20）。教材を持つ陣形だけをカードで一覧表示する
+- カード全体を陣形学習画面（`/formations/:formationId/learn`）へのリンクにする。比較の選択操作は持たない
+
+**インターフェース**:
+```typescript
+// 教材のある陣形だけを、formations.ts の並び順で抽出する
+const learningFormations: { formation: Formation; lesson: FormationLesson }[];
+```
+
+**依存関係**:
+- 依存可能: `components/PageHeader.vue`, `components/FormationMiniPitch.vue`,
+  `data/formations.ts`, `data/formationLessons.ts`
+- 依存禁止: `data/matchups.ts`, `data/learningProgress.ts`（学習一覧は比較の進捗を扱わない）
+
+## UIレイヤー: FormationLearningPage（`pages/FormationLearningPage.vue`）
+
+**責務**:
+- ルートの陣形IDから陣形と教材を解決し、陣形切替・基本配置・学ぶこと・役割対応・戦術再生・
+  用語説明を表示する（FR-20）
+- 教材を部品へ渡すのは本画面で、`TacticalReplay` へは `scene` props で渡す
+  （components 層から静的データを直接読まない規約を守るため。正本は repository-structure.md「components/」）
+- 陣形切替時は `TacticalReplay` の `key` に陣形IDを渡して再生状態を初期化する
+- 教材の文言に登場する登録用語だけを抽出し、折りたたみの用語説明に出す
+- 陣形または教材が見つからない場合はエラーを `role="alert"` で表示する
+
+**インターフェース**:
+```typescript
+const formation: ComputedRef<Formation | undefined>;
+const lesson: ComputedRef<FormationLesson | undefined>;
+// objective・caution・場面の各文言を連結し、term を含む SoccerTerm を返す
+const lessonTerms: ComputedRef<SoccerTerm[]>;
+```
+
+**依存関係**:
+- 依存可能: `components/PageHeader.vue`, `components/FormationMiniPitch.vue`,
+  `components/TacticalReplay.vue`, `data/formations.ts`, `data/formationLessons.ts`,
+  `data/soccerTerms.ts`, `vue-router`（`useRoute`）
+- 依存禁止: `data/learningProgress.ts`
+
+## UIレイヤー: TacticalReplay（`components/TacticalReplay.vue`）
+
+**責務**:
+- 戦術再生セクションの見出し（「動きで学ぶ戦術」・場面タイトル・説明）と開閉ボタンを表示する
+- 初期状態は閉じる。開いたときだけ `TacticalReplayPlayer` を描画する（開いても自動再生しない）
+
+**インターフェース**:
+```typescript
+interface TacticalReplayProps {
+  scene: TacticalScene;
+  description?: string; // 未指定時は既定の問いかけ文
+}
+```
+
+**依存関係**:
+- 依存可能: `components/TacticalReplayPlayer.vue`, `components/AppIcon.vue`, `types/tacticalReplay.ts`
+- 依存禁止: `pages/`, `data/`（教材は props で受け取る）
+
+## UIレイヤー: TacticalReplayPlayer（`components/TacticalReplayPlayer.vue`）
+
+**責務**:
+- 再生状態（現在の解説番号・解説間の進み具合・再生中か）を持ち、前の解説・再生/一時停止・
+  次の解説・最初からの操作を提供する
+- 解説間の移動は `interpolateFrame` で補間し、次の解説に到着したら自動停止する
+- 解説パネル（見出し・優位の条件・説明・見るポイント）を `aria-live="polite"` で更新する
+- 「視差効果を減らす」設定では動きを省き静止画で進める。タブが非表示になったら一時停止する
+
+**インターフェース**:
+```typescript
+interface TacticalReplayPlayerProps {
+  scene: TacticalScene;
+}
+function togglePlay(): void;
+function go(target: number): void; // 指定の解説へ移動し、再生を止める
+```
+
+**依存関係**:
+- 依存可能: `components/TacticalReplayPitch.vue`, `components/tacticalReplayFrame.ts`,
+  `components/AppIcon.vue`, `types/tacticalReplay.ts`
+- 依存禁止: `pages/`, `data/`
+
+## UIレイヤー: TacticalReplayPitch（`components/TacticalReplayPitch.vue`）
+
+**責務**:
+- 局面を横向きのピッチとして SVG で描画する表示専用コンポーネント。攻撃側を丸、守備側を
+  角丸四角と番号で区別し、走る道を破線、パスを矢印、空間を枠と文字で示す
+- 移動中は経路・空間の強調を抑え、解説の到着時点（チェックポイント）で表示する
+
+**インターフェース**:
+```typescript
+interface TacticalReplayPitchProps {
+  scene: TacticalScene;
+  frame: ReplayFrame; // 補間済みの現在位置
+  step: ReplayStep;
+  isMoving: boolean;
+  isAtCheckpoint: boolean;
+}
+```
+
+**依存関係**:
+- 依存可能: `types/tacticalReplay.ts`
+- 依存禁止: `pages/`, `data/`
+
+## UIレイヤー: tacticalReplayFrame（`components/tacticalReplayFrame.ts`）
+
+**責務**:
+- 2つのフレーム間の選手・ボール位置を、進み具合（0〜1に制限）で線形補間する純粋関数。
+  選手は配列順ではなくIDで対応づけ、入力フレームを変更しない
+
+**インターフェース**:
+```typescript
+export function interpolateFrame(from: ReplayFrame, to: ReplayFrame, progress: number): ReplayFrame;
+```
+
+**依存関係**: `types/tacticalReplay.ts` のみ（外部依存なし。テストは隣接配置）。
+
+## UIレイヤー: FreeLayoutBoardPage（`pages/FreeLayoutBoardPage.vue`）
+
+**責務**:
+- 青・赤それぞれの陣形選択、チーム単位のリセット、ボールの中央戻しを提供する（FR-21）
+- 選手配置はチーム・陣形単位（`{team}:{formationId}`）のボード専用キーで保存・復元し、
+  比較画面用の保存先とは共有しない。保存は操作確定時だけ行う
+- リセット・ボール戻しでは子コンポーネントの `key` を更新し、リセット前の操作確定イベントが
+  後から保存されるのを防ぐ
+
+**インターフェース**:
+```typescript
+type Team = "A" | "B";
+function selectFormation(team: Team, formationId: string): void;
+function resetTeam(team: Team): void;
+function resetBall(): void;
+function updatePosition(team: Team, positionId: string, x: number, y: number): void; // 表示のみ
+function savePosition(team: Team, positionId: string, x: number, y: number): void;   // 永続化
+```
+
+**依存関係**:
+- 依存可能: `components/PageHeader.vue`, `components/FreeLayoutPitchDiagram.vue`,
+  `components/BoardBall.vue`, `data/formations.ts`, `data/freeLayoutStorage.ts`,
+  `data/boardBallStorage.ts`
+- 依存禁止: `data/matchups.ts`（ボードでは戦術判定・試合再生を行わない）
+
+## UIレイヤー: FreeLayoutPitchDiagram（`components/FreeLayoutPitchDiagram.vue`）
+
+**責務**:
+- 2チームの選手を横向きのピッチに SVG で描画し、ポインタのドラッグと矢印キーで移動させる
+- 移動中は `update-position`、操作確定時（ポインタを離す・矢印キーを離す）だけ `update-position-end`
+  を発火する（高コストな保存を確定時の1回に絞るため）
+
+**インターフェース**:
+```typescript
+interface FreeLayoutPitchDiagramProps {
+  formationA: Formation; // 青。左から右へ攻撃
+  formationB: Formation; // 赤。右から左へ攻撃
+}
+interface FreeLayoutPitchDiagramEmits {
+  "update-position": [team: "A" | "B", positionId: string, x: number, y: number];
+  "update-position-end": [team: "A" | "B", positionId: string, x: number, y: number];
+}
+```
+
+**依存関係**:
+- 依存可能: `components/freeLayoutCoordinates.ts`, `types/formation.ts`
+- 依存禁止: `pages/`, `data/`（保存は呼び出し側の責務）
+
+## UIレイヤー: freeLayoutCoordinates（`components/freeLayoutCoordinates.ts`）
+
+**責務**:
+- 実座標（0〜100）とボードの SVG 座標の往復可能な線形変換、範囲の制限を行う純粋関数群。
+  DOM に依存しないため、座標変換を単体テストで直接検証できる
+
+**インターフェース**:
+```typescript
+export function xToCy(x: number): number;
+export function cyToX(cy: number): number;
+export function depthToCx(team: "A" | "B", y: number): number;
+export function cxToDepth(team: "A" | "B", cx: number): number;
+export function clampToPitchRange(value: number): number;
+```
+
+**依存関係**: なし（外部依存なし）。
+
+## UIレイヤー: BoardBall（`components/BoardBall.vue`）
+
+**責務**:
+- ボール1個をピッチと同じ寸法の SVG に重ねて描画し、ドラッグ・Tabと矢印キーで移動させる
+- 移動中は `update-position`、操作確定時（ポインタを離す・矢印キーを離す・キー操作後のフォーカス離脱）に
+  `update-position-end` を発火する。座標系と描画位置の確定事項は functional-overview.md「自由配置ボード（FR-21）の確定事項」を正本とする
+
+**インターフェース**:
+```typescript
+interface BoardBallProps {
+  position: BoardBallPosition; // 左上基準の0〜100
+}
+interface BoardBallEmits {
+  "update-position": [position: BoardBallPosition];
+  "update-position-end": [position: BoardBallPosition];
+}
+```
+
+**依存関係**:
+- 依存可能: `data/boardBallStorage.ts` の型（`BoardBallPosition`）のみ
+- 依存禁止: `pages/`、`data/boardBallStorage.ts` の保存関数（保存は呼び出し側の責務）
+
 ## データレイヤー: termAnnotation / quiz（`data/termAnnotation.ts`, `data/quiz.ts`）
 
 **責務**:
@@ -490,8 +701,9 @@ export function buildQuiz(
 ## データレイヤー: learningProgress（`data/learningProgress.ts`）
 
 **責務**:
-- 学習進捗（確認済みの組み合わせ）を`localStorage`へ読み書きする。`data/`配下で唯一
-  副作用を持つモジュール（FR-13）
+- 学習進捗（確認済みの組み合わせ）を`localStorage`へ読み書きする（FR-13）。`data/`配下で
+  副作用を持つのは本モジュールと、自由配置ボード用の`freeLayoutStorage.ts`・`boardBallStorage.ts`
+  （下記「データレイヤー: freeLayoutStorage / boardBallStorage」）のみ（正本: repository-structure.md「data/」）
 - フォーメーション2件の組み合わせを、順序に依存しないキーへ正規化する
   （`[idA, idB].sort().join("__")`。順序違いでの二重計上を防ぐ）
 - 読み込み時に保存値の形式を検証する。`viewedPairs`が文字列配列であることを確認し、
@@ -553,3 +765,50 @@ export const soccerTerms: SoccerTerm[]; // matchups.ts等の実文言から抽�
 > このレイヤーは外部依存を持たない純粋なデータ・関数のみで構成される。UIレイヤーへの依存も
 > 無いため、`getFormationById` / `getMatchup` は単体テストの対象として最もテストしやすい層である
 > （`requirements-definition.md` §5 NFR-03「保守性」に対応）。
+
+## データレイヤー: formationLessons / lessons / tacticalScenes（`data/formationLessons.ts`, `data/lessons/`, `data/tacticalScenes.ts`）
+
+**責務**:
+- 陣形ごとの戦術教材（目的・注意点・場面・5つの解説）を静的データとして提供する（FR-20）
+- `data/lessons/` の各ファイルは `buildLesson` で役割3人の定義から教材を組み立てる。
+  4-3-3 は既存のサイド教材（`tacticalScenes.ts` の `wideOverloadScene`）を流用する
+- 陣形IDによる検索関数を提供する
+
+**インターフェース**:
+```typescript
+// data/formationLessons.ts
+export const formationLessons: FormationLesson[];
+export function getFormationLesson(id: string): FormationLesson | undefined;
+
+// data/lessons/buildLesson.ts
+export function buildLesson(definition: LessonDefinition): FormationLesson;
+```
+
+**依存関係**: `types/tacticalReplay.ts` のみ（外部依存なし）。呼び出し元は `pages/LearningListPage.vue`
+と `pages/FormationLearningPage.vue` に限る。
+
+## データレイヤー: freeLayoutStorage / boardBallStorage（`data/freeLayoutStorage.ts`, `data/boardBallStorage.ts`）
+
+**責務**:
+- 自由配置ボードの選手配置（陣形単位のオーバーライド）とボール位置を `localStorage` へ読み書きする（FR-21）
+- 読み込み時に保存値の形式・数値の有限性を検証し、不正なデータは無視する（選手は初期配置、
+  ボールは中央）。危険なキー（`__proto__` 等）は受け付けない
+- 読み書きを `try/catch` で囲み、保存できない環境でも配置操作は継続させる
+- ボードはページ側から、既定キー（`STORAGE_KEY`）とは別の専用キーを渡す
+
+**インターフェース**:
+```typescript
+// data/freeLayoutStorage.ts
+export function applyOverrides(positions: Position[], formationId: string, storageKey?: string): Position[];
+export function savePositionOverride(formationId: string, positionId: string, x: number, y: number, storageKey?: string): void;
+export function clearFormationOverride(formationId: string, storageKey?: string): void;
+
+// data/boardBallStorage.ts
+export interface BoardBallPosition { x: number; y: number }
+export const BOARD_BALL_CENTER: Readonly<BoardBallPosition>;
+export function loadBoardBallPosition(): BoardBallPosition;
+export function saveBoardBallPosition(position: BoardBallPosition): void;
+```
+
+**依存関係**: `types/formation.ts` のみ（外部依存なし）。呼び出し元は `pages/FreeLayoutBoardPage.vue`
+に限る（`BoardBall.vue` は型のみ参照）。

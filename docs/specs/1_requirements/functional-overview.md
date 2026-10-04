@@ -244,7 +244,7 @@ erDiagram
 
 ボードには中央から開始するボールを1個表示し、ドラッグ・Tabと矢印キーでピッチ全体を移動できる。
 ボールの座標は左上基準の0-100で管理し、本体が端で切れないよう内側へ描画する。
-ボールはチーム・陣形から独立した端末内の保存先を持ち、操作確定またはキー操作後のフォーカス離脱時に保存する。
+ボールはチーム・陣形から独立した端末内の保存先を持ち、ドラッグの終了時・矢印キーを離した時・キー操作後のフォーカス離脱時に保存する。
 陣形変更・チームリセットでボールは変わらず、「ボールを中央に戻す」は選手配置に影響しない。
 
 ### 画面遷移図
@@ -267,6 +267,7 @@ stateDiagram-v2
     GlossaryPage --> FormationListPage: 戻る
     FormationListPage --> QuizPage: 理解度チェック（AppHeader経由）
     QuizPage --> FormationListPage: 戻る/フォーメーションを比較する
+    FormationListPage --> FreeLayoutBoardPage: 自由配置ボード（AppHeader経由）
 ```
 
 > **AppHeaderについて**: 「（AppHeader経由）」と付記した遷移は、`AppHeader`（全画面共通の
@@ -341,7 +342,7 @@ stateDiagram-v2
 | UC-03 | 用語の意味を確認する | 利用者 | 解説文に出てくるサッカー用語の意味を確認する | フォーメーション一覧画面、比較画面、用語集画面 |
 | UC-04 | 理解度を確認する | 利用者 | フォーメーションの特徴を自分が説明できるか、クイズで確認する | フォーメーション一覧画面、クイズ画面 |
 | UC-05 | 学習の進み具合を把握する | 利用者 | どの組み合わせを確認済みか把握し、1周したかを判断する | 比較画面、相性マトリクス画面 |
-| UC-06 | 配置を変えて有利不利の変化を確かめる | 利用者 | 自分で選手を動かし、噛み合わせがどう変わるかを能動的に発見する | 比較画面 |
+| UC-06 | 配置を変えて有利不利の変化を確かめる | 利用者 | 自分で選手とボールを動かし、配置による噛み合わせの違いを自分の目で見比べて発見する（ボードは判定を出さない） | 自由配置ボード画面 |
 
 ## モジュール構成図
 
@@ -356,12 +357,16 @@ flowchart LR
       S3["相性マトリクス画面<br/>MatrixPage"]
       S4["用語集画面<br/>GlossaryPage"]
       S5["クイズ画面<br/>QuizPage"]
+      S6["戦術学習一覧画面<br/>LearningListPage"]
+      S7["陣形学習画面<br/>FormationLearningPage"]
+      S8["自由配置ボード画面<br/>FreeLayoutBoardPage"]
     end
     subgraph DATA["静的データモジュール"]
       D1["フォーメーション定義<br/>formations.ts"]
       D2["マッチアップ解説<br/>matchups.ts"]
       D3["レーダー軸定義<br/>radarAxes.ts"]
       D4["サッカー用語定義<br/>soccerTerms.ts"]
+      D5["陣形別教材<br/>formationLessons.ts / lessons/"]
     end
     subgraph DERIVED["導出ロジック（静的データから生成）"]
       L1["用語注釈<br/>termAnnotation.ts"]
@@ -369,6 +374,8 @@ flowchart LR
     end
     subgraph STORAGE["ブラウザ永続化"]
       P1["学習進捗<br/>learningProgress.ts<br/>(localStorage)"]
+      P2["ボード配置<br/>freeLayoutStorage.ts<br/>(localStorage)"]
+      P3["ボール位置<br/>boardBallStorage.ts<br/>(localStorage)"]
     end
 
     S1 --> D1
@@ -382,6 +389,14 @@ flowchart LR
     S3 --> P1
     S4 --> D4
     S5 --> L2
+    S6 --> D1
+    S6 --> D5
+    S7 --> D1
+    S7 --> D4
+    S7 --> D5
+    S8 --> D1
+    S8 --> P2
+    S8 --> P3
     L1 --> D4
     L2 --> D1
     L2 --> D2
