@@ -5,8 +5,8 @@
       "args": ["-root", "${KIT_MCP_ROOT}"]
     },
     "drawio": {
-      "command": "npx",
-      "args": ["-y", "drawio-mcp-server", "--editor"]
+      "command": "node",
+      "args": ["tools/mcp/drawio-mcp.mjs"]
     }
   }
 }
