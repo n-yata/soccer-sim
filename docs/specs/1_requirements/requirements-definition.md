@@ -416,8 +416,8 @@ P0=必須 / P1=重要 / P2=できれば、とする。
   → 解決（2026-09-27）: 公開先をGitHub Pages（`https://n-yata.github.io/soccer-sim/`）に
   確定した。絵文字アイコンのSVG化（`.steering/20260927-icon-migration/`）に続き、
   OGP画像・favicon類・canonicalタグ・GitHub Pagesのサブパス配信に必要なbase path設定を
-  実施した（`.steering/20260927-seo-ogp/`参照）。GitHub Actionsでの自動デプロイ整備は
-  別タスクとして残っている
+  実施した（`.steering/20260927-seo-ogp/`参照）。GitHub Actionsでの自動デプロイも
+  整備した（2026-10-17、`.steering/20261017-github-pages-deploy/`参照）
 
 ---
 
