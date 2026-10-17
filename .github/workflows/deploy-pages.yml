@@ -1,10 +1,10 @@
-# mainへのpushでGitHub Pages（https://n-yata.github.io/soccer-sim/）へ自動デプロイする。
+# masterへのpushでGitHub Pages（https://n-yata.github.io/soccer-sim/）へ自動デプロイする。
 # 公開前にlint・型チェック・テストを通し、失敗したらデプロイしない。
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:

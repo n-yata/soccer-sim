@@ -100,7 +100,7 @@
   `https://n-yata.github.io/soccer-sim/robots.txt`はクローラーから参照されない可能性が高い。
   sitemapの登録は`https://n-yata.github.io/soccer-sim/sitemap.xml`をGoogle Search Console等へ
   直接送信する運用とする
-- **自動デプロイ**: `main`へのpushで GitHub Actions（`.github/workflows/deploy-pages.yml`）が
+- **自動デプロイ**: `master`へのpushで GitHub Actions（`.github/workflows/deploy-pages.yml`）が
   lint・型チェック・テスト・ビルドを実行し、成功したときだけ GitHub Pages へデプロイする
   （2026-10-17導入。手順・設定は`repository-structure.md`の「CI/CD」）
 - **独自ドメインへ移行する場合に修正が必要な箇所**（9箇所、`https://n-yata.github.io/soccer-sim/`
