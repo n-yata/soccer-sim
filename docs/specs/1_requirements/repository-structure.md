@@ -56,17 +56,19 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 #### game/domain/
 
-**役割**: `functional-overview.md`「アルゴリズム設計」1〜9 と振り返り集計を実装する純粋ロジック
+**役割**: `functional-overview.md`「アルゴリズム設計」1〜10 を実装する純粋ロジック
 （`architecture-overview.md`「ドメイン層」）。
 
 **配置ファイル**:
 - `game_enums.gd`: 区分値（`Lane`・`Zone`・`DefenseStyle` など。`functional-overview.md`「エンティティと区分値」）を集約するクラス
+- 直下のその他のファイル: 値オブジェクト（クラスの一覧は `docs/specs/2_basic-design/component-design.md` §2.2）
+- `config/`: 調整値の Resource のクラス（`.tres` 本体は `game/config/`。ドメインが引数で受け取るためドメイン層に置く）
 - `layout/`: 基本配置の導出・現在配置の算出・守備の手による移動（アルゴリズム1・2・4）
 - `judge/`: 選択可能な手・攻守ターン・トランジションの判定（アルゴリズム3・5・6）
 - `match/`: キックオフ・ハーフ・試合終了の進行規則（アルゴリズム7）
 - `cpu/`: CPU の選択（アルゴリズム8）
 - `commentary/`: 解説の導出（アルゴリズム9）
-- `review/`: 振り返り集計
+- `review/`: 振り返り集計（アルゴリズム10）
 
 **依存関係**:
 - 依存可能: `game/domain/` 内のみ
@@ -113,6 +115,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 - `principles.json`: 戦術原則カタログのアプリ内表示用データ
 - `simplifications.json`: 単純化カタログのアプリ内表示用データ
 - `quiz.json`: 理解度チェックの場面問題
+- `tutorial.json`: チュートリアルの各段階（説明文・盤面の初期状態・相手が出す手）
 
 #### game/config/
 
