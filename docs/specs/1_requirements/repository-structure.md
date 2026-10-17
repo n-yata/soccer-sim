@@ -251,9 +251,15 @@ npm run dev
 
 ## CI/CD
 
-未導入。個人開発規模かつ静的サイトのため、当面は手動でのビルド確認で十分と判断する。
-チームでの共同開発や公開運用を始める場合に、Lint/型チェック/テストを実行するCIの導入を
-検討する。
+GitHub Pages への公開に合わせて導入した（2026-10-17）。
+
+- **ワークフロー**: `.github/workflows/deploy-pages.yml`
+- **起動条件**: `master` への push、または Actions 画面からの手動実行（`workflow_dispatch`）
+- **内容**: `npm ci` → `npm run lint` → `npm run typecheck` → `npm test` → `npm run build` を実行し、
+  すべて成功したときだけ `dist/` を GitHub Pages へデプロイする。PR 上でのチェックは行わない
+- **初回のみ必要なリポジトリ設定**: Settings → Pages の Source を「GitHub Actions」にする
+- **環境変数**: `VITE_JLEAGUE_URL` はリポジトリの Variables（Settings → Secrets and variables →
+  Actions → Variables）に設定するとビルドへ渡る。未設定ならリンク非表示で公開される
 
 ## 汎用規約からの差分
 
