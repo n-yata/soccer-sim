@@ -183,7 +183,6 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 | 機密情報 | 置き場 | 備考 |
 |---|---|---|
 | Android の署名鍵（アップロード鍵）とそのパスワード | リポジトリ外（各自の端末のユーザーディレクトリ配下） | Godot のエディタ設定・書き出し設定から参照する。書き出し設定（`export_presets.cfg`）は鍵を平文で持つため除外する |
-| Steamworks の認証情報 | リポジトリ外（SteamPipe のツール側で保持） | リポジトリに書き込まない |
 
 ### セットアップ手順
 
@@ -194,7 +193,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 3. `.gitignore` に Godot 用の除外（kit の `gitignore.md`「ゲーム（Godot）」）と Android の署名鍵ファイル（`*.keystore`・`*.jks`）を追加し、`git check-ignore` で両方向を実測する
 4. クリーンクローンから再インポートして、シーン・リソースの参照が壊れないことを一度確認する（kit の `coding-gdscript.md`「バージョン管理で扱うファイル」）
 5. 書き出し設定のうち、鍵を含まない共有すべき項目（リソース以外に含めるファイルのフィルタ `content/*.json`、テストを除外するフィルタ `tests/*`・`addons/gdUnit4/*` など）を、本物をコピーせずに手で書き起こした `game/export_presets.cfg.example` として追跡する（kit の `gitignore.md`「`export_presets.cfg` は鍵を平文で持つ」）。各自の `export_presets.cfg` はこれをもとに作り、書き出した成果物に JSON が含まれ、テストが含まれないことを確認する
-6. Android 基準端末・Windows 基準環境の機種を決め、`non-functional-requirements.md` §2 に記録する
+6. Android 基準端末の機種を決め、`non-functional-requirements.md` §2 に記録する
 
 ### CI/CD
 
@@ -205,7 +204,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
   - カタログと静的データの突き合わせ（NFR-17 ②）
   - ワイヤーフレームと画面一覧の対応検査
   - シークレットスキャン（流出防止の正本。kit の `gitignore.md`「`.gitignore` に頼りきらない」）
-- **CD（導入しない）**: リリース用のビルドは署名鍵を使うため、手元で行う。Google Play への登録は Play Console、Steam への登録は SteamPipe で手動で行う。導入を検討するトリガーは、リリース頻度が月1回を超えたとき
+- **CD（導入しない）**: リリース用のビルドは署名鍵を使うため、手元で行う。Google Play への登録は Play Console で手動で行う。導入を検討するトリガーは、リリース頻度が月1回を超えたとき
 
 ## プロジェクト固有の運用
 

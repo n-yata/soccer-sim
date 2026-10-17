@@ -111,12 +111,12 @@
 
 | 用語 | 定義 | 本プロジェクトでの用途 | 備考 |
 |---|---|---|---|
-| Godot Engine | オープンソースのゲームエンジン | 2D の UI・3D の演出・Android と Windows への書き出し | — |
+| Godot Engine | オープンソースのゲームエンジン | 2D の UI・3D の演出・Android への書き出し | — |
 | GDScript | Godot の標準スクリプト言語 | すべての実装 | 規約は kit の `coding-gdscript.md` |
 | gdUnit4 | Godot 用の単体テストフレームワーク | ドメインロジックのテスト・自己対戦検証 | — |
 | Compatibility レンダラー | Godot の描画方式のうち、低価格帯の端末まで動くもの | 2D・3D の描画 | — |
 | Resource（`.tres`） | Godot のデータ形式 | 調整値（`game/config/`） | — |
-| SteamPipe | Steam へビルドを登録する仕組み | Windows 版の配布 | アプリに Steamworks SDK は組み込まない |
+| SteamPipe | Steam へビルドを登録する仕組み | 後続マイルストーンの Windows 版の配布（要件定義書 §6.2） | アプリに Steamworks SDK は組み込まない |
 | draw.io | 図の作成ツール | 基本設計のワイヤーフレーム | 運用は `repository-structure.md` |
 | Mermaid | テキストで図を書く記法 | `docs/specs/1_requirements/` の図 | — |
 
