@@ -71,3 +71,16 @@
 - 最終ラウンド: 第3回
 - 新たな Critical / High: なし
 - 積み残し: なし（Low 1件目はマージ後の作業として tasklist で管理）
+
+## 第4回（2026-10-17）— tasklist の残タスク完了記録
+- 対象: `.steering/20261017-github-pages-deploy/tasklist.md`
+- 結果: Critical 0件 / High 0件 / Medium 0件 / Low 1件
+- 確認内容: `main` の最新 run（38997806201、push、PR #18 のマージコミット）が build・deploy とも success。
+  `github-pages` 環境のデプロイ許可ブランチは `main` の1件のみ。記述は事実と一致。機密情報なし
+- 未検証: 許可ブランチ削除とデプロイ成功確認の時系列（API では現在状態のみ確認可能）
+- Low: 根拠として run ID を併記するとよい → 追記して対応
+
+## レビュー完了（2026-10-17）
+- 最終ラウンド: 第4回
+- 新たな Critical / High: なし
+- 積み残し: なし

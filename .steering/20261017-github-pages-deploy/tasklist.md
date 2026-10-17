@@ -12,5 +12,6 @@
 - [x] 既定ブランチを `master` → `main` に改名（2026-10-17）
       → `github-pages` 環境のデプロイ許可ブランチに `main` を追加、ワークフロー起動条件と
       docs（architecture-overview / repository-structure）を `main` に更新
-- [ ] 改名後、`main` への push でデプロイが成功することを確認
-- [ ] 確認後、`github-pages` 環境のデプロイ許可ブランチから `master` を削除
+- [x] 改名後、`main` への push でデプロイが成功することを確認
+      → PR #18 のマージで `main` の push から起動し、build・deploy とも成功（run 38997806201）
+- [x] 確認後、`github-pages` 環境のデプロイ許可ブランチから `master` を削除（許可ブランチは `main` のみ）
