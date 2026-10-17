@@ -38,8 +38,8 @@
 
 | 技術 | バージョン | 選定理由 |
 |---|---|---|
-| Godot Engine（標準版。.NET 版ではない） | 4.6 系（パッチまで固定。開発環境の構築時に、gdUnit4 の対応範囲内で最新の安定版を選び、本表に記録する） | 2D の UI と 3D の演出を1つのエンジンで扱える。Android へ書き出せ、後続マイルストーンの Windows へも同じコードで書き出せる。MIT ライセンスで利用料がかからない |
-| GDScript | Godot に同梱 | Godot の標準言語で、Android への書き出しが正式にサポートされている（C# 版は Android への書き出しが実験的な扱いのため採用しない。Godot 4.7 の公式ドキュメント「C# platform support」で確認。同ドキュメントの記載は「4.2 以降 Android に書き出せるが、現時点では実験的」。採用する 4.6 系の記載は環境構築時に 4.6 のドキュメントで確認する） |
+| Godot Engine（標準版。.NET 版ではない） | **4.7.2**（stable。パッチまで固定。2026-10-18 の開発環境の構築で決定。gdUnit4 6.2 系が 4.7 に対応したため） | 2D の UI と 3D の演出を1つのエンジンで扱える。Android へ書き出せ、後続マイルストーンの Windows へも同じコードで書き出せる。MIT ライセンスで利用料がかからない |
+| GDScript | Godot に同梱 | Godot の標準言語で、Android への書き出しが正式にサポートされている（C# 版は Android への書き出しが実験的な扱いのため採用しない。Godot 4.7 の公式ドキュメント「C# platform support」で確認。同ドキュメントの記載は「4.2 以降 Android に書き出せるが、現時点では実験的」。確認したのは、採用する 4.7 系のドキュメントそのもの） |
 
 ### フレームワーク・ライブラリ
 
@@ -47,14 +47,14 @@
 |---|---|---|---|
 | Godot 標準の UI（Control ノード） | Godot に同梱 | 2D の作戦ボード・各画面 | 追加の依存なしでタッチを扱える（後続マイルストーンの Windows 版ではマウスも同じ仕組みで扱える） |
 | Godot 標準の 3D（Node3D・AnimationPlayer） | Godot に同梱 | ターン結果の 3D 演出 | 選手モデルの配置・移動・アニメーション再生をエンジン標準で扱える |
-| Godot の Compatibility レンダラー | Godot に同梱 | 2D・3D の描画 | 低価格帯の Android 端末まで幅広く動く。演出はローポリゴンで高度な描画機能を必要としない（Godot 4.7 公式ドキュメント「Choosing a renderer」の推奨条件に合致。採用する 4.6 系での記載は環境構築時に確認する）。実機での性能を確認して不足があれば Mobile レンダラーを再検討する |
+| Godot の Compatibility レンダラー | Godot に同梱 | 2D・3D の描画 | 低価格帯の Android 端末まで幅広く動く。演出はローポリゴンで高度な描画機能を必要としない（Godot 4.7 公式ドキュメント「Choosing a renderer」の推奨条件に合致）。実機での性能を確認して不足があれば Mobile レンダラーを再検討する。**要確認**: 構築時、ソフトウェア描画（SwiftShader）のエミュレーターでは 3D 用のシェーダーが uniform の上限（`GL_MAX_FRAGMENT_UNIFORM_VECTORS` 261）を超えてリンクに失敗した。GPU の上限が小さい低価格帯の実機で同じことが起きないかを、3D 演出の作業と基準端末で確かめる（NFR-02） |
 
 ### 開発ツール
 
 | 技術 | バージョン | 用途 | 選定理由 |
 |---|---|---|---|
-| gdUnit4 | 6.1 系（Godot 4.3〜4.6 対応。`addons/` に同梱。パッチまで構築時に本表に記録） | GDScript の単体テスト | CLI から実行でき、UI を伴わないドメインロジックのテストは画面なし（`--ignoreHeadlessMode`）で CI 実行できる。MIT ライセンス |
-| Android SDK・JDK | Godot 4.6 系の Android 書き出し要件に従う（構築時に公式ドキュメントで確認して本表に記録） | Android 向けの書き出し（Google Play 用の AAB） | Godot の Android 書き出しに必須 |
+| gdUnit4 | **6.2.2**（6.2 系は Godot 4.7 に対応。`addons/` に同梱。2026-10-18 に決定） | GDScript の単体テスト | CLI から実行でき、UI を伴わないドメインロジックのテストは画面なし（`--ignoreHeadlessMode`）で CI 実行できる。MIT ライセンス |
+| Android SDK・JDK | JDK: OpenJDK 17。Android SDK: platform-tools、build-tools 36.0.0、platforms android-36、NDK 28.1.13356709、CMake 3.10.2.4988404（Godot 4.7 の公式ドキュメント「Exporting for Android」の要件と、対象 API 36 に合わせた。2026-10-18 に決定。入れ方は `repository-structure.md`「開発環境セットアップ」） | Android 向けの書き出し（Google Play 用の AAB） | Godot の Android 書き出しに必須 |
 | Git | — | バージョン管理 | — |
 
 > **3D の選手の素材**: 簡易形状（カプセル＋チーム色＋背番号）を自作し、エリア間の移動はコードで補間する
@@ -162,7 +162,8 @@ NFR-26）。
 ## 技術的制約
 
 ### 環境要件
-- **OS**: Android（最小 API レベルは Godot 4.6 系の書き出し要件と Google Play の要件の新しい方に従う。構築時に確認して本節に記録）
+- **OS**: Android。最小 API レベル **24**（Android 7.0。Godot 4.7.2 の書き出しの既定値。書き出した APK で確認）、対象 API レベル **36**
+  （Android 16。Google Play は 2026-08-31 から新しいアプリに API 36 を対象にすることを求めている）。2026-10-18 に確認
 - **メモリ・ディスク容量**: 目標と測定方法は `non-functional-requirements.md`（NFR-04・NFR-24）
 - **必要な外部依存**: なし（実行時にネットワークを使わない）
 

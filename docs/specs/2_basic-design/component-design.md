@@ -732,6 +732,16 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 
 §1.4 のための一覧。名前を足すときは、ここと Godot の組み込みクラス名の両方と重ならないことを確かめる。
 
+> **確認の結果（2026-10-18、Godot 4.7.2）**: 下の表の全124個の名前（クラス名・enum 名・画面12個のクラス名）を、次の1,294個の名前と
+> 突き合わせ、衝突は 0 件だった（大文字・小文字の違いも衝突とみなして比べた）。
+> - `ClassDB.get_class_list()` の組み込みクラス
+> - Variant の型名（`Vector2`・`Array` など）
+> - `Engine.get_singleton_list()` のシングルトン
+> - `ProjectSettings.get_global_class_list()` のグローバルなクラス名（同梱の gdUnit4 が登録する `GdUnitError`・`ErrorLogEntry` など）
+>
+> 突き合わせは、画面なしで実行する使い捨てのスクリプトで行った。名前を足すとき、または Godot・gdUnit4 の版を上げるときは、
+> 同じ4つの一覧と突き合わせる。
+
 | 区分 | 名前 |
 |---|---|
 | オートロード | `App` |

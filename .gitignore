@@ -27,3 +27,20 @@ id_rsa*
 # 除外しないと git add -A で埋め込み git リポジトリ（gitlink）として誤コミットされ、
 # クローン側で中身を取得できない壊れた参照が残る
 .claude/worktrees/
+
+# Godot（エディタのキャッシュ・書き出しの成果物）
+.godot/
+/game/export/
+/game/build/
+# gdUnit4 のテスト結果のレポート
+/game/reports/
+
+# Godot の書き出し設定は署名パスワード・暗号鍵を平文で持つため除外する
+# 共有する項目は export_presets.cfg.example に手で書き起こす（否定パターンは後勝ち）
+export.cfg
+export_presets.cfg*
+!export_presets.cfg.example
+
+# Android の署名鍵
+*.keystore
+*.jks

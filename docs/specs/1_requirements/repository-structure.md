@@ -1,6 +1,6 @@
 # リポジトリ構造 — soccer-game（仮称）
 
-**更新日**: 2026-10-17
+**更新日**: 2026-10-18
 
 > **このプロジェクトに実在する（または開発環境の構築時に作る）ディレクトリ構造**を定義する。物理配置の正本。
 > あわせて、セットアップ手順・CI/CD などこのプロジェクト固有の運用情報と、汎用規約から意図的に外れる
@@ -13,7 +13,7 @@
 
 ## プロジェクト構造
 
-`（未作成）` は開発環境の構築時に作るもの。それ以外は現時点で実在する。
+`（未作成）` は最初の機能の作業で作るもの。それ以外は現時点で実在する（`game/` は 2026-10-18 の開発環境の構築で作成）。
 
 ```
 soccer-game/
@@ -31,18 +31,19 @@ soccer-game/
 │   │   ├── 3_detail-design/       # 詳細設計。screen/（画面ごと・画面共通）と data/（保存データ・静的データの定義）。DB 設計書は作らない
 │   │   ├── 4_unit-test/
 │   │   └── 5_integration-test/
-├── game/                          # Godot プロジェクト（未作成）
+├── game/                          # Godot プロジェクト
 │   ├── project.godot
 │   ├── export_presets.cfg.example # 鍵を含まない書き出し設定の共有用（本物の export_presets.cfg は除外）
 │   ├── addons/gdUnit4/            # テストフレームワーク（同梱して固定）
-│   ├── domain/                    # ドメイン層（純粋ロジック。Node 非依存）
-│   ├── application/               # アプリケーション層（試合進行・画面遷移・保存の呼び出し）
-│   ├── data/                      # データ層（静的データの読み込み・端末内保存）
-│   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）
-│   ├── content/                   # 静的データ（JSON）
-│   ├── config/                    # 調整値（Resource .tres）
+│   ├── domain/                    # ドメイン層（純粋ロジック。Node 非依存）（未作成）
+│   ├── application/               # アプリケーション層（試合進行・画面遷移・保存の呼び出し）（未作成）
+│   ├── data/                      # データ層（静的データの読み込み・端末内保存）（未作成）
+│   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）（未作成）
+│   ├── content/                   # 静的データ（JSON）（未作成）
+│   ├── config/                    # 調整値（Resource .tres）（未作成）
 │   ├── assets/                    # 3D 素材・テクスチャ・音・フォント（ライセンス台帳 LICENSES.md を含む）
-│   └── tests/                     # gdUnit4 のテスト
+│   │   └── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt
+│   └── tests/                     # gdUnit4 のテスト（テストはまだ無い。空のディレクトリは Git に載らない）
 └── tools/                         # 開発補助スクリプト
     └── mcp/drawio-mcp.mjs         # drawio MCP を空きポートで起動するラッパー
 ```
@@ -168,9 +169,11 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 | ツール | インストール方法 |
 |---|---|
-| Godot Engine（標準版。.NET 版ではない） | 公式サイトから取得 |
-| gdUnit4 | `game/addons/gdUnit4/` に同梱 |
-| Android SDK・JDK | Godot 公式ドキュメント「Exporting for Android」の手順 |
+| Godot Engine（標準版。.NET 版ではない） | 公式サイトから取得（winget の `GodotEngine.GodotEngine` でもよい）。`godot` コマンドで起動できるようにする |
+| 書き出しのテンプレート（Godot と同じ版） | エディタの「エクスポートテンプレートの管理」から入れる。手で入れる場合は、公式のリリースの `Godot_v<版>-stable_export_templates.tpz` を同じリリースの `SHA512-SUMS.txt` で確かめ、`templates/` の中身をエディタのデータディレクトリの `export_templates/<版>.stable/` に置く（Android には `android_debug.apk`・`android_release.apk`・`android_source.zip` が要る） |
+| gdUnit4 | `game/addons/gdUnit4/` に同梱（入れる作業は不要） |
+| JDK | OpenJDK 17 |
+| Android SDK | Android Studio か cmdline-tools で入れ、`sdkmanager` で後述の部品を足す（Godot 公式ドキュメント「Exporting for Android」） |
 | Git | — |
 | Draw.io Integration（VS Code 拡張） | ワイヤーフレームの閲覧・編集用に VS Code の拡張機能として導入 |
 
@@ -187,14 +190,115 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 ### セットアップ手順
 
-開発環境の構築時に、以下を実施して本節に実際のコマンドと結果を記録する。
+新しい端末で環境を作るときの手順。2026-10-18 の構築で実施した結果を、各手順の「結果」に記録している。
+バージョンは `architecture-overview.md`「テクノロジースタック」に従う。
 
-1. Godot・gdUnit4・Android SDK・JDK のバージョンを決め、`architecture-overview.md`「テクノロジースタック」に記録する
-2. `game/project.godot` を作成し、GDScript の警告設定を kit の `coding-gdscript.md`「静的型付けを必須とする」に従って設定する。実際の設定項目名を本節に記録する（警告名は Godot のバージョンで変わりうるため）
-3. `.gitignore` に Godot 用の除外（kit の `gitignore.md`「ゲーム（Godot）」）と Android の署名鍵ファイル（`*.keystore`・`*.jks`）を追加し、`git check-ignore` で両方向を実測する
-4. クリーンクローンから再インポートして、シーン・リソースの参照が壊れないことを一度確認する（kit の `coding-gdscript.md`「バージョン管理で扱うファイル」）
-5. 書き出し設定のうち、鍵を含まない共有すべき項目（リソース以外に含めるファイルのフィルタ `content/*.json`、テストを除外するフィルタ `tests/*`・`addons/gdUnit4/*` など）を、本物をコピーせずに手で書き起こした `game/export_presets.cfg.example` として追跡する（kit の `gitignore.md`「`export_presets.cfg` は鍵を平文で持つ」）。各自の `export_presets.cfg` はこれをもとに作り、書き出した成果物に JSON が含まれ、テストが含まれないことを確認する
-6. Android 基準端末の機種を決め、`non-functional-requirements.md` §2 に記録する
+#### 1. ツールを入れる
+
+- 上の表のツールを入れる。Android SDK には、次の部品を足す（`sdkmanager` は SDK の `cmdline-tools/latest/bin/` にある）
+
+  ```
+  sdkmanager --sdk_root=<Android SDK のパス> "platform-tools" "build-tools;36.0.0" "platforms;android-36" "ndk;28.1.13356709" "cmake;3.10.2.4988404"
+  ```
+
+- Godot のエディタ設定（端末ごと。リポジトリには入らない）の次の2項目に、各自の端末のパスを入れる
+  - `export/android/android_sdk_path`: Android SDK のパス
+  - `export/android/java_sdk_path`: JDK 17 のパス
+- **結果**: `sdkmanager --list_installed` で上記の部品が入ったことを確かめた。build-tools は、対象 API（36）に合う版が無いと
+  書き出しのときに警告が出て別の版で代用されるため、36.0.0 を入れた
+
+#### 2. Godot プロジェクトの設定（`game/project.godot`）
+
+GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項目名と値。列挙の値は数値で保存される。
+
+| 設定項目 | 値 | 根拠 |
+|---|---|---|
+| `debug/gdscript/warnings/untyped_declaration` | `2`（Error） | kit の `coding-gdscript.md`「静的型付けを必須とする」 |
+| `debug/gdscript/warnings/unsafe_property_access` | `2`（Error） | 同上 |
+| `debug/gdscript/warnings/unsafe_method_access` | `2`（Error） | 同上 |
+| `debug/gdscript/warnings/unused_variable` | 既定の `1`（Warn）のまま（ファイルに書かれない） | 同上 |
+| `debug/gdscript/warnings/enable` | 既定の `true` のまま | 同上 |
+| `display/window/size/viewport_width`・`viewport_height` | `1280`・`720` | `screen-common.md` §1 |
+| `display/window/stretch/mode`・`aspect` | `"canvas_items"`・`"keep_height"` | 同上 |
+| `display/window/handheld/orientation` | `4`（Sensor Landscape） | 同上・NFR-25 |
+| `rendering/renderer/rendering_method`（と `.mobile`） | `"gl_compatibility"` | `architecture-overview.md`（Compatibility レンダラー） |
+| `rendering/textures/vram_compression/import_etc2_astc` | `true` | Android の書き出しの必須条件（無いと書き出せない） |
+| `editor_plugins/enabled` | `res://addons/gdUnit4/plugin.cfg` | テストランナー |
+
+- 警告の項目名は、Godot を画面なしで起動して `ProjectSettings.get_property_list()` で確かめた（Godot の版を上げるときも同じ方法で確かめる）
+- 警告は、Godot 4.7 の既定（`debug/gdscript/warnings/directory_rules` が `{ "res://addons": 0 }`）で `addons/` には効かない。同梱の gdUnit4 は対象外になる
+- **プロジェクトを開いてエラーが無いことの確かめ方**: `game/` で `godot --headless --editor --quit` を実行する。
+  `godot --headless --path game --quit` は、メインシーンが無いうちは「no main scene defined」で終わる（メインシーンは最初の機能の作業で作る）
+- **テストの実行**（`game/` で実行）:
+
+  ```
+  godot --headless --path . -s -d --remote-debug tcp://127.0.0.1:0 res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests
+  ```
+
+  - gdUnit4 同梱の `runtest.cmd`・`runtest.sh` と同じ呼び出し方。`--remote-debug tcp://127.0.0.1:0` は、スクリプトの構文エラーのときに
+    対話式のデバッガで止まらないようにするための指定で、接続できない旨のエラーが2行出るのは想定どおり
+  - 終了コード: 成功は `0`、失敗があると `100`。レポートは `game/reports/`（XML・HTML。Git の除外対象）に出る
+  - テストが0件のときは「No test cases found」で終了コード `0` になり、レポートは出ない
+- **結果**: プロジェクトを開いてエラー 0 件。テストランナーは、一時的に置いたテスト（画面の設定の検査）で、成功で `0`・失敗で `100` になり、
+  レポートが出ることを確かめた（テストは確認後に消した）
+
+#### 3. Git の除外設定
+
+- `.gitignore` に、Godot 用の除外（kit の `gitignore.md`「ゲーム（Godot）」）、gdUnit4 のレポートの出力先、
+  Android の署名鍵ファイル（`*.keystore`・`*.jks`）を足した
+- **結果**（2026-10-18。`git check-ignore -v --no-index --non-matching` で1パスずつ確かめた）:
+
+  | パス | 期待 | 実際にマッチしたパターン |
+  |---|---|---|
+  | `game/.godot/x` | 除外 | `.godot/` |
+  | `game/export/a.apk` | 除外 | `/game/export/` |
+  | `game/build/x` | 除外 | `/game/build/` |
+  | `game/reports/report_1/index.html` | 除外 | `/game/reports/` |
+  | `game/export.cfg` | 除外 | `export.cfg` |
+  | `game/export_presets.cfg` | 除外 | `export_presets.cfg*` |
+  | `game/export_presets.cfg.bak` | 除外 | `export_presets.cfg*` |
+  | `a.keystore` | 除外 | `*.keystore` |
+  | `game/a.jks` | 除外 | `*.jks` |
+  | `game/export_presets.cfg.example` | 追跡 | `!export_presets.cfg.example`（否定パターン） |
+  | `game/x.import` | 追跡 | なし |
+  | `game/x.gd.uid` | 追跡 | なし |
+  | `game/project.godot` | 追跡 | なし |
+  | `game/addons/gdUnit4/plugin.cfg` | 追跡 | なし |
+
+  `git ls-files -i -c --exclude-standard` は空（追跡中のファイルを巻き込んでいない）
+
+#### 4. クリーンな状態からの再インポート
+
+- **結果**: Git が追跡する予定のファイル（`git ls-files -co --exclude-standard game`）だけを一時ディレクトリへ写し、
+  `godot --headless --editor --quit` で取り込み直して、エラー 0 件を確かめた（`.import`・`.uid` を追跡していれば、`.godot/` が無くても参照が壊れない）
+
+#### 5. 書き出し設定
+
+- `game/export_presets.cfg.example` をコピーして、各自の `game/export_presets.cfg` を作る。`.example` には署名の項目を書いていない。
+  デバッグ版は、エディタ設定のデバッグ用の鍵で署名される
+- `.example` の要点: プリセット名 `Android (debug)`、書き出し先 `export/`、リソース以外に含めるファイル `content/*.json`、
+  除外するファイル `tests/*, addons/gdUnit4/*`、Gradle ビルドなし、`arm64-v8a` と `x86_64`（エミュレーター用）、
+  `permissions/internet=false`、パッケージ名は仮の `com.example.soccergame`（正式名は要件定義書 §7.1 #4 の決定後）
+- 書き出し（`game/` で実行。書き出し先の `export/` は Godot が作らないので、先に作っておく）:
+
+  ```
+  mkdir export
+  godot --headless --export-debug "Android (debug)" export/soccer-game-debug.apk
+  ```
+
+- APK の中身は `unzip -l`、マニフェストは build-tools の `aapt2 dump badging`・`aapt2 dump permissions` で確かめる
+- **エミュレーター**: AVD は x86_64 のシステムイメージを使う。`emulator -avd <AVD 名> -gpu host` のように、ホストの GPU を使って起動する。
+  既定のソフトウェア描画（SwiftShader）では、3D 用のシェーダーの uniform の数が上限を超えてリンクに失敗し、文字も描かれなかった
+- **結果**（2026-10-18）:
+  - 確認用の仮の JSON（`content/` に置き、確認後に消した）が APK の `assets/content/` に含まれた。`tests/` と `addons/gdUnit4/` は 0 件
+  - `minSdkVersion` 24・`targetSdkVersion` 36、ネイティブコードは `arm64-v8a`・`x86_64`
+  - API 35（x86_64）のエミュレーターで起動した。確認用の仮のメインシーン（確認後に消した）で、APK 内の JSON を読めることと、
+    ビューポートが 1280×720 になることを確かめた
+  - 書き出しのとき「No project icon specified」と出る。書き出しは成功する。アイコンは公開の準備で作る
+
+#### 6. Android の基準端末
+
+- **結果**: 機種はまだ無い（2026-10-18 時点）。決定は端末の入手後に持ち越し、当面はエミュレーターで確かめる（`non-functional-requirements.md` §2）
 
 ### CI/CD
 
@@ -242,7 +346,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 | worktree・作業ブランチを使わない | kit の `git-workflow.md`「基本フロー」（と、それを要約した `AGENTS.md` のマーカー区間「ブランチ運用」）は、作業ごとに worktree とブランチを切り、`main` では編集しないことを求める。本プロジェクトは `main` の作業ツリーで編集・コミットする。手順・守り続ける規則・`/kit-sync` 後の確認の正本は `AGENTS.md`「プロジェクト固有の設定」 | worktree で作業すると VS Code で差分が見づらい（2026-10-17 決定） |
 | 静的データを JSON で持つ | kit の `coding-gdscript.md`「調整対象の数値はコードに埋めない」は Resource（`.tres`）での外部化を求める。本プロジェクトは**調整値**（ターン数・CPU パラメータ等）は規約どおり `.tres`（`game/config/`）にするが、**静的データ**（陣形の座標・噛み合わせルール・カタログ・場面問題）は JSON（`game/content/`）で持つ | 静的データはフォーメーションラボの TypeScript から機械的に移植する。また、`functional-overview.md` のカタログとの ID・件数の突き合わせ（NFR-17）を、Godot を起動せずにスクリプトでも検査できるようにするため |
 | テストを対象と別ディレクトリに置く | kit の `naming-and-placement.md` は Go・TS のテストを対象と同じディレクトリに置く。本プロジェクトは `game/tests/` に対象と同じ構成で置く | テストのスクリプトを、1つのディレクトリ指定で書き出し（エクスポート）から除外できるようにするため。除外の漏れは、セットアップ手順5の成果物確認で検出する。対象と同じディレクトリに置くと、ファイルごとのフィルタ指定が必要になり、漏れやすい |
-| Godot プロジェクトをサブディレクトリに置く | kit の `gitignore.md` の Godot 向けエントリはリポジトリ直下のプロジェクトを想定している（`/export/` `/build/`）。本プロジェクトは `game/` 配下に置くため、パターンを `game/` に合わせて書き換える | 上記「game/ 配下」のとおり、ドキュメント類を Godot のインポート・書き出しから外すため |
+| Godot プロジェクトをサブディレクトリに置く | kit の `gitignore.md` の Godot 向けエントリはリポジトリ直下のプロジェクトを想定している（`/export/` `/build/`）。本プロジェクトは `game/` 配下に置くため、パターンを `game/` に合わせて書き換える（`/game/export/`・`/game/build/`。gdUnit4 のレポートの `/game/reports/` も足した） | 上記「game/ 配下」のとおり、ドキュメント類を Godot のインポート・書き出しから外すため |
 
 ## 書かないこと（kit の `reference/rules/` が正本）
 
