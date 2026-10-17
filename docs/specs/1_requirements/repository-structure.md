@@ -1,5 +1,7 @@
 # リポジトリ構造 — soccer-game（仮称）
 
+**更新日**: 2026-10-17
+
 > **このプロジェクトに実在する（または開発環境の構築時に作る）ディレクトリ構造**を定義する。物理配置の正本。
 > あわせて、セットアップ手順・CI/CD などこのプロジェクト固有の運用情報と、汎用規約から意図的に外れる
 > 差分をここに集約する。
@@ -20,17 +22,15 @@ soccer-game/
 ├── .mcp.json                      # kit-mcp（spec-kit）への接続設定
 ├── .gitignore / .gitattributes
 ├── .claude/                       # kit の配布物（skills はスタブ、hooks は実体）
-├── .steering/                     # 作業ごとの計画・振り返り（未作成。最初の作業で作る）
+├── .steering/                     # 作業ごとの計画・レビューレポート・振り返り
 ├── docs/
 │   ├── ideas/                     # 壁打ちメモ（自由形式）
 │   ├── specs/
 │   │   ├── 1_requirements/        # 要件定義工程の6ドキュメント（本書を含む）
-│   │   ├── 2_basic-design/        # 基本設計（wireframes.drawio を含む）
+│   │   ├── 2_basic-design/        # 基本設計（screen-design.md・wireframes.drawio などを置く）
 │   │   ├── 3_detail-design/       # 詳細設計（DB 設計書は作らない。functional-overview.md「データモデル」）
 │   │   ├── 4_unit-test/
 │   │   └── 5_integration-test/
-│   ├── tactical-review-checklist.md   # ルール・解説のセルフレビュー用チェックリスト（未作成）
-│   └── asset-licenses.md              # 3D 素材・音源・フォントのライセンス台帳（未作成）
 ├── game/                          # Godot プロジェクト（未作成）
 │   ├── project.godot
 │   ├── export_presets.cfg.example # 鍵を含まない書き出し設定の共有用（本物の export_presets.cfg は除外）
@@ -41,7 +41,7 @@ soccer-game/
 │   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）
 │   ├── content/                   # 静的データ（JSON）
 │   ├── config/                    # 調整値（Resource .tres）
-│   ├── assets/                    # 3D 素材・テクスチャ・音・フォント
+│   ├── assets/                    # 3D 素材・テクスチャ・音・フォント（ライセンス台帳 LICENSES.md を含む）
 │   └── tests/                     # gdUnit4 のテスト
 └── tools/                         # 開発補助スクリプト（未作成）
 ```
@@ -56,7 +56,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 #### game/domain/
 
 **役割**: `functional-overview.md`「アルゴリズム設計」1〜9 と振り返り集計を実装する純粋ロジック
-（`architecture-overview.md`「ドメインレイヤー」）。
+（`architecture-overview.md`「ドメイン層」）。
 
 **配置ファイル**:
 - `game_enums.gd`: 区分値（`Lane`・`Zone`・`DefenseStyle` など。`functional-overview.md`「エンティティと区分値」）を集約するクラス
@@ -69,7 +69,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **依存関係**:
 - 依存可能: `game/domain/` 内のみ
-- 依存禁止: `application/`・`data/`・`ui/`。ノード・シーンツリー・ファイル入出力・時刻・グローバルな乱数（`architecture-overview.md`）。自動チェックは NFR-13
+- 依存禁止: `application/`・`data/`・`ui/`。API の禁止事項は `architecture-overview.md`「ドメイン層」が正本（自動チェックは NFR-13）
 
 #### game/application/
 
@@ -99,7 +99,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **依存関係**:
 - 依存可能: `application/`、`domain/` の値オブジェクト（表示のための読み取りのみ）
-- 依存禁止: `data/`。ルールの計算（`architecture-overview.md`「UIレイヤー」）
+- 依存禁止: `data/`。ルールの計算（`architecture-overview.md`「UI 層」）
 
 #### game/content/
 
@@ -107,6 +107,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **配置ファイル**:
 - `formations.json`: 4陣形の選手座標と特徴タグ（フォーメーションラボから移植）
+- `styles.json`: 4方式の名称と解説の固定文（`functional-overview.md` のエンティティ「方式」）
 - `matchup_rules.json`: 噛み合わせルール（各ルールに原則 ID を持つ）
 - `principles.json`: 戦術原則カタログのアプリ内表示用データ
 - `simplifications.json`: 単純化カタログのアプリ内表示用データ
@@ -114,13 +115,14 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 #### game/config/
 
-**役割**: 調整値の Resource（`.tres`）。1ハーフのターン数・CPU の温度と下限確率・振り返りで遡るターン数・
-自己対戦検証の各組の試合数（`functional-overview.md`「確定事項」、`non-functional-requirements.md` §2 #4）。
+**役割**: 調整値の Resource（`.tres`）。対象の一覧と初期値の正本は `functional-overview.md`「確定事項」の
+「設定値として外部化する値」。
 
 #### game/assets/
 
 **役割**: 3D モデル・アニメーション・テクスチャ・音・フォント。外部から調達した素材は、追加するたびに
-`docs/asset-licenses.md` に調達元・ライセンス・バージョンを記録する。
+`game/assets/LICENSES.md`（ライセンス台帳）に調達元・ライセンス・バージョンを記録する。台帳を素材と同じ
+ディレクトリに置くのは、素材の追加と台帳の更新を同じ変更に含めやすくするため。
 
 #### game/tests/
 
@@ -133,7 +135,8 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 ### tools/ 配下
 
 **配置ファイル**:
-- ドメイン層の禁止依存の検出スクリプト（NFR-13）
+- ドメイン層の禁止依存の検出スクリプト（NFR-13。検索する API 名の一覧はこのスクリプトが正本）
+- カタログと静的データの突き合わせスクリプト（NFR-17 ②）
 - ワイヤーフレームと画面一覧の対応検査スクリプト（後述「ワイヤーフレームの運用」）
 - テストの一括実行スクリプト（gdUnit4 の CLI 呼び出し）
 
@@ -141,8 +144,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 - `docs/specs/1_requirements/`: 要件定義工程の6ドキュメント
 - `docs/specs/2_basic-design/` 以降: 基本設計・詳細設計・テスト仕様
-- `docs/tactical-review-checklist.md`: ルール・解説文・場面問題を追加・変更するときのセルフレビュー用チェックリスト（要件定義書 §7 #15）。観点は `functional-overview.md`「妥当性の維持」
-- `docs/asset-licenses.md`: 素材のライセンス台帳（`architecture-overview.md`「依存関係管理」）
+- `docs/` 直下には実ファイルを置かない（AGENTS.md「ディレクトリ構造」）。セルフレビュー用チェックリストは `functional-overview.md`「妥当性の維持」、素材のライセンス台帳は `game/assets/LICENSES.md` に置く
 
 ## 機能追加時の配置方針
 
@@ -156,13 +158,15 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 ## 開発環境セットアップ
 
-| ツール | バージョン | インストール方法 |
-|---|---|---|
-| Godot Engine（標準版。.NET 版ではない） | 4.6 系（パッチまで固定。構築時に決めて本表に記録） | 公式サイトから取得 |
-| gdUnit4 | 6.1 系（構築時に決めて本表に記録） | `game/addons/gdUnit4/` に同梱 |
-| Android SDK・JDK | Godot 4.6 系の Android 書き出し要件に従う（構築時に公式ドキュメントで確認して記録） | Godot 公式ドキュメント「Exporting for Android」の手順 |
-| Git | — | — |
-| Draw.io Integration（VS Code 拡張） | — | ワイヤーフレームの閲覧・編集用 |
+バージョンの正本は `architecture-overview.md`「テクノロジースタック」。本表はインストール方法だけを持つ。
+
+| ツール | インストール方法 |
+|---|---|
+| Godot Engine（標準版。.NET 版ではない） | 公式サイトから取得 |
+| gdUnit4 | `game/addons/gdUnit4/` に同梱 |
+| Android SDK・JDK | Godot 公式ドキュメント「Exporting for Android」の手順 |
+| Git | — |
+| Draw.io Integration（VS Code 拡張） | ワイヤーフレームの閲覧・編集用に VS Code の拡張機能として導入 |
 
 ### 環境変数（`.env`）一覧
 
@@ -180,7 +184,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 開発環境の構築時に、以下を実施して本節に実際のコマンドと結果を記録する。
 
-1. Godot・gdUnit4・Android SDK・JDK のバージョンを決め、上の表に記録する
+1. Godot・gdUnit4・Android SDK・JDK のバージョンを決め、`architecture-overview.md`「テクノロジースタック」に記録する
 2. `game/project.godot` を作成し、GDScript の警告設定を kit の `coding-gdscript.md`「静的型付けを必須とする」に従って設定する。実際の設定項目名を本節に記録する（警告名は Godot のバージョンで変わりうるため）
 3. `.gitignore` に Godot 用の除外（kit の `gitignore.md`「ゲーム（Godot）」）と Android の署名鍵ファイル（`*.keystore`・`*.jks`）を追加し、`git check-ignore` で両方向を実測する
 4. クリーンクローンから再インポートして、シーン・リソースの参照が壊れないことを一度確認する（kit の `coding-gdscript.md`「バージョン管理で扱うファイル」）
@@ -193,6 +197,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
   - gdUnit4 のテスト（画面なし。`--ignoreHeadlessMode`）
   - 自己対戦検証（NFR-05〜07）
   - ドメイン層の禁止依存の検出（NFR-13）
+  - カタログと静的データの突き合わせ（NFR-17 ②）
   - ワイヤーフレームと画面一覧の対応検査
   - シークレットスキャン（流出防止の正本。kit の `gitignore.md`「`.gitignore` に頼りきらない」）
 - **CD（導入しない）**: リリース用のビルドは署名鍵を使うため、手元で行う。Google Play への登録は Play Console、Steam への登録は SteamPipe で手動で行う。導入を検討するトリガーは、リリース頻度が月1回を超えたとき
