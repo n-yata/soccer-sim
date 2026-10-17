@@ -254,10 +254,12 @@ npm run dev
 GitHub Pages への公開に合わせて導入した（2026-10-17）。
 
 - **ワークフロー**: `.github/workflows/deploy-pages.yml`
-- **起動条件**: `master` への push、または Actions 画面からの手動実行（`workflow_dispatch`）
+- **起動条件**: `main` への push、または Actions 画面からの手動実行（`workflow_dispatch`）
 - **内容**: `npm ci` → `npm run lint` → `npm run typecheck` → `npm test` → `npm run build` を実行し、
   すべて成功したときだけ `dist/` を GitHub Pages へデプロイする。PR 上でのチェックは行わない
-- **初回のみ必要なリポジトリ設定**: Settings → Pages の Source を「GitHub Actions」にする
+- **必要なリポジトリ設定**: Settings → Pages の Source を「GitHub Actions」にする。
+  また Settings → Environments → `github-pages` のデプロイ許可ブランチに `main` を含める
+  （既定ブランチ名を変えたときはここも合わせて変える）
 - **環境変数**: `VITE_JLEAGUE_URL` はリポジトリの Variables（Settings → Secrets and variables →
   Actions → Variables）に設定するとビルドへ渡る。未設定ならリンク非表示で公開される
 
