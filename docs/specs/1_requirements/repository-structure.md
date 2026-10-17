@@ -28,7 +28,7 @@ soccer-game/
 │   ├── specs/
 │   │   ├── 1_requirements/        # 要件定義工程の6ドキュメント（本書を含む）
 │   │   ├── 2_basic-design/        # 基本設計（screen-design.md・wireframes.drawio などを置く）
-│   │   ├── 3_detail-design/       # 詳細設計（DB 設計書は作らない。functional-overview.md「データモデル」）
+│   │   ├── 3_detail-design/       # 詳細設計。screen/（画面ごと・画面共通）と data/（保存データ・静的データの定義）。DB 設計書は作らない
 │   │   ├── 4_unit-test/
 │   │   └── 5_integration-test/
 ├── game/                          # Godot プロジェクト（未作成）
@@ -141,6 +141,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 **配置ファイル**:
 - `mcp/drawio-mcp.mjs`: drawio MCP の起動ラッパー（後述「drawio MCP の運用」）
 - ドメイン層の禁止依存の検出スクリプト（NFR-13。検索する API 名の一覧はこのスクリプトが正本）
+- フォントのサブセットの生成と、フォントに無い文字の検出（`architecture-overview.md` のフォントの注記）
 - カタログと静的データの突き合わせスクリプト（NFR-17 ②）
 - ワイヤーフレームと画面一覧の対応検査スクリプト（後述「ワイヤーフレームの運用」）
 - テストの一括実行スクリプト（gdUnit4 の CLI 呼び出し）

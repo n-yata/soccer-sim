@@ -1,6 +1,6 @@
 # コンポーネント設計 — soccer-game（仮称）
 
-**更新日**: 2026-10-17
+**更新日**: 2026-10-18
 
 > 本書は、レイヤーごとの責務・インターフェース（擬似コード）・依存関係の**実装レベルの詳細**を置く。
 > 次の事項は本書に書かず、正本を参照する。
@@ -303,6 +303,8 @@ extends Node   # オートロード名: App
 
 ## UI に開いてほしい画面を知らせる。UI のルート（MainShell）が受けて画面を切り替える
 signal screen_requested(screen: AppScreens.Id, params: Dictionary)
+## UI が画面の切り替えを頼む入口（タイトル・戻る操作など、MatchController を経由しない遷移）。screen_requested を出す
+func request_screen(screen: AppScreens.Id, params: Dictionary = {}) -> void
 ## 保存に失敗したことを知らせる。UI が表示する文言の正本は functional-overview.md「エラーハンドリング」
 signal storage_error(kind: AppScreens.StorageErrorKind)
 
@@ -328,7 +330,7 @@ class_name MatchController extends RefCounted
 enum SuspendedStatus { NONE, RESUMABLE, FINALIZE_PENDING }
 enum StartupResult { NONE, RESUMABLE, FINALIZED, FINALIZE_FAILED, CORRUPTED }
 
-signal state_changed(snapshot: BoardSnapshot)   # 盤面・スコア・相手の方式が変わった
+signal state_changed(snapshot: BoardSnapshot)   # 盤面・スコア・相手の方式が変わった。ターンの途中（submit_turn の中）では出さず、continue_after_reveal()・方式の選び直し・ハーフタイムの確定の後に出す（試合画面は、これを受けて次のターンを始める）
 signal turn_resolved(reveal: RevealView, snapshot: BoardSnapshot)  # 開示（演出と判定理由の表示に使う）
 signal stage_changed(stage: GameEnums.MatchStage)
 
@@ -342,8 +344,10 @@ func _init(content: ContentRepository, config: ConfigRepository, store: Suspende
 func inspect_suspended() -> StartupResult
 ## タイトルを開くたびに呼ぶ。start_match・suspend_to_title・leave_result・終了処理の結果で更新される
 func suspended_status() -> SuspendedStatus
-## 再開する。毎回 SuspendedMatchStore.load() から読み直し、進行段階（確定事項「再開先」）を返す
-func resume() -> GameEnums.MatchStage
+## 再開する。毎回 SuspendedMatchStore.load() から読み直し、進行段階（確定事項「再開先」）が示す画面（S-03／S-04／S-05）を
+## App に要求して true を返す。読めなかった（消えていた・破損していた）ときは中断データを削除し、App.storage_error(SUSPEND_LOAD) を出して
+## S-01 を要求し直し、false を返す
+func resume() -> bool
 ## FINALIZE_PENDING のときに、終了処理（戦績の記録 → FINISHED で保存 → 中断データの削除）をやり直す。成功なら true
 func retry_pending_finalize() -> bool
 
@@ -359,7 +363,7 @@ func continue_after_reveal() -> void
 func submit_style_change(user_styles: TeamStyles) -> void
 func submit_halftime(user_setup: TeamSetup) -> void
 func opponent_setup() -> TeamSetup               # 開示済みの相手の陣形・方式（FR-16・21）
-func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）
+func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）。試合の開始前は、suspended_status() が RESUMABLE のときに中断データの状態を返す（タイトルの再開カード用）
 func replay_max_sec() -> float                   # 3D 演出の上限（PresentationConfig）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
@@ -434,6 +438,9 @@ func base_counts(formation_id: String) -> Dictionary        # PitchArea のキ�
 func matchup_counts(user_formation_id: String, opponent_formation_id: String) -> Dictionary
 func formation_notes(viewer_id: String, opponent_id: String) -> Array[MatchupNote]  # opponent_id が空なら単独の解説
 func style_notes(viewer: TeamStyles, opponent: TeamStyles) -> Array[MatchupNote]    # opponent が null なら単独の解説
+## 守備方式だけ・攻撃方式だけの単独の解説（試合準備で片方だけを選んだとき、方式の選び直しで変えた方式を示すとき）
+func defense_style_notes(style: GameEnums.DefenseStyle) -> Array[MatchupNote]
+func attack_style_notes(style: GameEnums.AttackStyle) -> Array[MatchupNote]
 func simplifications() -> Array[SimplificationDef]
 func principle(principle_id: String) -> PrincipleDef
 func quiz_questions() -> Array[QuizQuestionDef]
@@ -442,8 +449,8 @@ func tutorial_steps() -> Array[TutorialStepDef]
 class_name UserDataService extends RefCounted
 func records() -> Array[MatchRecord]                        # 新しい順
 func append_record(record: MatchRecord) -> bool             # 戦績の追加はここだけを通す（MatchController の終了処理が呼ぶ）。キャッシュも更新する
-func totals() -> Dictionary                                 # {"win": int, "draw": int, "lose": int}
-func quiz_progress() -> Dictionary                          # 学習目標 ID → {"answered": int, "correct": int}
+func totals() -> Dictionary                                 # {"win": int, "draw": int, "lose": int}。保持している戦績（上限までの直近の試合）から数える
+func quiz_progress() -> Dictionary                          # 学習目標 ID → {"answered": int, "correct": int, "total": int}。answered・correct は問題ごとの最新の回答で数える。total はその学習目標の問題数
 func save_quiz_answer(answer: QuizAnswer) -> bool
 func settings() -> UserSettings
 func save_settings(settings: UserSettings) -> bool
@@ -466,9 +473,11 @@ func mark_tutorial_completed() -> bool
 
 | フィールド | 内容 |
 |---|---|
-| `user_counts` / `opponent_counts` | 15エリアの人数（`PitchArea` のキー → 人数）。現在の配置（`MatchRules.current_layouts`） |
+| `user_players` / `opponent_players` | 選手ごとの現在の位置（各要素は `player_id`・`number`（背番号）・`area`（利用者の視点のエリアのキー））。現在の配置（`MatchRules.current_layouts`）から `MatchController` が作る。背番号つきの駒の表示に使う |
+| `user_counts` / `opponent_counts` | 15エリアの人数（`PitchArea` のキー → 人数）。`user_players` / `opponent_players` をエリアごとに数えた値と一致する |
 | `ball_area` | ボール位置 |
 | `user_has_ball` | 利用者がボールを持っているか |
+| `last_goal_by` | 直前の得点の側（`HOME`／`AWAY`。まだ得点が無ければ空）。方式の選び直しの「〜が得点しました」に使う |
 | `turn_kind` / `half` / `turn_number` / `turns_per_half` | 局面と残りターンの表示用 |
 | `score_user` / `score_opponent` | スコア |
 | `user_setup` / `opponent_setup` | 陣形と方式（相手の方式の常時表示。FR-16・21） |
@@ -486,7 +495,7 @@ func mark_tutorial_completed() -> bool
 | `outcome` | ターン結果（`TurnOutcome`） |
 | `compare_area` / `user_count` / `opponent_count` / `cover` | 判定の内訳（`NO_CONTEST` では空） |
 | `ball_before` / `ball_after` | 判定前後のボール位置 |
-| `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。3D 演出の並び方に使う |
+| `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。各要素は `BoardSnapshot.user_players` と同じ形（`player_id`・`number`・`area`。利用者の視点）。3D 演出の並び方と、振り返りのミニピッチ（判定時の人数はエリアごとに数えるだけ）に使う |
 | `movements` | 選手の動き（方式の動き → 守備の手 → 攻撃の手の順） |
 | `simplification_ids` | 判定に関わる単純化 ID（「実戦では」の表示に使う） |
 
@@ -554,7 +563,7 @@ class_name RecordStore extends RefCounted
 enum LoadState { OK, EMPTY, CORRUPTED, NEWER_VERSION }
 func load_all() -> Array[MatchRecord] # 破損・新しい版なら空配列（初期状態）を返す
 func load_state() -> LoadState
-func append(record: MatchRecord) -> bool   # 同じ match_id があれば書かずに true を返す（冪等）。NEWER_VERSION のときは書かずに false
+func append(record: MatchRecord) -> bool   # 同じ match_id があれば書かずに true を返す（冪等）。NEWER_VERSION のときは書かずに false。件数の上限か、書き込み後のファイルの大きさの上限（4MB。読み込みの上限 5MB より小さくする）を超えるなら、超えなくなるまで古いものから捨ててから追記する
 ```
 
 `QuizAnswerStore`・`SettingsStore` も `RecordStore` と同じ形（`load_all`／`load`、`append`／`save`、
@@ -608,7 +617,7 @@ ISO 8601（タイムゾーンなし）で書く。
 - **ターン記録**: ER図「ターン記録」の項目を、上と同じ規則でキーにする
 - **戦績**: `{"format_version": 1, "records": [ ... ]}`。1件は ER図「戦績」の項目
 - **回答結果**: `{"format_version": 1, "answers": [ ... ]}`。1件は ER図「回答結果」の項目
-- **設定**: `[meta] format_version`、`[audio] bgm_volume`・`se_volume`（0.0〜1.0）、`[ui] show_hints`、
+- **設定**: `[meta] format_version`、`[audio] bgm_volume`・`se_volume`（0.0〜1.0。初期値 0.7）、`[ui] show_hints`（初期値 `true`）、
   `[progress] tutorial_completed`
 
 **読み込み時の検証**（NFR-09）: 次のいずれかなら「破損」として扱う。破損時の処理は `functional-overview.md`
@@ -670,11 +679,12 @@ ISO 8601（タイムゾーンなし）で書く。
 
 | `class_name` | 役割 |
 |---|---|
-| `TacticsBoard` | 15エリアの盤面。`BoardSnapshot` を受けて描く。利用者の攻撃方向を画面の上（縦長）にする |
+| `TacticsBoard` | 15エリアの盤面。`BoardSnapshot` を受けて描く。ピッチを横に置き、利用者の攻撃方向を画面の右にする |
 | `AreaCell` | 1エリア。両チームの人数（`自分−相手`）・優劣記号・ボール・選択可否・ヒントを表示し、タップ／クリックを受ける |
 | `MoveArrowLayer` | `movements` を移動元から移動先への矢印で描く。理由（`MovementReason`）ごとに線種を変える |
 | `ChoicePanel` | 局面に応じた手のボタン。`MoveOptions` で選べない手を選択不可にする |
-| `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数だけを描く） |
+| `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号） |
+| `MatchBoardPanel` | 試合画面の盤面と手の選択の部分（左の `TacticsBoard`、右の操作の列の `ChoicePanel`・判定理由、両方を覆う 3D 演出の表示場所）。試合画面とチュートリアルで共用する |
 
 ### 5.4 3D 演出（`replay3d/`）
 
@@ -692,6 +702,7 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 
 - 演出の入力は `RevealView`（ターン記録を利用者の視点に変換したもの）だけにする。`ReplayStage` はドメインの
   判定モジュールを呼ばない（`architecture-overview.md`「3D 演出の原則」）
+- カメラはメインスタンドから見下ろす位置に置き、利用者の攻撃方向が画面の右になるようにする（2D 作戦ボードと同じ向き）
 - 選手は簡易形状（カプセル＋チーム色＋背番号）で、移動は `Tween` で補間する。骨格のアニメーションは使わない
   （3D 素材の方針の正本は `architecture-overview.md`「テクノロジースタック」）
 - 演出の流れ: ①判定前の配置（`players_before`）で並ぶ → ②`movements` の順（方式の動き → 守備の手 → 攻撃の手）で選手が動く →
@@ -707,6 +718,15 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | `NotesView` | `MatchupNote` の一覧を表示し、単純化 ID があれば「実戦では」を添える |
 | `ConfirmDialog` | 確認ダイアログ（中断データが上書きされることの確認など） |
 | `ToastView` | 保存エラーなどの短い通知 |
+| `ScreenHeader` | 画面のヘッダー（戻る・画面名） |
+| `ScoreBug` | 中継風のスコア表示（試合画面・方式の選び直し・ハーフタイム・試合結果） |
+| `FormationCard` | 陣形のカード（陣形名・`MiniPitch`・選択中の印） |
+| `MatchMenu` | 試合中の画面のメニュー（設定・中断してタイトルへ） |
+| `SettingsPanel` | 設定の中身（設定画面と、試合中のメニューから重ねて開く設定で共用） |
+| `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
+| `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
+
+各部品の外から見た形（メソッド・シグナル）は `docs/specs/3_detail-design/screen/screen-common.md` §5。
 
 ## 6. 名前の一覧（重複の確認用）
 
@@ -720,7 +740,7 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView` |
+| UI | `MainShell`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。
