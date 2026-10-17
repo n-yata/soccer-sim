@@ -19,7 +19,7 @@
 soccer-game/
 ├── AGENTS.md                      # 進め方・必ず守ることの正本（kit が生成する区間を含む）
 ├── CLAUDE.md                      # AGENTS.md へのポインタ
-├── .mcp.json                      # kit-mcp（spec-kit）への接続設定
+├── .mcp.json                      # MCP サーバーの接続設定（kit-mcp の spec-kit と drawio）
 ├── .gitignore / .gitattributes
 ├── .claude/                       # kit の配布物（skills はスタブ、hooks は実体）
 ├── .steering/                     # 作業ごとの計画・レビューレポート・振り返り
@@ -43,7 +43,8 @@ soccer-game/
 │   ├── config/                    # 調整値（Resource .tres）
 │   ├── assets/                    # 3D 素材・テクスチャ・音・フォント（ライセンス台帳 LICENSES.md を含む）
 │   └── tests/                     # gdUnit4 のテスト
-└── tools/                         # 開発補助スクリプト（未作成）
+└── tools/                         # 開発補助スクリプト
+    └── mcp/drawio-mcp.mjs         # drawio MCP を空きポートで起動するラッパー
 ```
 
 ## ディレクトリ詳細
@@ -135,6 +136,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 ### tools/ 配下
 
 **配置ファイル**:
+- `mcp/drawio-mcp.mjs`: drawio MCP の起動ラッパー（後述「drawio MCP の運用」）
 - ドメイン層の禁止依存の検出スクリプト（NFR-13。検索する API 名の一覧はこのスクリプトが正本）
 - カタログと静的データの突き合わせスクリプト（NFR-17 ②）
 - ワイヤーフレームと画面一覧の対応検査スクリプト（後述「ワイヤーフレームの運用」）
@@ -210,6 +212,25 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 - ページ名は `wireframe-[画面ID小文字]-[画面の英語名 kebab-case]`（例: `wireframe-s03-match`）。画面 ID は `functional-overview.md` の画面一覧が正本
 - **画面を変える変更では、`functional-overview.md` の画面一覧・`screen-design.md`・`wireframes.drawio` の該当ページを同じ変更で更新する**
 - 対応検査スクリプト（`tools/`）が、ページ名と画面一覧の画面 ID の一対一対応を検査する（フォーメーションラボの `wireframeConsistency.test.ts` の考え方を踏襲）
+
+### drawio MCP の運用
+
+- `.mcp.json` の `drawio` は、`drawio-mcp-server` を直接起動せず、`tools/mcp/drawio-mcp.mjs` を経由して起動する
+- **理由**: `drawio-mcp-server` は既定でポート 3333（WebSocket）と 3000（エディタ）を固定で使う。Claude Code の
+  セッションを複数開くと（別プロジェクトを含む）、後から起動したセッションが「Port 3333 is already in use」で
+  接続に失敗する。ラッパーは起動のたびに空きポートを選んで渡すため、セッションをいくつ開いても衝突しない
+- ラッパーは次も行う
+  - サーバーの版を固定する（`npx` が起動のたびに最新版を取得しないようにするため。更新はラッパー内の版を変える）
+  - 待ち受けを `127.0.0.1` に限定する（既定は全アドレスで待ち受け、同じネットワークの他の端末から届くため）
+- **エディタの URL**: 起動のたびに変わる。ラッパーが OS の一時ディレクトリの `drawio-mcp/` に
+  `<起動ディレクトリ名>-<pid>.json`（`editorUrl` を含む）を書き出し、終了時に消す（強制終了で残ったものは、
+  次の起動時に、動いていない pid のものを消す）。図を編集するときは、このファイルの `editorUrl` をブラウザで
+  開いてから drawio MCP の道具を使う
+- **起動する場所**: `.mcp.json` はラッパーをリポジトリのルートからの相対パスで指定している。Claude Code は
+  リポジトリのルート（worktree ならその worktree のルート）で起動する。サブディレクトリで起動すると、drawio だけが
+  接続に失敗する（`Cannot find module`）
+- 接続に失敗したら、まず `/mcp` で再接続する。それでも失敗する場合は、ラッパーを
+  `node tools/mcp/drawio-mcp.mjs` で手で起動し、標準エラー出力を確認する
 
 ## 汎用規約からの差分
 
