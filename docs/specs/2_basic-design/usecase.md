@@ -2,7 +2,7 @@
 
 **更新日**: 2026-10-17
 
-> 本書は、各ユースケースの層をまたぐ呼び出しの順序（シーケンス図）を置く。
+> 本書は、各ユースケースの層をまたぐ呼び出しの順序を、シーケンス図へのリンクとフロー説明でまとめる。
 > 次の事項は本書に書かず、正本を参照する。
 >
 > | 事項 | 正本 |
@@ -13,6 +13,9 @@
 > | 判定・集計の規則 | `functional-overview.md`「アルゴリズム設計」 |
 > | エラー時の処理と表示する文言 | `functional-overview.md`「エラーハンドリング」 |
 > | クラスとメソッドの形 | `component-design.md` |
+>
+> シーケンス図は [`usecase-sequences.drawio`](./usecase-sequences.drawio) に、ユースケースごとに1ページで置く
+> （`docs/specs/` の図は draw.io。kit の `diagrams.md`）。本書には各図へのリンクと、要点の文章（フロー説明）を書く。
 >
 > 参加者（participant）の名前は `component-design.md` のクラス名に揃える。層は次のように表す。
 >
@@ -34,61 +37,7 @@
 
 ### ① 試合の開始
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Title as TitleScreen
-    participant Setup as MatchSetupScreen
-    participant MS as MatchScreen
-    participant App as App
-    participant MC as MatchController
-    participant Lib as LibraryService
-    participant Opp as OpponentPolicy（CpuOpponent）
-    participant Rules as MatchRules
-    participant Store as SuspendedMatchStore
-    participant Shell as MainShell
-
-    Title->>MC: suspended_status()
-    MC-->>Title: NONE / RESUMABLE / FINALIZE_PENDING
-    User->>Title: 「CPU対戦」を押す
-    alt RESUMABLE（中断中の試合がある）
-        Title-->>User: 確認ダイアログ（中断中の試合は、新しい試合で上書きされる）
-        User->>Title: 了承
-    else FINALIZE_PENDING（戦績を記録できていない試合が残っている）
-        Title->>MC: retry_pending_finalize()
-        alt やり直しに失敗
-            Title-->>User: 確認ダイアログ（前の試合の戦績は記録されない）
-            User->>Title: 了承
-        end
-    end
-    Title->>App: 試合準備を要求
-    App->>Shell: screen_requested(S02)
-    Setup->>Lib: formations() / base_counts() / formation_notes() / style_notes()
-    Lib-->>Setup: 陣形・ミニピッチの人数・解説
-    alt 「戻る」
-        User->>Setup: 戻る
-        Setup->>App: タイトルを要求（中断データは残ったまま）
-        App->>Shell: screen_requested(S01)
-    else 確定
-        User->>Setup: 陣形・守備方式・攻撃方式を選んで確定
-        Setup->>MC: start_match(user_setup)
-        MC->>Opp: choose_setup()
-        Note over Opp: CpuPlanner.choose_setup(catalog, rng)<br/>利用者の選択は渡さない
-        Opp-->>MC: cpu_setup
-        MC->>MC: rng で前半のキックオフ側を決める
-        MC->>Rules: create_match(match_id, user_setup, cpu_setup, kickoff_side, catalog)
-        Rules-->>MC: MatchState（IN_PROGRESS / TURN）
-        MC->>Store: save(state)（保存の時点②。既存の中断データはここで上書きされる＝削除の時点①）
-        alt 保存に失敗
-            MC->>App: storage_error(SUSPEND_SAVE)
-        end
-        MC->>App: 試合画面を要求
-        App->>Shell: screen_requested(S03)
-        MS->>MC: snapshot()
-        MC-->>MS: BoardSnapshot
-        Note over MS: 試合画面で両者の陣形・方式を開示する
-    end
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc01-1-match-start`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. タイトルは開くたびに `suspended_status()` を呼び、中断中の試合があるかを確かめる（再開カードの有無もこれで決める）
@@ -105,71 +54,7 @@ sequenceDiagram
 
 ### ② 1ターン（攻守ターン・トランジションターン共通）
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant MS as MatchScreen
-    participant Replay as ReplayStage
-    participant MC as MatchController
-    participant Opp as OpponentPolicy（CpuOpponent）
-    participant Rules as MatchRules
-    participant Hints as MoveRules / MoveHints
-    participant Store as SuspendedMatchStore
-    participant App as App
-    participant Shell as MainShell
-
-    MS->>MC: user_options()
-    MC->>Hints: MoveRules.options_for(state, HOME, catalog)
-    Hints-->>MC: MoveOptions
-    MC-->>MS: MoveOptions（利用者の視点に変換済み。選べない手は選択不可で表示）
-    opt ヒント表示が ON
-        MS->>MC: user_hints()
-        MC->>Hints: MoveHints.evaluate(state, HOME, options, catalog)
-        Hints-->>MC: Array[ChoiceHint]
-        MC-->>MS: ヒント（利用者の視点）
-    end
-    User->>MS: 手（と運ぶ先・寄せるエリア）を選んで確定
-    MS->>MC: submit_turn(user_choice)
-    MC->>MC: user_choice を判定時の攻撃側の視点へ変換し、MoveRules.is_allowed で確かめる
-    alt 選択不可
-        MC-->>MS: false（状態は変えない。push_error で記録）
-    else 選択できる
-        MC->>Opp: choose_turn(state, AWAY)
-        Note over Opp: CpuPlanner.choose_turn(state, AWAY, catalog, cpu, rng)<br/>利用者の手は引数にない
-        Opp-->>MC: cpu_choice
-        MC->>Rules: resolve_turn(state, user_choice, cpu_choice, catalog, rules)
-        Note over Rules: アルゴリズム2〜7
-        Rules-->>MC: TurnResolution（next_state, record）
-        MC->>Store: save(next_state)（保存の時点①。進行段階が変わる場合は③を兼ねる）
-        alt 保存に失敗
-            MC->>App: storage_error(SUSPEND_SAVE)（has_unsaved_progress = true）
-        end
-        MC-->>MS: true / turn_resolved(RevealView, BoardSnapshot)
-        MS-->>User: 両者の選択を開示
-        MS->>MC: replay_max_sec()
-        MS->>Replay: play(reveal, max_sec)
-        alt 利用者がスキップ
-            User->>MS: スキップ
-            MS->>Replay: skip()
-        end
-        Replay-->>MS: finished(was_cut)
-        MS-->>User: 2D 作戦ボードに戻り、動きの矢印と判定理由を表示
-        User->>MS: 「次へ」
-        MS->>MC: continue_after_reveal()
-        alt 進行段階が TURN のまま
-            MC-->>MS: state_changed(BoardSnapshot)（次のターンの手の選択へ）
-        else 得点（ハーフの最終ターンを除く）で STYLE_CHANGE
-            MC->>App: 方式の選び直しを要求
-            App->>Shell: screen_requested(S04)
-        else 前半終了で HALFTIME
-            MC->>App: ハーフタイムを要求
-            App->>Shell: screen_requested(S05)
-        else 後半終了
-            MC->>App: 試合結果を要求（終了処理は ③）
-            App->>Shell: screen_requested(S06)
-        end
-    end
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc01-2-turn`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 選べる手は `MoveRules.options_for` で求める（アルゴリズム3）。UI は選べるかどうかを自分で計算しない
@@ -188,38 +73,7 @@ sequenceDiagram
 
 ### ③ 試合の終了
 
-```mermaid
-sequenceDiagram
-    participant MC as MatchController
-    participant Rules as MatchRules
-    participant UD as UserDataService
-    participant Store as SuspendedMatchStore
-    participant App as App
-    participant Shell as MainShell
-    participant Result as ResultScreen
-
-    Note over MC: submit_turn の中で、②の保存の直後に行う
-    MC->>Rules: is_play_complete(next_state, rules)
-    Rules-->>MC: true
-    MC->>UD: append_record(MatchRecord)
-    Note over UD: RecordStore.append を呼び、キャッシュも更新する。<br/>同じ試合 ID があれば記録せず true（冪等）。<br/>失敗時の通知（storage_error）は UserDataService が出す
-    alt 戦績の記録に成功
-        MC->>Rules: finish(next_state)
-        Rules-->>MC: MatchState（FINISHED）
-        MC->>Store: save(finished_state)
-        alt 保存に失敗
-            MC->>App: storage_error(SUSPEND_SAVE)
-            Note over MC,Store: 終了処理は未完了。IN_PROGRESS のまま残り、<br/>leave_result か次の起動時にやり直す
-        end
-    else 戦績の記録に失敗
-        Note over MC,Store: 終了処理は未完了（通知は UserDataService が出し済み）
-    end
-    Note over MC,Shell: 演出と判定理由の表示の後、continue_after_reveal() で
-    MC->>App: 試合結果を要求
-    App->>Shell: screen_requested(S06)
-    Result->>MC: final_record()
-    MC-->>Result: MatchRecord（勝敗・スコア・陣形と方式の推移）
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc01-3-match-end`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 後半の最終ターンを解決した直後（②の保存の後）に、終了処理を行う（確定事項「試合終了から破棄までの順序」）
@@ -230,34 +84,7 @@ sequenceDiagram
 
 ## UC-02: 得失点後に方式を選び直す
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant SC as StyleChangeScreen
-    participant MC as MatchController
-    participant Lib as LibraryService
-    participant Opp as OpponentPolicy（CpuOpponent）
-    participant Rules as MatchRules
-    participant Store as SuspendedMatchStore
-    participant App as App
-    participant Shell as MainShell
-
-    SC->>MC: snapshot() / opponent_setup()
-    MC-->>SC: スコア、相手の現在の陣形・方式
-    SC->>Lib: style_notes(user_styles, opponent_styles)
-    Lib-->>SC: 直前の方式区間の噛み合わせの解説
-    User->>SC: 守備方式・攻撃方式を選んで確定
-    SC->>MC: submit_style_change(user_styles)
-    MC->>Opp: choose_styles()
-    Opp-->>MC: cpu_styles
-    MC->>Rules: apply_style_change(state, user_styles, cpu_styles, catalog)
-    Note over Rules: 失点側のキックオフ。<br/>配置区間と方式区間を始める（アルゴリズム7）
-    Rules-->>MC: MatchState（TURN）
-    MC->>Store: save(state)（保存の時点③）
-    MC->>App: 試合画面を要求
-    App->>Shell: screen_requested(S03)
-    Note over Shell: キックオフ時に両者の方式を開示する（FR-21）
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc02-style-change`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 方式の選び直し画面は、相手の現在の陣形・方式と、直前の方式区間の噛み合わせの解説を表示する
@@ -267,39 +94,7 @@ sequenceDiagram
 
 ## UC-03: ハーフタイムに修正する
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant HT as HalftimeScreen
-    participant MC as MatchController
-    participant Lib as LibraryService
-    participant Opp as OpponentPolicy（CpuOpponent）
-    participant Rules as MatchRules
-    participant Store as SuspendedMatchStore
-    participant App as App
-    participant Shell as MainShell
-
-    HT->>MC: snapshot() / opponent_setup()
-    MC-->>HT: 前半のスコア、相手の前半の陣形・方式
-    HT->>Lib: matchup_counts(user_id, opponent_id)
-    Lib-->>HT: 両チームの基本配置の人数（利用者の視点に揃えたもの）
-    HT->>Lib: formation_notes(user_id, opponent_id) / style_notes(user, opponent)
-    Lib-->>HT: 前半の噛み合わせの解説
-    User->>HT: 陣形・守備方式・攻撃方式を選ぶ（維持も可）
-    HT->>Lib: matchup_counts(選んだ陣形, opponent_id)
-    Lib-->>HT: 選んだ陣形での噛み合わせ
-    User->>HT: 確定
-    HT->>MC: submit_halftime(user_setup)
-    MC->>Opp: choose_setup()
-    Opp-->>MC: cpu_setup
-    MC->>Rules: apply_halftime(state, user_setup, cpu_setup, catalog)
-    Note over Rules: 後半のキックオフ側は前半と反対側
-    Rules-->>MC: MatchState（後半1ターン目 / TURN）
-    MC->>Store: save(state)（保存の時点③）
-    MC->>App: 試合画面を要求
-    App->>Shell: screen_requested(S03)
-    Note over Shell: 後半開始時に両者の陣形・方式を開示する（FR-08）
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc03-halftime`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. ハーフタイム画面は、前半のスコア・相手の陣形と方式・前半の噛み合わせを表示する（FR-08）
@@ -309,51 +104,7 @@ sequenceDiagram
 
 ## UC-04: 試合を振り返る
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Result as ResultScreen
-    participant Review as ReviewScreen
-    participant MC as MatchController
-    participant Agg as ReviewAggregator
-    participant Lib as LibraryService
-    participant UD as UserDataService
-    participant Store as SuspendedMatchStore
-    participant App as App
-    participant Shell as MainShell
-
-    User->>Result: 「振り返り」を押す
-    Result->>App: 振り返りを要求
-    App->>Shell: screen_requested(S07)
-    Review->>MC: review()
-    MC->>Agg: aggregate(turn_records, HOME, lookback_turns)
-    Note over Agg: アルゴリズム10
-    Agg-->>MC: ReviewSummary
-    MC-->>Review: ReviewView（集計値＋得失点の流れの各ターンを RevealView に変換したもの）
-    Review->>Lib: simplifications()（「実戦では」の補足用）
-    Lib-->>Review: 単純化カタログ
-    Review-->>User: エリア別・局面別の集計、得失点の流れ、時間帯ごとの陣形・方式
-    User->>Review: 「戻る」
-    Review->>App: 試合結果を要求
-    App->>Shell: screen_requested(S06)
-    Result->>MC: final_record()
-    User->>Result: 「タイトルへ」
-    Result->>MC: leave_result()
-    alt 終了処理が済んでいる
-        MC->>Store: delete()（削除の時点②。本体・.bak・.tmp）
-    else 終了処理が未完了
-        MC->>UD: append_record(MatchRecord)（やり直し）
-        MC->>Store: save(FINISHED の状態)
-        alt やり直しに成功
-            MC->>Store: delete()（削除の時点②）
-        else やり直しも失敗
-            Note over MC: 戦績の記録の失敗は UserDataService が通知済み。<br/>中断データの保存の失敗なら MC が storage_error(SUSPEND_SAVE)
-            Note over MC,Store: 中断データは消さずに残す（suspended_status = FINALIZE_PENDING）
-        end
-    end
-    MC->>App: タイトルを要求
-    App->>Shell: screen_requested(S01)
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc04-review`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 振り返りは、メモリ上のターン記録を `ReviewAggregator` で集計して表示する（アルゴリズム10）。遡るターン数は設定値
@@ -365,64 +116,7 @@ sequenceDiagram
 
 起動時の後始末と、タイトルからの再開に分かれる。
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Shell as MainShell
-    participant MC as MatchController
-    participant Store as SuspendedMatchStore
-    participant Rules as MatchRules
-    participant UD as UserDataService
-    participant App as App
-    participant Title as TitleScreen
-
-    Shell->>MC: inspect_suspended()
-    MC->>Store: load()
-    alt ファイルがない
-        Store-->>MC: NONE
-    else 読み込めない・破損・新しい版（.bak も使えない）
-        Store-->>MC: CORRUPTED
-        MC->>Store: delete()（削除の時点④）
-        MC->>App: storage_error(SUSPEND_LOAD)（MainShell が保持し、タイトルを開いてから表示）
-    else FINISHED
-        Store-->>MC: OK（FINISHED）
-        MC->>Store: delete()（削除の時点③）
-    else IN_PROGRESS
-        Store-->>MC: OK（IN_PROGRESS）
-        MC->>Rules: is_play_complete(state, rules)
-        alt true（最終ターンまで終えている）
-            Note over MC,UD: UC-01 ③の終了処理だけをやり直す
-            MC->>UD: append_record(MatchRecord)（失敗時の通知は UserDataService が出す）
-            alt 戦績の記録に成功
-                MC->>Rules: finish(state)
-                MC->>Store: save(finished_state)
-                MC->>Store: delete()（FINISHED になったので削除の時点③）
-                Note over MC: FINALIZED（再開の対象にしない）
-            else 失敗
-                Note over MC: FINALIZE_FAILED（中断データは残す。suspended_status = FINALIZE_PENDING）
-            end
-        else false（途中）
-            Note over MC: RESUMABLE
-        end
-    end
-    MC-->>Shell: StartupResult
-    Shell->>Title: タイトルを開く
-    Title->>MC: suspended_status()
-    MC-->>Title: RESUMABLE なら再開カードを出す（FINALIZE_PENDING は再開の対象にしない）
-    User->>Title: 「中断した試合を再開」
-    Title->>MC: resume()
-    MC->>Store: load()（毎回読み直す）
-    alt TURN
-        MC->>App: 試合画面を要求（次の手の選択から。演出は再生しない）
-        App->>Shell: screen_requested(S03)
-    else STYLE_CHANGE
-        MC->>App: 方式の選び直しを要求
-        App->>Shell: screen_requested(S04)
-    else HALFTIME
-        MC->>App: ハーフタイムを要求
-        App->>Shell: screen_requested(S05)
-    end
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc05-resume`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 起動時に `MainShell` が `inspect_suspended()` を1回だけ呼ぶ（確定事項「起動時の扱い」）。タイトルの再開カードの
@@ -437,51 +131,7 @@ sequenceDiagram
 
 ## UC-06: ルールを体験する
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Title as TitleScreen
-    participant Tut as TutorialScreen
-    participant Lib as LibraryService
-    participant App as App
-    participant TC as MatchController（チュートリアル用）
-    participant Scripted as ScriptedOpponent
-    participant Rules as MatchRules
-    participant UD as UserDataService
-    participant Shell as MainShell
-
-    Title->>UD: settings()
-    UD-->>Title: tutorial_completed
-    opt 未完了（初回起動）
-        Title-->>User: チュートリアルへの導線を強調表示
-    end
-    User->>Title: 「チュートリアル」を押す
-    Title->>App: チュートリアルを要求
-    App->>Shell: screen_requested(S08)
-    Tut->>Lib: tutorial_steps()
-    Lib-->>Tut: Array[TutorialStepDef]
-    Tut->>App: new_tutorial_controller()
-    App-->>Tut: チュートリアル用の MatchController（保存しない・画面遷移を要求しない）
-    loop 各段階
-        Tut->>TC: start_tutorial_step(step)
-        Tut-->>User: 説明文と盤面
-        User->>Tut: 手を選ぶ
-        Tut->>TC: submit_turn(user_choice)
-        TC->>Scripted: choose_turn(state, AWAY)
-        Scripted-->>TC: 段階が決めた手
-        TC->>Rules: resolve_turn(...)
-        Rules-->>TC: TurnResolution
-        TC-->>Tut: turn_resolved(RevealView, BoardSnapshot)
-        Tut-->>User: 演出と判定理由
-    end
-    Tut->>Lib: simplifications()
-    Lib-->>Tut: 単純化カタログ
-    Tut-->>User: ゲームの表現範囲（FR-23）
-    User->>Tut: 「完了」
-    Tut->>UD: mark_tutorial_completed()
-    Tut->>App: タイトルを要求（チュートリアル用の MatchController は捨てる）
-    App->>Shell: screen_requested(S01)
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc06-tutorial`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 初回起動の判定は、設定のチュートリアル完了フラグで行う（FR-12）
@@ -496,31 +146,7 @@ sequenceDiagram
 
 ## UC-07: 理解度を確かめる
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Quiz as QuizScreen
-    participant Lib as LibraryService
-    participant UD as UserDataService
-    participant QStore as QuizAnswerStore
-    participant App as App
-
-    Quiz->>Lib: quiz_questions()
-    Lib-->>Quiz: Array[QuizQuestionDef]
-    Quiz->>UD: quiz_progress()
-    opt まだ読み込んでいない（最初の1回）
-        UD->>QStore: load_all()
-        QStore-->>UD: 回答結果（破損なら退避して空、新しい版なら空）
-    end
-    UD-->>Quiz: 学習目標ごとの正答状況
-    User->>Quiz: 学習目標を選び、問題に回答
-    Quiz-->>User: 正誤・解説（人数・位置・原則）
-    Quiz->>UD: save_quiz_answer(answer)
-    UD->>QStore: append(answer)
-    alt 保存に失敗（新しい版のデータを含む）
-        UD->>App: storage_error(USER_DATA_SAVE / USER_DATA_NEWER)
-    end
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc07-quiz`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 問題は静的データ、回答結果は端末内に保存する（FR-22）。正誤の判定は問題の正解との一致だけで、ルールの計算は伴わない
@@ -530,53 +156,14 @@ sequenceDiagram
 
 ## UC-08: ゲームの表現範囲を確かめる
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Title as TitleScreen
-    participant Scope as ScopeScreen
-    participant Lib as LibraryService
-    participant App as App
-    participant Shell as MainShell
-
-    User->>Title: 「ゲームの表現範囲」を押す
-    Title->>App: 表現範囲を要求
-    App->>Shell: screen_requested(S10)
-    Scope->>Lib: simplifications()
-    Lib-->>Scope: 単純化カタログ（SIM-01〜）
-    Scope-->>User: 単純化・ゲームでの扱い・実戦では の一覧
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc08-scope`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 表示内容は単純化カタログの静的データそのもの。チュートリアル末尾（UC-06）と同じデータを使う（FR-23）
 
 ## UC-09: 戦績を見る
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Rec as RecordsScreen
-    participant UD as UserDataService
-    participant Records as RecordStore
-    participant App as App
-
-    User->>Rec: 戦績画面を開く
-    Rec->>UD: records() / totals()
-    opt まだ読み込んでいない（最初の1回）
-        UD->>Records: load_all()
-        alt 破損
-            Records-->>UD: 空配列（元のファイルは退避済み）
-            UD->>App: storage_error(USER_DATA_LOAD)
-        else 新しい版
-            Records-->>UD: 空配列（元のファイルはそのまま）
-            UD->>App: storage_error(USER_DATA_NEWER)
-        else 正常
-            Records-->>UD: Array[MatchRecord]
-        end
-    end
-    UD-->>Rec: 新しい順の一覧、通算の勝ち・引き分け・負け
-    Rec-->>User: 一覧と通算成績
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc09-records`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 一覧は新しい順に並べる。並び替えと通算の集計は `UserDataService` が行い、読み込みは最初の1回だけにする
@@ -585,24 +172,7 @@ sequenceDiagram
 
 ## UC-10: 設定を変える
 
-```mermaid
-sequenceDiagram
-    actor User as 利用者
-    participant Set as SettingsScreen
-    participant UD as UserDataService
-    participant SStore as SettingsStore
-    participant App as App
-
-    Set->>UD: settings()
-    UD-->>Set: UserSettings（読み込みは最初の1回。破損なら初期値）
-    User->>Set: 音量・ヒント表示を変える
-    Set->>Set: 音量はその場で AudioServer に反映
-    Set->>UD: save_settings(settings)
-    UD->>SStore: save(settings)
-    alt 保存に失敗
-        UD->>App: storage_error(USER_DATA_SAVE / USER_DATA_NEWER)
-    end
-```
+**シーケンス図**: [`usecase-sequences.drawio`](./usecase-sequences.drawio)（ページ: `seq-uc10-settings`）。呼び出しの順序の要点は、次の「フロー説明」に書く。
 
 **フロー説明**:
 1. 音量は変えた時点で再生中の音に反映する（音の出力は UI 層の責務）
