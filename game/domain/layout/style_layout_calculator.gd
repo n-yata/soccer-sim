@@ -16,6 +16,20 @@ const _MARK_LANE_PRIORITY: Array[GameEnums.Lane] = [
 ]
 
 
+## 試合の状態からターン開始時の両チームの配置（保持側を attacker として持つ）を出す。
+## 攻守ターンは手順2〜4（compute）を適用した配置と方式の動き。トランジションは起点の写しで、動きは無い。
+## 選べる手（MoveRules.options_for。judge/）と試合進行（MatchRules。match/）の両方から呼ぶため layout/ に置く。
+static func turn_start(state: MatchState) -> LayoutStep:
+	if state.turn_kind == GameEnums.TurnKind.TRANSITION:
+		var no_movements: Array[Movement] = []
+		return LayoutStep.new(state.transition_origin.duplicate_deep(), no_movements)
+	var defender_side: GameEnums.TeamSide = MatchState.other(state.possession)
+	return compute(
+			TeamLayout.at_base(state.players_of(state.possession)), state.setup_of(state.possession).styles,
+			TeamLayout.at_base(state.players_of(defender_side)), state.setup_of(defender_side).styles,
+			state.ball_area, state.possession)
+
+
 ## 手順1。全選手を基本エリアに戻し、固定を解除する。
 static func reset_segment(layout: TeamLayout) -> TeamLayout:
 	var players: Array[PlayerState] = []

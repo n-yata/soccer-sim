@@ -15,6 +15,21 @@ const _LONG_BEHIND_MAX_LANE_GAP: int = 1
 const _COUNTER_MAX_ZONES_AHEAD: int = 2
 
 
+## side が今のターンで選べる手（局面に応じて下位の関数を呼ぶ）。運ぶ先は判定時の攻撃側（トランジションは奪取側）の視点。
+## 攻守ターン: 保持側は攻撃の手、相手は守備の手。トランジション: 保持側（奪取側）はカウンターの配置で奪った側の手、
+## 相手は失った側の手。MatchRules.resolve_turn も手の確かめにこの関数を使う（表示と確かめをずらさないため）。
+static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOptions:
+	var is_holder: bool = side == state.possession
+	if state.turn_kind == GameEnums.TurnKind.TRANSITION:
+		if not is_holder:
+			return neg_transition_options()
+		var counter: TeamLayout = TransitionJudge.counter_layout(
+				state.transition_origin.attacker, state.setup_of(side).styles)
+		return pos_transition_options(counter, state.ball_area)
+	var pair: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
+	return attack_options(pair, state.ball_area) if is_holder else defense_options(pair)
+
+
 ## 攻撃の手。ball と運ぶ先は攻撃側から見た座標。味方の人数は攻撃側の現在配置で数える。
 static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions:
 	var options := MoveOptions.new()

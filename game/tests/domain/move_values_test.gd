@@ -67,6 +67,20 @@ func test_move_without_target_is_available_only_after_allow() -> void:
 	assert_array(options.targets(ATTACK, GameEnums.PlayType.SHOT)).is_empty()
 
 
+func test_add_target_to_a_move_without_target_is_rejected_with_an_error() -> void:
+	var options := MoveOptions.new()
+	await assert_error(func() -> void: options.add_target(ATTACK, GameEnums.PlayType.SHOT, _area("A-C"))) \
+			.is_push_error("MoveOptions: 運ぶ先を持たない手に運ぶ先を足そうとした: family=0 action=4")
+	assert_bool(options.is_available(ATTACK, GameEnums.PlayType.SHOT)).is_false()
+
+
+func test_allow_on_a_move_with_target_is_rejected_with_an_error() -> void:
+	var options := MoveOptions.new()
+	await assert_error(func() -> void: options.allow(DEFENSE, GameEnums.DefenseAction.PRESS)) \
+			.is_push_error("MoveOptions: 運ぶ先を持つ手を運ぶ先なしで許可しようとした: family=1 action=0")
+	assert_bool(options.is_available(DEFENSE, GameEnums.DefenseAction.PRESS)).is_false()
+
+
 func test_targets_returns_a_copy() -> void:
 	var options := MoveOptions.new()
 	options.add_target(ATTACK, GameEnums.PlayType.DRIBBLE, _area("M-C"))

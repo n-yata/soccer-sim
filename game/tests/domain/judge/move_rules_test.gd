@@ -158,6 +158,51 @@ func test_counter_from_a_zone_is_unavailable_but_secure_stays() -> void:
 	assert_bool(options.is_available(POS_TRANS, GameEnums.PosTransAction.SECURE)).is_true()
 
 
+# --- options_for（局面から選べる手） ---
+
+func _state(turn_kind: GameEnums.TurnKind) -> MatchState:
+	var styles := TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER)
+	var state := MatchState.new()
+	state.turn_kind = turn_kind
+	state.possession = GameEnums.TeamSide.HOME
+	state.ball_area = _area("D-C")
+	state.home_setup = TeamSetup.new("x", styles)
+	state.away_setup = TeamSetup.new("y", styles.duplicate_deep())
+	var home: Array[PlayerState] = [PlayerState.new("h1", _area("D-C")), PlayerState.new("h2", _area("M-L2"))]
+	var away: Array[PlayerState] = [PlayerState.new("a1", _area("D-C"))]
+	state.home_players = home
+	state.away_players = away
+	return state
+
+
+func test_options_for_open_play_gives_attack_to_the_holder_and_defense_to_the_other() -> void:
+	var state: MatchState = _state(GameEnums.TurnKind.OPEN_PLAY)
+	var holder: MoveOptions = MoveRules.options_for(state, GameEnums.TeamSide.HOME)
+	var other: MoveOptions = MoveRules.options_for(state, GameEnums.TeamSide.AWAY)
+	# ボールは D-C。ドリブルは左右と前、パスは隣接8エリアに味方（h2 は M-L2 でレーンが2つ離れる）がいないので選べない
+	assert_array(_keys(holder.targets(ATTACK, DRIBBLE))).is_equal(["D-L1", "D-R1", "M-C"])
+	assert_bool(holder.is_available(ATTACK, SHORT_PASS)).is_false()
+	assert_bool(holder.is_available(ATTACK, LONG_BEHIND)).is_false()
+	assert_bool(holder.is_available(DEFENSE, PRESS)).is_false()
+	# 守備側の D-C（攻撃側の視点の A-C）の1人の隣接
+	assert_array(_keys(other.targets(DEFENSE, PRESS))).is_equal(["M-C", "A-L1", "A-R1"])
+	assert_bool(other.is_available(ATTACK, DRIBBLE)).is_false()
+
+
+func test_options_for_transition_uses_the_counter_layout_for_the_winner() -> void:
+	var state: MatchState = _state(GameEnums.TurnKind.TRANSITION)
+	# 奪取側 HOME の h2 は M-L2（大外）。カウンター型なので A-L2 へ飛び出してから、運ぶ先を数える
+	state.transition_origin = LayoutPair.new(TeamLayout.at_base(state.home_players),
+			TeamLayout.at_base(state.away_players), GameEnums.TeamSide.HOME)
+	var winner: MoveOptions = MoveRules.options_for(state, GameEnums.TeamSide.HOME)
+	var loser: MoveOptions = MoveRules.options_for(state, GameEnums.TeamSide.AWAY)
+	assert_array(_keys(winner.targets(POS_TRANS, GameEnums.PosTransAction.COUNTER))).is_equal(["A-L2"])
+	assert_bool(winner.is_available(POS_TRANS, GameEnums.PosTransAction.SECURE)).is_true()
+	assert_bool(winner.is_available(NEG_TRANS, GameEnums.NegTransAction.RETREAT)).is_false()
+	assert_bool(loser.is_available(NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS)).is_true()
+	assert_bool(loser.is_available(POS_TRANS, GameEnums.PosTransAction.SECURE)).is_false()
+
+
 # --- is_allowed ---
 
 func test_is_allowed_accepts_listed_targets_and_targetless_moves() -> void:

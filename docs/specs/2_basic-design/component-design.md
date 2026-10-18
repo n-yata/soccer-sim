@@ -118,8 +118,8 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
 | `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無 |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind` |
-| `TurnRecord` | `turn_record.gd` | ターン記録 | — |
-| `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]` |
+| `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣 `D-C`） |
+| `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリアと固定先）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
 | `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
 | `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10） |
@@ -189,6 +189,8 @@ static func compute(attacker: TeamLayout, attacker_styles: TeamStyles,
 static func remark(pair: LayoutPair, defender_styles: TeamStyles) -> LayoutStep
 ## アルゴリズム6のリトリート。守備側（喪失側）を基本配置に戻して固定を解除し、守備方式で動かす。ball は攻撃側（奪取側）の視点
 static func retreat(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea) -> LayoutStep
+## 試合の状態からターン開始時の配置（攻守ターンは compute、トランジションは起点の写し）。options_for と MatchRules が使う
+static func turn_start(state: MatchState) -> LayoutStep
 
 class_name DefenseMover extends RefCounted
 ## アルゴリズム4。守備の手を適用し、動いた選手を固定する。target は attacker 視点
@@ -222,12 +224,12 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction,
 ```gdscript
 class_name MoveRules extends RefCounted
 ## アルゴリズム3。side が今のターンで選べる手
-static func options_for(state: MatchState, side: GameEnums.TeamSide,
-        catalog: ContentCatalog) -> MoveOptions
+## 攻守ターン: 保持側は攻撃の手、相手は守備の手。トランジション: 保持側（奪取側）は TransitionJudge.counter_layout を
+## 通した配置で奪った側の手、相手は失った側の手。MatchRules.resolve_turn も手の確かめに使う
+static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOptions
 ## 選択不可の手を拒否する（エラーハンドリング「選択不可の手の指定」）
 static func is_allowed(options: MoveOptions, choice: TurnChoice) -> bool
-## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ。2026-10-18 時点では options_for は未作成で、
-## MatchState を作る作業で足す）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
+## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
 static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
 ## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 15 エリアのすべてが候補
 static func defense_options(pair: LayoutPair) -> MoveOptions
@@ -289,16 +291,17 @@ static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveO
 ```gdscript
 class_name MatchRules extends RefCounted
 ## 試合を作る。kickoff_side はアプリケーション層が注入した乱数で決めて渡す
+## started_at は呼び出し側が取得した時刻（ドメインでは時刻を取得しない）。陣形が無ければ null
 static func create_match(match_id: String, home: TeamSetup, away: TeamSetup,
-        kickoff_side: GameEnums.TeamSide, catalog: ContentCatalog) -> MatchState
+        kickoff_side: GameEnums.TeamSide, catalog: ContentCatalog, started_at: String) -> MatchState
 ## 盤面表示・選択肢の計算に使う、ターン開始時の両チームの配置（アルゴリズム2）
-static func current_layouts(state: MatchState, catalog: ContentCatalog) -> LayoutStep
-## 1ターンを解決する。どちらかの手が選択不可なら null を返す（呼び出し側の誤り）
+static func current_layouts(state: MatchState) -> LayoutStep
+## 1ターンを解決する。どちらかの手が選択不可（範囲外の手の値を含む）、進行段階が TURN でない、試合が終わっている、
+## 後半の最終ターンまで終えているなら null を返す（呼び出し側の誤り）
 static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice: TurnChoice,
-        catalog: ContentCatalog, rules: MatchRuleConfig) -> TurnResolution
-## 方式の選び直し（STYLE_CHANGE → TURN）。キックオフを行う
-static func apply_style_change(state: MatchState, home: TeamStyles, away: TeamStyles,
-        catalog: ContentCatalog) -> MatchState
+        rules: MatchRuleConfig) -> TurnResolution
+## 方式の選び直し（STYLE_CHANGE → TURN）。方式を差し替えるだけ（失点側のキックオフは得点の時点で済ませてある）
+static func apply_style_change(state: MatchState, home: TeamStyles, away: TeamStyles) -> MatchState
 ## ハーフタイムの選び直し（HALFTIME → TURN）。後半のキックオフを行う
 static func apply_halftime(state: MatchState, home: TeamSetup, away: TeamSetup,
         catalog: ContentCatalog) -> MatchState
@@ -310,6 +313,19 @@ static func finish(state: MatchState) -> MatchState
 
 `resolve_turn` が返す `next_state.stage` で、次に開く画面が決まる（`TURN` のまま／得点で `STYLE_CHANGE`／
 前半終了で `HALFTIME`）。試合結果へ進むかどうかは `is_play_complete` で判断する。
+
+`MatchRules` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
+- `current_layouts`・`resolve_turn`・`apply_style_change`・`MoveRules.options_for` は陣形データを使わない（選手単位の
+  配置状態を `MatchState` が持つ）ため、`catalog` 引数を持たない
+- 得点のときは、その時点で失点側のキックオフ（`M-C`・配置区間のリセット）を済ませてから `STYLE_CHANGE` にする（選び直しの間も
+  ボール位置が保持側の視点になるように）。`apply_style_change` は方式を差し替えて `TURN` に戻すだけ
+- ハーフの最終ターンの判定が `LOSS`・`SAVE` でも、トランジションに入らずハーフを終える（`turn_kind` は攻守ターン、起点は `null`）
+- ハーフを終えた状態（`HALFTIME`・後半の終わり）の `turn_number` は ターン数＋1。`data-definition.md` §2.1 の範囲では
+  `HALFTIME` の ターン数＋1 が含まれないため、保存の作業で範囲を見直す
+- （仕様の確認）攻守ターンの続き（`ADVANCE`・`STALL`）は固定を維持し、トランジションが終わって攻守ターンが始まる時だけ配置区間をリセットする（アルゴリズム5の手順7と「配置区間」の定義のとおり）
+- 中断データ（`data-definition.md` §2.1）は、トランジションの起点と判定時の配置を「選手単位の基本エリア・固定先」で持つ形に
+  なっているが、現在エリアが無いと復元できない（ターン記録の判定前・判定時の配置も同じ）。ドメインでは `LayoutPair`（現在エリアを含む）で持つ。
+  保存の作業で形式を見直す
 
 ### 2.6 CPU 思考（`cpu/`。アルゴリズム8）
 

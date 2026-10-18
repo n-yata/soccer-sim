@@ -23,6 +23,10 @@ static func needs_target(family: GameEnums.ChoiceFamily, action: int) -> bool:
 
 ## 運ぶ先を持つ手に、選べる運ぶ先を1つ足す。
 func add_target(family: GameEnums.ChoiceFamily, action: int, area: PitchArea) -> void:
+	# 取り違えた足し方は is_available から見えないまま残るため、呼び出し側の誤りとして知らせて受け付けない
+	if not needs_target(family, action):
+		push_error("MoveOptions: 運ぶ先を持たない手に運ぶ先を足そうとした: family=%d action=%d" % [family, action])
+		return
 	var key: String = _key(family, action)
 	if not _targets.has(key):
 		var empty: Array[PitchArea] = []
@@ -32,6 +36,9 @@ func add_target(family: GameEnums.ChoiceFamily, action: int, area: PitchArea) ->
 
 ## 運ぶ先を持たない手を、選べるようにする。
 func allow(family: GameEnums.ChoiceFamily, action: int) -> void:
+	if needs_target(family, action):
+		push_error("MoveOptions: 運ぶ先を持つ手を運ぶ先なしで許可しようとした: family=%d action=%d" % [family, action])
+		return
 	_allowed[_key(family, action)] = true
 
 
