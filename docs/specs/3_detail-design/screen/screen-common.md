@@ -121,6 +121,33 @@ func handle_back() -> bool
   `screen-design.md` の各画面のイベント表「画面を開く」）
 - `handle_back` が `false` を返したら、`MainShell` は既定の動き（タイトルではアプリを閉じる）をする
 
+### 4.1 入力の扱い（タッチとマウス）
+
+開発中の動作確認は PC のウィンドウで行う（2026-10-18 決定。`repository-structure.md`「動作確認の方法」）。
+Android のタッチと PC のマウスで同じ処理が動くように、入力は次の形で受ける。後続マイルストーンの Windows 版でもそのまま使える。
+
+- **押す操作は、部品のマウスのイベントで受ける**: `InputEventScreenTouch` を直接扱わない。Godot の既定
+  （`input_devices/pointing/emulate_mouse_from_touch` が `true`）で、Android のタッチはマウスのイベントとしても届くため
+  - ボタンは `Button.pressed` で受ける
+  - 作戦ボードのエリア（`AreaCell`）は `gui_input` の `InputEventMouseButton`（左ボタン・`pressed == false`）で受け、
+    離した位置がセルの内側（`Rect2(Vector2.ZERO, size).has_point(event.position)`）のときだけ選んだとみなす。
+    押したセルが離すまでマウスを受け続けるため、この判定が無いと、取り消すつもりで指を外へずらして離しても選ばれてしまう
+    （`Button` は同じ判定を内部で持つ）
+- **`input_devices/pointing/emulate_touch_from_mouse` は有効にしない**: マウスのイベントにタッチのイベントが加わって、同じ操作が
+  二重に届くおそれがあるため
+- **戻る操作**: `MainShell` は、Android の戻る操作（`NOTIFICATION_WM_GO_BACK_REQUEST`）と PC の Esc キーを、どちらも表示中の画面の
+  `handle_back()` へ渡す
+  - `application/config/quit_on_go_back` は `false` にする（`project.godot`）。既定の `true` のままだと、`handle_back()` の戻り値に
+    関係なく、Android の戻る操作で Godot がアプリを閉じてしまう。アプリを閉じるのは、`handle_back()` が `false` を返したときに
+    `MainShell` が `get_tree().quit()` を呼ぶ経路だけにする
+  - Esc は `MainShell._unhandled_input` で `event.is_action_pressed("ui_cancel")`（キーのリピートは受けない。既定の
+    `allow_echo == false` のまま）として受け、処理したら `get_viewport().set_input_as_handled()` を呼ぶ。開いている
+    ダイアログが先に `ui_cancel` を受けたときは、`MainShell` まで届かない
+  - タイトルで戻る操作をしたときの既定の動き（アプリを閉じる）は、Android と PC で同じにする
+- **ホバーの表示は出さない**: タッチには無い状態のため。Godot の `Button` はテーマに `hover` のスタイルを既定で持つうえ、Android では
+  タップした位置にマウスが残ってホバーの見た目のままになる。そこで、テーマの `hover`（と `hover_pressed`）は `normal`（と `pressed`）と
+  同じスタイルにする。マウス向けの表示は Windows 版の範囲（要件定義書 §6.2）
+
 ## 5. 画面をまたいで使う部品
 
 `component-design.md` §5.3〜§5.5 の部品のうち、複数の画面の設計書が前提にする外から見た形をここに置く。

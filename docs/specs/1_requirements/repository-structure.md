@@ -231,6 +231,7 @@ GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項�
 | `display/window/handheld/orientation` | `4`（Sensor Landscape） | 同上・NFR-25 |
 | `rendering/renderer/rendering_method`（と `.mobile`） | `"gl_compatibility"` | `architecture-overview.md`（Compatibility レンダラー） |
 | `rendering/textures/vram_compression/import_etc2_astc` | `true` | Android の書き出しの必須条件（無いと書き出せない） |
+| `application/config/quit_on_go_back` | `false` | 既定の `true` だと、Android の戻る操作で画面の `handle_back()` に関係なくアプリが閉じる（`screen-common.md` §4.1） |
 | `editor_plugins/enabled` | `res://addons/gdUnit4/plugin.cfg` | テストランナー |
 
 - 警告の項目名は、Godot を画面なしで起動して `ProjectSettings.get_property_list()` で確かめた（Godot の版を上げるときも同じ方法で確かめる）
@@ -354,6 +355,21 @@ GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項�
   接続に失敗する（`Cannot find module`）
 - 接続に失敗したら、まず `/mcp` で再接続する。それでも失敗する場合は、ラッパーを
   `node tools/mcp/drawio-mcp.mjs` で手で起動し、標準エラー出力を確認する
+
+### 動作確認の方法
+
+開発中の動作確認は PC のウィンドウで行う（2026-10-18 決定）。配布先は MVP では Android のままで、Windows 版は後続マイルストーン
+（要件定義書 §6.2）。画面を横向きだけにしたため、PC のウィンドウでもスマホとほぼ同じ配置で確かめられる。
+
+- **起動**: `godot --path game`（またはエディタの実行）。ウィンドウはビューポートと同じ 1280×720 で開き、大きさを変えられる
+  （`display/window/size/resizable` が `true`）。スマホの横長の比率は、ウィンドウを横に広げて確かめる（例: 20:9 なら 1600×720）
+- **操作**: マウスの左クリックがタップにあたる。Esc キーが Android の戻る操作にあたる（入力の扱いの正本は
+  `docs/specs/3_detail-design/screen/screen-common.md` §4.1）
+- **PC では確かめられないもの**: 次は、Android エミュレーター（`-gpu host`。「セットアップ手順」5）と基準端末で確かめる
+  - セーフエリア（ノッチ・パンチホール）の余白、端末の回転（`sensor_landscape`）、Android の戻る操作そのもの
+    （`handle_back()` が1回だけ呼ばれ、試合画面などでアプリが閉じないこと）
+  - `non-functional-requirements.md` で「Android 基準端末で」と定めた測定と確認（性能・指での操作など。一覧は同書が正本）
+- メインシーンはまだ無い（2026-10-18 時点）。PC で画面を確かめられるのは、メインシーンを作る作業の後になる
 
 ## 汎用規約からの差分
 
