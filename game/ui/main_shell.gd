@@ -7,6 +7,7 @@ extends Control
 ## 画面 ID → シーンのパス。画面を作ったらここに1行足す（タイトルのカードも自動で押せるようになる）
 const SCREEN_SCENES: Dictionary = {
 	AppScreens.Id.S01_TITLE: "res://ui/screens/s01_title/title_screen.tscn",
+	AppScreens.Id.S02_MATCH_SETUP: "res://ui/screens/s02_match_setup/match_setup_screen.tscn",
 }
 
 @onready var _screen_root: MarginContainer = $ScreenRoot

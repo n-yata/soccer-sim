@@ -327,7 +327,7 @@ func request_screen(screen: AppScreens.Id, params: Dictionary = {}) -> void
 signal storage_error(kind: AppScreens.StorageErrorKind)
 
 var match_controller: MatchController   # 本番の試合用。チュートリアルには使わない
-var library: LibraryService
+var library: LibraryService   # _ready で ContentRepository.load_catalog() から作る（静的データの誤りは空のカタログになり、ContentRepository が push_error する）
 var user_data: UserDataService
 
 ## チュートリアル用に、本番とは別の MatchController を作る（保存しない・画面遷移を要求しない・相手は ScriptedOpponent）。
@@ -448,10 +448,13 @@ class_name ScriptedOpponent extends OpponentPolicy   # チュートリアルの�
 
 ### 3.4 画面向けの参照・保存（`LibraryService`・`UserDataService`。モジュール構成図の A2）
 
+> 2026-10-18 時点で作ったのは `LibraryService` の `formations()`・`base_counts()` だけ（試合準備の作業）。`LibraryService.new(catalog: ContentCatalog)` で作り、
+> `formations()` は呼び出し側が並べ替えても影響しないよう配列をコピーして返す。ほかの関数は、それを使う画面の作業で足す。
+
 ```gdscript
 class_name LibraryService extends RefCounted
 func formations() -> Array[FormationDef]
-func base_counts(formation_id: String) -> Dictionary        # PitchArea のキー → 人数（試合準備のミニピッチ。そのチーム自身の視点）
+func base_counts(formation_id: String) -> Dictionary        # PitchArea のキー → 人数（試合準備のミニピッチ。そのチーム自身の視点）。存在しない陣形なら push_error して空
 ## 両チームの基本配置の人数を、利用者の視点に揃えて返す（相手は鏡像に変換済み）。PitchArea のキー → [利用者, 相手]
 func matchup_counts(user_formation_id: String, opponent_formation_id: String) -> Dictionary
 func formation_notes(viewer_id: String, opponent_id: String) -> Array[MatchupNote]  # opponent_id が空なら単独の解説

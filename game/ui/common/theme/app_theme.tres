@@ -2,7 +2,8 @@
 
 ; アプリ全体のテーマ（project.godot の gui/theme/custom）。各画面は色を直接書かない。
 ; 色は docs/specs/3_detail-design/screen/screen-common.md §3 の写し（bg #070D18・surface #101827・text #F8FAFC・
-; text_sub #CBD5E1・muted #94A3B8・accent #F5C518・you #4CC3FF・disabled_bg #1E293B・disabled_text #94A3B8）。正本を変えたらここも合わせる。
+; text_sub #CBD5E1・muted #94A3B8・accent #F5C518・you #4CC3FF・disabled_bg #1E293B・disabled_text #94A3B8・
+; pitch #165C34・pitch_line #F8FAFC（80%）・zone_line #F8FAFC（25%））。正本を変えたらここも合わせる。
 ; ホバーの見た目は通常と同じにする（screen-common.md §4.1。タッチには無い状態で、Android ではタップ後も残るため）。
 ; フォーカスの枠も出さない（タッチでは不要で、タップ後にも残るため。キーボード操作は Windows 版の範囲）。
 ; 日本語は Noto Sans JP を置くまで Godot の既定のフォント（端末のフォントで代わりに表示される）を使う。
@@ -157,3 +158,18 @@ YouTagLabel/base_type = &"Label"
 YouTagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
 YouTagLabel/font_sizes/font_size = 24
 YouTagLabel/styles/normal = SubResource("you_tag_normal")
+CheckMarkLabel/base_type = &"Label"
+CheckMarkLabel/colors/font_color = Color(0.960784, 0.772549, 0.094118, 1)
+CheckMarkLabel/font_sizes/font_size = 32
+MiniPitch/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+MiniPitch/colors/pitch = Color(0.086275, 0.360784, 0.203922, 1)
+MiniPitch/colors/pitch_line = Color(0.972549, 0.980392, 0.988235, 0.8)
+MiniPitch/colors/zone_line = Color(0.972549, 0.980392, 0.988235, 0.25)
+MiniPitch/font_sizes/font_size = 24
+SectionTitleLabel/base_type = &"Label"
+SectionTitleLabel/colors/font_color = Color(0.796078, 0.835294, 0.882353, 1)
+SectionTitleLabel/font_sizes/font_size = 26
+FormationNameLabel/base_type = &"Label"
+FormationNameLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+FormationNameLabel/fonts/font = ExtResource("1_barlow_bold")
+FormationNameLabel/font_sizes/font_size = 36

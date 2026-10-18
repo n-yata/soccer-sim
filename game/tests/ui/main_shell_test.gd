@@ -83,7 +83,7 @@ func test_main_shell_opens_title_on_start() -> void:
 func test_main_shell_keeps_screen_when_requested_screen_is_missing() -> void:
 	var shell: MainShell = await _open_main_shell()
 	var title: Node = shell.get_node("ScreenRoot").get_child(0)
-	App.request_screen(AppScreens.Id.S02_MATCH_SETUP)
+	App.request_screen(AppScreens.Id.S03_MATCH)
 	await get_tree().process_frame
 	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S01_TITLE)
 	assert_object(shell.get_node("ScreenRoot").get_child(0)).is_same(title)
@@ -102,3 +102,21 @@ func test_main_shell_disconnects_from_app_when_removed() -> void:
 	assert_int(App.screen_requested.get_connections().size()).is_equal(before + 1)
 	shell.free()
 	assert_int(App.screen_requested.get_connections().size()).is_equal(before)
+
+
+func test_pressing_kick_off_on_title_opens_match_setup_without_errors() -> void:
+	var shell: MainShell = await _open_main_shell()
+	var title: TitleScreen = shell.get_node("ScreenRoot").get_child(0) as TitleScreen
+	var kick_off: Button = title.find_child("KickOffCard", true, false) as Button
+	# 押したボタンの pressed の中で画面の入れ替えが要求される。入れ替えは遅らせて行うので、その間にエラーが出ないこと
+	await assert_error(func() -> void:
+		kick_off.pressed.emit()
+		await get_tree().process_frame
+	).is_success()
+	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S02_MATCH_SETUP)
+	assert_bool(shell.get_node("ScreenRoot").get_child(0) is MatchSetupScreen).is_true()
+	# 試合準備で戻る操作をすると、タイトルへ戻り、アプリは閉じない
+	assert_bool(shell.should_quit_after_back("test")).is_false()
+	await get_tree().process_frame
+	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S01_TITLE)
+	shell.free()

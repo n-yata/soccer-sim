@@ -44,9 +44,9 @@ func _pending_label(card_name: String) -> Label:
 	return _card(card_name).find_child("PendingLabel", true, false) as Label
 
 
-## 前提: 2026-10-18 時点で MainShell.SCREEN_SCENES にはカードの行き先が1つも無いため、このテストは
-## 「enter が MainShell の対応を使っていること」を区別できない（{} を渡す実装でも通る）。S-02 などの画面を足して
-## SCREEN_SCENES に登録した時点で、意味のあるテストになる（画面を足す作業で、押せるカードがあることも確かめる）。
+## MainShell.SCREEN_SCENES に登録した画面（S-02 試合準備など）のカードだけが押せる。
+## 押せるカードがあることを、下の test_kick_off_card_is_enabled_because_match_setup_exists で確かめる
+## （押せるカードが1つも無いと、enter が MainShell の対応を使っているかを区別できないため）。
 func test_cards_follow_main_shell_screens_on_enter() -> void:
 	_title.enter({})
 	for card_name: String in CARD_DESTINATIONS:
@@ -113,3 +113,10 @@ func test_text_in_disabled_card_uses_the_theme_disabled_color() -> void:
 	var badge: Label = _card("TutorialCard").find_child("FirstTimeBadge", true, false) as Label
 	assert_bool(badge.has_theme_color_override("font_color")).is_false()
 	assert_bool(_pending_label("TutorialCard").has_theme_color_override("font_color")).is_false()
+
+
+func test_kick_off_card_is_enabled_because_match_setup_exists() -> void:
+	# 試合準備（S-02）を MainShell に登録したので、enter で「CPU 対戦」が押せるようになる
+	_title.enter({})
+	assert_bool(_card("KickOffCard").disabled).is_false()
+	assert_bool(_pending_label("KickOffCard").visible).is_false()
