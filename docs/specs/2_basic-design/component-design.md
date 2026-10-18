@@ -112,7 +112,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `TeamSetup` | `team_setup.gd` | （試合の陣形と方式） | `formation_id`・`styles: TeamStyles` |
 | `PlayerState` | `player_state.gd` | （選手単位の配置状態） | `player_id`・`base_area`・`fixed_area`（固定されていなければ `null`）・`is_fixed()` |
 | `TeamLayout` | `team_layout.gd` | （チームの配置） | `players: Array[PlayerState]` と、各選手の現在エリア（下記） |
-| `LayoutPair` | `layout_pair.gd` | — | 判定中の両チームの `TeamLayout`。`attacker`・`defender` |
+| `LayoutPair` | `layout_pair.gd` | — | 判定中の両チームの `TeamLayout`。`attacker`・`defender`・`attacker_side: TeamSide`（`Movement.side` を埋めるため）・`defender_side()` |
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可 |
@@ -184,7 +184,7 @@ static func reset_segment(layout: TeamLayout) -> TeamLayout
 ## アルゴリズム2の手順2〜4。ターン開始時の両チームの配置を出す。ball は attacker 視点
 static func compute(attacker: TeamLayout, attacker_styles: TeamStyles,
         defender: TeamLayout, defender_styles: TeamStyles,
-        ball: PitchArea) -> LayoutStep
+        ball: PitchArea, attacker_side: GameEnums.TeamSide) -> LayoutStep
 ## マンツーマンのマークを付け直す（ドリブル・プレス・カバーの後に呼ぶ）
 static func remark(pair: LayoutPair, defender_styles: TeamStyles) -> LayoutStep
 
@@ -193,6 +193,16 @@ class_name DefenseMover extends RefCounted
 static func apply(pair: LayoutPair, action: GameEnums.DefenseAction,
         target: PitchArea) -> LayoutStep
 ```
+
+`StyleLayoutCalculator` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
+- 固定されていない選手は、毎回基本エリアを起点に方式の動きを適用する（前のターンの方式の動きを持ち越さない）。
+  `compute` の `movements` は、起点（固定されていなければ基本エリア）から変わった選手だけを、攻撃側 → 守備側の順で返す
+- マンツーマンでどのマーカーをどの対象につけるか: マークする対象は優先順の上からマーカーの人数分。そのうち、対象と
+  同じエリアに起点があるマーカーはそのまま残す（`remark` でマーカーどうしが入れ替わり、矢印が交差しないようにするため）。
+  残りは優先順に、起点（`compute` は基本エリア、`remark` は現在エリア）とのゾーン差＋レーン差が最小のマーカーを割り当てる。
+  同じなら配置の選手の順。エリアごとの人数は割り当てによらない
+- 余ったマーカーの理由は `MARK`（カバー役も、マークの規則による動きとして扱う）
+- `remark` は `ZONE` では何も動かさない（ずれる基準はターン開始時のボール位置のため）
 
 `LayoutStep`（`layout_step.gd`）は `pair: LayoutPair` と `movements: Array[Movement]` の組で、配置の
 変化とその理由（矢印の表示・3D 演出・振り返りに使う）をいっしょに返す。
