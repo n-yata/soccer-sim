@@ -25,6 +25,17 @@ func test_turn_choice_without_target_copies_null() -> void:
 	assert_object(copy.target).is_null()
 
 
+func test_is_complete_for_checks_the_family_and_a_needed_target() -> void:
+	assert_bool(TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, _area("M-C")).is_complete_for(ATTACK)).is_true()
+	assert_bool(TurnChoice.new(ATTACK, GameEnums.PlayType.SHOT).is_complete_for(ATTACK)).is_true()
+	# 運ぶ先が要る手で運ぶ先が無い
+	assert_bool(TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE).is_complete_for(ATTACK)).is_false()
+	assert_bool(TurnChoice.new(POS_TRANS, GameEnums.PosTransAction.COUNTER).is_complete_for(POS_TRANS)).is_false()
+	# 手の種類の取り違え
+	assert_bool(TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M-C")).is_complete_for(ATTACK)).is_false()
+	assert_bool(TurnChoice.new(NEG_TRANS, GameEnums.NegTransAction.RETREAT).is_complete_for(NEG_TRANS)).is_true()
+
+
 func test_needs_target_matches_the_moves_that_carry_a_target() -> void:
 	# screen-03-match.md: 運ぶ先を持つ手は SHORT_PASS・DRIBBLE・LONG_BEHIND・SWITCH・PRESS・COVER・COUNTER
 	for play: GameEnums.PlayType in [GameEnums.PlayType.SHORT_PASS, GameEnums.PlayType.DRIBBLE,

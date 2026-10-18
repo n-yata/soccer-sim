@@ -114,7 +114,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `TeamLayout` | `team_layout.gd` | （チームの配置） | `players: Array[PlayerState]` と、各選手の現在エリア（下記） |
 | `LayoutPair` | `layout_pair.gd` | — | 判定中の両チームの `TeamLayout`。`attacker`・`defender`・`attacker_side: TeamSide`（`Movement.side` を埋めるため）・`defender_side()` |
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
-| `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`） |
+| `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`）・`is_complete_for(family)`（判定に使える形か。攻守ターン・トランジションの判定で共有） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
 | `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無 |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind` |
@@ -187,6 +187,8 @@ static func compute(attacker: TeamLayout, attacker_styles: TeamStyles,
         ball: PitchArea, attacker_side: GameEnums.TeamSide) -> LayoutStep
 ## マンツーマンのマークを付け直す（ドリブル・プレス・カバーの後に呼ぶ）
 static func remark(pair: LayoutPair, defender_styles: TeamStyles) -> LayoutStep
+## アルゴリズム6のリトリート。守備側（喪失側）を基本配置に戻して固定を解除し、守備方式で動かす。ball は攻撃側（奪取側）の視点
+static func retreat(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea) -> LayoutStep
 
 class_name DefenseMover extends RefCounted
 ## アルゴリズム4。守備の手を適用し、動いた選手を固定する。target は attacker 視点
@@ -237,12 +239,17 @@ class_name OpenPlayJudge extends RefCounted
 ## アルゴリズム5の手順2〜6。pair はアルゴリズム2を適用済みの配置
 static func judge(pair: LayoutPair, attacker_styles: TeamStyles, defender_styles: TeamStyles,
         ball: PitchArea, attack: TurnChoice, defense: TurnChoice) -> JudgeOutput
+## 手順5〜6（人数差とカバー判定）。TransitionJudge のカウンターと共有する。compare は攻撃側の視点
+static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
+static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
 
 class_name TransitionJudge extends RefCounted
 ## アルゴリズム6。origin は直前のターン終了時点の配置（奪取側を attacker として持つ）
 ## リトリートの基本配置は origin の各選手の base_area から作る（StyleLayoutCalculator.reset_segment）
 static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: TeamStyles,
         ball: PitchArea, winner_choice: TurnChoice, loser_choice: TurnChoice) -> JudgeOutput
+## カウンターのときの奪取側の配置（カウンター型の飛び出し）。MoveRules.pos_transition_options に渡す配置にも使う
+static func counter_layout(winner: TeamLayout, winner_styles: TeamStyles) -> TeamLayout
 
 class_name MoveHints extends RefCounted
 ## FR-19 のヒントと、アルゴリズム8 の評価値の共通の計算。
@@ -263,6 +270,13 @@ static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveO
 - 選べない手（手の種類の取り違え、運ぶ先の欠け、適用できない守備の手）とボール位置の欠けでは `null` を返す。
   呼び出し側（`MatchRules`）は `MoveRules.is_allowed` で先に拒否する
 - 手順7（結果の反映）は `MatchRules`（アルゴリズム7）が行う。`attacker_styles` は配置に織り込み済みのため使わない
+
+`TransitionJudge` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
+- カウンター型の飛び出しは、固定されていない選手だけ（方式の動きなので、アルゴリズム2の手順2に揃える）。大外かどうかは直前の配置のレーンで見る。飛び出した選手は固定しない
+- リトリートの動きは1人につき1本（直前の位置 → 最終の位置、理由 `RETREAT_RESET`）。マンツーマンのマークは、飛び出した後の奪取側につく
+- 即時奪回×保持の内訳は、比較エリアに `X`、人数に `X` と上下左右の隣接エリアの合計（攻撃側の人数 = 奪取側）
+- 動きは、奪取側（飛び出し）→ 喪失側（リトリート）の順に並べる
+- 選べない手（手の種類の取り違え、カウンターの運ぶ先の欠け）とボール位置の欠けでは `null` を返す
 
 > ヒントと CPU の評価値を同じ関数で出すのは、利用者に見せる判断材料と CPU が使う材料を食い違わせないため。
 > ヒントは判断材料を示すだけで、最善手を示さない（FR-19）。`ChoiceHint` に推奨の印は持たせない。

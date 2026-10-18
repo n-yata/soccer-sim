@@ -17,8 +17,9 @@ const _OUT_OF_GK_REACH_LANES: Array[GameEnums.Lane] = [GameEnums.Lane.L2, GameEn
 ## 攻撃側の方式はアルゴリズム2で配置に織り込み済みのため使わない（引数は component-design.md の形に合わせて受け取る）。
 static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_styles: TeamStyles,
 		ball: PitchArea, attack: TurnChoice, defense: TurnChoice) -> JudgeOutput:
-	if ball == null or not _is_usable(attack, GameEnums.ChoiceFamily.ATTACK) \
-			or not _is_usable(defense, GameEnums.ChoiceFamily.DEFENSE):
+	if ball == null or attack == null or defense == null \
+			or not attack.is_complete_for(GameEnums.ChoiceFamily.ATTACK) \
+			or not defense.is_complete_for(GameEnums.ChoiceFamily.DEFENSE):
 		return null
 	var is_man: bool = defender_styles.defense == GameEnums.DefenseStyle.MAN
 	var movements: Array[Movement] = []
@@ -40,15 +41,8 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 			movements.append_array(step.movements)
 	# 手順4〜6
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
-	var detail: JudgeDetail = _detail(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
-	return JudgeOutput.new(_outcome(detail, attack.action == GameEnums.PlayType.SHOT), detail, step.pair, movements)
-
-
-## family が合い、運ぶ先を伴う手なら運ぶ先があること。
-static func _is_usable(choice: TurnChoice, family: GameEnums.ChoiceFamily) -> bool:
-	if choice == null or choice.family != family:
-		return false
-	return choice.target != null or not MoveOptions.needs_target(choice.family, choice.action)
+	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
+	return JudgeOutput.new(outcome_of(detail, attack.action == GameEnums.PlayType.SHOT), detail, step.pair, movements)
 
 
 ## ボールを持つ選手（ball にいる攻撃側の選手。固定された選手を優先し、同じなら配置の順で先）を
@@ -82,8 +76,9 @@ static func _dribble(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> Layout
 	return LayoutStep.new(moved, movements)
 
 
-## 比較エリアの人数と、同数のときのカバーの内訳（シュートはカバー判定をしない）。
-static func _detail(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail:
+## 手順5〜6の前半。比較エリアの人数と、同数のときのカバーの内訳（シュートはカバー判定をしない）。
+## compare は攻撃側の視点。トランジションのカウンター（アルゴリズム6）と共有する。
+static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail:
 	var attackers: int = pair.attacker.count_at(compare)
 	var defenders: int = pair.defender.count_at(compare.mirrored())
 	var cover: GameEnums.CoverKind = GameEnums.CoverKind.NONE
@@ -98,7 +93,8 @@ static func _detail(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> Judg
 	return JudgeDetail.new(compare.duplicate_deep(), attackers, defenders, cover)
 
 
-static func _outcome(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome:
+## 手順5〜6の後半。内訳から結果を決める。トランジションのカウンター（アルゴリズム6）と共有する。
+static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome:
 	var diff: int = detail.attacker_count - detail.defender_count
 	if is_shot:
 		return GameEnums.TurnOutcome.GOAL if diff > 0 else GameEnums.TurnOutcome.SAVE

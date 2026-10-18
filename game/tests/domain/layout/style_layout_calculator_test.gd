@@ -426,3 +426,52 @@ func _total(layout: TeamLayout) -> int:
 	for count: int in layout.counts().values():
 		total += count
 	return total
+
+
+# --- retreat（アルゴリズム6のリトリート） ---
+
+## 直前の配置: d1 は D-C が基本で M-C に固定、d2 は D-L1 が基本で前のスライドで D-L2 に、d3 は M-R2 のまま
+func _retreating_defender() -> TeamLayout:
+	var players: Array[PlayerState] = [
+		PlayerState.new("d1", _area("D-C"), _area("M-C")),
+		PlayerState.new("d2", _area("D-L1")),
+		PlayerState.new("d3", _area("M-R2")),
+	]
+	return TeamLayout.new(players, {"d1": _area("M-C"), "d2": _area("D-L2"), "d3": _area("M-R2")})
+
+
+func test_retreat_resets_fixes_and_slides_from_the_base_layout() -> void:
+	var pair := LayoutPair.new(_layout([["a1", "M-C", ""]]), _retreating_defender(), HOME)
+	# 奪われたエリア X は奪取側（攻撃側）の視点で A-R1。守備側から見て D-L1 なので左へ1レーン
+	var step: LayoutStep = StyleLayoutCalculator.retreat(pair, _styles(ZONE, COUNTER), _area("A-R1"))
+	assert_dict(_areas_of(step.pair.defender)).is_equal({"d1": "D-L1", "d2": "D-L2", "d3": "M-R1"})
+	for player: PlayerState in step.pair.defender.players:
+		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
+	# 直前の位置から変わった選手だけ（d2 は D-L2 のまま）
+	assert_array(_moves(step)).is_equal(["d1:M-C>D-L1:RETREAT_RESET", "d3:M-R2>M-R1:RETREAT_RESET"])
+	for movement: Movement in step.movements:
+		assert_int(movement.side).is_equal(AWAY)
+	# 攻撃側は変わらず、入力も書き換えない
+	assert_dict(_areas_of(step.pair.attacker)).is_equal({"a1": "M-C"})
+	assert_dict(_areas_of(pair.defender)).is_equal({"d1": "M-C", "d2": "D-L2", "d3": "M-R2"})
+	assert_bool(pair.defender.players[0].is_fixed()).is_true()
+
+
+func test_retreat_with_the_ball_in_the_center_lane_returns_to_the_base_layout() -> void:
+	var pair := LayoutPair.new(_layout([["a1", "M-C", ""]]), _retreating_defender(), HOME)
+	var step: LayoutStep = StyleLayoutCalculator.retreat(pair, _styles(ZONE, COUNTER), _area("D-C"))
+	assert_dict(_areas_of(step.pair.defender)).is_equal({"d1": "D-C", "d2": "D-L1", "d3": "M-R2"})
+
+
+func test_retreat_with_man_marks_the_attackers_where_they_are_now() -> void:
+	# 攻撃側 a1 は A-C（守備側から見て D-C）。m1（基本 M-L1、A-L2 に固定）は固定が解けてマーカーになる。f は基本が A で残る
+	var players: Array[PlayerState] = [
+		PlayerState.new("m1", _area("M-L1"), _area("A-L2")),
+		PlayerState.new("f", _area("A-C")),
+	]
+	var defender := TeamLayout.new(players, {"m1": _area("A-L2"), "f": _area("A-C")})
+	var pair := LayoutPair.new(_layout([["a1", "A-C", ""]]), defender, AWAY)
+	var step: LayoutStep = StyleLayoutCalculator.retreat(pair, _styles(MAN, COUNTER), _area("M-C"))
+	assert_dict(_areas_of(step.pair.defender)).is_equal({"m1": "D-C", "f": "A-C"})
+	assert_array(_moves(step)).is_equal(["m1:A-L2>D-C:RETREAT_RESET"])
+	assert_int(step.movements[0].side).is_equal(HOME)

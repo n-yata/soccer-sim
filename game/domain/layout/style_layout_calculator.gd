@@ -66,6 +66,28 @@ static func remark(pair: LayoutPair, defender_styles: TeamStyles) -> LayoutStep:
 			_movements(copied.defender, defender_start, defender_areas, reasons, copied.defender_side()))
 
 
+## アルゴリズム6のリトリート。守備側（喪失側）を基本配置に戻して固定を解除し、守備方式で動かす。
+## ball は攻撃側（奪取側）から見た座標。マンツーマンの対象は pair.attacker の現在の配置。
+## 動きは直前の配置から位置が変わった選手だけで、基本エリアへ戻る動きと方式の動きを1本にまとめる（理由 RETREAT_RESET）。
+static func retreat(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea) -> LayoutStep:
+	var reset: TeamLayout = reset_segment(pair.defender)
+	var areas: Dictionary = _start_areas(reset)
+	var reasons: Dictionary = {}
+	if defender_styles.defense == GameEnums.DefenseStyle.ZONE:
+		_slide(reset, areas, reasons, ball.mirrored())
+	else:
+		_mark(reset, areas, reasons, pair.attacker.players, _current_areas(pair.attacker))
+	var defender: TeamLayout = _layout_with(reset, areas)
+	var movements: Array[Movement] = []
+	for player: PlayerState in reset.players:
+		var from: PitchArea = pair.defender.current_area_of(player.player_id)
+		var to: PitchArea = areas[player.player_id] as PitchArea
+		if not to.equals(from):
+			movements.append(Movement.new(pair.defender_side(), player.player_id, from.duplicate_deep(),
+					to.duplicate_deep(), GameEnums.MovementReason.RETREAT_RESET))
+	return LayoutStep.new(LayoutPair.new(pair.attacker.duplicate_deep(), defender, pair.attacker_side), movements)
+
+
 ## 選手 ID → 起点のエリア。固定された選手は固定先、それ以外は基本エリア。
 static func _start_areas(layout: TeamLayout) -> Dictionary:
 	var result: Dictionary = {}
