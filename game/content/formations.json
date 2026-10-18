@@ -1,0 +1,81 @@
+{
+	"format_version": 1,
+	"formations": [
+		{
+			"id": "4-4-2",
+			"name": "4-4-2",
+			"description": "DF4人・MF4人・FW2人の伝統的なバランス型フォーメーション。",
+			"extra_tags": ["ライン間が空く"],
+			"players": [
+				{"id": "4-4-2-gk", "type": "GK", "label": "GK", "number": 1, "x": 50, "y": 5},
+				{"id": "4-4-2-lb", "type": "DF", "label": "LB", "number": 3, "x": 15, "y": 20},
+				{"id": "4-4-2-cb1", "type": "DF", "label": "CB", "number": 4, "x": 35, "y": 18},
+				{"id": "4-4-2-cb2", "type": "DF", "label": "CB", "number": 5, "x": 65, "y": 18},
+				{"id": "4-4-2-rb", "type": "DF", "label": "RB", "number": 2, "x": 85, "y": 20},
+				{"id": "4-4-2-lm", "type": "MF", "label": "LM", "number": 11, "x": 15, "y": 55},
+				{"id": "4-4-2-cm1", "type": "MF", "label": "CM", "number": 8, "x": 35, "y": 50},
+				{"id": "4-4-2-cm2", "type": "MF", "label": "CM", "number": 6, "x": 65, "y": 50},
+				{"id": "4-4-2-rm", "type": "MF", "label": "RM", "number": 7, "x": 85, "y": 55},
+				{"id": "4-4-2-st1", "type": "FW", "label": "ST", "number": 9, "x": 40, "y": 85},
+				{"id": "4-4-2-st2", "type": "FW", "label": "ST", "number": 10, "x": 60, "y": 85}
+			]
+		},
+		{
+			"id": "4-3-3",
+			"name": "4-3-3",
+			"description": "DF4人・MF3人・FW3人。両翼を高く張らせて幅を作る攻撃的フォーメーション。",
+			"extra_tags": [],
+			"players": [
+				{"id": "4-3-3-gk", "type": "GK", "label": "GK", "number": 1, "x": 50, "y": 5},
+				{"id": "4-3-3-lb", "type": "DF", "label": "LB", "number": 3, "x": 15, "y": 20},
+				{"id": "4-3-3-cb1", "type": "DF", "label": "CB", "number": 4, "x": 35, "y": 18},
+				{"id": "4-3-3-cb2", "type": "DF", "label": "CB", "number": 5, "x": 65, "y": 18},
+				{"id": "4-3-3-rb", "type": "DF", "label": "RB", "number": 2, "x": 85, "y": 20},
+				{"id": "4-3-3-cm1", "type": "MF", "label": "CM", "number": 8, "x": 30, "y": 50},
+				{"id": "4-3-3-cm2", "type": "MF", "label": "CM", "number": 6, "x": 50, "y": 45},
+				{"id": "4-3-3-cm3", "type": "MF", "label": "CM", "number": 10, "x": 70, "y": 50},
+				{"id": "4-3-3-lw", "type": "FW", "label": "LW", "number": 11, "x": 20, "y": 85},
+				{"id": "4-3-3-st", "type": "FW", "label": "ST", "number": 9, "x": 50, "y": 88},
+				{"id": "4-3-3-rw", "type": "FW", "label": "RW", "number": 7, "x": 80, "y": 85}
+			]
+		},
+		{
+			"id": "4-2-3-1",
+			"name": "4-2-3-1",
+			"description": "DF4人・守備的MF2人・攻撃的MF3人・FW1人。中盤を厚くした現代的なフォーメーション。",
+			"extra_tags": [],
+			"players": [
+				{"id": "4-2-3-1-gk", "type": "GK", "label": "GK", "number": 1, "x": 50, "y": 5},
+				{"id": "4-2-3-1-lb", "type": "DF", "label": "LB", "number": 3, "x": 15, "y": 20},
+				{"id": "4-2-3-1-cb1", "type": "DF", "label": "CB", "number": 4, "x": 35, "y": 18},
+				{"id": "4-2-3-1-cb2", "type": "DF", "label": "CB", "number": 5, "x": 65, "y": 18},
+				{"id": "4-2-3-1-rb", "type": "DF", "label": "RB", "number": 2, "x": 85, "y": 20},
+				{"id": "4-2-3-1-dm1", "type": "MF", "label": "DM", "number": 6, "x": 35, "y": 40},
+				{"id": "4-2-3-1-dm2", "type": "MF", "label": "DM", "number": 8, "x": 65, "y": 40},
+				{"id": "4-2-3-1-aml", "type": "MF", "label": "AM", "number": 11, "x": 20, "y": 65},
+				{"id": "4-2-3-1-amc", "type": "MF", "label": "AM", "number": 10, "x": 50, "y": 60},
+				{"id": "4-2-3-1-amr", "type": "MF", "label": "AM", "number": 7, "x": 80, "y": 65},
+				{"id": "4-2-3-1-st", "type": "FW", "label": "ST", "number": 9, "x": 50, "y": 88}
+			]
+		},
+		{
+			"id": "3-5-2",
+			"name": "3-5-2",
+			"description": "DF3人・MF5人・FW2人。両翼のウイングバックが上下動して幅を作るフォーメーション。",
+			"extra_tags": [],
+			"players": [
+				{"id": "3-5-2-gk", "type": "GK", "label": "GK", "number": 1, "x": 50, "y": 5},
+				{"id": "3-5-2-cb1", "type": "DF", "label": "CB", "number": 4, "x": 30, "y": 18},
+				{"id": "3-5-2-cb2", "type": "DF", "label": "CB", "number": 5, "x": 50, "y": 15},
+				{"id": "3-5-2-cb3", "type": "DF", "label": "CB", "number": 6, "x": 70, "y": 18},
+				{"id": "3-5-2-lwb", "type": "MF", "label": "LWB", "number": 3, "x": 10, "y": 45},
+				{"id": "3-5-2-cm1", "type": "MF", "label": "CM", "number": 8, "x": 35, "y": 50},
+				{"id": "3-5-2-cm2", "type": "MF", "label": "CM", "number": 14, "x": 50, "y": 45},
+				{"id": "3-5-2-cm3", "type": "MF", "label": "CM", "number": 10, "x": 65, "y": 50},
+				{"id": "3-5-2-rwb", "type": "MF", "label": "RWB", "number": 2, "x": 90, "y": 45},
+				{"id": "3-5-2-st1", "type": "FW", "label": "ST", "number": 9, "x": 40, "y": 85},
+				{"id": "3-5-2-st2", "type": "FW", "label": "ST", "number": 11, "x": 60, "y": 85}
+			]
+		}
+	]
+}

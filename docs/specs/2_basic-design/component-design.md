@@ -106,12 +106,12 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | クラス | ファイル | 対応するエンティティ | 備考 |
 |---|---|---|---|
 | `PitchArea` | `pitch_area.gd` | （エリア） | `lane`・`zone`。視点を持たない値で、どの視点かは持ち主が決める（§1.2） |
-| `FormationDef` / `PlayerSlotDef` | `formation_def.gd` / `player_slot_def.gd` | フォーメーション / 選手配置 | `PlayerSlotDef.is_goalkeeper` を持つ（アルゴリズム1で GK を除くため） |
+| `FormationDef` / `PlayerSlotDef` | `formation_def.gd` / `player_slot_def.gd` | フォーメーション / 選手配置 | `PlayerSlotDef` はポジション種別を `position_type`（`"GK"` などの文字列。`type` は紛らわしいため避けた）で持ち、`is_goalkeeper()` を持つ（アルゴリズム1で GK を除くため） |
 | `StyleDef` | `style_def.gd` | 方式 | 解説の固定文 |
 | `TeamStyles` | `team_styles.gd` | （試合の方式） | `defense: DefenseStyle`・`attack: AttackStyle` |
 | `TeamSetup` | `team_setup.gd` | （試合の陣形と方式） | `formation_id`・`styles: TeamStyles` |
-| `PlayerState` | `player_state.gd` | （選手単位の配置状態） | `player_id`・`base_area`・`fixed_area`（固定されていなければ `null`） |
-| `TeamLayout` | `team_layout.gd` | （チームの配置） | `players: Array[PlayerState]` と、各選手の現在エリア |
+| `PlayerState` | `player_state.gd` | （選手単位の配置状態） | `player_id`・`base_area`・`fixed_area`（固定されていなければ `null`）・`is_fixed()` |
+| `TeamLayout` | `team_layout.gd` | （チームの配置） | `players: Array[PlayerState]` と、各選手の現在エリア（下記） |
 | `LayoutPair` | `layout_pair.gd` | — | 判定中の両チームの `TeamLayout`。`attacker`・`defender` |
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`） |
@@ -123,7 +123,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
 | `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
 | `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10） |
-| `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる |
+| `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる。`formation(id)`（無ければ `null`）。2026-10-18 時点では陣形だけを持ち、ほかは使う機能の作業で足す |
 | `MatchupRuleDef` / `PrincipleDef` / `SimplificationDef` / `QuizQuestionDef` / `TutorialStepDef` | 各 `*_def.gd` | 噛み合わせルール / 戦術原則 / 単純化項目 / 場面問題 / （チュートリアルの段階） | — |
 | `MatchRecord` / `QuizAnswer` / `UserSettings` | `match_record.gd` / `quiz_answer.gd` / `user_settings.gd` | 戦績 / 回答結果 / 設定 | — |
 
@@ -149,6 +149,24 @@ func equals(other: PitchArea) -> bool
 func to_key() -> String
 static func from_key(key: String) -> PitchArea   # 不正な文字列なら null
 static func all() -> Array[PitchArea]            # 15エリア。D→M→A、各ゾーン内は L2→R2 の順
+```
+
+`TeamLayout` は、選手ごとの現在エリアを `base_area`・`fixed_area` とは別に持つ。アルゴリズム2の方式の動き
+（スライド・マーク・保持型の前進）で、固定されていない選手の現在エリアも基本エリアからずれるため。
+
+```gdscript
+class_name TeamLayout extends RefCounted
+
+var players: Array[PlayerState]
+
+func _init(players: Array[PlayerState], current_areas: Dictionary)   # 選手 ID → PitchArea
+## 全員の現在エリアを基本エリアにした配置（固定の有無は見ない）
+static func at_base(players: Array[PlayerState]) -> TeamLayout
+func current_area_of(player_id: String) -> PitchArea   # いない選手なら null
+func count_at(area: PitchArea) -> int
+## 15エリアすべてのキー → 人数（0 のエリアも含める）
+func counts() -> Dictionary
+func duplicate_deep() -> TeamLayout
 ```
 
 ### 2.3 配置計算（`layout/`。アルゴリズム1・2・4）
@@ -512,9 +530,13 @@ func mark_tutorial_completed() -> bool
 
 ```gdscript
 class_name ContentRepository extends RefCounted
-## game/content/*.json を読み、検証して ContentCatalog に変換する
+## content_dir はテストで別の場所を読ませるための引数。アプリは既定値を使う
+func _init(content_dir: String = "res://content")
+## game/content/*.json を読み、検証して ContentCatalog に変換する。誤りが1件でもあれば空の ContentCatalog を返す
+## （一部だけ正しいデータで動き続けないため）。誤りは push_error でも出す
 func load_catalog() -> ContentCatalog
-## 検証で見つかった誤り（ID の重複、存在しない原則 ID の参照など）。空なら正常
+## 検証で見つかった誤り（ID の重複、存在しない原則 ID の参照など）。空なら正常。まだ読んでいなければ読む。
+## 形は "<ファイル名>: <場所（例 formations[1].players[3].number）>: <理由>"
 func validation_errors() -> Array[String]
 ```
 

@@ -13,7 +13,7 @@
 
 ## プロジェクト構造
 
-`（未作成）` は最初の機能の作業で作るもの。それ以外は現時点で実在する（`game/` は 2026-10-18 の開発環境の構築で作成）。
+`（未作成）` は、それを使う機能の作業で作るもの。それ以外は現時点で実在する（`game/` は 2026-10-18 の開発環境の構築で、`domain/`・`data/`・`content/` は同日の「ルールの土台」の作業で作成）。
 
 ```
 soccer-game/
@@ -35,16 +35,18 @@ soccer-game/
 │   ├── project.godot
 │   ├── export_presets.cfg.example # 鍵を含まない書き出し設定の共有用（本物の export_presets.cfg は除外）
 │   ├── addons/gdUnit4/            # テストフレームワーク（同梱して固定）
-│   ├── domain/                    # ドメイン層（純粋ロジック。Node 非依存）（未作成）
+│   ├── domain/                    # ドメイン層（純粋ロジック。Node 非依存）
 │   ├── application/               # アプリケーション層（試合進行・画面遷移・保存の呼び出し）（未作成）
-│   ├── data/                      # データ層（静的データの読み込み・端末内保存）（未作成）
+│   ├── data/                      # データ層（静的データの読み込み・端末内保存）
 │   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）（未作成）
-│   ├── content/                   # 静的データ（JSON）（未作成）
+│   ├── content/                   # 静的データ（JSON。今は formations.json だけ）
 │   ├── config/                    # 調整値（Resource .tres）（未作成）
 │   ├── assets/                    # 3D 素材・テクスチャ・音・フォント（ライセンス台帳 LICENSES.md を含む）
 │   │   └── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt
-│   └── tests/                     # gdUnit4 のテスト（テストはまだ無い。空のディレクトリは Git に載らない）
+│   └── tests/                     # gdUnit4 のテスト
 └── tools/                         # 開発補助スクリプト
+    ├── run-tests.sh               # テストの一括実行（禁止依存の検査と gdUnit4）
+    ├── check_domain_deps.gd       # ドメイン層の禁止依存の検出（NFR-13）
     └── mcp/drawio-mcp.mjs         # drawio MCP を空きポートで起動するラッパー
 ```
 
@@ -135,17 +137,23 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 （例: `tests/domain/judge/`）。
 
 - `tests/self_play/`: 自己対戦による決定性・対称性・偏りの検証（NFR-05〜07）
-- `tests/fixtures/`: 破損した保存データなどのテスト用データ（NFR-09）
+- `tests/fixtures/`: 破損した保存データなどのテスト用データ（NFR-09）。`fixtures/forbidden_deps/` は、禁止依存の検査が
+  空振りしていないことを確かめるためのスクリプト（カテゴリごとに禁止した参照を1つ書いたもの）
+- 静的データの異常系のテストは、fixture を置かず、本物の JSON を1か所だけ変えてテストの中で作る
+  （本物を直したときに fixture だけが古いまま残らないようにするため）
 
 ### tools/ 配下
 
 **配置ファイル**:
 - `mcp/drawio-mcp.mjs`: drawio MCP の起動ラッパー（後述「drawio MCP の運用」）
-- ドメイン層の禁止依存の検出スクリプト（NFR-13。検索する API 名の一覧はこのスクリプトが正本）
+- `check_domain_deps.gd`: ドメイン層の禁止依存の検出（NFR-13。検索する API 名の一覧はこのスクリプトが正本）。
+  Godot を画面なしで動かして実行する（`godot --headless --path game --script <このファイルの絶対パス> -- [ディレクトリ]`。
+  省くと `res://domain`）。見つかれば終了コード 1、検査できなければ（ディレクトリが無い・スクリプトが0件）2。
+  `--self-check <カテゴリ>` は、fixture でそのカテゴリの全ルールが当たることを確かめる（ルールを足したら fixture にも足す）
 - フォントのサブセットの生成と、フォントに無い文字の検出（`architecture-overview.md` のフォントの注記）
 - カタログと静的データの突き合わせスクリプト（NFR-17 ②）
 - ワイヤーフレームと画面一覧の対応検査スクリプト（後述「ワイヤーフレームの運用」）
-- テストの一括実行スクリプト（gdUnit4 の CLI 呼び出し）
+- `run-tests.sh`: テストの一括実行（後述「セットアップ手順」2 の「テストの実行」）
 
 ### docs/ 配下
 
@@ -229,7 +237,15 @@ GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項�
 - 警告は、Godot 4.7 の既定（`debug/gdscript/warnings/directory_rules` が `{ "res://addons": 0 }`）で `addons/` には効かない。同梱の gdUnit4 は対象外になる
 - **プロジェクトを開いてエラーが無いことの確かめ方**: `game/` で `godot --headless --editor --quit` を実行する。
   `godot --headless --path game --quit` は、メインシーンが無いうちは「no main scene defined」で終わる（メインシーンは最初の機能の作業で作る）
-- **テストの実行**（`game/` で実行）:
+- **テストの実行**: リポジトリのどこからでも `tools/run-tests.sh` を実行する（Windows では Git Bash）。Godot は環境変数
+  `GODOT_BIN`、無ければ PATH の `godot` を使う。次の順に実行し、1つでも失敗すれば終了コード 1 で終わる
+  0. エディタでの取り込み（新しく足した `class_name` は、取り込むまでテストから見えないため）
+  1. 禁止依存の検査の自己確認（`tests/fixtures/forbidden_deps/` で各カテゴリの全ルールが当たること、コメント・文字列の中の語は
+     検出しないこと、検査できない対象を失敗として扱うこと）
+  2. `game/domain/` の禁止依存の検査（NFR-13）
+  3. gdUnit4 のテスト。テストが0件で終わった場合も失敗として扱う（空振りの防止）
+
+  中で呼んでいる gdUnit4 の CLI は次のとおり（`game/` で実行）:
 
   ```
   godot --headless --path . -s -d --remote-debug tcp://127.0.0.1:0 res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests
