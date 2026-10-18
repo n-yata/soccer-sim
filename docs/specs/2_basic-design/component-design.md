@@ -115,7 +115,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `LayoutPair` | `layout_pair.gd` | — | 判定中の両チームの `TeamLayout`。`attacker`・`defender`・`attacker_side: TeamSide`（`Movement.side` を埋めるため）・`defender_side()` |
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`） |
-| `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可 |
+| `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
 | `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無 |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind` |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | — |
@@ -204,6 +204,14 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction,
 - 余ったマーカーの理由は `MARK`（カバー役も、マークの規則による動きとして扱う）
 - `remark` は `ZONE` では何も動かさない（ずれる基準はターン開始時のボール位置のため）
 
+`DefenseMover` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
+- `COVER` の「隣接エリア」は `PRESS` と同じ上下左右。同率の「横」は、中央寄りのレーンを先にし、同じなら守備側の左を先にする
+- 同じエリアに動かせる選手が複数いれば、固定されていない選手のうち配置の選手の順で先の選手
+- `COVER` で、隣接から選んだ選手がすでに背後にいる（`T_d` が空で、背後にだけ守備側がいる）ときは、その場で固定し、
+  動き（`movements`）には含めない（位置が変わった選手だけを動きにする。`StyleLayoutCalculator` と同じ）
+- 選べない手（動かせる選手がいない、`COVER` の背後が盤外）なら `null` を返す。マンツーマンのマークの付け直しは
+  呼び出し側が `StyleLayoutCalculator.remark` で行う
+
 `LayoutStep`（`layout_step.gd`）は `pair: LayoutPair` と `movements: Array[Movement]` の組で、配置の
 変化とその理由（矢印の表示・3D 演出・振り返りに使う）をいっしょに返す。
 
@@ -216,6 +224,14 @@ static func options_for(state: MatchState, side: GameEnums.TeamSide,
         catalog: ContentCatalog) -> MoveOptions
 ## 選択不可の手を拒否する（エラーハンドリング「選択不可の手の指定」）
 static func is_allowed(options: MoveOptions, choice: TurnChoice) -> bool
+## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ。2026-10-18 時点では options_for は未作成で、
+## MatchState を作る作業で足す）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
+static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
+## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 15 エリアのすべてが候補
+static func defense_options(pair: LayoutPair) -> MoveOptions
+static func neg_transition_options() -> MoveOptions
+## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）
+static func pos_transition_options(winner: TeamLayout, ball: PitchArea) -> MoveOptions
 
 class_name OpenPlayJudge extends RefCounted
 ## アルゴリズム5の手順2〜6。pair はアルゴリズム2を適用済みの配置
