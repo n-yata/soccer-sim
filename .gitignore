@@ -34,6 +34,8 @@ id_rsa*
 /game/build/
 # gdUnit4 のテスト結果のレポート
 /game/reports/
+# Godot が起動時に読む上書きの設定。画面の撮影などで一時的に置くもの（repository-structure.md「動作確認の方法」）
+/game/override.cfg
 
 # Godot の書き出し設定は署名パスワード・暗号鍵を平文で持つため除外する
 # 共有する項目は export_presets.cfg.example に手で書き起こす（否定パターンは後勝ち）

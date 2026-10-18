@@ -36,9 +36,9 @@ soccer-game/
 │   ├── export_presets.cfg.example # 鍵を含まない書き出し設定の共有用（本物の export_presets.cfg は除外）
 │   ├── addons/gdUnit4/            # テストフレームワーク（同梱して固定）
 │   ├── domain/                    # ドメイン層（純粋ロジック。Node 非依存）
-│   ├── application/               # アプリケーション層（試合進行・画面遷移・保存の呼び出し）（未作成）
+│   ├── application/               # アプリケーション層（試合進行・画面遷移・保存の呼び出し）
 │   ├── data/                      # データ層（静的データの読み込み・端末内保存）
-│   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）（未作成）
+│   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）
 │   ├── content/                   # 静的データ（JSON。今は formations.json だけ）
 │   ├── config/                    # 調整値（Resource .tres）（未作成）
 │   ├── assets/                    # 3D 素材・テクスチャ・音・フォント（ライセンス台帳 LICENSES.md を含む）
@@ -369,7 +369,19 @@ GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項�
   - セーフエリア（ノッチ・パンチホール）の余白、端末の回転（`sensor_landscape`）、Android の戻る操作そのもの
     （`handle_back()` が1回だけ呼ばれ、試合画面などでアプリが閉じないこと）
   - `non-functional-requirements.md` で「Android 基準端末で」と定めた測定と確認（性能・指での操作など。一覧は同書が正本）
-- メインシーンはまだ無い（2026-10-18 時点）。PC で画面を確かめられるのは、メインシーンを作る作業の後になる
+- **画面を撮る**（見た目を記録・比べるとき）: `godot --path game --write-movie <出力先>/frame.png --quit-after 20` で、
+  各フレームが PNG で書き出される（最後の1枚を見る）。書き出しの大きさは基準解像度（1280×720）になる。20:9 などの横長の配置を撮るときは、
+  `game/override.cfg`（Godot が起動時に読む上書きの設定。`[display]` の `window/size/viewport_width=1600` など）を一時的に置いて撮り、
+  撮り終えたら消す。`--script` で動かす使い捨てのスクリプトでは、オートロード（`App`）が読み込まれないので、メインシーンを開けない
+- **書き出した APK の起動の確認**（画面や起動の流れを変えたとき）:
+  1. 「セットアップ手順」5 のとおりにデバッグ版の APK を書き出す
+  2. エミュレーターを `-gpu host` で起動し、`adb install --no-incremental -r export/soccer-game-debug.apk` で入れる
+     （差分だけを入れる方式では、新しい APK が反映されないことがあった）
+  3. `adb shell am start -W -n <パッケージ名>/com.godot.game.GodotAppLauncher` で起動し、タイトルが出ることを画面で確かめる
+     （初回はシェーダーの準備で、Godot の起動画面のあとタイトルが出るまで10秒ほどかかる）
+  4. `adb shell input keyevent 4`（戻る操作）を送り、`adb logcat` に `MainShell: back(android_back) -> S01_TITLE handled=false` が
+     1行だけ出て、アプリが閉じる（`adb shell pidof <パッケージ名>` が空になる）ことを確かめる。このログはデバッグビルドだけで出る
+  5. 確かめ終えたら `adb uninstall <パッケージ名>` で消す
 
 ## 汎用規約からの差分
 

@@ -1,0 +1,159 @@
+[gd_resource type="Theme" load_steps=11 format=3]
+
+; アプリ全体のテーマ（project.godot の gui/theme/custom）。各画面は色を直接書かない。
+; 色は docs/specs/3_detail-design/screen/screen-common.md §3 の写し（bg #070D18・surface #101827・text #F8FAFC・
+; text_sub #CBD5E1・muted #94A3B8・accent #F5C518・you #4CC3FF・disabled_bg #1E293B・disabled_text #94A3B8）。正本を変えたらここも合わせる。
+; ホバーの見た目は通常と同じにする（screen-common.md §4.1。タッチには無い状態で、Android ではタップ後も残るため）。
+; フォーカスの枠も出さない（タッチでは不要で、タップ後にも残るため。キーボード操作は Windows 版の範囲）。
+; 日本語は Noto Sans JP を置くまで Godot の既定のフォント（端末のフォントで代わりに表示される）を使う。
+
+[ext_resource type="FontFile" path="res://assets/fonts/barlow-condensed/BarlowCondensed-Bold.ttf" id="1_barlow_bold"]
+[ext_resource type="FontFile" path="res://assets/fonts/barlow-condensed/BarlowCondensed-SemiBold.ttf" id="2_barlow_semibold"]
+
+[sub_resource type="StyleBoxFlat" id="card_normal"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="card_pressed"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="card_disabled"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.117647, 0.160784, 0.231373, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="you_tag_normal"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.298039, 0.764706, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="accent_normal"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="accent_pressed"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.972549, 0.980392, 0.988235, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="tag_normal"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxEmpty" id="empty"]
+
+[resource]
+default_font_size = 28
+AccentCard/base_type = &"Button"
+AccentCard/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_hover_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_pressed_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_hover_pressed_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_focus_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/styles/normal = SubResource("accent_normal")
+AccentCard/styles/hover = SubResource("accent_normal")
+AccentCard/styles/pressed = SubResource("accent_pressed")
+AccentCard/styles/hover_pressed = SubResource("accent_pressed")
+AccentCard/styles/focus = SubResource("empty")
+Button/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_hover_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_pressed_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_hover_pressed_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_focus_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_disabled_color = Color(0.580392, 0.639216, 0.721569, 1)
+Button/font_sizes/font_size = 28
+Button/styles/normal = SubResource("card_normal")
+Button/styles/hover = SubResource("card_normal")
+Button/styles/pressed = SubResource("card_pressed")
+Button/styles/hover_pressed = SubResource("card_pressed")
+Button/styles/disabled = SubResource("card_disabled")
+Button/styles/focus = SubResource("empty")
+CardTitleLabel/base_type = &"Label"
+CardTitleLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+CardTitleLabel/font_sizes/font_size = 30
+DisplayHeading/base_type = &"Label"
+DisplayHeading/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+DisplayHeading/fonts/font = ExtResource("1_barlow_bold")
+DisplayHeading/font_sizes/font_size = 88
+KickOffLabel/base_type = &"Label"
+KickOffLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+KickOffLabel/fonts/font = ExtResource("1_barlow_bold")
+KickOffLabel/font_sizes/font_size = 44
+KickOffSubLabel/base_type = &"Label"
+KickOffSubLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+KickOffSubLabel/font_sizes/font_size = 28
+Label/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+Label/font_sizes/font_size = 28
+Label/styles/normal = SubResource("empty")
+MutedLabel/base_type = &"Label"
+MutedLabel/colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+MutedLabel/font_sizes/font_size = 24
+SubLabel/base_type = &"Label"
+SubLabel/colors/font_color = Color(0.796078, 0.835294, 0.882353, 1)
+SubLabel/font_sizes/font_size = 28
+TagLabel/base_type = &"Label"
+TagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+TagLabel/fonts/font = ExtResource("2_barlow_semibold")
+TagLabel/font_sizes/font_size = 26
+TagLabel/styles/normal = SubResource("tag_normal")
+YouTagLabel/base_type = &"Label"
+YouTagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+YouTagLabel/font_sizes/font_size = 24
+YouTagLabel/styles/normal = SubResource("you_tag_normal")

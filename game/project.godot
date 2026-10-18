@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="soccer-game"
+run/main_scene="res://ui/main_shell.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/quit_on_go_back=false
+
+[autoload]
+
+App="*res://application/app.gd"
 
 [debug]
 
@@ -32,8 +37,13 @@ window/handheld/orientation=4
 
 enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
+[gui]
+
+theme/custom="res://ui/common/theme/app_theme.tres"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.02745098, 0.050980393, 0.09411765, 1)
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true

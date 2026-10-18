@@ -678,6 +678,37 @@ ISO 8601（タイムゾーンなし）で書く。
 タイトルを開く前に出た `App.storage_error`（中断データの破損など）は `MainShell` が保持し、タイトルを開いてから
 通知（`ToastView`）で表示する。
 
+```gdscript
+class_name MainShell extends Control
+## 画面 ID → シーンのパス。画面を作ったら1行足す（タイトルのカードも自動で押せるようになる）
+const SCREEN_SCENES: Dictionary
+## 画面のシーンがあるか（タイトルが、カードを押せるかの判断に使う）
+static func has_screen(screen: AppScreens.Id) -> bool
+## セーフエリアの左右の余白（基準解像度の px。x が左、y が右）。モバイルのときだけ当てる（screen-common.md §1.1）
+static func side_margins(window_size: Vector2i, safe_area: Rect2i, viewport_height: float) -> Vector2
+
+## 各画面のルートが継承する親クラス。enter / exit / handle_back の約束（screen-common.md §4）を型で表す
+## （型の警告をエラーにしているため、画面を Node のまま扱うと呼べない）
+class_name AppScreen extends Control
+func enter(params: Dictionary) -> void
+func exit() -> void
+func handle_back() -> bool            # 既定は false
+
+## 画面のシーンの入れ替えと、戻る操作の振り分け。入れる先と「画面 ID → シーン」の対応を引数で受け取る
+## （本番は MainShell.SCREEN_SCENES、テストはテスト用の対応）
+class_name ScreenSwitcher extends RefCounted
+func _init(container: Node, scene_paths: Dictionary)
+## 対応が無い・読めない・ルートが AppScreen でないときは、今の画面のまま false
+func open(screen: AppScreens.Id, params: Dictionary) -> bool
+func current() -> AppScreen           # 無ければ null
+func current_id() -> int              # 無ければ -1
+## 表示中の画面の handle_back() を1回呼んでその値を返す。画面が無ければ false
+func route_back() -> bool
+```
+
+- 戻る操作（Android の戻る操作・PC の Esc）は `MainShell` が受け、`ScreenSwitcher.route_back()` が `false` なら
+  `get_tree().quit()` を呼ぶ（`screen-common.md` §4.1）。デバッグビルドでは、戻る操作ごとに画面 ID と結果をログに出す
+
 ### 5.2 画面
 
 ディレクトリと `class_name` の対応。各画面のレイアウト・項目・イベントは `screen-design.md` に書く。
@@ -763,6 +794,9 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 >
 > 突き合わせは、画面なしで実行する使い捨てのスクリプトで行った。名前を足すとき、または Godot・gdUnit4 の版を上げるときは、
 > 同じ4つの一覧と突き合わせる。
+>
+> 2026-10-18（動く骨格の作業）: 足した `AppScreen`・`ScreenSwitcher` も、同じ4つの一覧（プロジェクト自身が登録した名前を除く）と
+> 衝突しないことを確かめた。
 
 | 区分 | 名前 |
 |---|---|
@@ -772,7 +806,7 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。
