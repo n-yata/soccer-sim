@@ -116,7 +116,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`）・`is_complete_for(family)`（判定に使える形か。攻守ターン・トランジションの判定で共有） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
-| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無 |
+| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持は比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`diff()`。評価値や推奨の印は持たない |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind` |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣 `D-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリアと固定先）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
@@ -244,6 +244,8 @@ static func judge(pair: LayoutPair, attacker_styles: TeamStyles, defender_styles
 ## 手順5〜6（人数差とカバー判定）。TransitionJudge のカウンターと共有する。compare は攻撃側の視点
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
+## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒントで共有する
+static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice) -> LayoutStep
 
 class_name TransitionJudge extends RefCounted
 ## アルゴリズム6。origin は直前のターン終了時点の配置（奪取側を attacker として持つ）
@@ -252,12 +254,15 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
         ball: PitchArea, winner_choice: TurnChoice, loser_choice: TurnChoice) -> JudgeOutput
 ## カウンターのときの奪取側の配置（カウンター型の飛び出し）。MoveRules.pos_transition_options に渡す配置にも使う
 static func counter_layout(winner: TeamLayout, winner_styles: TeamStyles) -> TeamLayout
+## center と上下左右の人数の合計（即時奪回の比較とヒントで共有する）
+static func total_around(layout: TeamLayout, center: PitchArea) -> int
 
 class_name MoveHints extends RefCounted
 ## FR-19 のヒントと、アルゴリズム8 の評価値の共通の計算。
 ## 「相手が何もしない」と仮定して、各手を適用した後の比較エリアの人数差とカバーの有無を出す
-static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions,
-        catalog: ContentCatalog) -> Array[ChoiceHint]
+## 攻撃の手は攻撃の手だけを適用した後、守備の手は制限するエリアの適用前、カウンターは飛び出しの後、即時奪回は
+## ボール位置と上下左右の合計で数える。リトリート・保持は比べない。陣形データを使わないため catalog 引数は持たない
+static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions) -> Array[ChoiceHint]
 ```
 
 `JudgeOutput`（`judge_output.gd`）は `outcome: TurnOutcome`・`detail: JudgeDetail`（`NO_CONTEST` は `null`）・
@@ -332,8 +337,11 @@ static func finish(state: MatchState) -> MatchState
 ```gdscript
 class_name CpuPlanner extends RefCounted
 ## ターンの手を選ぶ。引数に相手（利用者）のそのターンの手を含めない（同時手番の公平性。FR-11）
-static func choose_turn(state: MatchState, side: GameEnums.TeamSide, catalog: ContentCatalog,
+## 選べる手が無ければ null。陣形データを使わないため catalog 引数は持たない
+static func choose_turn(state: MatchState, side: GameEnums.TeamSide,
         cpu: CpuConfig, rng: RandomNumberGenerator) -> TurnChoice
+## 評価値。守備の手は脅威度（攻撃側 − 守備側）、リトリート・保持は 0、それ以外は 自分 − 相手
+static func score(hint: ChoiceHint) -> float
 ## 試合開始時・ハーフタイムの陣形と方式（一様ランダム）
 static func choose_setup(catalog: ContentCatalog, rng: RandomNumberGenerator) -> TeamSetup
 ## 得失点後の方式（一様ランダム）

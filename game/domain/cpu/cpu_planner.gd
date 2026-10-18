@@ -1,0 +1,103 @@
+## アルゴリズム8: CPU の選択（functional-overview.md。component-design.md §2.6）。
+## 読み合いが成立するよう、状況に応じつつ偏りすぎない手を選ぶ（FR-11）。
+##
+## 乱数生成器はドメインで作らず、引数で受け取ったものだけを使う（固定シードで選択を再現できるようにするため）。
+## 引数に相手のそのターンの手を含めない（同時手番の公平性）。
+class_name CpuPlanner
+extends RefCounted
+
+
+## ターンの手を選ぶ。選べる手（MoveRules.options_for）だけを候補に、評価値（score）から選択確率（probabilities）を出し、
+## rng で1つ選ぶ。選べる手が1つも無ければ null を返す（呼び出し側の誤り。通常は起きない）。
+static func choose_turn(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig,
+		rng: RandomNumberGenerator) -> TurnChoice:
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, MoveRules.options_for(state, side))
+	if hints.is_empty():
+		return null
+	var scores: Array[float] = []
+	for hint: ChoiceHint in hints:
+		scores.append(score(hint))
+	var probabilities_list: Array[float] = probabilities(scores, cpu)
+	var picked: ChoiceHint = hints[_draw(probabilities_list, rng)]
+	var target: PitchArea = null if picked.target == null else picked.target.duplicate_deep()
+	return TurnChoice.new(picked.family, picked.action, target)
+
+
+## 手の評価値（相手が何もしないと仮定した、手を適用した後の比較エリアでの人数差。CPU から見た値）。
+## 守備の手は制限するエリアの脅威度（攻撃側 − 守備側。脅威が大きいエリアほど守りに行く）、
+## リトリート・保持は 0、それ以外は 自分 − 相手。
+static func score(hint: ChoiceHint) -> float:
+	if not hint.is_compared:
+		return 0.0
+	if hint.family == GameEnums.ChoiceFamily.DEFENSE:
+		return float(hint.opponent_count - hint.own_count)
+	return float(hint.own_count - hint.opponent_count)
+
+
+## 選択確率 p_i = floor / N + (1 − floor) × softmax(s_i / τ)。どの手にも floor / N 以上の確率が残る。
+## softmax は最大値を引いてから指数を取り、評価値が大きくても桁あふれしないようにする。
+## τ・floor が範囲外（τ が 0 以下・NaN・無限大、floor が [0, 1) の外）か、評価値に NaN・無限大があれば一様な確率にする。範囲の検査はデータ層
+## （ConfigRepository）が行うが、壊れた値が届いたときに NaN で抽選が最後の手へ黙って偏らないよう、安全な側へ倒す。
+static func probabilities(scores: Array[float], cpu: CpuConfig) -> Array[float]:
+	var result: Array[float] = []
+	if scores.is_empty():
+		return result
+	var count: int = scores.size()
+	if not _is_usable(cpu) or not _are_finite(scores):
+		for _index: int in range(count):
+			result.append(1.0 / count)
+		return result
+	var highest: float = scores.max()
+	var weights: Array[float] = []
+	var total: float = 0.0
+	for s: float in scores:
+		var weight: float = exp((s - highest) / cpu.temperature)
+		weights.append(weight)
+		total += weight
+	for weight: float in weights:
+		result.append(cpu.floor_probability / count + (1.0 - cpu.floor_probability) * weight / total)
+	return result
+
+
+## 評価値がすべて有限か（INF − INF や NaN の比較で、確率が NaN になるのを防ぐ）。
+static func _are_finite(scores: Array[float]) -> bool:
+	for s: float in scores:
+		if not is_finite(s):
+			return false
+	return true
+
+
+## NaN でも偽になるよう、範囲の内側にあることを肯定形で確かめる（not (τ > 0) の形）。
+static func _is_usable(cpu: CpuConfig) -> bool:
+	var is_temperature_usable: bool = is_finite(cpu.temperature) and cpu.temperature > 0.0
+	var is_floor_usable: bool = is_finite(cpu.floor_probability) \
+			and cpu.floor_probability >= 0.0 and cpu.floor_probability < 1.0
+	return is_temperature_usable and is_floor_usable
+
+
+## 試合開始時・ハーフタイムの陣形と方式。選べる組み合わせ（陣形 × 守備方式 × 攻撃方式）から一様ランダムに選ぶ。
+## 陣形が無ければ null を返す。
+static func choose_setup(catalog: ContentCatalog, rng: RandomNumberGenerator) -> TeamSetup:
+	if catalog.formations.is_empty():
+		return null
+	var formation: FormationDef = catalog.formations[rng.randi_range(0, catalog.formations.size() - 1)]
+	return TeamSetup.new(formation.id, choose_styles(rng))
+
+
+## 得失点後の方式。守備方式 × 攻撃方式から一様ランダムに選ぶ（陣形はハーフタイム以外で変えない）。
+## enum の値が 0 から連続していること（GameEnums の定義）を前提に、添字をそのまま値にする。
+static func choose_styles(rng: RandomNumberGenerator) -> TeamStyles:
+	var defense: GameEnums.DefenseStyle = rng.randi_range(0, GameEnums.DefenseStyle.size() - 1) as GameEnums.DefenseStyle
+	var attack: GameEnums.AttackStyle = rng.randi_range(0, GameEnums.AttackStyle.size() - 1) as GameEnums.AttackStyle
+	return TeamStyles.new(defense, attack)
+
+
+## 確率に従って添字を1つ選ぶ。浮動小数の誤差で累積が 1 に届かないときは最後の手にする。
+static func _draw(probabilities_list: Array[float], rng: RandomNumberGenerator) -> int:
+	var r: float = rng.randf()
+	var cumulative: float = 0.0
+	for index: int in range(probabilities_list.size()):
+		cumulative += probabilities_list[index]
+		if r < cumulative:
+			return index
+	return probabilities_list.size() - 1

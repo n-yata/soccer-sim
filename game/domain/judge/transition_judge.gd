@@ -35,8 +35,8 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
 		# リトリート×保持: 両者が争わないことを選んだので判定しない
 		return JudgeOutput.new(GameEnums.TurnOutcome.NO_CONTEST, null, pair, movements)
 	# 即時奪回×保持: X と上下左右の隣接エリアの人数合計を比べる。同数以下は奪回失敗
-	var winner_total: int = _total_around(pair.attacker, ball)
-	var loser_total: int = _total_around(pair.defender, ball.mirrored())
+	var winner_total: int = total_around(pair.attacker, ball)
+	var loser_total: int = total_around(pair.defender, ball.mirrored())
 	var outcome: GameEnums.TurnOutcome = GameEnums.TurnOutcome.REGAIN if loser_total > winner_total \
 			else GameEnums.TurnOutcome.REGAIN_FAILED
 	var regain_detail := JudgeDetail.new(ball.duplicate_deep(), winner_total, loser_total, GameEnums.CoverKind.NONE)
@@ -72,8 +72,8 @@ static func _breakout_movements(before: TeamLayout, after: TeamLayout, side: Gam
 	return result
 
 
-## center と上下左右の隣接エリアの人数の合計（layout 自身から見た座標）。
-static func _total_around(layout: TeamLayout, center: PitchArea) -> int:
+## center と上下左右の隣接エリアの人数の合計（layout 自身から見た座標）。即時奪回の比較とヒント（MoveHints）で共有する。
+static func total_around(layout: TeamLayout, center: PitchArea) -> int:
 	var total: int = layout.count_at(center)
 	for area: PitchArea in center.neighbors4():
 		total += layout.count_at(area)

@@ -32,17 +32,27 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	if is_man:
 		step = StyleLayoutCalculator.remark(step.pair, defender_styles)
 		movements.append_array(step.movements)
-	# 手順3: 攻撃の手（ドリブルだけが選手を動かす）
-	if attack.action == GameEnums.PlayType.DRIBBLE:
-		step = _dribble(step.pair, ball, attack.target)
-		movements.append_array(step.movements)
-		if is_man:
-			step = StyleLayoutCalculator.remark(step.pair, defender_styles)
-			movements.append_array(step.movements)
+	# 手順3: 攻撃の手
+	step = apply_attack(step.pair, defender_styles, ball, attack)
+	movements.append_array(step.movements)
 	# 手順4〜6
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
 	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
 	return JudgeOutput.new(outcome_of(detail, attack.action == GameEnums.PlayType.SHOT), detail, step.pair, movements)
+
+
+## 手順3。攻撃の手を適用する。ドリブルだけが選手を動かし（運ぶ選手を運ぶ先に固定）、守備側がマンツーマンなら
+## マークを付け直す。ドリブル以外は配置の写しと空の動き。判定と、ヒント（MoveHints。相手が何もしない場合）で共有する。
+static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice) -> LayoutStep:
+	var movements: Array[Movement] = []
+	if attack.action != GameEnums.PlayType.DRIBBLE:
+		return LayoutStep.new(pair.duplicate_deep(), movements)
+	var step: LayoutStep = _dribble(pair, ball, attack.target)
+	movements.append_array(step.movements)
+	if defender_styles.defense == GameEnums.DefenseStyle.MAN:
+		step = StyleLayoutCalculator.remark(step.pair, defender_styles)
+		movements.append_array(step.movements)
+	return LayoutStep.new(step.pair, movements)
 
 
 ## ボールを持つ選手（ball にいる攻撃側の選手。固定された選手を優先し、同じなら配置の順で先）を
