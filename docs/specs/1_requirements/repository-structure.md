@@ -40,7 +40,7 @@ soccer-game/
 │   ├── data/                      # データ層（静的データの読み込み・端末内保存）
 │   ├── ui/                        # UI 層（画面・2D 作戦ボード・3D 演出）
 │   ├── content/                   # 静的データ（JSON。今は formations.json だけ）
-│   ├── config/                    # 調整値（Resource .tres）（未作成）
+│   ├── config/                    # 調整値（Resource .tres。今は match_rule_config.tres・cpu_config.tres）
 │   ├── assets/                    # 3D 素材・テクスチャ・音・フォント（ライセンス台帳 LICENSES.md を含む）
 │   │   └── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt
 │   └── tests/                     # gdUnit4 のテスト
@@ -124,6 +124,11 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **役割**: 調整値の Resource（`.tres`）。対象の一覧と初期値の正本は `functional-overview.md`「確定事項」の
 「設定値として外部化する値」。
+
+**配置ファイル**（2026-10-19 時点）:
+- `match_rule_config.tres`: 1ハーフのターン数
+- `cpu_config.tres`: CPU の選択の温度 τ・下限確率 floor
+- 3D 演出・振り返り・自己対戦検証の調整値（`presentation_config.tres`・`verification_config.tres`）は、それを使う作業で作る
 
 #### game/assets/
 

@@ -473,6 +473,25 @@ func leave_result() -> void
 func start_tutorial_step(step: TutorialStepDef) -> void
 ```
 
+> **2026-10-19 時点で作った範囲**: 試合の開始・選べる手とヒント・1ターンの確定と開示・方式の選び直し・ハーフタイム
+> （`start_match`・`user_options`・`user_hints`・`submit_turn`・`continue_after_reveal`・`submit_style_change`・
+> `submit_halftime`・`opponent_setup`・`snapshot`）。あわせて `is_match_started()`・`is_match_over()`・`last_reveal()`・
+> `state()`（状態の写し）を足した。
+> - `start_match` は `bool` を返す（陣形が無ければ `false`）。成功したら `state_changed` も出す。
+> - `submit_turn` の後は、`continue_after_reveal` を呼ぶまで `submit_turn`・`submit_style_change`・`submit_halftime` は
+>   `false` を返す（確定の二度押しで開示を飛ばさない。得点・ハーフタイムの画面を経ずに再開しない）。確認待ちの開示が
+>   無いときの `continue_after_reveal` は何もしない。
+> - `BoardSnapshot.movements` は直前のターンの動き。方式の選び直し・ハーフタイムで配置を作り直した後は空。
+> - 中断データからの再開はまだ無いので、試合の開始前に `snapshot`・`user_options`・`user_hints`・`opponent_setup` を
+>   呼ぶと push_error して `null`（ヒントは空）を返す。UI は `is_match_started()` で確かめてから呼ぶ。保存の作業で、
+>   上の `snapshot` の説明（中断データの状態を返す）に揃える。
+> - 作り方は `_init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberGenerator, opponent: OpponentPolicy,
+>   request_screen: Callable, assert_on_invalid_cpu: bool = OS.is_debug_build())`。画面の切り替えは `App.request_screen` を
+>   注入して頼む（テストで要求を記録するため）。CPU の手が選べないときに `assert` で止めるかは引数で決める（書き出し版の
+>   置き換えの経路をテストするため）。設計書の `content`・`store`・`user_data`・`is_tutorial` は、保存・戦績・チュートリアルの作業で足す
+> - `submit_style_change`・`submit_halftime` は、進行段階が違えば何もせず `false` を返す
+> - 保存・再開・起動時の後始末・終了処理・振り返り・チュートリアルは、それぞれの作業で作る
+
 **保存の時点**（正本は `functional-overview.md`「確定事項」の保存の時点）は、次のメソッドの中で
 `SuspendedMatchStore.save()` を呼ぶことで実現する。チュートリアル用のインスタンスは保存しない。
 
@@ -515,6 +534,9 @@ func choose_styles() -> TeamStyles
 class_name CpuOpponent extends OpponentPolicy        # CpuPlanner を呼ぶ（MVP の対戦相手）
 class_name ScriptedOpponent extends OpponentPolicy   # チュートリアルの段階が決めた手を返す
 ```
+
+基底クラスの各関数は `push_error` して `null` を返す（直接使わない）。`CpuOpponent` は `_init(catalog, cpu: CpuConfig,
+rng: RandomNumberGenerator)` で作り、`CpuPlanner` を呼ぶ。
 
 `MatchController` は相手の手をこのインターフェース経由で得る。`choose_turn` は利用者の手を受け取らないので、
 利用者の手を参照できない形になっている（FR-11）。後続マイルストーンのローカル2人対戦は、ここに
@@ -562,7 +584,14 @@ func mark_tutorial_completed() -> bool
 ### 3.5 画面に渡す値（`BoardSnapshot`・`RevealView`・`ReviewView`）
 
 どちらもアプリケーション層の値で、**利用者の視点に揃えてある**（§1.2）。UI は座標の変換もルールの計算もせず、
-これを描くだけにする。
+これを描くだけにする。変換は `ViewConverter`（`view_converter.gd`。`MatchController` だけが使う）が行う。
+利用者 = `HOME` なので、`AWAY` の視点の値（CPU の選手と動き、CPU が攻撃側のときの選択の運ぶ先・比較エリア・
+ボール位置）を鏡像にする。
+
+> 2026-10-19 時点の実装の形: 選手は `{"player_id", "number", "area"}` の Dictionary の配列。`last_goal_by` はまだ得点が
+> 無ければ -1。`RevealView` は判定前・判定時の配置を `user_players_before`・`opponent_players_before`・
+> `user_players_at_judgement`・`opponent_players_at_judgement` の4つで持ち、内訳の有無を `has_detail`、局面を
+> `turn_kind` で持つ。`simplification_ids` は単純化カタログを扱う作業まで空。
 
 `BoardSnapshot`（`board_snapshot.gd`）は、試合画面・ハーフタイム・方式の選び直しが表示する現在の状態。
 
@@ -642,6 +671,11 @@ func presentation() -> PresentationConfig
 
 値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、演出の上限は0より大きく5以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
+
+> 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
+> （テストで別の場所を読ませるための引数）、1回読んだ値を持っておく。ファイルが無い・型が違う・範囲外のときは、
+> 初期値の Resource を返して `push_error` する（エラーハンドリング「設定値が不正」: 利用者には表示しない）。範囲は
+> 内側にあることを肯定形で確かめ、`is_finite` で NaN・無限大を拒否する。同梱の `.tres` が範囲内であることはテストで確かめる
 
 ### 4.3 端末内保存
 
@@ -881,7 +915,7 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | enum（`GameEnums` 内） | `Lane`・`Zone`・`DefenseStyle`・`AttackStyle`・`TurnKind`・`PlayType`・`DefenseAction`・`NegTransAction`・`PosTransAction`・`TurnOutcome`・`MatchStatus`・`MatchStage`・`PrincipleStatus`・`TeamSide`・`ChoiceFamily`・`CoverKind`・`MovementReason`・`MatchResult`・`Phase`・`JudgeTally` |
 | enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`MatchController.SuspendedStatus`・`MatchController.StartupResult`・`SuspendedLoad.Status`・`RecordStore.LoadState`（`QuizAnswerStore`・`SettingsStore` も同名の enum を各クラス内に持つ。クラスの内側なので衝突しない） |
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
-| アプリケーション | `AppScreens`・`MatchController`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
+| アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
 | UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate` |
 
