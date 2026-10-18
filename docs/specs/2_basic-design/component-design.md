@@ -254,6 +254,16 @@ static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveO
 `JudgeOutput`（`judge_output.gd`）は `outcome: TurnOutcome`・`detail: JudgeDetail`（`NO_CONTEST` は `null`）・
 `pair: LayoutPair`（判定時の配置）・`movements: Array[Movement]` を持つ。
 
+`OpenPlayJudge` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
+- マンツーマンの付け直し（`StyleLayoutCalculator.remark`）を行う時点は、`functional-overview.md` アルゴリズム5の手順2・3が正本
+- ドリブルする選手は、ボール位置にいる攻撃側の選手のうち、固定された選手を優先し、配置の順で先の選手。
+  攻撃側が固定されるのはドリブルだけなので、固定された選手は直前にボールを運んできた選手で、その選手に運ばせ続ける。
+  誰もいなければ誰も動かさず、ボールだけが進んだものとして人数で判定する
+- 動きは、守備の手 → 付け直し → ドリブル → 付け直し の順に並べる
+- 選べない手（手の種類の取り違え、運ぶ先の欠け、適用できない守備の手）とボール位置の欠けでは `null` を返す。
+  呼び出し側（`MatchRules`）は `MoveRules.is_allowed` で先に拒否する
+- 手順7（結果の反映）は `MatchRules`（アルゴリズム7）が行う。`attacker_styles` は配置に織り込み済みのため使わない
+
 > ヒントと CPU の評価値を同じ関数で出すのは、利用者に見せる判断材料と CPU が使う材料を食い違わせないため。
 > ヒントは判断材料を示すだけで、最善手を示さない（FR-19）。`ChoiceHint` に推奨の印は持たせない。
 
