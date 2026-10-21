@@ -10,10 +10,13 @@ var _screen: MatchSetupScreen
 var _requested: Array[int] = []
 ## 空のカタログのテストが App.library を差し替えるので、テストごとに元に戻す（途中で止まっても後のテストに残さない）
 var _original_library: LibraryService
+## 試合開始のテストが App.match_controller を差し替えるので、テストごとに元に戻す
+var _original_controller: MatchController
 
 
 func before_test() -> void:
 	_original_library = App.library
+	_original_controller = App.match_controller
 	_screen = auto_free((load(SCENE) as PackedScene).instantiate() as MatchSetupScreen) as MatchSetupScreen
 	add_child(_screen)
 	_requested.clear()
@@ -23,6 +26,7 @@ func before_test() -> void:
 
 func after_test() -> void:
 	App.library = _original_library
+	App.match_controller = _original_controller
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
 
@@ -117,14 +121,35 @@ func test_ready_only_after_all_three_are_selected() -> void:
 
 
 func test_start_needs_ready_and_the_match_screen() -> void:
-	# 試合画面（S-03）が無い今は、READY でも押せず「準備中」が出る
+	# 試合画面（S-03）が登録されていれば、READY のときだけ押せる
 	_select_all()
-	assert_bool(_start_button().disabled).is_true()
-	assert_bool((_screen.find_child("StartPendingLabel", true, false) as Label).visible).is_true()
-	# S-03 があれば、READY のときだけ押せる
-	_screen.apply_start_availability({AppScreens.Id.S03_MATCH: "res://any.tscn"})
 	assert_bool(_start_button().disabled).is_false()
 	assert_bool((_screen.find_child("StartPendingLabel", true, false) as Label).visible).is_false()
+	# S-03 が無ければ、READY でも押せず「準備中」が出る
+	_screen.apply_start_availability({})
+	assert_bool(_start_button().disabled).is_true()
+	assert_bool((_screen.find_child("StartPendingLabel", true, false) as Label).visible).is_true()
+
+
+func test_start_creates_the_match_with_the_chosen_setup_once() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
+	var config := ConfigRepository.new()
+	App.match_controller = MatchController.new(catalog, config, rng, CpuOpponent.new(catalog, config.cpu(), rng),
+			App.request_screen, true)
+	_select_all()
+	_start_button().pressed.emit()
+	# 二度押し・STARTING 中の操作では、試合を作り直さない
+	_start_button().pressed.emit()
+	assert_bool(_screen.handle_back()).is_true()
+	var setup: TeamSetup = App.match_controller.snapshot().user_setup
+	assert_str(setup.formation_id).is_equal("4-3-3")
+	assert_int(setup.styles.defense).is_equal(GameEnums.DefenseStyle.MAN)
+	assert_int(setup.styles.attack).is_equal(GameEnums.AttackStyle.COUNTER)
+	assert_array(_requested).is_equal([AppScreens.Id.S03_MATCH] as Array[int])
+	assert_int(_screen.state()).is_equal(MatchSetupScreen.State.STARTING)
+	assert_bool(_start_button().disabled).is_true()
 
 
 func test_start_stays_disabled_while_editing_even_with_match_screen() -> void:

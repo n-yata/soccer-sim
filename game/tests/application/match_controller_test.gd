@@ -97,14 +97,17 @@ func _controller(seed_value: int, opponent: OpponentPolicy = FixedOpponent.new()
 	return MatchController.new(_catalog, _config(turns), _rng(seed_value), opponent, _record_request, assert_on_invalid_cpu)
 
 
-## 前半のキックオフが side になるシード（0 から順に探す）
+## 前半のキックオフが side になるシード（0 から順に探す）。探すために作った試合の画面の要求は消しておく
 func _seed_for_kickoff(side: GameEnums.TeamSide) -> int:
+	var found: int = -1
 	for seed_value: int in range(100):
 		var controller: MatchController = _controller(seed_value)
 		controller.start_match(_user_setup())
 		if controller.state().possession == side:
-			return seed_value
-	return -1
+			found = seed_value
+			break
+	_requests.clear()
+	return found
 
 
 func _keys(areas: Array[PitchArea]) -> Array[String]:
@@ -121,6 +124,8 @@ func test_start_match_creates_the_match_with_the_cpu_setup_and_emits_the_state()
 	var monitor := monitor_signals(controller, false)
 	assert_bool(controller.start_match(_user_setup())).is_true()
 	await assert_signal(monitor).is_emitted("state_changed", [any()])
+	# 試合画面への切り替えはコントローラーが頼む（screen-02-match-setup.md）
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH])
 	var snapshot: BoardSnapshot = controller.snapshot()
 	assert_int(snapshot.half).is_equal(1)
 	assert_int(snapshot.turn_number).is_equal(1)
@@ -152,6 +157,7 @@ func test_start_match_with_an_unknown_formation_fails() -> void:
 	await assert_error(func() -> void: controller.start_match(unknown)) \
 			.is_push_error("MatchController: 試合を作れない（陣形が無い）: 9-9-9")
 	assert_bool(controller.is_match_started()).is_false()
+	assert_array(_requests).is_empty()
 
 
 func test_queries_before_the_match_starts_report_an_error_and_return_nothing() -> void:
@@ -273,7 +279,7 @@ func test_continue_without_a_pending_reveal_does_nothing() -> void:
 	var monitor := monitor_signals(controller, false)
 	controller.continue_after_reveal()
 	await assert_signal(monitor).is_not_emitted("state_changed")
-	assert_array(_requests).is_empty()
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH])
 
 func test_continue_in_the_middle_of_a_half_emits_the_state() -> void:
 	var controller: MatchController = _controller(_seed_for_kickoff(HOME))
@@ -285,7 +291,7 @@ func test_continue_in_the_middle_of_a_half_emits_the_state() -> void:
 	controller.continue_after_reveal()
 	await assert_signal(monitor).is_emitted("state_changed", [any()])
 	await assert_signal(monitor).is_not_emitted("stage_changed")
-	assert_array(_requests).is_empty()
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH])
 
 
 func test_halftime_and_the_end_request_their_screens() -> void:
@@ -299,11 +305,12 @@ func test_halftime_and_the_end_request_their_screens() -> void:
 	var monitor := monitor_signals(controller, false)
 	controller.continue_after_reveal()
 	await assert_signal(monitor).is_emitted("stage_changed", [GameEnums.MatchStage.HALFTIME])
-	assert_array(_requests).is_equal([AppScreens.Id.S05_HALFTIME])
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME])
 	monitor = monitor_signals(controller, false)
 	assert_bool(controller.submit_halftime(_user_setup())).is_true()
 	await assert_signal(monitor).is_emitted("state_changed", [any()])
 	assert_int(controller.snapshot().half).is_equal(2)
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME, AppScreens.Id.S03_MATCH])
 	# 後半は配置を作り直すので、前半の最後のターンの動きは盤面に出さない
 	assert_array(controller.snapshot().movements).is_empty()
 	# CPU の陣形・方式もハーフタイムで選び直される
@@ -312,10 +319,10 @@ func test_halftime_and_the_end_request_their_screens() -> void:
 	controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
 	controller.continue_after_reveal()
 	assert_bool(controller.is_match_over()).is_true()
-	assert_array(_requests).is_equal([AppScreens.Id.S05_HALFTIME, AppScreens.Id.S06_RESULT])
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME, AppScreens.Id.S03_MATCH, AppScreens.Id.S06_RESULT])
 	# 結果の画面は1回だけ頼む
 	controller.continue_after_reveal()
-	assert_array(_requests).is_equal([AppScreens.Id.S05_HALFTIME, AppScreens.Id.S06_RESULT])
+	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME, AppScreens.Id.S03_MATCH, AppScreens.Id.S06_RESULT])
 	# 終わった試合ではターンを受け付けない
 	assert_bool(controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))).is_false()
 
@@ -355,6 +362,7 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 				var emitted_before: int = states_emitted[0]
 				assert_bool(controller.submit_style_change(controller.snapshot().user_setup.styles)).is_true()
 				assert_int(states_emitted[0]).is_equal(emitted_before + 1)
+				assert_int(_requests.back() as int).is_equal(AppScreens.Id.S03_MATCH)
 				# キックオフの配置に戻るので、得点のターンの動きは盤面に出さない
 				assert_array(controller.snapshot().movements).is_empty()
 				var after: TeamStyles = controller.opponent_setup().styles
@@ -377,3 +385,28 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 	# 20試合のどこかで得点（方式の選び直し）が起き、CPU の方式が入れ替わる経路も通っていることを確かめる
 	assert_int(style_changes).is_greater(0)
 	assert_bool(cpu_styles_changed).is_true()
+
+
+# --- 結果の画面から出る ---
+
+func test_leave_result_before_the_end_is_rejected() -> void:
+	var controller: MatchController = _controller(1)
+	controller.start_match(_user_setup())
+	_requests.clear()
+	await assert_error(func() -> void: controller.leave_result()) \
+			.is_push_error("MatchController: 試合が終わる前に結果の画面からは出られない")
+	assert_bool(controller.leave_result()).is_false()
+	assert_array(_requests).is_empty()
+
+
+func test_leave_result_after_the_end_requests_the_title() -> void:
+	var controller: MatchController = _controller(_seed_for_kickoff(HOME), FixedOpponent.new(), 1)
+	controller.start_match(_user_setup())
+	controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
+	controller.continue_after_reveal()
+	controller.submit_halftime(_user_setup())
+	controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
+	controller.continue_after_reveal()
+	_requests.clear()
+	assert_bool(controller.leave_result()).is_true()
+	assert_array(_requests).is_equal([AppScreens.Id.S01_TITLE])

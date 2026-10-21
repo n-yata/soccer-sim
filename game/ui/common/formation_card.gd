@@ -8,6 +8,11 @@ extends Control
 ## カードが押された（選択の状態を変えるのは画面）
 signal pressed(formation_id: String)
 
+## 通常の大きさ（formation_card.tscn のルートの custom_minimum_size の写し。変えたら両方を直す）と、
+## 小さい版の大きさ（押せる高さ 96px を保つ）
+const FULL_SIZE: Vector2 = Vector2(300, 260)
+const COMPACT_SIZE: Vector2 = Vector2(200, 96)
+
 @onready var _button: Button = %CardButton
 @onready var _name_label: Label = %NameLabel
 @onready var _mini_pitch: MiniPitch = %MiniPitch
@@ -19,11 +24,13 @@ func _ready() -> void:
 	_button.pressed.connect(_on_button_pressed)
 
 
-## compact（S-05 の小さい版）は S-05 の作業で足す。今は無視する。
-func show_formation(formation: FormationDef, counts: Dictionary, selected: bool, _compact: bool) -> void:
+## compact が真なら、陣形名と ✓ だけの小さい版（S-05。screen-common.md §5）。ミニピッチを隠す。
+func show_formation(formation: FormationDef, counts: Dictionary, selected: bool, compact: bool) -> void:
 	_formation_id = formation.id
 	_name_label.text = formation.name
 	_mini_pitch.show_counts(counts, false)
+	_mini_pitch.visible = not compact
+	custom_minimum_size = COMPACT_SIZE if compact else FULL_SIZE
 	_button.set_pressed_no_signal(selected)
 	_check_label.visible = selected
 

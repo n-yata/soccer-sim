@@ -8,6 +8,10 @@ extends Control
 const SCREEN_SCENES: Dictionary = {
 	AppScreens.Id.S01_TITLE: "res://ui/screens/s01_title/title_screen.tscn",
 	AppScreens.Id.S02_MATCH_SETUP: "res://ui/screens/s02_match_setup/match_setup_screen.tscn",
+	AppScreens.Id.S03_MATCH: "res://ui/screens/s03_match/match_screen.tscn",
+	AppScreens.Id.S04_STYLE_CHANGE: "res://ui/screens/s04_style_change/style_change_screen.tscn",
+	AppScreens.Id.S05_HALFTIME: "res://ui/screens/s05_halftime/halftime_screen.tscn",
+	AppScreens.Id.S06_RESULT: "res://ui/screens/s06_result/result_screen.tscn",
 }
 
 @onready var _screen_root: MarginContainer = $ScreenRoot
@@ -82,6 +86,12 @@ func should_quit_after_back(source: String) -> bool:
 ## 表示中の画面の ID（無ければ -1）。
 func current_screen_id() -> int:
 	return _switcher.current_id()
+
+
+## 表示中の画面（無ければ null）。読むだけの問い合わせで、画面を差し替える手段は持たない
+## （画面の切り替えは App.request_screen だけ）。通しの試合のテストが、表示中の画面を操作するのに使う。
+func current_screen() -> AppScreen:
+	return _switcher.current()
 
 
 ## セーフエリアの分を左右の余白に足す。PC の get_display_safe_area() は画面全体の範囲でウィンドウとは

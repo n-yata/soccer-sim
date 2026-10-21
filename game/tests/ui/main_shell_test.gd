@@ -83,7 +83,8 @@ func test_main_shell_opens_title_on_start() -> void:
 func test_main_shell_keeps_screen_when_requested_screen_is_missing() -> void:
 	var shell: MainShell = await _open_main_shell()
 	var title: Node = shell.get_node("ScreenRoot").get_child(0)
-	App.request_screen(AppScreens.Id.S03_MATCH)
+	# 振り返り（S-07）はまだ作っていない画面
+	App.request_screen(AppScreens.Id.S07_REVIEW)
 	await get_tree().process_frame
 	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S01_TITLE)
 	assert_object(shell.get_node("ScreenRoot").get_child(0)).is_same(title)

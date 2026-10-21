@@ -48,6 +48,7 @@ func _init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberG
 
 
 ## 試合を作る。CPU の陣形・方式を選び、前半のキックオフ側を注入された乱数で決める。陣形が無ければ false。
+## 成功したら state_changed を出し、試合画面（S-03）を頼む（方式の選び直し・ハーフタイムの確定も同じ）。
 func start_match(user_setup: TeamSetup) -> bool:
 	var cpu_setup: TeamSetup = _opponent.choose_setup()
 	var kickoff: GameEnums.TeamSide = USER if _rng.randi_range(0, 1) == 0 else CPU
@@ -65,6 +66,7 @@ func start_match(user_setup: TeamSetup) -> bool:
 	_awaiting_continue = false
 	_board_movements = []
 	state_changed.emit(snapshot())
+	_request_screen.call(AppScreens.Id.S03_MATCH, {})
 	return true
 
 
@@ -147,6 +149,7 @@ func submit_style_change(user_styles: TeamStyles) -> bool:
 	_state = next
 	_board_movements = []
 	state_changed.emit(snapshot())
+	_request_screen.call(AppScreens.Id.S03_MATCH, {})
 	return true
 
 
@@ -160,6 +163,17 @@ func submit_halftime(user_setup: TeamSetup) -> bool:
 	_state = next
 	_board_movements = []
 	state_changed.emit(snapshot())
+	_request_screen.call(AppScreens.Id.S03_MATCH, {})
+	return true
+
+
+## 結果の画面（S-06）から出る。試合が終わる前は push_error して false。
+## 終了処理（戦績の記録・中断データの削除）は保存・戦績の作業で足す。今はタイトル（S-01）を頼むだけ。
+func leave_result() -> bool:
+	if not is_match_over():
+		push_error("MatchController: 試合が終わる前に結果の画面からは出られない")
+		return false
+	_request_screen.call(AppScreens.Id.S01_TITLE, {})
 	return true
 
 
@@ -181,6 +195,11 @@ func snapshot() -> BoardSnapshot:
 ## 直前のターンの開示（まだ無ければ null）。写しではないので、受け取った側は読むだけにする。
 func last_reveal() -> RevealView:
 	return _last_reveal
+
+
+## 進行段階（状態の写しを作らずに読む。画面が次のターンを始めるかを決めるのに使う）。試合前は TURN。
+func stage() -> GameEnums.MatchStage:
+	return GameEnums.MatchStage.TURN if _state == null else _state.stage
 
 
 ## 試合の状態の写し（保存の作業で中断データを書くときにも使う）。

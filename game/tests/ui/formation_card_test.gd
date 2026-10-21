@@ -63,3 +63,15 @@ func test_real_click_on_selected_card_keeps_it_looking_selected() -> void:
 	_button().set_pressed_no_signal(false)
 	_button().pressed.emit()
 	assert_bool(_button().button_pressed).is_true()
+
+
+func test_full_size_matches_the_scene_and_compact_returns_to_it() -> void:
+	# FULL_SIZE は formation_card.tscn のルートの custom_minimum_size の写し。食い違ったら気づけるようにする
+	var fresh: FormationCard = auto_free((load(SCENE) as PackedScene).instantiate() as FormationCard) as FormationCard
+	assert_vector(fresh.custom_minimum_size).is_equal(FormationCard.FULL_SIZE)
+	_card.show_formation(_formation(), {}, false, true)
+	assert_vector(_card.custom_minimum_size).is_equal(FormationCard.COMPACT_SIZE)
+	assert_bool((_card.find_child("MiniPitch", true, false) as Control).visible).is_false()
+	_card.show_formation(_formation(), {}, false, false)
+	assert_vector(_card.custom_minimum_size).is_equal(FormationCard.FULL_SIZE)
+	assert_bool((_card.find_child("MiniPitch", true, false) as Control).visible).is_true()

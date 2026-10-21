@@ -478,6 +478,9 @@ func start_tutorial_step(step: TutorialStepDef) -> void
 > `submit_halftime`・`opponent_setup`・`snapshot`）。あわせて `is_match_started()`・`is_match_over()`・`last_reveal()`・
 > `state()`（状態の写し）を足した。
 > - `start_match` は `bool` を返す（陣形が無ければ `false`）。成功したら `state_changed` も出す。
+> - `start_match`・`submit_style_change`・`submit_halftime` が成功したら、試合画面（S-03）を要求する（各画面の詳細設計のとおり、
+>   試合の中の画面の切り替えはコントローラーが頼む）。`leave_result() -> bool` は、試合が終わっていればタイトル（S-01）を
+>   要求して `true`、終わる前は `push_error` して `false`。終了処理（戦績・中断データの削除）は保存・戦績の作業で足す。
 > - `submit_turn` の後は、`continue_after_reveal` を呼ぶまで `submit_turn`・`submit_style_change`・`submit_halftime` は
 >   `false` を返す（確定の二度押しで開示を飛ばさない。得点・ハーフタイムの画面を経ずに再開しない）。確認待ちの開示が
 >   無いときの `continue_after_reveal` は何もしない。
@@ -850,6 +853,12 @@ func route_back() -> bool
 | `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号） |
 | `MatchBoardPanel` | 試合画面の盤面と手の選択の部分（左の `TacticsBoard`、右の操作の列の `ChoicePanel`・判定理由、両方を覆う 3D 演出の表示場所）。試合画面とチュートリアルで共用する |
 
+> **2026-10-19 時点**: `AreaCell`・`MoveArrowLayer` は別のノードにせず、`TacticsBoard` の描画（`_draw`）と入力（`gui_input`）に
+> まとめた。エリアの位置の計算（`area_rect`・`area_at`）を描画・入力・テストで共有するため。押す操作の判定（押したエリアの中で
+> 離したときだけ選ぶ）は `screen-common.md` §4.1 のとおり。`MatchBoardPanel` は 3D 演出をまだ持たず、開示を受けたらすぐ判定理由を出す。
+> 2D 作戦ボードの部品と S-03〜S-06 の子のノードは、`.tscn` を置かずコードで組んでいる（ノード名は詳細設計に合わせる）。
+> 3D 演出を足すときに `.tscn` へ移すかを見直す。
+
 ### 5.4 3D 演出（`replay3d/`）
 
 ```gdscript
@@ -889,6 +898,9 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | `SettingsPanel` | 設定の中身（設定画面と、試合中のメニューから重ねて開く設定で共用） |
 | `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
 | `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
+| `MatchTexts` | 試合の画面の文言（エリア名「中盤・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
+| `StylePicker` | 守備方式・攻撃方式の2択を2組並べる部品（方式の選び直し・ハーフタイム） |
+| `MatchScreenLayout` | 試合の合間の画面（方式の選び直し・ハーフタイム・試合結果）の骨組み（上部バー・本体・操作の列と主ボタン）を組む（static） |
 
 各部品の外から見た形（メソッド・シグナル）は `docs/specs/3_detail-design/screen/screen-common.md` §5。
 
@@ -917,7 +929,7 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`StylePicker`・`MatchScreenLayout` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。
