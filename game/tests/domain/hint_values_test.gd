@@ -29,5 +29,6 @@ func test_choice_hint_without_target_copies_null() -> void:
 func test_cpu_config_defaults_match_the_external_settings_table() -> void:
 	# functional-overview.md「設定値として外部化する値」の初期値
 	var cpu := CpuConfig.new()
-	assert_float(cpu.temperature).is_equal(1.0)
-	assert_float(cpu.floor_probability).is_equal(0.1)
+	assert_float(cpu.temperature).is_equal(0.5)
+	assert_float(cpu.floor_probability).is_equal(0.05)
+	assert_float(cpu.style_bonus).is_equal(1.0)

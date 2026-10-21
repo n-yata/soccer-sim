@@ -37,7 +37,7 @@ MatchScreen (Control)
 │   └── BoardPanel                            # MatchBoardPanel（board2d/match_board_panel.tscn）。高さ 576px。S-08 と共用
 │       ├── Columns (HBoxContainer)           # 間隔 24px
 │       │   ├── BoardArea (Control)           # 本体。残りの幅いっぱい（16:9 で 728×576px、1エリア 約 242×115px）
-│       │   │   └── TacticsBoard              # board2d/tactics_board.tscn。ピッチ・駒・角の優劣記号・札・矢印
+│       │   │   └── TacticsBoard              # board2d/tactics_board.tscn。ピッチ・駒・札・矢印
 │       │   └── SideColumn (VBoxContainer)    # 操作の列。幅 480〜640px（screen-common.md §1.1）、間隔 16px
 │       │       ├── SetupCard (VBoxContainer)      # 上端に固定。両チームの陣形・方式を常に表示（FR-16・21）。2段、各 24px、ELLIPSIS
 │       │       │   ├── UserSetupLabel (Label)     # 「● 自分 4-3-3 ゾーン・カウンター」

@@ -4,6 +4,8 @@ class_name CpuConfig
 extends Resource
 
 ## softmax の温度 τ。0 より大きい。小さいほど評価値の高い手に偏る
-@export var temperature: float = 1.0
+@export var temperature: float = 0.5
 ## 下限確率 floor。0 以上 1 未満。どの選択可能な手にも floor / N 以上の確率を残す
-@export var floor_probability: float = 0.1
+@export var floor_probability: float = 0.05
+## 方式の癖の加点。0 以上。CPU の方式が好む手の評価値に足す（0 なら癖なし）
+@export var style_bonus: float = 1.0

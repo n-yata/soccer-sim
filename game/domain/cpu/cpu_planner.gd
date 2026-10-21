@@ -14,13 +14,50 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide, cpu: CpuCon
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, MoveRules.options_for(state, side))
 	if hints.is_empty():
 		return null
-	var scores: Array[float] = []
-	for hint: ChoiceHint in hints:
-		scores.append(score(hint))
-	var probabilities_list: Array[float] = probabilities(scores, cpu)
-	var picked: ChoiceHint = hints[_draw(probabilities_list, rng)]
+	var picked: ChoiceHint = hints[_draw(_probabilities_of(hints, state, side, cpu), rng)]
 	var target: PitchArea = null if picked.target == null else picked.target.duplicate_deep()
 	return TurnChoice.new(picked.family, picked.action, target)
+
+
+## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点を足して probabilities を通す。
+static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]:
+	return _probabilities_of(MoveHints.evaluate(state, side, MoveRules.options_for(state, side)), state, side, cpu)
+
+
+static func _probabilities_of(hints: Array[ChoiceHint], state: MatchState, side: GameEnums.TeamSide,
+		cpu: CpuConfig) -> Array[float]:
+	var styles: TeamStyles = state.setup_of(side).styles
+	var scores: Array[float] = []
+	for hint: ChoiceHint in hints:
+		scores.append(score(hint) + style_bonus(hint, styles, state.ball_area, cpu))
+	return probabilities(scores, cpu)
+
+
+## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表は functional-overview.md
+## アルゴリズム8。ルールの定義なので定数で持つ）。ball は保持側の視点のボール位置で、前へのドリブルの判定に使う。
+static func style_bonus(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea, cpu: CpuConfig) -> float:
+	return cpu.style_bonus if _is_preferred(hint, styles, ball) else 0.0
+
+
+static func _is_preferred(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea) -> bool:
+	var is_counter: bool = styles.attack == GameEnums.AttackStyle.COUNTER
+	var is_man: bool = styles.defense == GameEnums.DefenseStyle.MAN
+	match hint.family:
+		GameEnums.ChoiceFamily.ATTACK:
+			match hint.action:
+				GameEnums.PlayType.LONG_BEHIND:
+					return is_counter
+				GameEnums.PlayType.DRIBBLE:
+					return is_counter and hint.target != null and hint.target.zone > ball.zone
+				GameEnums.PlayType.SHORT_PASS, GameEnums.PlayType.SWITCH:
+					return not is_counter
+		GameEnums.ChoiceFamily.POS_TRANS:
+			return is_counter == (hint.action == GameEnums.PosTransAction.COUNTER)
+		GameEnums.ChoiceFamily.DEFENSE:
+			return is_man == (hint.action == GameEnums.DefenseAction.PRESS)
+		GameEnums.ChoiceFamily.NEG_TRANS:
+			return is_man == (hint.action == GameEnums.NegTransAction.COUNTER_PRESS)
+	return false
 
 
 ## 手の評価値（相手が何もしないと仮定した、手を適用した後の比較エリアでの人数差。CPU から見た値）。

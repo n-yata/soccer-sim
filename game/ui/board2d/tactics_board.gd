@@ -12,21 +12,29 @@ extends Control
 signal area_pressed(area_key: String)
 
 const THEME_TYPE: StringName = &"TacticsBoard"
-## 1エリアの最小の大きさ（screen-common.md §1.1。上端の帯 32px ＋ 駒 40px × 2段、幅 96dp）
+## 1エリアの最小の大きさ（screen-common.md §1.1。押せる範囲 48dp 以上）
 const MIN_CELL: Vector2 = Vector2(192, 112)
-const BAND_HEIGHT: float = 32.0
-const PIECE_DIAMETER: float = 40.0
+## 駒の直径と中心の間隔の上限。セルの幅が狭いときは、1チーム MAX_PIECES 個がエリアの半分に収まるよう縮める
+const PIECE_DIAMETER: float = 26.0
+const PIECE_STEP: float = 28.0
+## エリアの中央から最初の駒までの余白（自分と相手の駒の列を分ける）と、エリアの端に残す余白
+const PIECE_CENTER_GAP: float = 6.0
+const PIECE_EDGE_MARGIN: float = 2.0
 ## 1チームで描く駒の上限。これを超えると、駒を (上限 - 1) つと「+N」の札にする
 const MAX_PIECES: int = 4
+## 盤面に描く動き（ドリブル・寄せ・カバー）。方式の動きと、保持者の動き（戻る・置かれる）は描かない
+const DRAWN_REASONS: Array[GameEnums.MovementReason] = [
+	GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER, GameEnums.MovementReason.DRIBBLE,
+]
+const HINT_HEIGHT: float = 26.0
 
 var _user_players: Array[Dictionary] = []
 var _opponent_players: Array[Dictionary] = []
-var _user_counts: Dictionary = {}
-var _opponent_counts: Dictionary = {}
 var _ball_area: String = ""
 var _selectable: Array[String] = []
 var _selected: String = ""
 var _hints: Dictionary = {}
+var _even_hints: Array[String] = []
 var _intent_from: String = ""
 var _intent_to: String = ""
 var _movements: Array[Movement] = []
@@ -46,8 +54,6 @@ func _init() -> void:
 func show_snapshot(snapshot: BoardSnapshot) -> void:
 	_user_players = snapshot.user_players.duplicate()
 	_opponent_players = snapshot.opponent_players.duplicate()
-	_user_counts = snapshot.user_counts.duplicate()
-	_opponent_counts = snapshot.opponent_counts.duplicate()
 	_ball_area = snapshot.ball_area
 	queue_redraw()
 
@@ -64,9 +70,11 @@ func set_selected(key: String) -> void:
 	queue_redraw()
 
 
-## エリアのキー → ヒントの札の文（`+1`・`±0 GK外`）。
-func set_hints(hints: Dictionary) -> void:
+## エリアのキー → ヒントの札の文（`+1`・`±0 GK外`）。even_keys は人数差が ±0 の札のキーで、控えめな色で描く。
+## 札は選べるエリアにだけ描く。
+func set_hints(hints: Dictionary, even_keys: Array[String] = []) -> void:
 	_hints = hints.duplicate()
+	_even_hints = even_keys.duplicate()
 	queue_redraw()
 
 
@@ -95,6 +103,7 @@ func clear_overlays() -> void:
 	_selectable.clear()
 	_selected = ""
 	_hints.clear()
+	_even_hints.clear()
 	_intent_from = ""
 	_intent_to = ""
 	_movements.clear()
@@ -147,17 +156,6 @@ func overflow_tag(key: String, is_user: bool) -> String:
 	return "" if count <= MAX_PIECES else "+%d" % (count - visible_piece_count(key, is_user))
 
 
-## 角の優劣記号（利用者から見て、優位 ▲・同数 ＝・不利 ▼）。人数 0 同士も同数。
-func mark_of(key: String) -> String:
-	var user_count: int = _user_counts.get(key, 0) as int
-	var opponent_count: int = _opponent_counts.get(key, 0) as int
-	if user_count > opponent_count:
-		return "▲"
-	if user_count < opponent_count:
-		return "▼"
-	return "＝"
-
-
 func ball_area() -> String:
 	return _ball_area
 
@@ -172,6 +170,47 @@ func selected_area() -> String:
 
 func hint_of(key: String) -> String:
 	return _hints.get(key, "") as String
+
+
+func is_hint_even(key: String) -> bool:
+	return _even_hints.has(key)
+
+
+## 駒の中心の間隔（描画とテストで共有）。中央の余白から MAX_PIECES 個ぶんがエリアの半分に収まるよう、PIECE_STEP を上限に縮める。
+func piece_step() -> float:
+	var half_width: float = cell_size().x / 2.0
+	return minf(PIECE_STEP, (half_width - PIECE_EDGE_MARGIN - PIECE_CENTER_GAP) / MAX_PIECES)
+
+
+## 駒の半径。隣の駒と重ならないよう、間隔に合わせて縮める。
+func piece_radius() -> float:
+	return minf(PIECE_DIAMETER / 2.0, piece_step() / 2.0 - 1.0)
+
+
+## index 番目の駒（上限を超えたときの「+N」の札の位置を含む）の中心。自分は中央から左へ、相手は中央から右へ並べる。
+func piece_center(key: String, is_user: bool, index: int) -> Vector2:
+	var rect: Rect2 = area_rect(key)
+	var direction: float = -1.0 if is_user else 1.0
+	var offset: float = PIECE_CENTER_GAP + piece_step() * (index + 0.5)
+	return Vector2(rect.get_center().x + direction * offset, rect.get_center().y)
+
+
+## 札を描くエリア（札があり、選べるエリア）。選べるエリアの順。
+func drawn_hint_keys() -> Array[String]:
+	var keys: Array[String] = []
+	for key: String in _selectable:
+		if not hint_of(key).is_empty():
+			keys.append(key)
+	return keys
+
+
+## 矢印を描く動き（DRAWN_REASONS の理由のものだけ。受け取った順）。
+func drawn_movements() -> Array[Movement]:
+	var result: Array[Movement] = []
+	for movement: Movement in _movements:
+		if movement.reason in DRAWN_REASONS:
+			result.append(movement)
+	return result
 
 
 func has_intent() -> bool:
@@ -213,15 +252,17 @@ func _draw() -> void:
 		var key: String = area.to_key()
 		_draw_area_fill(key)
 	_draw_zone_lines()
+	_draw_lane_names()
 	for area: PitchArea in PitchArea.all():
 		var key: String = area.to_key()
 		_draw_pieces(key, true)
 		_draw_pieces(key, false)
-		_draw_band(key)
-	_draw_lane_names()
 	_draw_ball()
 	_draw_movements()
 	_draw_intent()
+	# 札は矢印の上に描く（選んだ手の矢印が、通り道のエリアの札の字を隠さないように）
+	for key: String in drawn_hint_keys():
+		_draw_hint(key)
 	_draw_compare()
 
 
@@ -267,9 +308,11 @@ func _draw_zone_lines() -> void:
 		draw_dashed_line(Vector2(0, lane_index * cell.y), Vector2(size.x, lane_index * cell.y), color, 1.0, 6.0)
 
 
-## 選んだエリアの塗り・選べるエリアの点線の枠。
+## ボールのあるエリアの薄い塗り・選んだエリアの塗り・選べるエリアの点線の枠。
 func _draw_area_fill(key: String) -> void:
 	var rect: Rect2 = area_rect(key).grow(-3.0)
+	if key == _ball_area:
+		draw_rect(rect, _color(&"ball_area_fill"))
 	if key == _selected:
 		draw_rect(rect, _color(&"selected_fill"))
 	if _selectable.has(key):
@@ -280,25 +323,19 @@ func _draw_area_fill(key: String) -> void:
 			draw_dashed_line(corners[index], corners[(index + 1) % 4], accent, 3.0, 10.0)
 
 
-## 自分の駒をエリアの左半分、相手の駒を右半分に、上端の帯の下へ2列×2段で並べる。
+## 駒は番号を付けず、エリアの縦の中央に1列で並べる。自分の ● は中央から左へ、相手の ◆ は中央から右へ。
+## 上限を超えたら、駒を (上限 - 1) つと「+N」の札にする。
 func _draw_pieces(key: String, is_user: bool) -> void:
-	var numbers: Array = pieces_in(key)["user" if is_user else "opponent"] as Array
-	if numbers.is_empty():
+	var count: int = (pieces_in(key)["user" if is_user else "opponent"] as Array).size()
+	if count == 0:
 		return
-	var rect: Rect2 = area_rect(key)
-	var half := Vector2(rect.size.x / 2.0, rect.size.y - BAND_HEIGHT)
-	var origin := Vector2(rect.position.x + (0.0 if is_user else half.x), rect.position.y + BAND_HEIGHT)
-	var step := Vector2(half.x / 2.0, half.y / 2.0)
-	var radius: float = minf(PIECE_DIAMETER / 2.0, minf(step.x, step.y) / 2.0 - 1.0)
+	var radius: float = piece_radius()
 	var color: Color = _color(&"you" if is_user else &"opponent")
-	var text_color: Color = _color(&"bg")
-	var font: Font = get_theme_default_font()
-	var font_size: int = _font_size(&"number_size")
 	var shown: int = visible_piece_count(key, is_user)
-	for index: int in range(shown + (1 if shown < numbers.size() else 0)):
-		var center: Vector2 = origin + Vector2((index % 2 + 0.5) * step.x, (floorf(index / 2.0) + 0.5) * step.y)
+	for index: int in range(shown + (1 if shown < count else 0)):
+		var center: Vector2 = piece_center(key, is_user, index)
 		if index >= shown:
-			_draw_centered_text(font, center, overflow_tag(key, is_user), font_size, _color(&"text"))
+			_draw_centered_text(get_theme_default_font(), center, overflow_tag(key, is_user), _font_size(&"tag_size"), _color(&"text"))
 			continue
 		if is_user:
 			draw_circle(center, radius, color)
@@ -306,47 +343,40 @@ func _draw_pieces(key: String, is_user: bool) -> void:
 			var points := PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0),
 					center + Vector2(0, radius), center + Vector2(-radius, 0)])
 			draw_colored_polygon(points, color)
-		_draw_centered_text(font, center, str(numbers[index]), font_size, text_color)
 
 
-## 上端の帯: 左上に優劣記号、右上にヒントの札。
-func _draw_band(key: String) -> void:
+## ヒントの札をエリアの下端の中央に。差がある札は accent、±0 の札は控えめな色。
+func _draw_hint(key: String) -> void:
 	var rect: Rect2 = area_rect(key)
 	var font: Font = get_theme_default_font()
-	var mark: String = mark_of(key)
-	var mark_size: int = _font_size(&"mark_size")
-	var mark_box := Rect2(rect.position + Vector2(4, 2), Vector2(32, BAND_HEIGHT - 4))
-	draw_rect(mark_box, _color(&"mark_bg"))
-	var mark_color: Color = _color(&"accent") if mark == "▲" else (_color(&"opponent") if mark == "▼" else _color(&"text"))
-	_draw_centered_text(font, mark_box.get_center(), mark, mark_size, mark_color)
 	var hint: String = hint_of(key)
-	if hint.is_empty():
-		return
-	var tag_size: int = _font_size(&"tag_size")
-	var width: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 16.0
-	var tag_box := Rect2(Vector2(rect.end.x - width - 4.0, rect.position.y + 2.0), Vector2(width, BAND_HEIGHT - 4))
-	draw_rect(tag_box, _color(&"accent"))
-	_draw_centered_text(font, tag_box.get_center(), hint, tag_size, _color(&"bg"))
+	var tag_size: int = _font_size(&"hint_size")
+	var width: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 14.0
+	var tag_box := Rect2(Vector2(rect.get_center().x - width / 2.0, rect.end.y - HINT_HEIGHT - 8.0), Vector2(width, HINT_HEIGHT))
+	var is_even: bool = is_hint_even(key)
+	draw_rect(tag_box, _color(&"tag_muted_bg") if is_even else _color(&"accent"))
+	_draw_centered_text(font, tag_box.get_center(), hint, tag_size, _color(&"text") if is_even else _color(&"bg"))
 
 
-## レーン名を各レーンの左端に（自陣の列の帯の中、記号の右）。
+## レーン名を各レーンの自陣のエリアの左上に、小さく薄く。
 func _draw_lane_names() -> void:
 	var font: Font = get_theme_default_font()
 	var font_size: int = _font_size(&"lane_size")
 	var color: Color = _color(&"lane_text")
 	for lane: int in GameEnums.Lane.values():
 		var rect: Rect2 = area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D).to_key())
-		var baseline := Vector2(rect.position.x + 44.0, rect.position.y + BAND_HEIGHT / 2.0 + font.get_ascent(font_size) / 2.0 - 2.0)
+		var baseline := Vector2(rect.position.x + 8.0, rect.position.y + 6.0 + font.get_ascent(font_size))
 		draw_string(font, baseline, MatchTexts.lane_name(lane as GameEnums.Lane), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 
+## ボールはエリアの上側の中央（駒の列と札に重ならない位置）。
 func _draw_ball() -> void:
 	if _ball_area.is_empty():
 		return
 	var rect: Rect2 = area_rect(_ball_area)
-	var center := Vector2(rect.get_center().x, rect.position.y + BAND_HEIGHT / 2.0)
-	draw_circle(center, 10.0, _color(&"ball"))
-	draw_arc(center, 10.0, 0.0, TAU, 24, _color(&"bg"), 2.0)
+	var center := Vector2(rect.get_center().x, rect.position.y + 22.0)
+	draw_circle(center, 11.0, _color(&"ball"))
+	draw_arc(center, 11.0, 0.0, TAU, 24, _color(&"bg"), 2.0)
 
 
 func _draw_compare() -> void:
@@ -362,26 +392,20 @@ func _draw_compare() -> void:
 	_draw_centered_text(font, tag_box.get_center(), _compare_tag, tag_size, _color(&"bg"))
 
 
-## 動きの矢印。ドリブル（ボール）は accent の太線、プレス・カバーはチームの色の実線、方式の動きは白の点線。
-## 同じエリアの間を両チームが動くと重なるので、チームごとに少しずらす。凡例を左下の隅に重ねる。
+## 動きの矢印。ドリブル（ボール）は accent の太線、プレス・カバーはチームの色の実線。それ以外の動きは描かない。
+## 同じエリアの間を両チームが動くと重なるので、チームごとに少しずらす。
 func _draw_movements() -> void:
-	if _movements.is_empty():
-		return
-	for movement: Movement in _movements:
+	for movement: Movement in drawn_movements():
 		var offset := Vector2(0, -8.0 if movement.side == GameEnums.TeamSide.HOME else 8.0)
 		var from_point: Vector2 = area_rect(movement.from.to_key()).get_center() + offset
 		var to_point: Vector2 = area_rect(movement.to.to_key()).get_center() + offset
 		if from_point.distance_to(to_point) < 1.0:
 			continue
-		match movement.reason:
-			GameEnums.MovementReason.DRIBBLE:
-				_draw_arrow(from_point, to_point, _color(&"accent"), 6.0, false)
-			GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER:
-				var team: Color = _color(&"you" if movement.side == GameEnums.TeamSide.HOME else &"opponent")
-				_draw_arrow(from_point, to_point, team, 3.0, false)
-			_:
-				_draw_arrow(from_point, to_point, _color(&"text"), 2.0, true)
-	_draw_legend()
+		if movement.reason == GameEnums.MovementReason.DRIBBLE:
+			_draw_arrow(from_point, to_point, _color(&"accent"), 6.0)
+		else:
+			var team: Color = _color(&"you" if movement.side == GameEnums.TeamSide.HOME else &"opponent")
+			_draw_arrow(from_point, to_point, team, 4.0)
 
 
 func _draw_intent() -> void:
@@ -391,40 +415,14 @@ func _draw_intent() -> void:
 	var to_point: Vector2 = area_rect(_intent_to).get_center()
 	if from_point.distance_to(to_point) < 1.0:
 		return
-	_draw_arrow(from_point, to_point, _color(&"accent"), 6.0, false)
+	_draw_arrow(from_point, to_point, _color(&"accent"), 6.0)
 
 
-func _draw_legend() -> void:
-	var font: Font = get_theme_default_font()
-	var font_size: int = _font_size(&"legend_size")
-	var items: Array = [["ボール", _color(&"accent"), false], ["寄せ・カバー", _color(&"you"), false],
-			["方式の動き", _color(&"text"), true]]
-	var press_row: int = 1
-	var box := Rect2(Vector2(8, size.y - 8 - items.size() * 28 - 8), Vector2(200, items.size() * 28 + 8))
-	draw_rect(box, _color(&"mark_bg"))
-	for index: int in range(items.size()):
-		var y: float = box.position.y + 18.0 + index * 28.0
-		var color: Color = items[index][1] as Color
-		if items[index][2] as bool:
-			draw_dashed_line(Vector2(box.position.x + 10, y), Vector2(box.position.x + 50, y), color, 2.0, 6.0)
-		elif index == press_row:
-			# 寄せ・カバーは動いたチームの色で描くので、見本も両チームの色を並べる
-			draw_line(Vector2(box.position.x + 10, y), Vector2(box.position.x + 28, y), _color(&"you"), 4.0)
-			draw_line(Vector2(box.position.x + 32, y), Vector2(box.position.x + 50, y), _color(&"opponent"), 4.0)
-		else:
-			draw_line(Vector2(box.position.x + 10, y), Vector2(box.position.x + 50, y), color, 4.0)
-		draw_string(font, Vector2(box.position.x + 60, y + font.get_ascent(font_size) / 2.0 - 2.0), items[index][0] as String,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, _color(&"text"))
-
-
-func _draw_arrow(from_point: Vector2, to_point: Vector2, color: Color, width: float, dashed: bool) -> void:
+func _draw_arrow(from_point: Vector2, to_point: Vector2, color: Color, width: float) -> void:
 	var direction: Vector2 = (to_point - from_point).normalized()
 	var head_length: float = 14.0 + width
 	var shaft_end: Vector2 = to_point - direction * head_length * 0.8
-	if dashed:
-		draw_dashed_line(from_point, shaft_end, color, width, 8.0)
-	else:
-		draw_line(from_point, shaft_end, color, width)
+	draw_line(from_point, shaft_end, color, width)
 	var side: Vector2 = direction.orthogonal() * head_length * 0.5
 	draw_colored_polygon(PackedVector2Array([to_point, to_point - direction * head_length + side,
 			to_point - direction * head_length - side]), color)

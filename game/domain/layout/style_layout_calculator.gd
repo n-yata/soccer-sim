@@ -179,7 +179,7 @@ static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
 	var unassigned: Array[int] = []
 	for index: int in order:
 		var standing: int = _nearest_marker(markers, areas, targets[index])
-		if _distance(areas[markers[standing].player_id] as PitchArea, targets[index]) == 0:
+		if (areas[markers[standing].player_id] as PitchArea).distance_to(targets[index]) == 0:
 			_place(markers[standing], targets[index], areas, reasons)
 			markers.remove_at(standing)
 		else:
@@ -196,18 +196,14 @@ static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
 static func _nearest_marker(markers: Array[PlayerState], areas: Dictionary, target: PitchArea) -> int:
 	var nearest: int = 0
 	for candidate: int in range(1, markers.size()):
-		if _distance(areas[markers[candidate].player_id] as PitchArea, target) \
-				< _distance(areas[markers[nearest].player_id] as PitchArea, target):
+		if (areas[markers[candidate].player_id] as PitchArea).distance_to(target) \
+				< (areas[markers[nearest].player_id] as PitchArea).distance_to(target):
 			nearest = candidate
 	return nearest
 
 
 static func _target_rank(area: PitchArea) -> int:
 	return area.zone * _MARK_LANE_PRIORITY.size() + _MARK_LANE_PRIORITY.find(area.lane)
-
-
-static func _distance(a: PitchArea, b: PitchArea) -> int:
-	return absi(a.zone - b.zone) + absi(a.lane - b.lane)
 
 
 static func _place(player: PlayerState, area: PitchArea, areas: Dictionary, reasons: Dictionary) -> void:

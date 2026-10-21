@@ -54,6 +54,16 @@ func counts() -> Dictionary:
 	return result
 
 
+## player_id の選手を area に置いて固定した写し（ボールのエリアに保持者を置くとき。MatchRules）。
+func with_fixed(player_id: String, area: PitchArea) -> TeamLayout:
+	var copied: TeamLayout = duplicate_deep()
+	for player: PlayerState in copied.players:
+		if player.player_id == player_id:
+			player.fixed_area = area.duplicate_deep()
+			copied._current_areas[player_id] = area.duplicate_deep()
+	return copied
+
+
 func duplicate_deep() -> TeamLayout:
 	var copied_players: Array[PlayerState] = []
 	for player: PlayerState in players:

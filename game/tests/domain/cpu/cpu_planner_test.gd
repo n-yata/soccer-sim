@@ -137,6 +137,95 @@ func test_scores_follow_the_move_kind() -> void:
 	assert_float(CpuPlanner.score(ChoiceHint.new(POS_TRANS, GameEnums.PosTransAction.SECURE, null, false, 0, 0, cover))).is_equal(0.0)
 
 
+# --- 方式の癖 ---
+
+func _bonus_cpu(bonus: float) -> CpuConfig:
+	var cpu: CpuConfig = _cpu()
+	cpu.style_bonus = bonus
+	return cpu
+
+
+func test_style_bonus_goes_to_the_moves_each_style_prefers() -> void:
+	var cpu: CpuConfig = _bonus_cpu(1.5)
+	var ball: PitchArea = _area("M-C")
+	var counter_man := TeamStyles.new(GameEnums.DefenseStyle.MAN, GameEnums.AttackStyle.COUNTER)
+	var possession_zone := TeamStyles.new(ZONE, GameEnums.AttackStyle.POSSESSION)
+	# [手の種類, 手, 運ぶ先, カウンター型・マンツーマンでの加点, 保持型・ゾーンでの加点]
+	var cases: Array = [
+		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A-C", 1.5, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "A-C", 1.5, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "M-L1", 0.0, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "D-C", 0.0, 0.0],
+		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C", 0.0, 1.5],
+		[ATTACK, GameEnums.PlayType.SWITCH, "M-L2", 0.0, 1.5],
+		[ATTACK, GameEnums.PlayType.SHOT, "", 0.0, 0.0],
+		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-C", 1.5, 0.0],
+		[POS_TRANS, GameEnums.PosTransAction.SECURE, "", 0.0, 1.5],
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "M-C", 1.5, 0.0],
+		[DEFENSE, GameEnums.DefenseAction.COVER, "M-C", 0.0, 1.5],
+		[NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, "", 1.5, 0.0],
+		[NEG_TRANS, GameEnums.NegTransAction.RETREAT, "", 0.0, 1.5],
+	]
+	for case: Array in cases:
+		var target_key: String = case[2] as String
+		var hint := ChoiceHint.new(case[0] as GameEnums.ChoiceFamily, case[1] as int,
+				null if target_key == "" else _area(target_key), true, 1, 1, GameEnums.CoverKind.NONE)
+		assert_float(CpuPlanner.style_bonus(hint, counter_man, ball, cpu)).override_failure_message("counter/man %s" % str(case)) \
+				.is_equal(case[3] as float)
+		assert_float(CpuPlanner.style_bonus(hint, possession_zone, ball, cpu)).override_failure_message("possession/zone %s" % str(case)) \
+				.is_equal(case[4] as float)
+
+
+## _scene の HOME（カウンター型）の手のうち、ドリブルの運ぶ先 target_key の添字
+func _dribble_index(hints: Array[ChoiceHint], target_key: String) -> int:
+	for index: int in range(hints.size()):
+		var hint: ChoiceHint = hints[index]
+		if hint.action == GameEnums.PlayType.DRIBBLE and hint.target.to_key() == target_key:
+			return index
+	return -1
+
+
+func test_zero_style_bonus_keeps_the_probabilities_of_the_scores_alone() -> void:
+	var state: MatchState = _scene()
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
+	var scores: Array[float] = []
+	for hint: ChoiceHint in hints:
+		scores.append(CpuPlanner.score(hint))
+	var plain: Array[float] = CpuPlanner.probabilities(scores, _bonus_cpu(0.0))
+	var actual: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0))
+	assert_int(actual.size()).is_equal(plain.size())
+	for index: int in range(plain.size()):
+		assert_float(actual[index]).is_equal_approx(plain[index], 0.000001)
+
+
+func test_style_bonus_raises_the_preferred_moves_probability() -> void:
+	# カウンター型の HOME: 前（A-C）へのドリブルは好む手、横（M-L1）へのドリブルは好む手でない。評価値はどちらも +1
+	var state: MatchState = _scene()
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
+	var forward: int = _dribble_index(hints, "A-C")
+	var side: int = _dribble_index(hints, "M-L1")
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(2.0))
+	assert_float(none[forward]).is_equal_approx(none[side], 0.000001)
+	assert_float(biased[forward]).is_greater(none[forward])
+	assert_float(biased[forward]).is_greater(biased[side])
+	assert_float(_sum(biased)).is_equal_approx(1.0, 0.000001)
+	for p: float in biased:
+		assert_float(p).is_greater_equal(0.1 / biased.size() - 0.000001)
+
+
+func test_choose_turn_follows_the_style_bonus() -> void:
+	# 加点が大きいと、カウンター型は前へのドリブルを、横へのドリブルより多く選ぶ
+	var state: MatchState = _scene()
+	var forward_key: String = "%d:%d:A-C" % [ATTACK, GameEnums.PlayType.DRIBBLE]
+	var side_key: String = "%d:%d:M-L1" % [ATTACK, GameEnums.PlayType.DRIBBLE]
+	var counts: Dictionary = {}
+	for seed_value: int in range(500):
+		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _bonus_cpu(3.0), _rng(seed_value)))
+		counts[key] = (counts.get(key, 0) as int) + 1
+	assert_int(counts.get(forward_key, 0) as int).is_greater((counts.get(side_key, 0) as int) * 3)
+
+
 # --- 手の選択 ---
 
 func test_choose_turn_only_picks_selectable_moves() -> void:

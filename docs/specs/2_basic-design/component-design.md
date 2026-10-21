@@ -89,7 +89,8 @@ enum PrincipleStatus { UNVERIFIED, VERIFIED, NO_SOURCE }
 enum TeamSide { HOME, AWAY }
 enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }   # TurnChoice.action がどの enum の値か
 enum CoverKind { NONE, DEFENDER, GOALKEEPER, OUT_OF_GK_REACH } # 同数時のカバー判定の内訳（判定理由の表示に使う）
-enum MovementReason { SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE }
+enum MovementReason { SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE,
+        DRIBBLE_STOPPED, BALL_HOLDER }                          # 末尾の2つは保持者の動き（アルゴリズム5・7）
 enum MatchResult { WIN, DRAW, LOSE }                           # 戦績の勝敗（利用者から見た値）
 enum Phase { ATTACK, NEG_TRANSITION, DEFENSE, POS_TRANSITION } # 振り返りの局面別集計（アルゴリズム10）
 enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りでの1ターンの数え方（アルゴリズム10）
@@ -328,6 +329,11 @@ static func finish(state: MatchState) -> MatchState
 - ハーフを終えた状態（`HALFTIME`・後半の終わり）の `turn_number` は ターン数＋1。`data-definition.md` §2.1 の範囲では
   `HALFTIME` の ターン数＋1 が含まれないため、保存の作業で範囲を見直す
 - （仕様の確認）攻守ターンの続き（`ADVANCE`・`STALL`）は固定を維持し、トランジションが終わって攻守ターンが始まる時だけ配置区間をリセットする（アルゴリズム5の手順7と「配置区間」の定義のとおり）
+- ボールの保持者（アルゴリズム7。2026-10-22）: `resolve_turn` はハーフの最終ターンの切り替えの後に、`create_match`・
+  `apply_halftime` はキックオフの後に、次のターンの開始時の配置（`StyleLayoutCalculator.turn_start`）でボールのエリアに
+  保持側がいなければ、いちばん近い選手を置いて固定する（トランジションは起点の配置も `TeamLayout.with_fixed` で変える）。
+  置いた動き（`BALL_HOLDER`）と、膠着したドリブルの戻り（`DRIBBLE_STOPPED`）は、そのターンの記録の `movements` に足す。
+  判定時の配置（`pair_at_judgement`）は変えない
 - 中断データ（`data-definition.md` §2.1）は、トランジションの起点と判定時の配置を「選手単位の基本エリア・固定先」で持つ形に
   なっているが、現在エリアが無いと復元できない（ターン記録の判定前・判定時の配置も同じ）。ドメインでは `LayoutPair`（現在エリアを含む）で持つ。
   保存の作業で形式を見直す
@@ -342,6 +348,10 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide,
         cpu: CpuConfig, rng: RandomNumberGenerator) -> TurnChoice
 ## 評価値。守備の手は脅威度（攻撃側 − 守備側）、リトリート・保持は 0、それ以外は 自分 − 相手
 static func score(hint: ChoiceHint) -> float
+## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表はアルゴリズム8）
+static func style_bonus(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea, cpu: CpuConfig) -> float
+## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。score + style_bonus を probabilities に通す（choose_turn と同じ計算）
+static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]
 ## 試合開始時・ハーフタイムの陣形と方式（一様ランダム）
 static func choose_setup(catalog: ContentCatalog, rng: RandomNumberGenerator) -> TeamSetup
 ## 得失点後の方式（一様ランダム）
@@ -600,7 +610,7 @@ func mark_tutorial_completed() -> bool
 
 | フィールド | 内容 |
 |---|---|
-| `user_players` / `opponent_players` | 選手ごとの現在の位置（各要素は `player_id`・`number`（背番号）・`area`（利用者の視点のエリアのキー））。現在の配置（`MatchRules.current_layouts`）から `MatchController` が作る。背番号つきの駒の表示に使う |
+| `user_players` / `opponent_players` | 選手ごとの現在の位置（各要素は `player_id`・`number`（背番号）・`area`（利用者の視点のエリアのキー））。現在の配置（`MatchRules.current_layouts`）から `MatchController` が作る。駒の表示に使う（2D 作戦ボードは番号を描かない。背番号は 3D 演出用） |
 | `user_counts` / `opponent_counts` | 15エリアの人数（`PitchArea` のキー → 人数）。`user_players` / `opponent_players` をエリアごとに数えた値と一致する |
 | `ball_area` | ボール位置 |
 | `user_has_ball` | 利用者がボールを持っているか |
@@ -610,7 +620,8 @@ func mark_tutorial_completed() -> bool
 | `user_setup` / `opponent_setup` | 陣形と方式（相手の方式の常時表示。FR-16・21） |
 | `movements` | 直前の判定で動いた選手（利用者の視点に変換済み）。矢印の表示に使う |
 
-優劣記号（`▲`・`＝`・`▼`）は人数の比較だけで決まるので、UI が `user_counts` と `opponent_counts` から描く。
+試合の作戦ボードは優劣記号を描かず、エリアの中の駒の数で優劣を示す（2026-10-22。`functional-overview.md`「表示仕様」）。
+ミニピッチの優劣記号（`▲`・`＝`・`▼`）は人数の比較だけで決まるので、UI が人数から描く。
 
 `RevealView`（`reveal_view.gd`）は、1ターンの開示（両者の選択・3D 演出・判定理由）と振り返りの各ターンに使う値。
 `MatchController` が `TurnRecord` から作る。
@@ -661,7 +672,7 @@ func validation_errors() -> Array[String]
 | Resource（`class_name`） | ファイル（`game/config/`） | 持つ値 |
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数 |
-| `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor |
+| `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus |
 | `PresentationConfig` | `presentation_config.tres` | 3D 演出の長さの上限（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
@@ -672,7 +683,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、演出の上限は0より大きく5以下、遡るターン数は
+値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus は0以上（いずれも有限の値）、演出の上限は0より大きく5以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -847,7 +858,7 @@ func route_back() -> bool
 | `class_name` | 役割 |
 |---|---|
 | `TacticsBoard` | 15エリアの盤面。`BoardSnapshot` を受けて描く。ピッチを横に置き、利用者の攻撃方向を画面の右にする |
-| `AreaCell` | 1エリア。両チームの人数（`自分−相手`）・優劣記号・ボール・選択可否・ヒントを表示し、タップ／クリックを受ける |
+| `AreaCell` | 1エリア。両チームの人数（駒）・ボール・選択可否・ヒントを表示し、タップ／クリックを受ける |
 | `MoveArrowLayer` | `movements` を移動元から移動先への矢印で描く。理由（`MovementReason`）ごとに線種を変える |
 | `ChoicePanel` | 局面に応じた手のボタン。`MoveOptions` で選べない手を選択不可にする |
 | `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号） |
@@ -858,6 +869,10 @@ func route_back() -> bool
 > 離したときだけ選ぶ）は `screen-common.md` §4.1 のとおり。`MatchBoardPanel` は 3D 演出をまだ持たず、開示を受けたらすぐ判定理由を出す。
 > 2D 作戦ボードの部品と S-03〜S-06 の子のノードは、`.tscn` を置かずコードで組んでいる（ノード名は詳細設計に合わせる）。
 > 3D 演出を足すときに `.tscn` へ移すかを見直す。
+>
+> **2026-10-22**: 盤面の情報を絞った（シンプル案）。角の優劣記号・駒の番号・方式の動きの矢印・凡例を描かない。
+> ヒントの札は選べるエリアにだけ描き、±0 の札（`set_hints(hints, even_keys)` の `even_keys`）は控えめな色にする。
+> 描く動きは `drawn_movements()`（ドリブル・寄せ・カバー）で、描画とテストで共有する。
 
 ### 5.4 3D 演出（`replay3d/`）
 

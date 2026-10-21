@@ -67,45 +67,82 @@ func test_areas_are_laid_out_with_the_user_attacking_to_the_right() -> void:
 	assert_str(_board.area_at(BOARD_SIZE + Vector2(1, 1))).is_empty()
 
 
-func test_pieces_and_marks_match_the_snapshot_when_the_user_attacks() -> void:
+func test_pieces_match_the_snapshot_when_the_user_attacks() -> void:
 	var snapshot: BoardSnapshot = _snapshot(true)
 	_board.show_snapshot(snapshot)
-	_assert_pieces_and_marks(snapshot)
+	_assert_pieces(snapshot)
 
 
-func test_pieces_and_marks_match_the_snapshot_when_the_user_defends() -> void:
+func test_pieces_match_the_snapshot_when_the_user_defends() -> void:
 	# 利用者が守備のときも、盤面の値（利用者の視点）をそのまま置く。ボードはエリアを変換しない
 	var snapshot: BoardSnapshot = _snapshot(false)
 	_board.show_snapshot(snapshot)
-	_assert_pieces_and_marks(snapshot)
+	_assert_pieces(snapshot)
 	assert_str(_board.ball_area()).is_equal(snapshot.ball_area)
 
 
-func _assert_pieces_and_marks(snapshot: BoardSnapshot) -> void:
+## 優劣は角の記号ではなく、エリアの中の ● と ◆ の数で読む（FR-16）。駒の数が人数と一致すること
+func _assert_pieces(snapshot: BoardSnapshot) -> void:
 	var total_user: int = 0
 	for area: PitchArea in PitchArea.all():
 		var key: String = area.to_key()
 		var pieces: Dictionary = _board.pieces_in(key)
-		assert_array(pieces["user"] as Array).override_failure_message(key) \
-				.is_equal(_numbers_in(snapshot.user_players, key))
-		assert_array(pieces["opponent"] as Array).override_failure_message(key) \
-				.is_equal(_numbers_in(snapshot.opponent_players, key))
+		var user_pieces: Array = pieces["user"] as Array
+		var opponent_pieces: Array = pieces["opponent"] as Array
+		assert_array(user_pieces).override_failure_message(key).is_equal(_numbers_in(snapshot.user_players, key))
+		assert_array(opponent_pieces).override_failure_message(key).is_equal(_numbers_in(snapshot.opponent_players, key))
+		assert_int(user_pieces.size()).override_failure_message(key).is_equal(snapshot.user_counts.get(key, 0) as int)
+		assert_int(opponent_pieces.size()).override_failure_message(key).is_equal(snapshot.opponent_counts.get(key, 0) as int)
 		total_user += (pieces["user"] as Array).size()
-		var user_count: int = snapshot.user_counts[key] as int
-		var opponent_count: int = snapshot.opponent_counts[key] as int
-		var expected_mark: String = "▲" if user_count > opponent_count else ("▼" if user_count < opponent_count else "＝")
-		assert_str(_board.mark_of(key)).override_failure_message(key).is_equal(expected_mark)
 	assert_int(total_user).is_equal(10)
 
 
-func test_marks_are_shown_on_every_area_even_when_empty() -> void:
-	var snapshot := BoardSnapshot.new()
-	snapshot.user_counts = {"M-C": 2}
-	snapshot.opponent_counts = {"M-C": 1, "A-C": 1}
-	_board.show_snapshot(snapshot)
-	assert_str(_board.mark_of("M-C")).is_equal("▲")
-	assert_str(_board.mark_of("A-C")).is_equal("▼")
-	assert_str(_board.mark_of("D-L2")).is_equal("＝")
+func test_pieces_stay_inside_their_area_down_to_the_minimum_cell_size() -> void:
+	# 1チームの上限（4つ。超えたら3つと「+N」）まで、駒の外周がエリアの自分の側の半分に収まる（隣のエリアへはみ出すと人数を読み違える）
+	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.ZONE_COUNT, PitchArea.LANE_COUNT)]:
+		_board.size = board_size
+		var rect: Rect2 = _board.area_rect("M-C")
+		var radius: float = _board.piece_radius()
+		assert_float(radius).override_failure_message(str(board_size)).is_greater(0.0)
+		for index: int in range(TacticsBoard.MAX_PIECES):
+			var user_center: Vector2 = _board.piece_center("M-C", true, index)
+			var opponent_center: Vector2 = _board.piece_center("M-C", false, index)
+			var label: String = "%s index %d" % [board_size, index]
+			assert_float(user_center.x - radius).override_failure_message(label).is_greater_equal(rect.position.x)
+			assert_float(user_center.x + radius).override_failure_message(label).is_less(rect.get_center().x)
+			assert_float(opponent_center.x + radius).override_failure_message(label).is_less_equal(rect.end.x)
+			assert_float(opponent_center.x - radius).override_failure_message(label).is_greater(rect.get_center().x)
+			if index > 0:
+				# 隣の駒と重ならない
+				var previous: Vector2 = _board.piece_center("M-C", true, index - 1)
+				assert_float(previous.x - user_center.x).override_failure_message(label).is_greater_equal(radius * 2.0)
+
+
+func test_only_dribble_press_and_cover_are_drawn() -> void:
+	# 方式の動き（スライド・マーク・前進・リトリート）と、保持者の動き（戻る・置かれる）は描かない
+	var movements: Array[Movement] = []
+	for reason: int in GameEnums.MovementReason.values():
+		movements.append(Movement.new(GameEnums.TeamSide.HOME, "p%d" % reason, PitchArea.from_key("D-C"),
+				PitchArea.from_key("M-C"), reason as GameEnums.MovementReason))
+	_board.show_movements(movements)
+	assert_int(_board.movement_count()).is_equal(GameEnums.MovementReason.size())
+	var drawn: Array[int] = []
+	for movement: Movement in _board.drawn_movements():
+		drawn.append(movement.reason)
+	assert_array(drawn).is_equal([GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER,
+			GameEnums.MovementReason.DRIBBLE])
+
+
+func test_hints_are_drawn_only_on_selectable_areas_and_even_ones_are_muted() -> void:
+	_board.set_selectable(["M-L1", "A-C"])
+	var even: Array[String] = ["A-C"]
+	_board.set_hints({"M-L1": "+1", "A-C": "±0 GK", "D-C": "−1"}, even)
+	assert_array(_board.drawn_hint_keys()).is_equal(["M-L1", "A-C"])
+	assert_bool(_board.is_hint_even("A-C")).is_true()
+	assert_bool(_board.is_hint_even("M-L1")).is_false()
+	_board.clear_overlays()
+	assert_array(_board.drawn_hint_keys()).is_empty()
+	assert_bool(_board.is_hint_even("A-C")).is_false()
 
 
 func test_only_selectable_areas_emit_when_pressed() -> void:

@@ -91,6 +91,9 @@ func test_a_move_with_targets_waits_for_an_area_and_shows_hints() -> void:
 	for hint: ChoiceHint in _controller.user_hints():
 		if hint.family == GameEnums.ChoiceFamily.ATTACK and hint.action == action:
 			assert_str(_panel.board().hint_of(hint.target.to_key())).is_equal(MatchTexts.hint_tag(hint))
+			# 差が ±0 の札は控えめに描く。区別は札の文字ではなく、ヒントの人数差で渡す
+			assert_bool(_panel.board().is_hint_even(hint.target.to_key())) \
+					.override_failure_message(hint.target.to_key()).is_equal(hint.diff() == 0)
 			checked += 1
 	# 選べる各エリアに札がある（ヒントが1件も無くて空振りしない）
 	assert_int(checked).is_equal(targets.size())

@@ -61,6 +61,12 @@ func equals(other: PitchArea) -> bool:
 	return other != null and other.lane == lane and other.zone == zone
 
 
+## エリアの間の距離（ゾーン差＋レーン差）。マンツーマンのマーカーの選び方（アルゴリズム2）と、
+## ボールのエリアに置く保持者の選び方（アルゴリズム7）で同じ測り方を使うため、ここに1つだけ持つ。
+func distance_to(other: PitchArea) -> int:
+	return absi(zone - other.zone) + absi(lane - other.lane)
+
+
 ## "M-L1" 形式。保存データと判定例の表記に合わせる。
 func to_key() -> String:
 	return "%s-%s" % [_ZONE_NAMES[zone], _LANE_NAMES[lane]]

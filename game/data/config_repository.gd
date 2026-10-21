@@ -54,9 +54,10 @@ func _load_cpu() -> CpuConfig:
 	var is_temperature_valid: bool = is_finite(loaded.temperature) and loaded.temperature > 0.0
 	var is_floor_valid: bool = is_finite(loaded.floor_probability) \
 			and loaded.floor_probability >= 0.0 and loaded.floor_probability < 1.0
-	if not (is_temperature_valid and is_floor_valid):
-		push_error("ConfigRepository: %s の値が範囲外（temperature=%s, floor_probability=%s）のため、初期値を使う"
-				% [CPU_FILE, loaded.temperature, loaded.floor_probability])
+	var is_bonus_valid: bool = is_finite(loaded.style_bonus) and loaded.style_bonus >= 0.0
+	if not (is_temperature_valid and is_floor_valid and is_bonus_valid):
+		push_error("ConfigRepository: %s の値が範囲外（temperature=%s, floor_probability=%s, style_bonus=%s）のため、初期値を使う"
+				% [CPU_FILE, loaded.temperature, loaded.floor_probability, loaded.style_bonus])
 		return CpuConfig.new()
 	return loaded
 

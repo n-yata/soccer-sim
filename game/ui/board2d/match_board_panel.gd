@@ -163,11 +163,14 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 		for target: PitchArea in _options.targets(family, action):
 			keys.append(target.to_key())
 		var tags: Dictionary = {}
+		var even_keys: Array[String] = []
 		for hint: ChoiceHint in _hints_for(family, action):
 			if hint.target != null:
 				tags[hint.target.to_key()] = MatchTexts.hint_tag(hint)
+				if hint.diff() == 0:
+					even_keys.append(hint.target.to_key())
 		_board.set_selectable(keys)
-		_board.set_hints(tags)
+		_board.set_hints(tags, even_keys)
 		_target_info.visible = false
 		_state = State.SELECT_TARGET
 		_set_primary(MatchTexts.action_name(family, action), LOCK_IN, false)

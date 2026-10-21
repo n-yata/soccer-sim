@@ -5,6 +5,7 @@ class_name ScreenTestHelper
 extends RefCounted
 
 const MAX_STEPS: int = 200
+const SEED_SEARCH_LIMIT: int = 200
 
 ## どこまで進めるか
 enum Stop { START, STYLE_CHANGE, HALFTIME, OVER, TRANSITION }
@@ -75,8 +76,10 @@ static func reached(controller: MatchController, stop: Stop) -> bool:
 
 
 ## 試合を始めてから、stop まで進めたシード（0 から順に探す）。見つからなければ -1。
+## 得点（STYLE_CHANGE）はまれで、CPU が評価値の高い手に寄った後（2026-10-22。τ=0.5）は、この補助の利用者の手では
+## 200 試合に数回しか起きない。そのため探す範囲を広くとる
 static func seed_reaching(stop: Stop) -> int:
-	for seed_value: int in range(50):
+	for seed_value: int in range(SEED_SEARCH_LIMIT):
 		var controller: MatchController = new_controller(seed_value, func(_s: AppScreens.Id, _p: Dictionary) -> void: pass)
 		controller.start_match(user_setup())
 		if advance_until(controller, stop):

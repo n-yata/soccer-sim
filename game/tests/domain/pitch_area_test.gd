@@ -117,3 +117,14 @@ func test_key_round_trip_for_all_15() -> void:
 func test_from_key_returns_null_for_invalid_strings() -> void:
 	for key: String in ["", "M", "M-", "-L1", "ML1", "M_L1", "X-L1", "M-L3", "m-l1", "M-L1-C", " M-L1", "1-0"]:
 		assert_object(PitchArea.from_key(key)).override_failure_message("不正なキー: '%s'" % key).is_null()
+
+
+func test_distance_is_the_zone_gap_plus_the_lane_gap() -> void:
+	var center: PitchArea = PitchArea.from_key("M-C")
+	assert_int(center.distance_to(PitchArea.from_key("M-C"))).is_equal(0)
+	assert_int(center.distance_to(PitchArea.from_key("A-C"))).is_equal(1)
+	assert_int(center.distance_to(PitchArea.from_key("M-L2"))).is_equal(2)
+	# 斜めは2（ゾーン差1＋レーン差1）。向きによらない
+	assert_int(center.distance_to(PitchArea.from_key("D-R1"))).is_equal(2)
+	assert_int(PitchArea.from_key("D-R1").distance_to(center)).is_equal(2)
+	assert_int(PitchArea.from_key("D-L2").distance_to(PitchArea.from_key("A-R2"))).is_equal(6)

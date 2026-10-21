@@ -39,7 +39,7 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | 用途 | 最小の大きさ | 根拠 |
 |---|---|---|
 | ボタン・選択肢など、押せるものすべて | 高さ 96px（48dp）以上、幅 96px 以上 | NFR-19 |
-| 作戦ボードの1エリア | 高さ 112px（56dp）・幅 192px（96dp）以上（高さは、上端の帯 32px ＋ 駒 40px × 2段）。基準の 16:9 で約 115×242px（§1.1）。横に長い端末ほど幅が広がる | `screen-design.md`「共通の部品と操作」 |
+| 作戦ボードの1エリア | 高さ 112px（56dp）・幅 192px（96dp）以上（高さは、上段のボール・中段の駒の列・下段のヒントの札が重ならない分。駒の間隔と大きさは、セルの幅に合わせて縮め、1チーム4つまでがエリアの半分に収まるようにする。2026-10-22）。基準の 16:9 で約 115×242px（§1.1）。横に長い端末ほど幅が広がる | `screen-design.md`「共通の部品と操作」 |
 | 画面の外周の余白 | 24px。これに端末の切り欠き（カメラの穴など）の分を足す（§1.1） | `screen-design.md`「画面の向きと基本の配置」 |
 
 ## 2. フォント・文字
@@ -50,7 +50,7 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | 書体 | 太さ | 使うところ |
 |---|---|---|
 | Noto Sans JP | Regular・Bold | 日本語の本文・ボタン・判定理由・解説 |
-| Barlow Condensed | SemiBold・Bold | スコア・残りターン・局面のタグ（`ATTACK` など）・`REPLAY`・`KICK OFF`・結果のラベル（`ADVANCE` など）・背番号 |
+| Barlow Condensed | SemiBold・Bold | スコア・残りターン・局面のタグ（`ATTACK` など）・`REPLAY`・`KICK OFF`・結果のラベル（`ADVANCE` など） |
 
 - ボールは文字ではなく画像（アイコン）で描く（絵文字はフォントに含まれず、端末で見た目が変わるため）
 - 記号 `▲`・`＝`・`▼`・`●`・`◆`・`−` は Noto Sans JP で描く（サブセットに必ず含める）
@@ -59,9 +59,9 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
   | 用途 | 大きさ |
   |---|---|
   | 本文・ボタン | 28〜32px |
-  | 補助・注記（凡例・「実戦では」） | 24px（これより小さくしない） |
-  | 背番号・角の優劣記号 | 24px（Bold） |
-  | 局面のタグ・札（`+1`・`1対0`） | 26px（Barlow Condensed Bold） |
+  | 補助・注記（凡例・「実戦では」） | 24px（これより小さくしない。下の作戦ボードの2つだけ例外） |
+  | 作戦ボードのレーン名・ヒントの札（`+1`・`±0 GK`） | 16px・18px（例外。盤面の情報を絞るため、駒より目立たせない。2026-10-22。コントラスト比は NFR-21 を満たす色にする） |
+  | 局面のタグ・比較エリアの札（`1対0`） | 26px（Barlow Condensed Bold） |
   | スコア | 52px（Barlow Condensed Bold） |
   | 結果のラベル（`ADVANCE`）・`KICK OFF` | 44px（Barlow Condensed Bold） |
   | 勝敗（S-06） | 96px（Barlow Condensed Bold） |
@@ -81,8 +81,8 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | `text_sub` | `#CBD5E1` | 13.1（`bg`） | 補助の文字 |
 | `muted` | `#94A3B8` | 7.6（`bg`）／6.9（`surface`） | 注記・凡例 |
 | `accent` | `#F5C518` | 11.9（`bg`） | 強調（主ボタン・選んだエリア・タグ・札・リプレイ）。上に載せる文字は `bg` の色（11.9） |
-| `you` | `#4CC3FF` | 9.8（`bg`） | 利用者のチームの色。駒の背番号は `bg` の色（9.8） |
-| `opponent` | `#FF8A3D` | 8.3（`bg`） | CPU のチームの色。駒の背番号は `bg` の色（8.3） |
+| `you` | `#4CC3FF` | 9.8（`bg`） | 利用者のチームの色 |
+| `opponent` | `#FF8A3D` | 8.3（`bg`） | CPU のチームの色 |
 | `caution` | `#FBBF77` | 10.9（`surface`） | 「実戦では」 |
 | `telop_bg` / `telop_text` / `telop_sub` | `#F8FAFC` / `#070D18` / `#334155` | 18.6 ／ 9.9 | 判定理由のテロップ（白地に暗い文字） |
 | `disabled_bg` / `disabled_text` | `#1E293B` / `#94A3B8` | 5.7 | 選択不可のボタン。「選択不可」の文字を添え、色だけで示さない |
@@ -96,10 +96,12 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | `pitch_halfspace` | `#134E2D` | 自分 4.9 ／ 相手 4.2 | ハーフスペースのレーン |
 | `pitch_line` | `#F8FAFC`（不透明度 80%） | — | 白線 |
 | `zone_line` | `#F8FAFC`（不透明度 25%、点線） | — | 15エリアの境界 |
-| `mark_bg` | `#0B111C`（不透明度 70%） | — | 角の優劣記号の地。記号の色は `accent`（優位）・`opponent`（不利）・`text`（同数） |
+| `tag_muted_bg` | `#0B111C`（不透明度 70%） | — | 差が ±0 のヒントの札の地。文字は `text`（差がある札は `accent` の地に `bg` の文字） |
+| `ball_area_fill` | `#FFFFFF`（不透明度 10%） | — | ボールのあるエリアの薄い塗り |
+| `lane_text` | `#CBD5E1` | 5.4（`pitch`） | レーン名 |
 
 - 駒は、利用者が丸（●）、相手がひし形（◆）で、色に加えて形で区別する。チームを文字で示す帯なども ●・◆ を使う
-- 優劣は記号（`▲`・`＝`・`▼`）で示し、色は補助にする。グレースケールでの確認は NFR-20 の手順で行う
+- 優劣は、作戦ボードではエリアの中の ●・◆ の駒の数（形で区別）で、ミニピッチでは記号（`▲`・`＝`・`▼`）で示し、色は補助にする。グレースケールでの確認は NFR-20 の手順で行う
 - `pitch` 系の色は、駒の色（`you`・`opponent`）との比が 3:1 を下回らない範囲で調整する。値を変えたら本表の比を計算し直す
 
 ## 4. 画面の出入りの約束
@@ -156,7 +158,7 @@ Android のタッチと PC のマウスで同じ処理が動くように、入�
 
 | 部品（`class_name`） | 外から渡す値 | 出すシグナル | 備考 |
 |---|---|---|---|
-| `TacticsBoard` | `show_snapshot(snapshot: BoardSnapshot)`、`set_selectable(areas: Array[String])`、`set_hints(hints: Dictionary)`、`show_intent(from_area: String, to_area: String)`、`show_movements(movements: Array[Movement])`、`show_compare(area: String, user_count: int, opponent_count: int)`、`show_tally(tally: Dictionary)`（振り返りの集計の札。駒は出さない）、`clear_overlays()` | `area_pressed(area_key: String)` | ピッチを横に置き、利用者の攻撃方向は常に右（左から D・M・A のゾーン、上から L2・L1・C・R1・R2 のレーン）。描き方: ①ピッチ（`pitch` 系の色・白線・ペナルティエリア・ゴール）②15エリアの点線とレーン名（各レーンの左端）③各エリアの駒（`BoardSnapshot.user_players` / `opponent_players` から、選手ごとに背番号つきで描く。自分 ● をエリアの左半分・相手 ◆ を右半分に、直径 40px（背番号は 24px）。エリアの上端の高さ 32px は優劣記号とヒントの札の帯とし、駒はその下に2列×2段で並べる。各チーム5人以上いるときは、駒を3つと「+N」の札にする（人数は優劣記号の読み上げ用のラベルにも出す））④角の優劣記号（全エリアの左上に常時）⑤選べるエリアの点線の枠・選んだエリアの塗り・ヒントの札（エリアの右上）⑥矢印（ボール＝`accent` 太線、寄せ・カバー＝`opponent` か `you` の実線、方式の動き＝白の点線）⑦比較エリアの光と人数の札。動きの矢印の凡例はボードの左下の隅に重ねる。エリアを押せる範囲はエリア全体（16:9 で約 242×115px） |
+| `TacticsBoard` | `show_snapshot(snapshot: BoardSnapshot)`、`set_selectable(areas: Array[String])`、`set_hints(hints: Dictionary, even_keys: Array[String] = [])`、`show_intent(from_area: String, to_area: String)`、`show_movements(movements: Array[Movement])`、`show_compare(area: String, user_count: int, opponent_count: int)`、`show_tally(tally: Dictionary)`（振り返りの集計の札。駒は出さない）、`clear_overlays()` | `area_pressed(area_key: String)` | ピッチを横に置き、利用者の攻撃方向は常に右（左から D・M・A のゾーン、上から L2・L1・C・R1・R2 のレーン）。描き方（2026-10-22 のシンプル案）: ①ピッチ（`pitch` 系の色・白線・センターサークル・ペナルティエリア・ゴール）②ボールのあるエリアの薄い塗り（`ball_area_fill`）・選んだエリアの塗り・選べるエリアの点線の枠 ③15エリアの点線とレーン名（各レーンの自陣のエリアの左上に 16px）④各エリアの駒（`BoardSnapshot.user_players` / `opponent_players` から、番号なしで描く。エリアの縦の中央に1列で、自分 ● を中央から左へ・相手 ◆ を中央から右へ、直径 26px・間隔 28px。各チーム5人以上いるときは、駒を3つと「+N」の札にする）⑤ボール（エリアの上側の中央）⑥矢印（ボール＝`accent` 太線、寄せ・カバー＝`opponent` か `you` の実線。方式の動きと保持者の動きは描かない）と、選んだ手の矢印 ⑦ヒントの札（選べるエリアの下端の中央に 18px。差がある札は `accent`、±0 の札は `tag_muted_bg`。矢印の上に描いて字を隠さない）⑧比較エリアの光と人数の札。角の優劣記号と凡例は描かない。`set_hints(hints: Dictionary, even_keys: Array[String])` の `even_keys` が ±0 の札のキー。エリアを押せる範囲はエリア全体（16:9 で約 242×115px） |
 | `ChoicePanel` | `show_options(options: MoveOptions, turn_kind: GameEnums.TurnKind, user_has_ball: bool)`、`select_action(family, action)` | `action_selected(family: GameEnums.ChoiceFamily, action: int)` | 運ぶ先が1つもない手は選択不可（`screen-design.md` S-03） |
 | `MiniPitch` | `show_counts(counts: Dictionary, two_teams: bool)`、`show_movements(movements: Array[Movement])`（S-07 の振り返りの各ターン。矢印をマスの中心から中心へ描く） | — | 作戦ボードと同じ向き（3列×5行、攻撃方向が右）。1マス 横 80px・縦 44px（`1−0` の数字が 24px で入る大きさ）。1チームの人数だけを出す陣形カードでは 横 72px・縦 36px。画面ごとに大きくしてよい（S-09）。押せない表示専用 |
 | `NotesView` | `show_notes(notes: Array[MatchupNote], simplifications: Array[SimplificationDef])` | — | 単純化 ID があれば「実戦では」を添える |

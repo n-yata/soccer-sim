@@ -148,7 +148,7 @@
 | アプリケーション層<br>(Application layer) | 試合の状態遷移とドメイン呼び出しを担う層 | 保存のタイミング・乱数生成器の注入 | `game/application/` |
 | データ層<br>(Data layer) | 静的データの読み込みと端末内保存を担う層 | 読み込んだデータをドメインの値オブジェクトへ変換する | `game/data/` |
 | UI 層<br>(UI layer) | 画面・2D 作戦ボード・3D 演出を担う層 | ルールを計算しない | `game/ui/` |
-| 2D 作戦ボード<br>(2D tactics board) | 真上から見たピッチで手を選ぶ画面表現 | 人数と優劣記号を表示 | `game/ui/board2d/` |
+| 2D 作戦ボード<br>(2D tactics board) | 真上から見たピッチで手を選ぶ画面表現 | 人数（● と ◆ の駒）を表示。優劣は駒の数で読む | `game/ui/board2d/` |
 | 3D 演出<br>(3D replay) | 開示後のターン結果を 3D のピッチで見せる短い演出 | ターン記録から生成する再生専用の表現。結果を変えない | `game/ui/replay3d/` |
 | 乱数の注入<br>(RNG injection) | 乱数生成器を外から引数で渡すこと | CPU の選択とキックオフ側の決定だけで使う。テストは固定シード | `game/application/` |
 

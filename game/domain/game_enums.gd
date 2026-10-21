@@ -27,7 +27,11 @@ enum TeamSide { HOME, AWAY }
 enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }
 ## 同数時のカバー判定の内訳（判定理由の表示に使う）
 enum CoverKind { NONE, DEFENDER, GOALKEEPER, OUT_OF_GK_REACH }
-enum MovementReason { SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE }
+## 選手が動いた理由。DRIBBLE_STOPPED は膠着したドリブルの選手がボールのエリアへ戻る動き、
+## BALL_HOLDER はボールのエリアに保持側がいないとき、いちばん近い選手が置かれる動き（末尾に足し、既存の値の番号を変えない）
+enum MovementReason {
+	SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE, DRIBBLE_STOPPED, BALL_HOLDER,
+}
 ## 戦績の勝敗（利用者から見た値）
 enum MatchResult { WIN, DRAW, LOSE }
 ## 振り返りの局面別集計（アルゴリズム10）

@@ -24,6 +24,7 @@ static func create_match(match_id: String, home: TeamSetup, away: TeamSetup, kic
 	state.home_players = BaseLayoutDeriver.derive(home_formation).players
 	state.away_players = BaseLayoutDeriver.derive(away_formation).players
 	_kickoff(state, kickoff_side)
+	_place_holder(state)
 	return state
 
 
@@ -60,7 +61,10 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 	var ball_after: PitchArea = _ball_after(state, output.outcome, holder_choice)
 	var next: MatchState = state.duplicate_deep()
 	_apply_outcome(next, state.turn_kind, output, ball_after)
-	next.turn_records.append(_record(state, start, output, home_choice, away_choice, ball_after))
+	var record: TurnRecord = _record(state, start, output, home_choice, away_choice, ball_after)
+	if state.turn_kind == GameEnums.TurnKind.OPEN_PLAY and holder_choice.action == GameEnums.PlayType.DRIBBLE \
+			and output.outcome == GameEnums.TurnOutcome.STALL:
+		record.movements.append_array(_stop_dribble(next, state, output))
 	next.turn_number += 1
 	# ハーフの最終ターン: 得点でも方式の選び直しを行わない。前半はハーフタイムへ、後半は試合終了（is_play_complete）
 	if next.turn_number > rules.turns_per_half:
@@ -68,7 +72,11 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 		# 最終ターンの LOSS・SAVE でもトランジションには入らない（次のターンが無いため）
 		next.turn_kind = GameEnums.TurnKind.OPEN_PLAY
 		next.transition_origin = null
-	return TurnResolution.new(next, next.turn_records.back())
+	# ハーフタイム・試合終了には次のターンが無い（配置は後半のキックオフで置き直すか、捨てる）。置くと起きなかった動きが記録に残る
+	if next.stage != GameEnums.MatchStage.HALFTIME and not is_play_complete(next, rules):
+		record.movements.append_array(_place_holder(next))
+	next.turn_records.append(record)
+	return TurnResolution.new(next, record)
 
 
 ## 得点後の方式の選び直し（STYLE_CHANGE → TURN）。失点側のキックオフは得点の時点で済ませてあり、
@@ -101,6 +109,7 @@ static func apply_halftime(state: MatchState, home: TeamSetup, away: TeamSetup, 
 	next.away_players = BaseLayoutDeriver.derive(away_formation).players
 	_kickoff(next, MatchState.other(next.first_half_kickoff))
 	next.stage = GameEnums.MatchStage.TURN
+	_place_holder(next)
 	return next
 
 
@@ -175,6 +184,60 @@ static func _apply_outcome(next: MatchState, kind: GameEnums.TurnKind, output: J
 	# トランジションが終わって攻守ターンが始まる時は、配置区間をリセットする（攻守ターンからの続きは固定を維持）
 	if kind == GameEnums.TurnKind.TRANSITION:
 		_release_fixes(next)
+
+
+## 膠着したドリブル: 運んだ選手の固定を判定前に戻す（ボールは元のエリアに残るので、運んだ選手もそこへ戻る）。
+## 判定と判定時の配置（ターン記録の pair_at_judgement）は運んだ後の位置のまま。戻る動きを返す。
+## 判定前に固定されていなかった選手の次のターンの位置は、方式の動き（アルゴリズム2）で決まる。入力が判定前と同じなので
+## B に戻る（テストで確かめている）。方式の動きが判定の結果に依存するように変わったら、記録の移動先 B とずれうる。
+static func _stop_dribble(next: MatchState, state: MatchState, output: JudgeOutput) -> Array[Movement]:
+	var result: Array[Movement] = []
+	var holder: GameEnums.TeamSide = state.possession
+	for movement: Movement in output.movements:
+		if movement.reason != GameEnums.MovementReason.DRIBBLE:
+			continue
+		var before: PlayerState = _player_of(state.players_of(holder), movement.player_id)
+		var carrier: PlayerState = _player_of(next.players_of(holder), movement.player_id)
+		# 運んだ選手は保持側の選手なので通常は見つかる。見つからないのは状態が壊れているときで、何も戻さない
+		if before == null or carrier == null:
+			continue
+		carrier.fixed_area = null if before.fixed_area == null else before.fixed_area.duplicate_deep()
+		result.append(Movement.new(holder, movement.player_id, movement.to.duplicate_deep(), movement.from.duplicate_deep(),
+				GameEnums.MovementReason.DRIBBLE_STOPPED))
+	return result
+
+
+## 次のターンの開始時の配置で、ボールのエリアに保持側の選手がいなければ、いちばん近い選手を1人置いて固定する。
+## 近さはゾーン差＋レーン差で、同じなら配置の選手の順で先の選手（アルゴリズム2のマーカーの選び方と同じ）。
+## トランジションは起点の配置も同じく変える。置いた動きを返す（置かなければ空）。
+static func _place_holder(next: MatchState) -> Array[Movement]:
+	var result: Array[Movement] = []
+	var holders: TeamLayout = StyleLayoutCalculator.turn_start(next).pair.attacker
+	if holders.count_at(next.ball_area) > 0:
+		return result
+	var nearest: PlayerState = null
+	var nearest_distance: int = 0
+	for player: PlayerState in holders.players:
+		var distance: int = holders.current_area_of(player.player_id).distance_to(next.ball_area)
+		if nearest == null or distance < nearest_distance:
+			nearest = player
+			nearest_distance = distance
+	if nearest == null:
+		return result
+	_player_of(next.players_of(next.possession), nearest.player_id).fixed_area = next.ball_area.duplicate_deep()
+	if next.turn_kind == GameEnums.TurnKind.TRANSITION:
+		next.transition_origin.attacker = next.transition_origin.attacker.with_fixed(nearest.player_id, next.ball_area)
+	result.append(Movement.new(next.possession, nearest.player_id,
+			holders.current_area_of(nearest.player_id).duplicate_deep(), next.ball_area.duplicate_deep(),
+			GameEnums.MovementReason.BALL_HOLDER))
+	return result
+
+
+static func _player_of(players: Array[PlayerState], player_id: String) -> PlayerState:
+	for player: PlayerState in players:
+		if player.player_id == player_id:
+			return player
+	return null
 
 
 ## 判定時の配置の選手（基本エリア・固定先）を、保持側・相手の枠に写す。

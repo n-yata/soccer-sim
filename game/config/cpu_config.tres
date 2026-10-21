@@ -4,5 +4,6 @@
 
 [resource]
 script = ExtResource("1")
-temperature = 1.0
-floor_probability = 0.1
+temperature = 0.5
+floor_probability = 0.05
+style_bonus = 1.0
