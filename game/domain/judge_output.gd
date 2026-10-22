@@ -1,5 +1,5 @@
 ## 1ターンの判定の結果（component-design.md §2.4）。判定時の配置と、そこに至る選手の動きをいっしょに返す
-## （作戦ボードの矢印・3D 演出・振り返りに使う）。
+## （作戦ボードの矢印・振り返りに使う）。
 class_name JudgeOutput
 extends RefCounted
 

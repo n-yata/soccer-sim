@@ -74,7 +74,8 @@ func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() 
 	await get_tree().process_frame
 	var panel: MatchBoardPanel = screen.board_panel()
 	var board: TacticsBoard = panel.board()
-	assert_float(board.size.y).is_greater_equal(TacticsBoard.MIN_CELL.y * PitchArea.LANE_COUNT)
+	assert_float(board.size.y).is_greater_equal(TacticsBoard.MIN_CELL.y * PitchArea.ZONE_COUNT)
+	assert_float(board.size.x).is_greater_equal(TacticsBoard.MIN_CELL.x * PitchArea.LANE_COUNT)
 	assert_float(board.cell_size().x).is_greater_equal(TacticsBoard.MIN_CELL.x)
 	assert_float(board.cell_size().y).is_greater_equal(TacticsBoard.MIN_CELL.y)
 	# 盤面はパネルの中に収まり、パネルは画面の外周の余白（24px）の内側に収まる

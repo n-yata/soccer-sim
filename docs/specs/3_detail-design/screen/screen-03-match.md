@@ -56,13 +56,7 @@ MatchScreen (Control)
 │       │       │   ├── ButtonSummary (Label) # 「ショートパス → 中盤・中央」／「次のターンへ」
 │       │       │   └── ButtonAction (Label)  # 「LOCK IN」／「NEXT」
 │       │       └── SideBottomSlot (VBoxContainer) # 画面ごとに足すボタンの置き場。S-03 では空、S-08 は「次へ」
-│       └── ReplayLayer (Control)             # 開示中だけ表示。BoardPanel 全体（本体と操作の列）を覆う
-│           ├── ReplayView (SubViewportContainer)  # stretch = true
-│           │   └── ReplayViewport (SubViewport)
-│           │       └── ReplayStage           # replay3d/replay_stage.tscn
-│           ├── ReplayBadge (Label)           # 「REPLAY」。左上
-│           ├── ReplayProgress (ProgressBar)  # 再生の進み具合。下端
-│           └── SkipButton (Button)           # 「スキップ ▶▶」。右下
+│       （3D 演出の ReplayLayer は 2026-10-23 にやめた。開示は TacticsBoard の上で駒とボールを動かす）
 ├── MatchMenu                                 # common/match_menu.tscn。閉じているときは非表示
 ├── SettingsOverlay (PanelContainer)          # メニューの「設定」で重ねて開く
 │   └── SettingsPanel                         # common/settings_panel.tscn
@@ -71,12 +65,11 @@ MatchScreen (Control)
 
 - **画面の向き**: 横向きだけ（要件定義書 §6.1）。端末の横の長さの違い（16:9〜21:9）は、操作の列の幅（上限 640px）と
   `BoardArea` の幅で吸収する（横に長い端末ほどピッチが横に伸びる。高さは 576px で一定。screen-common.md §1.1）
-- **3D 演出の表示場所**: `ReplayLayer` は `BoardPanel` 全体を覆う。演出中は `TacticsBoard` と操作の列を隠さず
-  `ReplayLayer` を上に出す（演出を打ち切ったときにすぐ盤面に戻れるように）。3D のカメラはメインスタンドから見下ろし、
-  利用者の攻撃方向が右になる位置に置く（`component-design.md` §5.4）
+- **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から次のターン開始時の位置へ駒とボールを動かして見せる。
+  盤面は縦向きのピッチを斜めから見せ、利用者の攻撃方向は上（2026-10-23 に、3D 演出の表示場所 `ReplayLayer` から置き換えた）
 - **盤面と操作の列の部品**: `BoardPanel`（`MatchBoardPanel`）の中身は S-08 と共用する。画面ごとの違いは
   `SideTopSlot`・`SideBottomSlot` に置く（[`screen-08-tutorial.md`](./screen-08-tutorial.md)）
-- **処理の持ち主**: 下の「画面の状態」と、「ターンを始める」〜「演出の終了」・「次へ」の 1. は `MatchBoardPanel` のスクリプトが持つ（`turn_resolved` をつなぐのもパネル）。`MatchScreen` は上部バー・メニュー・画面遷移を持ち、`state_changed` を受けて進行段階が `TURN` のままなら `BoardPanel.start_turn()` を呼び、`turn_ready_to_leave` を受けて `continue_after_reveal()` を呼ぶ（「次へ」の 2.）。上部バー（`PhaseTag`・`RevealBanner`・スコア）は `MatchScreen` の部品なので、パネルが出す `turn_started(snapshot)`（「ターンを始める」の 3.）・`reveal_started(reveal)`（「開示」の 1.）・`result_shown(snapshot)`（「演出の終了」の 3.）を受けて `MatchScreen` が描き直す。下の手順の中の上部バーの操作は、この受け渡しのことを指す
+- **処理の持ち主**: 下の「画面の状態」と、「ターンを始める」〜「開示」・「次へ」の 1. は `MatchBoardPanel` のスクリプトが持つ（`turn_resolved` をつなぐのもパネル）。`MatchScreen` は上部バー・メニュー・画面遷移を持ち、`state_changed` を受けて進行段階が `TURN` のままなら `BoardPanel.start_turn()` を呼び、`turn_ready_to_leave` を受けて `continue_after_reveal()` を呼ぶ（「次へ」の 2.）。上部バー（`PhaseTag`・`RevealBanner`・スコア）は `MatchScreen` の部品なので、パネルが出す `turn_started(snapshot)`（「ターンを始める」の 3.）・`reveal_started(reveal)`（「開示」の 1.）・`result_shown(snapshot)`（「開示」の 4.）を受けて `MatchScreen` が描き直す。下の手順の中の上部バーの操作は、この受け渡しのことを指す
 - **見た目**: 色・書体は `screen-common.md` §2・§3、方向性は `screen-design.md`「ビジュアルの方向性」。
   `TacticsBoard` の描き方（駒の並べ方・札・矢印の線種）は `screen-common.md` §5 の `TacticsBoard` の項
 
@@ -90,12 +83,11 @@ MatchScreen (Control)
 | `SELECT_TARGET` | 運ぶ先を持つ手を選び、エリアを選んでいない | ＋選べるエリアの点線の枠・ヒントの札（ON のとき）・プレス／カバーの選べる条件の一言 | 手のボタン（選び直し）、選べるエリア、メニュー |
 | `READY` | 手（と必要なエリア）を選び終えた | ＋選んだエリアの塗り・ボールから運ぶ先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・決定ボタンの要約 | 手のボタン、選べるエリア、「決定」、メニュー |
 | `SUBMITTING` | 「決定」を押し、結果を待っている | そのまま | なし（二重送信を防ぐ） |
-| `REPLAYING` | 開示して 3D 演出を再生している | 両者の選択の帯・3D 演出（`REPLAY`・進み具合）・「スキップ」 | 「スキップ」 |
-| `SHOW_RESULT` | 判定理由を表示している | 両者の選択の帯・ボード（動きの矢印・比較エリアの人数の札）・判定理由のテロップ | 「次へ」、メニュー |
+| `SHOW_RESULT` | 判定理由を表示している | 両者の選択の帯・ボード（駒とボールの動き・動きの矢印・比較エリアの人数の札）・判定理由のテロップ | 「次へ」、メニュー |
 | `LEAVING` | 「次へ」の後、画面の切り替えを待っている | そのまま | なし |
 
 **状態遷移図**: [`screen-03-match-states.drawio`](./screen-03-match-states.drawio)。上の表の状態の間の遷移と、
-そのきっかけ（手の選択・「決定」・`turn_resolved`・演出の終了・「次へ」・`state_changed`）を示す。
+そのきっかけ（手の選択・「決定」・`turn_resolved`・「次へ」・`state_changed`）を示す。3D 演出の状態 `REPLAYING` は 2026-10-23 にやめた（`turn_resolved` で `SUBMITTING` から `SHOW_RESULT` へ進む）。
 `submit_turn` が `false` のときだけ、`SUBMITTING` から `SELECT_ACTION` へ戻る（例外の経路。破線）。
 
 - 「運ぶ先を持つ手」は、`MoveOptions` でその手の運ぶ先の一覧が1件以上あり、かつ手の種類が運ぶ先を伴うもの
@@ -114,7 +106,7 @@ MatchScreen (Control)
 | `_selected_family` / `_selected_action` | `GameEnums.ChoiceFamily` / `int` | 選んだ手 |
 | `_selected_target` | `String` | 選んだエリアのキー（`"M-C"` など）。未選択・不要なら空文字 |
 | `_reveal` | `RevealView` | 直前の開示の値（`SHOW_RESULT` で使う） |
-| `_snapshot` | `BoardSnapshot` | `turn_resolved` で受けた判定後の盤面（演出の終了後に描く） |
+| `_snapshot` | `BoardSnapshot` | `turn_resolved` で受けた判定後の盤面（次のターン開始時の配置） |
 
 ターンが始まるたび（`SELECT_ACTION` に入るたび）に、`_selected_*` と `_hints` を空に戻す（前のターンの選択を
 持ち越さない）。
@@ -172,26 +164,18 @@ MatchScreen (Control)
 
 1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「あなた: …／CPU: …」を出す（手とエリアの名前は `screen-design.md` の
    要約と同じ形）
-2. 上部バーのスコアはまだ描き直さない（得点の結果を演出より先に見せないため。演出の終了の 3. で描き直す）
-3. `ChoicePanel`・`TargetInfo` を隠し、`ReplayLayer` を出し、`ReplayStage.play(reveal, match_controller.replay_max_sec())`
-4. `_state = REPLAYING`
-
-> **2026-10-22 時点の実装**: 3D 演出はまだ無いので、開示を受けたらすぐ判定理由を出す（`SHOW_RESULT`）。そのとき、
-> `TacticsBoard.show_snapshot(snapshot)` の後に `start_shift(reveal.user_players_before, reveal.opponent_players_before, reveal.ball_before,
-> match_controller.board_shift_sec())` で、判定前の配置から次のターン開始時の配置へ全選手の駒とボールを動かす（方式でずれた選手も
-> 動き、チーム全体がボールに合わせて動くことが見える）。テロップ・矢印はすぐ出し、「次へ」も押せる。方式の選び直し・
-> ハーフタイムの後と試合の最初は「ターンを始める」だけを通るので動かさない。3D 演出を足すときに、この動きとの関係を見直す。
-
-### 演出の終了（`ReplayStage.finished(was_cut)`）・「スキップ」
-
-1. 「スキップ」を押したら `ReplayStage.skip()`（すぐに `finished(false)` が届く）
-2. `finished` を受けたら `ReplayLayer` を隠す。デバッグ版では `was_cut` と再生時間をログに出す
-   （NFR-02 の記録に使う）
-3. 上部バーのスコアを `_snapshot` で描き直し、`TacticsBoard.show_snapshot(_snapshot)`（判定後の盤面）と `show_movements(reveal.movements)` で矢印を描き、
-   `show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で比較エリアを光らせて人数の札（`1対0`）を出す
-4. `JudgeTelop` に結果（`OutcomeTag`。例 `ADVANCE 前進`）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
+2. `ChoicePanel`・`TargetInfo` を隠す
+3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift(reveal.user_players_before,
+   reveal.opponent_players_before, reveal.ball_before, match_controller.board_shift_sec())` で、判定前の配置から次のターン開始時の
+   配置へ全選手の駒とボールを動かす（方式でずれた選手も動き、チーム全体がボールに合わせて動くことが見える）。
+   `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
+   比較エリアを光らせて人数の札（`1対0`）を出す
+4. 上部バーのスコアを `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `ADVANCE 前進`）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
    空でなければ、該当する単純化の「実戦では」を `RealWorldNote` に出す（複数なら先頭の1件）
 5. `PrimaryButton` を「次のターンへ／NEXT」にする。`_state = SHOW_RESULT`
+
+> 動いている間も、テロップ・矢印はすぐ出し、「次へ」も押せる（待たせない）。方式の選び直し・ハーフタイムの後と試合の最初は
+> 「ターンを始める」だけを通るので動かさない。2026-10-23 に、3D 演出（`REPLAYING`・`ReplayStage`・「スキップ」・演出の終了）から置き換えた。
 
 ### 「次へ」を押す
 
@@ -216,7 +200,6 @@ MatchScreen (Control)
 | 状態 | 動き |
 |---|---|
 | メニュー・設定・確認ダイアログを開いている | いちばん上のものを閉じる |
-| `REPLAYING` | 「スキップ」と同じ |
 | `SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` | メニューを開く |
 | `SUBMITTING`・`LEAVING` | 何もしない |
 
@@ -237,5 +220,4 @@ MatchScreen (Control)
 |---|---|
 | 中断データの保存に失敗（ターンの確定時など） | 本画面では何も出さない。`MainShell` の通知で出る（文言は `functional-overview.md`「エラーハンドリング」）。試合は続ける |
 | `submit_turn` が `false` | 通知は出さず、手の選択からやり直す |
-| 3D 演出が上限に達した | 打ち切って判定理由へ進む。利用者への表示はしない |
 | 選べる手が1つもない | 起きない（トランジションの手・守備の手は常に1つ以上選べる。`functional-overview.md` アルゴリズム3）。起きた場合は開発時の誤りとして `assert` で止める |

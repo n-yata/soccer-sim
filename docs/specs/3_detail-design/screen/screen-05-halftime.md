@@ -29,7 +29,7 @@ HalftimeScreen (Control)
 │   │       ├── OpponentSetupLabel (Label)  # 「◆ CPU 4-4-2／マンツーマン／カウンター型」（前半）
 │   │       ├── MatchupTitle (Label)        # 「前半の噛み合わせ（基本配置）」／選び直し中は「後半の噛み合わせ（予測）」
 │   │       └── MatchupRow (HBoxContainer)
-│   │           ├── MatchupPitch            # MiniPitch（両チームの人数 `自分−相手` と優劣記号。3列×5行）
+│   │           ├── MatchupPitch            # MiniPitch（両チームの人数 `自分−相手` と優劣記号。5列×3行、上が敵陣）
 │   │           └── MatchupNotes            # NotesView（陣形と方式の噛み合わせの解説）
 │   └── SideColumn (VBoxContainer)          # 操作の列（screen-common.md §1.1 の3段）
 │       ├── SideScroll (ScrollContainer)    # 入りきらないときだけ縦にスクロール

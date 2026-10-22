@@ -45,26 +45,51 @@ func _click(key: String, release_key: String = "") -> void:
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
-	press.position = _board.area_rect(key).get_center()
+	press.position = _board.screen_center(key)
 	_board._gui_input(press)
 	var release := InputEventMouseButton.new()
 	release.button_index = MOUSE_BUTTON_LEFT
 	release.pressed = false
-	release.position = _board.area_rect(key if release_key.is_empty() else release_key).get_center()
+	release.position = _board.screen_center(key if release_key.is_empty() else release_key)
 	_board._gui_input(release)
 
 
-func test_areas_are_laid_out_with_the_user_attacking_to_the_right() -> void:
-	# 列は左から自陣・中盤・敵陣、行は上から左大外〜右大外
-	var cell := Vector2(BOARD_SIZE.x / 3.0, BOARD_SIZE.y / 5.0)
-	assert_vector(_board.area_rect("D-L2").position).is_equal_approx(Vector2.ZERO, Vector2(0.01, 0.01))
-	assert_vector(_board.area_rect("A-R2").end).is_equal_approx(BOARD_SIZE, Vector2(0.01, 0.01))
-	assert_vector(_board.area_rect("M-C").position).is_equal_approx(Vector2(cell.x, cell.y * 2), Vector2(0.01, 0.01))
+func test_areas_are_laid_out_with_the_user_attacking_upward() -> void:
+	# 平面図: 列は左から左大外〜右大外、行は上から敵陣・中盤・自陣
+	var cell := Vector2(BOARD_SIZE.x / 5.0, BOARD_SIZE.y / 3.0)
+	assert_vector(_board.area_rect("A-L2").position).is_equal_approx(Vector2.ZERO, Vector2(0.01, 0.01))
+	assert_vector(_board.area_rect("D-R2").end).is_equal_approx(BOARD_SIZE, Vector2(0.01, 0.01))
+	assert_vector(_board.area_rect("M-C").position).is_equal_approx(Vector2(cell.x * 2, cell.y), Vector2(0.01, 0.01))
+	# 画面でも、敵陣は自陣より上、左大外は右大外より左
+	assert_float(_board.screen_center("A-C").y).is_less(_board.screen_center("M-C").y)
+	assert_float(_board.screen_center("M-C").y).is_less(_board.screen_center("D-C").y)
+	assert_float(_board.screen_center("M-L2").x).is_less(_board.screen_center("M-R2").x)
+
+
+func test_pressing_the_middle_of_an_area_on_screen_selects_that_area() -> void:
 	for area: PitchArea in PitchArea.all():
 		var key: String = area.to_key()
-		assert_str(_board.area_at(_board.area_rect(key).get_center())).is_equal(key)
-	assert_str(_board.area_at(Vector2(-1, 10))).is_empty()
+		assert_str(_board.area_at(_board.screen_center(key))).override_failure_message(key).is_equal(key)
+		assert_str(_board.plan_area_at(_board.area_rect(key).get_center())).override_failure_message(key).is_equal(key)
+	# ピッチの外（奥の行の左外・上の余白・盤面の外）は空
+	var far_left: Vector2 = BoardProjection.to_screen(Vector2(0, 0), BOARD_SIZE)
+	assert_str(_board.area_at(far_left + Vector2(-10, 5))).is_empty()
+	assert_str(_board.area_at(Vector2(BOARD_SIZE.x / 2.0, 2.0))).is_empty()
 	assert_str(_board.area_at(BOARD_SIZE + Vector2(1, 1))).is_empty()
+
+
+func test_far_row_areas_are_large_enough_to_press_down_to_the_minimum_size() -> void:
+	# NFR-19: 押せる範囲は 48dp（96px）以上。いちばん奥の行（敵陣）が、画面でいちばん小さい
+	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)]:
+		_board.size = board_size
+		for lane: int in GameEnums.Lane.values():
+			var rect: Rect2 = _board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.A).to_key())
+			var top_left: Vector2 = BoardProjection.to_screen(rect.position, board_size)
+			var top_right: Vector2 = BoardProjection.to_screen(Vector2(rect.end.x, rect.position.y), board_size)
+			var bottom_left: Vector2 = BoardProjection.to_screen(Vector2(rect.position.x, rect.end.y), board_size)
+			var label: String = "%s lane %d" % [board_size, lane]
+			assert_float(top_right.x - top_left.x).override_failure_message(label).is_greater_equal(96.0)
+			assert_float(bottom_left.y - top_left.y).override_failure_message(label).is_greater_equal(96.0)
 
 
 func test_pieces_match_the_snapshot_when_the_user_attacks() -> void:
@@ -98,8 +123,9 @@ func _assert_pieces(snapshot: BoardSnapshot) -> void:
 
 
 func test_pieces_stay_inside_their_area_down_to_the_minimum_cell_size() -> void:
-	# 1チームの上限（4つ。超えたら3つと「+N」）まで、駒の外周がエリアの自分の側の半分に収まる（隣のエリアへはみ出すと人数を読み違える）
-	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.ZONE_COUNT, PitchArea.LANE_COUNT)]:
+	# 1チームの上限（4つ。超えたら3つと「+N」）まで、2列×2段の駒の外周がエリアの自分の側の半分に収まる
+	# （自分は左半分・相手は右半分。隣のエリアへはみ出すと人数を読み違える）
+	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)]:
 		_board.size = board_size
 		var rect: Rect2 = _board.area_rect("M-C")
 		var radius: float = _board.piece_radius()
@@ -112,10 +138,15 @@ func test_pieces_stay_inside_their_area_down_to_the_minimum_cell_size() -> void:
 			assert_float(user_center.x + radius).override_failure_message(label).is_less(rect.get_center().x)
 			assert_float(opponent_center.x + radius).override_failure_message(label).is_less_equal(rect.end.x)
 			assert_float(opponent_center.x - radius).override_failure_message(label).is_greater(rect.get_center().x)
-			if index > 0:
-				# 隣の駒と重ならない
-				var previous: Vector2 = _board.piece_center("M-C", true, index - 1)
-				assert_float(previous.x - user_center.x).override_failure_message(label).is_greater_equal(radius * 2.0)
+			assert_bool(rect.has_point(user_center)).override_failure_message(label).is_true()
+			assert_bool(rect.has_point(opponent_center)).override_failure_message(label).is_true()
+		# 同じ段の2つは横に重ならず、段は奥（0・1）が手前（2・3）より上
+		var first: Vector2 = _board.piece_center("M-C", true, 0)
+		var second: Vector2 = _board.piece_center("M-C", true, 1)
+		var third: Vector2 = _board.piece_center("M-C", true, 2)
+		assert_float(absf(first.x - second.x)).override_failure_message(str(board_size)).is_greater_equal(radius * 2.0)
+		assert_float(first.y).is_equal_approx(second.y, 0.001)
+		assert_float(first.y).override_failure_message(str(board_size)).is_less(third.y)
 
 
 func test_only_dribble_press_and_cover_are_drawn() -> void:
@@ -341,7 +372,7 @@ func test_shift_ends_by_itself_after_the_duration() -> void:
 ## 実装の式を写さず、エリア・横の中央・上半分で確かめる）
 func _assert_ball_in(point: Vector2, key: String) -> void:
 	var rect: Rect2 = _board.area_rect(key)
-	assert_str(_board.area_at(point)).override_failure_message(key).is_equal(key)
+	assert_str(_board.plan_area_at(point)).override_failure_message(key).is_equal(key)
 	assert_float(point.x).override_failure_message(key).is_equal_approx(rect.get_center().x, 0.001)
 	assert_float(point.y).override_failure_message(key).is_less(rect.get_center().y)
 
@@ -406,3 +437,70 @@ func test_the_ball_is_drawn_where_it_now_is_after_the_shift_stops() -> void:
 	_ball_board("A-C", "M-C", {"p1": "D-C"})
 	_board.show_snapshot(BoardSnapshot.new())
 	assert_dict(_board.shift_ball_path()).is_empty()
+
+
+# --- 立っているもの（駒・プレビューの駒・ボール・「+N」）を描く順 ---
+
+func test_standing_things_are_drawn_from_the_far_side_to_the_near_side() -> void:
+	# 奥（敵陣）の駒が先、手前（自陣）の駒が後。手前の駒が奥の駒に重なって描かれる
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"near": "D-C", "far": "A-C", "mid": "M-L2"})
+	snapshot.opponent_players = _players_of({"o_far": "A-R2"})
+	snapshot.ball_area = "M-C"
+	_board.show_snapshot(snapshot)
+	_board.show_preview([_move("mid", "M-L2", "D-L2", GameEnums.MovementReason.PRESS)])
+	var order: Array[Dictionary] = _board.standing_order()
+	# 駒 4（自分3・相手1）＋プレビューの駒 1＋ボール 1
+	assert_int(order.size()).is_equal(6)
+	for index: int in range(1, order.size()):
+		assert_float((order[index - 1]["plan"] as Vector2).y).override_failure_message(str(index)) \
+				.is_less_equal((order[index]["plan"] as Vector2).y)
+	assert_array(["A-C", "A-R2"]).contains([_board.plan_area_at(order[0]["plan"] as Vector2)])
+	assert_array(["D-C", "D-L2"]).contains([_board.plan_area_at(order[order.size() - 1]["plan"] as Vector2)])
+	var kinds: Array[String] = []
+	var previews: int = 0
+	for thing: Dictionary in order:
+		kinds.append(thing["kind"] as String)
+		if thing.get("is_preview", false):
+			previews += 1
+	assert_int(kinds.count("ball")).is_equal(1)
+	assert_int(previews).is_equal(1)
+
+
+func test_standing_things_in_a_crowded_area_end_with_the_overflow_tag() -> void:
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "D-C", "p2": "D-C", "p3": "D-C", "p4": "D-C", "p5": "D-C"})
+	_board.show_snapshot(snapshot)
+	var pieces: int = 0
+	var tags: Array[String] = []
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece":
+			pieces += 1
+		elif thing["kind"] == "tag":
+			tags.append(thing["text"] as String)
+	assert_int(pieces).is_equal(TacticsBoard.MAX_PIECES - 1)
+	assert_array(tags).is_equal(["+2"])
+
+
+func test_points_far_outside_the_pitch_select_nothing() -> void:
+	# 押した後に盤面の外で離すと、離した点が届く。上の余白のすぐ上・ずっと上（逆の写し方の判別式が負）・
+	# 手前の行の台形の外（左下の角の外）は、どれもエリアにならない
+	assert_str(_board.area_at(Vector2(BOARD_SIZE.x / 2.0, -10.0))).is_empty()
+	assert_str(_board.area_at(Vector2(BOARD_SIZE.x / 2.0, -BOARD_SIZE.y))).is_empty()
+	assert_str(_board.area_at(Vector2(-5.0, BOARD_SIZE.y - 2.0))).is_empty()
+
+
+func test_standing_things_follow_the_shift_while_pieces_are_moving() -> void:
+	# 開示で駒が動いている間は、駒を道筋の途中に置いて、奥から手前の順に並べる
+	_shift_board(1.0)
+	assert_bool(_board.is_shifting_pieces()).is_true()
+	var order: Array[Dictionary] = _board.standing_order()
+	var plans: Array[Vector2] = []
+	for thing: Dictionary in order:
+		if thing["kind"] == "piece":
+			plans.append(thing["plan"] as Vector2)
+	# 動いている p2 は、道筋の途中（始めの時点では移動元）に置かれる
+	assert_array(plans).contains([_path_of("p2")["from"] as Vector2])
+	assert_int(plans.size()).is_equal(5)
+	for index: int in range(1, order.size()):
+		assert_float((order[index - 1]["plan"] as Vector2).y).is_less_equal((order[index]["plan"] as Vector2).y)

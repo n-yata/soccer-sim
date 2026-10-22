@@ -2,12 +2,12 @@
 ## 左に作戦ボード、右に操作の列（両チームの陣形・方式、手のボタン、運ぶ先の説明、判定理由、主ボタン）。
 ## 手の選択から判定理由の表示までの状態と、MatchController の turn_resolved の受信はこの部品が持つ。
 ##
+## turn_resolved を受けたら、すぐ判定理由の表示へ進み、盤面の上で駒とボールを動かす（3D 演出は 2026-10-23 にやめた）。
 ## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）:
-## - 3D 演出（状態 REPLAYING・ReplayLayer）。turn_resolved を受けたら、すぐ判定理由の表示へ進む
 ## - ヒントの ON/OFF（設定がまだ無いため常に ON）・「実戦では」・チュートリアル用の set_options_filter など
 ## 子のノードはコードで組む（部品を差し替えやすく、テストで名前を引けるよう、ノード名は screen-03-match.md に合わせる）。
 ## ファイルの目安（300行）を超えている分は、ノードを組むコード（_build_*）。手の選択から判定理由までの流れは1つの
-## 状態機械なので分けない。3D 演出（REPLAYING）を足すときに、組む部分を .tscn へ移すかを見直す。
+## 状態機械なので分けない。部品が増えたときに、組む部分を .tscn へ移すかを見直す。
 class_name MatchBoardPanel
 extends Control
 
@@ -248,7 +248,7 @@ func _hints_for(family: GameEnums.ChoiceFamily, action: int) -> Array[ChoiceHint
 
 # --- 開示と判定理由 ---
 
-## 開示（screen-03-match.md「開示」「演出の終了」）。3D 演出は無いので、そのまま判定理由の表示へ進む。
+## 開示（screen-03-match.md「開示」）。判定理由をすぐ出し、盤面の上で駒とボールを動かす。
 func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	if _state != State.SUBMITTING:
 		return

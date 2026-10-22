@@ -1,5 +1,5 @@
 ## MatchBoardPanel（試合画面の盤面と手の選択。screen-03-match.md の状態と手順）のテスト。
-## 本物の MatchController（固定シード・本物の CpuOpponent）につなぐ。3D 演出は今回の範囲外なので、開示の後すぐ判定理由を出す。
+## 本物の MatchController（固定シード・本物の CpuOpponent）につなぐ。開示の後すぐ判定理由を出す（駒とボールは盤面の上で動く。3D 演出は 2026-10-23 にやめた）。
 extends GdUnitTestSuite
 
 const State := MatchBoardPanel.State
@@ -350,8 +350,8 @@ func test_the_reveal_shifts_every_player_whose_area_changed_and_the_next_turn_st
 	# この場面（守備でプレス）ではボールの位置が変わる（空振りしない）
 	assert_str(reveal.ball_before).is_not_equal(snapshot.ball_area)
 	var ball_path: Dictionary = _panel.board().shift_ball_path()
-	assert_str(_panel.board().area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
-	assert_str(_panel.board().area_at(ball_path["to"] as Vector2)).is_equal(snapshot.ball_area)
+	assert_str(_panel.board().plan_area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
+	assert_str(_panel.board().plan_area_at(ball_path["to"] as Vector2)).is_equal(snapshot.ball_area)
 	_panel.primary_button().pressed.emit()
 	_controller.continue_after_reveal()
 	_panel.start_turn()

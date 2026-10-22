@@ -82,7 +82,7 @@ TutorialScreen (Control)
 
 ### 手を決定する（`OPERATE`）
 
-S-03 の「決定」〜「演出の終了」と同じ（`MatchBoardPanel` が `_controller.submit_turn()`、演出、判定理由を受け持つ）。パネルから `turn_ready_to_leave` が届いたら `_can_next = true`。チュートリアルでは `continue_after_reveal()` を呼ばない（次の段階は `start_tutorial_step()` で作り直す）。
+S-03 の「決定」〜「開示」と同じ（`MatchBoardPanel` が `_controller.submit_turn()`、開示の動き、判定理由を受け持つ）。パネルから `turn_ready_to_leave` が届いたら `_can_next = true`。チュートリアルでは `continue_after_reveal()` を呼ばない（次の段階は `start_tutorial_step()` で作り直す）。
 
 ### 「次へ」・「完了」を押す
 
@@ -94,7 +94,7 @@ S-03 の「決定」〜「演出の終了」と同じ（`MatchBoardPanel` が `_
 
 1. `ConfirmDialog.ask("チュートリアルをやめますか？（最初からやり直せます）", "やめる", "続ける")`
 2. 了承なら `_controller` を捨てて `App.request_screen(S01_TITLE)`。完了フラグは変えない
-3. 演出中の Android の戻る操作は「スキップ」と同じ。確認ダイアログが開いていれば閉じる。いずれも `true` を返す
+3. 確認ダイアログが開いていれば、Android の戻る操作で閉じる。いずれも `true` を返す（3D 演出の「スキップ」は 2026-10-23 にやめた）
 
 ### 画面遷移
 

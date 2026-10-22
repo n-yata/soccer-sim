@@ -218,7 +218,7 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction,
   呼び出し側が `StyleLayoutCalculator.remark` で行う
 
 `LayoutStep`（`layout_step.gd`）は `pair: LayoutPair` と `movements: Array[Movement]` の組で、配置の
-変化とその理由（矢印の表示・3D 演出・振り返りに使う）をいっしょに返す。
+変化とその理由（矢印の表示・開示の動き・振り返りに使う）をいっしょに返す。
 
 ### 2.4 ターン判定（`judge/`。アルゴリズム3・5・6）
 
@@ -441,7 +441,7 @@ enum SuspendedStatus { NONE, RESUMABLE, FINALIZE_PENDING }
 enum StartupResult { NONE, RESUMABLE, FINALIZED, FINALIZE_FAILED, CORRUPTED }
 
 signal state_changed(snapshot: BoardSnapshot)   # 盤面・スコア・相手の方式が変わった。ターンの途中（submit_turn の中）では出さず、continue_after_reveal()・方式の選び直し・ハーフタイムの確定の後に出す（試合画面は、これを受けて次のターンを始める）
-signal turn_resolved(reveal: RevealView, snapshot: BoardSnapshot)  # 開示（演出と判定理由の表示に使う）
+signal turn_resolved(reveal: RevealView, snapshot: BoardSnapshot)  # 開示（駒とボールの動きと判定理由の表示に使う）
 signal stage_changed(stage: GameEnums.MatchStage)
 
 ## is_tutorial が真のときは store・user_data に null を渡し、保存・画面遷移の要求・終了処理を行わない
@@ -470,13 +470,12 @@ func user_hints() -> Array[ChoiceHint]           # 利用者の視点。設定�
 func user_preview(user_choice: TurnChoice) -> Array[Movement]
 ## 選択不可の手なら false を返し、状態を変えない（push_error で記録する）
 func submit_turn(user_choice: TurnChoice) -> bool
-## 開示（演出と判定理由）を利用者が確認した後に呼ぶ。進行段階に応じて次の画面を App に要求する
+## 開示（駒とボールの動きと判定理由）を利用者が確認した後に呼ぶ。進行段階に応じて次の画面を App に要求する
 func continue_after_reveal() -> void
 func submit_style_change(user_styles: TeamStyles) -> void
 func submit_halftime(user_setup: TeamSetup) -> void
 func opponent_setup() -> TeamSetup               # 開示済みの相手の陣形・方式（FR-16・21）
 func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）。試合の開始前は、suspended_status() が RESUMABLE のときに中断データの状態を返す（タイトルの再開カード用）
-func replay_max_sec() -> float                   # 3D 演出の上限（PresentationConfig）
 func board_shift_sec() -> float                  # 開示で駒を動かす時間（PresentationConfig。2026-10-22）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
@@ -521,7 +520,7 @@ func start_tutorial_step(step: TutorialStepDef) -> void
 
 | 確定事項の時点 | 呼ぶメソッド |
 |---|---|
-| ① ターンの確定時 | `submit_turn`（`MatchRules.resolve_turn` の直後。演出の再生より前） |
+| ① ターンの確定時 | `submit_turn`（`MatchRules.resolve_turn` の直後。開示より前） |
 | ② 試合の作成時 | `start_match` |
 | ③ 進行段階が変わる時 | `submit_turn`（`STYLE_CHANGE`・`HALFTIME` に入る場合は①と同じ1回の保存で兼ねる）、`submit_style_change`、`submit_halftime` |
 | ④ メニューから中断する時（直前の保存に失敗していた場合だけ） | `suspend_to_title` |
@@ -621,7 +620,7 @@ func mark_tutorial_completed() -> bool
 
 | フィールド | 内容 |
 |---|---|
-| `user_players` / `opponent_players` | 選手ごとの現在の位置（各要素は `player_id`・`number`（背番号）・`area`（利用者の視点のエリアのキー））。現在の配置（`MatchRules.current_layouts`）から `MatchController` が作る。駒の表示に使う（2D 作戦ボードは番号を描かない。背番号は 3D 演出用） |
+| `user_players` / `opponent_players` | 選手ごとの現在の位置（各要素は `player_id`・`number`（背番号）・`area`（利用者の視点のエリアのキー））。現在の配置（`MatchRules.current_layouts`）から `MatchController` が作る。駒の表示に使う（作戦ボードは番号を描かない。背番号は、3D 演出（2026-10-23 にやめた）の表示用に持っていたもの） |
 | `user_counts` / `opponent_counts` | 15エリアの人数（`PitchArea` のキー → 人数）。`user_players` / `opponent_players` をエリアごとに数えた値と一致する |
 | `ball_area` | ボール位置 |
 | `user_has_ball` | 利用者がボールを持っているか |
@@ -634,7 +633,7 @@ func mark_tutorial_completed() -> bool
 試合の作戦ボードは優劣記号を描かず、エリアの中の駒の数で優劣を示す（2026-10-22。`functional-overview.md`「表示仕様」）。
 ミニピッチの優劣記号（`▲`・`＝`・`▼`）は人数の比較だけで決まるので、UI が人数から描く。
 
-`RevealView`（`reveal_view.gd`）は、1ターンの開示（両者の選択・3D 演出・判定理由）と振り返りの各ターンに使う値。
+`RevealView`（`reveal_view.gd`）は、1ターンの開示（両者の選択・開示の動き・判定理由）と振り返りの各ターンに使う値。
 `MatchController` が `TurnRecord` から作る。
 
 | フィールド | 内容 |
@@ -644,7 +643,7 @@ func mark_tutorial_completed() -> bool
 | `outcome` | ターン結果（`TurnOutcome`） |
 | `compare_area` / `user_count` / `opponent_count` / `cover` | 判定の内訳（`NO_CONTEST` では空） |
 | `ball_before` / `ball_after` | 判定前後のボール位置 |
-| `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。各要素は `BoardSnapshot.user_players` と同じ形（`player_id`・`number`・`area`。利用者の視点）。3D 演出の並び方と、振り返りのミニピッチ（判定時の人数はエリアごとに数えるだけ）に使う |
+| `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。各要素は `BoardSnapshot.user_players` と同じ形（`player_id`・`number`・`area`。利用者の視点）。開示の動き（判定前の位置）と、振り返りのミニピッチ（判定時の人数はエリアごとに数えるだけ）に使う |
 | `movements` | 選手の動き（方式の動き → 守備の手 → 攻撃の手の順） |
 | `simplification_ids` | 判定に関わる単純化 ID（「実戦では」の表示に使う） |
 
@@ -684,7 +683,7 @@ func validation_errors() -> Array[String]
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus |
-| `PresentationConfig` | `presentation_config.tres` | 3D 演出の長さの上限（秒）・振り返りで遡るターン数・開示で駒を動かす時間（秒） |
+| `PresentationConfig` | `presentation_config.tres` | 開示で駒を動かす時間（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
 ```gdscript
@@ -694,7 +693,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus は0以上（いずれも有限の値）、演出の上限は0より大きく5以下、駒を動かす時間は0より大きく2以下、遡るターン数は
+値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus は0以上（いずれも有限の値）、駒を動かす時間は0より大きく2以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -703,7 +702,7 @@ func presentation() -> PresentationConfig
 > 内側にあることを肯定形で確かめ、`is_finite` で NaN・無限大を拒否する。同梱の `.tres` が範囲内であることはテストで確かめる
 >
 > 2026-10-22 に `presentation()` を足した。`PresentationConfig` は、いまは駒を動かす時間（`board_shift_sec`）だけを持つ。
-> 3D 演出の上限と振り返りで遡るターン数は、それぞれの作業で足す（いま使わない値を先に置かない）。
+> 振り返りで遡るターン数は、その作業で足す（いま使わない値を先に置かない）。3D 演出の上限は、3D 演出をやめたので持たない（2026-10-23）。
 
 ### 4.3 端末内保存
 
@@ -806,7 +805,7 @@ ISO 8601（タイムゾーンなし）で書く。
 
 ## 5. UI 層（`game/ui/`）
 
-**責務**: 画面の表示・入力・2D 作戦ボード・3D 演出（`architecture-overview.md`「UI 層」）。`App` の
+**責務**: 画面の表示・入力・作戦ボード（開示の動きを含む。`architecture-overview.md`「UI 層」）。`App` の
 サービスを呼び、シグナルを受けて描き直す。データ層には触らない。
 
 ### 5.1 画面の切り替え（`MainShell`）
@@ -871,18 +870,18 @@ func route_back() -> bool
 
 | `class_name` | 役割 |
 |---|---|
-| `TacticsBoard` | 15エリアの盤面。`BoardSnapshot` を受けて描く。ピッチを横に置き、利用者の攻撃方向を画面の右にする |
+| `TacticsBoard` | 15エリアの盤面。`BoardSnapshot` を受けて描く。ピッチを縦に置いて斜めから見せ（半3D）、利用者の攻撃方向を画面の上にする（2026-10-23 に横向き・右から変えた） |
 | `AreaCell` | 1エリア。両チームの人数（駒）・ボール・選択可否・ヒントを表示し、タップ／クリックを受ける |
 | `MoveArrowLayer` | `movements` を移動元から移動先への矢印で描く。理由（`MovementReason`）ごとに線種を変える |
 | `ChoicePanel` | 局面に応じた手のボタン。`MoveOptions` で選べない手を選択不可にする |
-| `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号） |
-| `MatchBoardPanel` | 試合画面の盤面と手の選択の部分（左の `TacticsBoard`、右の操作の列の `ChoicePanel`・判定理由、両方を覆う 3D 演出の表示場所）。試合画面とチュートリアルで共用する |
+| `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号）。作戦ボードと同じ向き（上が敵陣・左が左大外）で、遠近は付けない |
+| `MatchBoardPanel` | 試合画面の盤面と手の選択の部分（左の `TacticsBoard`、右の操作の列の `ChoicePanel`・判定理由）。試合画面とチュートリアルで共用する |
 
 > **2026-10-19 時点**: `AreaCell`・`MoveArrowLayer` は別のノードにせず、`TacticsBoard` の描画（`_draw`）と入力（`gui_input`）に
 > まとめた。エリアの位置の計算（`area_rect`・`area_at`）を描画・入力・テストで共有するため。押す操作の判定（押したエリアの中で
-> 離したときだけ選ぶ）は `screen-common.md` §4.1 のとおり。`MatchBoardPanel` は 3D 演出をまだ持たず、開示を受けたらすぐ判定理由を出す。
+> 離したときだけ選ぶ）は `screen-common.md` §4.1 のとおり。`MatchBoardPanel` は、開示を受けたらすぐ判定理由を出す（3D 演出は 2026-10-23 にやめた）。
 > 2D 作戦ボードの部品と S-03〜S-06 の子のノードは、`.tscn` を置かずコードで組んでいる（ノード名は詳細設計に合わせる）。
-> 3D 演出を足すときに `.tscn` へ移すかを見直す。
+> 盤面の部品が増えたときに `.tscn` へ移すかを見直す。
 >
 > **2026-10-22**: 盤面の情報を絞った（シンプル案）。角の優劣記号・駒の番号・方式の動きの矢印・凡例を描かない。
 > ヒントの札は選べるエリアにだけ描き、±0 の札（`set_hints(hints, even_keys)` の `even_keys`）は控えめな色にする。
@@ -901,30 +900,19 @@ func route_back() -> bool
 > **2026-10-23**: ボールも駒と一緒に、判定前のエリア（`RevealView.ball_before`）から動かす。あわせて `TacticsBoard` を分けた。
 > 描画は `BoardPainter`（`board_painter.gd`。ボードの公開の問い合わせだけを読んで描く）、開示の動きの状態（駒とボールの
 > 道筋・進み具合）は `BoardShift` に置き、ボードは外から渡す値と状態・位置の計算・問い合わせ・入力・Tween を持つ。
+>
+> **2026-10-23（縦向きの盤面）**: ピッチを縦に置き、斜めから見た半3Dで描く（利用者は上へ攻める。上が敵陣、左が左大外）。
+> 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
+> `BoardProjection`（`board_projection.gd`）の写し方（平面図 ⇔ 画面。奥 = 上を狭く・縦を詰める）を通す。
+> 駒はチェスのような立体の駒（自分は丸い頭、相手はとがった頭）で、1チーム 2列×2段に並べ、奥から手前の順に描く
+> （`standing_order()`。描画とテストで共有）。押せる範囲は、画面でいちばん小さい奥の行でも 48dp 以上（`MIN_CELL`）。
 
-### 5.4 3D 演出（`replay3d/`）
+### 5.4 3D 演出（廃止）
 
-```gdscript
-class_name ReplayStage extends Node3D
-signal finished(was_cut: bool)   # was_cut: 上限に達して打ち切ったか（NFR-02 の記録に使う）
-## 開示の値から演出を組み立てて再生する。max_sec は MatchController.replay_max_sec()
-func play(reveal: RevealView, max_sec: float) -> void
-func skip() -> void
-
-class_name ReplayLayoutMapper extends RefCounted
-## エリアの人数から、エリア内の立ち位置（3D 座標）を決める。人数ごとに決まった並べ方を使う
-static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
-```
-
-- 演出の入力は `RevealView`（ターン記録を利用者の視点に変換したもの）だけにする。`ReplayStage` はドメインの
-  判定モジュールを呼ばない（`architecture-overview.md`「3D 演出の原則」）
-- カメラはメインスタンドから見下ろす位置に置き、利用者の攻撃方向が画面の右になるようにする（2D 作戦ボードと同じ向き）
-- 選手は簡易形状（カプセル＋チーム色＋背番号）で、移動は `Tween` で補間する。骨格のアニメーションは使わない
-  （3D 素材の方針の正本は `architecture-overview.md`「テクノロジースタック」）
-- 演出の流れ: ①判定前の配置（`players_before`）で並ぶ → ②`movements` の順（方式の動き → 守備の手 → 攻撃の手）で選手が動く →
-  ③ボールが比較エリアへ動き、結果（前進・ロスト・得点など）を見せる。各段の長さは、合計が上限の8割に収まるように
-  組み立てる（暫定値を上限に張り付けない。kit の `coding-gdscript.md`）
-- 上限に達したら打ち切って `finished(true)` を出す。`skip()` でも即座に `finished(false)` を出す
+> **2026-10-23 にやめた**（FR-24 の置き換え）。ターン結果は、作戦ボードの上で駒とボールを動かして見せる
+> （§5.3 の `TacticsBoard.start_shift`）。`ReplayStage`・`ReplayLayoutMapper`・`replay3d/`・`MatchController.replay_max_sec()` は作らない。
+> 3D 演出の決めごと（判定モジュールを呼ばない・エリアの人数と見た目を一致させる）は、開示の動きの原則として
+> `architecture-overview.md`「UI 層」に引き継いだ。
 
 ### 5.5 共通部品（`common/`）
 
@@ -972,7 +960,7 @@ static func slot_positions(area: PitchArea, count: int) -> Array[Vector3]
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`ReplayStage`・`ReplayLayoutMapper`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`StylePicker`・`MatchScreenLayout` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`StylePicker`・`MatchScreenLayout` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。

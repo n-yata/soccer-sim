@@ -21,7 +21,7 @@
 >
 > | 層 | 参加者 |
 > |---|---|
-> | UI 層 | `MainShell`・各画面（`TitleScreen` など）・`ReplayStage` |
+> | UI 層 | `MainShell`・各画面（`TitleScreen` など）・`TacticsBoard` |
 > | アプリケーション層 | `App`・`MatchController`・`OpponentPolicy`・`LibraryService`・`UserDataService` |
 > | ドメイン層 | `MatchRules`・`MoveRules`・`MoveHints`・`ReviewAggregator` など |
 > | データ層 | `SuspendedMatchStore`・`RecordStore`・`QuizAnswerStore`・`SettingsStore` |
@@ -64,10 +64,10 @@
 4. CPU の手は利用者が確定した後に求めるが、`choose_turn` は利用者の手を受け取らない（FR-11）
 5. `resolve_turn` は配置の算出・守備の手・攻撃の手・判定・局面の遷移・得点・ハーフの終了までを1回で行い、
    次の状態とターン記録を返す
-6. **演出の前に保存する**（保存の時点①）。演出中に強制終了しても、再開時は演出を再生せず次の手の選択から始まる
+6. **開示の前に保存する**（保存の時点①）。開示中に強制終了しても、再開時は開示を出さず次の手の選択から始まる
    （確定事項「再開先」）
-7. 開示は `RevealView`（ターン記録を利用者の視点に変換したもの）で行う。演出の上限は `replay_max_sec()` から得る
-   （UI は調整値を直接読まない）。上限に達したら打ち切る（FR-24）
+7. 開示は `RevealView`（ターン記録を利用者の視点に変換したもの）で行う。駒とボールを動かす時間は `board_shift_sec()` から得る
+   （UI は調整値を直接読まない。FR-24。2026-10-23 に 3D 演出の上限から置き換えた）
 8. 画面の切り替えは、利用者が判定理由を確認して「次へ」を押し、`continue_after_reveal()` が呼ばれてから行う。
    保存はすでに済んでいるので、ここで強制終了しても再開先は保存された進行段階の画面になる
 

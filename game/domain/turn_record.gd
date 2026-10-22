@@ -1,4 +1,4 @@
-## ターン記録（component-design.md §2.2。ER図「ターン記録」）。振り返り（FR-18）と 3D 演出（FR-24）の入力。
+## ターン記録（component-design.md §2.2。ER図「ターン記録」）。振り返り（FR-18）と開示の動き（FR-24）の入力。
 ## 座標は判定時の攻撃側（トランジションでは奪取側）の視点。選手の配置と動きは、各チーム自身の視点（§1.2）。
 class_name TurnRecord
 extends RefCounted

@@ -1,8 +1,12 @@
 ## 作戦ボード（screen-common.md §5 の TacticsBoard）。15エリアの盤面を描き、エリアを押す操作を受ける。
-## ピッチを横に置き、利用者の攻撃方向は常に右（列は左から D・M・A、行は上から L2〜R2）。受け取るエリアは
+## ピッチを縦に置いて斜めから見せ、利用者の攻撃方向は常に上（列は左から L2〜R2、行は上から A・M・D）。受け取るエリアは
 ## すべて利用者の視点のキー（BoardSnapshot・RevealView の値）で、ボードはエリアを変換しない。
+## 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
+## BoardProjection の写し方を通す（2026-10-23）。
 ## このクラスは、外から渡す値と状態・位置の計算・表示している値の問い合わせ・入力・開示の動きの Tween を持つ。
-## 描画は BoardPainter、開示の動きの状態は BoardShift に分けた（2026-10-23。ファイルの目安 300 行を超えていたため）。
+## 描画は BoardPainter、開示の動きの状態は BoardShift、遠近の写し方は BoardProjection に分けた（2026-10-23）。
+## それでもファイルの目安 300 行を超えている。残りは平面図での位置の計算（エリア・駒の 2列×2段・ボール）と、描画とテストが
+## 読む公開の問い合わせ。次に増えるときは、平面図での位置の計算を BoardLayout のようなクラスへ分ける。
 ## 描画もテストも、同じ公開の問い合わせ（area_rect・pieces_in・drawn_movements など）を読むので、
 ## 「表示している値と描いている値が同じ」ことが保たれる。色はテーマの型 TacticsBoard。
 class_name TacticsBoard
@@ -12,11 +16,16 @@ extends Control
 signal area_pressed(area_key: String)
 
 const THEME_TYPE: StringName = &"TacticsBoard"
-## 1エリアの最小の大きさ（screen-common.md §1.1。押せる範囲 48dp 以上）
-const MIN_CELL: Vector2 = Vector2(192, 112)
-## 駒の直径と中心の間隔の上限。セルの幅が狭いときは、1チーム MAX_PIECES 個がエリアの半分に収まるよう縮める
+## 平面図での1エリアの最小の大きさ（screen-common.md §1.1）。画面でいちばん小さい奥の行でも、押せる範囲が 48dp（96px）
+## 以上になる値（幅 136 × 奥の縮み 0.72 ≒ 98px、高さ 140 の行は奥で約 0.73 倍 ≒ 98px）
+const MIN_CELL: Vector2 = Vector2(136, 140)
+## 駒の直径と、同じ段の2つの駒の中心の間隔の上限。1チームは 2列×2段。セルの幅が狭いときは、エリアの半分に収まるよう縮める
 const PIECE_DIAMETER: float = 26.0
-const PIECE_STEP: float = 28.0
+const PIECE_STEP: float = 36.0
+## 2段の駒の縦の位置（エリアの高さに対する割合。上側はボール、下端はヒントの札）
+const PIECE_ROW_RATES: Array[float] = [0.50, 0.72]
+## 1チームの駒の列の数（段の数とは別に持つ。列 × 段 が MAX_PIECES 以上であること）
+const PIECE_COLUMNS: int = 2
 ## エリアの中央から最初の駒までの余白（自分と相手の駒の列を分ける）と、エリアの端に残す余白
 const PIECE_CENTER_GAP: float = 6.0
 const PIECE_EDGE_MARGIN: float = 2.0
@@ -27,8 +36,8 @@ const DRAWN_REASONS: Array[GameEnums.MovementReason] = [
 	GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER, GameEnums.MovementReason.DRIBBLE,
 ]
 const HINT_HEIGHT: float = 26.0
-## ボールの中心のエリアの上端からの距離と半径（エリアの上側の中央。駒の列と札に重ならない位置）
-const BALL_TOP_OFFSET: float = 22.0
+## ボールの位置（エリアの上側の中央。エリアの高さに対する割合。駒の段と札に重ならない位置）と半径
+const BALL_TOP_RATE: float = 0.26
 const BALL_RADIUS: float = 11.0
 
 var _user_players: Array[Dictionary] = []
@@ -51,7 +60,8 @@ var _shift_tween: Tween
 
 
 func _init() -> void:
-	custom_minimum_size = MIN_CELL * Vector2(PitchArea.ZONE_COUNT, PitchArea.LANE_COUNT)
+	assert(PIECE_COLUMNS * PIECE_ROW_RATES.size() >= MAX_PIECES, "TacticsBoard: 駒の列 × 段が MAX_PIECES に足りない")
+	custom_minimum_size = MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	resized.connect(queue_redraw)
 
@@ -99,7 +109,7 @@ func show_movements(movements: Array[Movement]) -> void:
 	queue_redraw()
 
 
-## 決定前のプレビュー: 選んだ手で動く自分の選手（利用者の視点の Movement）。移動先の輪と点線の矢印を描く。
+## 決定前のプレビュー: 選んだ手で動く自分の選手（利用者の視点の Movement）。移動先の半透明の駒と点線の矢印を描く。
 ## 開示後の矢印（show_movements）と違い、理由で絞らない（その手で起きる自分の動きをすべて見せる）。
 func show_preview(movements: Array[Movement]) -> void:
 	_preview = movements.duplicate()
@@ -193,26 +203,43 @@ func _stop_shift() -> void:
 
 # --- 位置の計算 ---
 
+## 平面図での1エリアの大きさ（列 = レーン 5、行 = ゾーン 3）。
 func cell_size() -> Vector2:
-	return size / Vector2(PitchArea.ZONE_COUNT, PitchArea.LANE_COUNT)
+	return size / Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)
 
 
+## エリアの平面図の矩形。列は左から L2〜R2、行は上から A・M・D（利用者は上へ攻める）。
 func area_rect(key: String) -> Rect2:
 	var area: PitchArea = PitchArea.from_key(key)
 	if area == null:
 		return Rect2()
 	var cell: Vector2 = cell_size()
-	return Rect2(Vector2(area.zone * cell.x, area.lane * cell.y), cell)
+	return Rect2(Vector2(area.lane * cell.x, (PitchArea.ZONE_COUNT - 1 - area.zone) * cell.y), cell)
 
 
-## 位置のエリアのキー。盤面の外なら空文字。
+## 平面図の点 → 画面の点。
+func to_screen(plan: Vector2) -> Vector2:
+	return BoardProjection.to_screen(plan, size)
+
+
+## エリアの中央の画面の点（押す位置の目安。テストで使う）。
+func screen_center(key: String) -> Vector2:
+	return to_screen(area_rect(key).get_center())
+
+
+## 画面の点（押した位置）のエリアのキー。平面図へ戻して引く。ピッチの外なら空文字。
 func area_at(point: Vector2) -> String:
-	if not Rect2(Vector2.ZERO, size).has_point(point):
+	return plan_area_at(BoardProjection.to_plan(point, size))
+
+
+## 平面図の点のエリアのキー。ピッチの外なら空文字。
+func plan_area_at(plan: Vector2) -> String:
+	if not Rect2(Vector2.ZERO, size).has_point(plan):
 		return ""
 	var cell: Vector2 = cell_size()
-	var zone: int = clampi(floori(point.x / cell.x), 0, PitchArea.ZONE_COUNT - 1)
-	var lane: int = clampi(floori(point.y / cell.y), 0, PitchArea.LANE_COUNT - 1)
-	return PitchArea.new(lane as GameEnums.Lane, zone as GameEnums.Zone).to_key()
+	var lane: int = clampi(floori(plan.x / cell.x), 0, PitchArea.LANE_COUNT - 1)
+	var row: int = clampi(floori(plan.y / cell.y), 0, PitchArea.ZONE_COUNT - 1)
+	return PitchArea.new(lane as GameEnums.Lane, (PitchArea.ZONE_COUNT - 1 - row) as GameEnums.Zone).to_key()
 
 
 # --- 表示している値（テストと描画で使う） ---
@@ -243,10 +270,10 @@ func ball_center() -> Vector2:
 	return _shift.ball_position(_ball_point(_ball_area))
 
 
-## エリアのボールの位置。エリアの上側の中央（駒の列と札に重ならない位置）。
+## エリアのボールの位置（平面図）。エリアの上側の中央（駒の段と札に重ならない位置）。
 func _ball_point(key: String) -> Vector2:
 	var rect: Rect2 = area_rect(key)
-	return Vector2(rect.get_center().x, rect.position.y + BALL_TOP_OFFSET)
+	return Vector2(rect.get_center().x, rect.position.y + rect.size.y * BALL_TOP_RATE)
 
 
 ## is_user のチームの選手（BoardSnapshot.user_players と同じ形）。
@@ -270,29 +297,66 @@ func is_hint_even(key: String) -> bool:
 	return _even_hints.has(key)
 
 
-## 駒の中心の間隔（描画とテストで共有）。中央の余白から MAX_PIECES 個ぶんがエリアの半分に収まるよう、PIECE_STEP を上限に縮める。
+## 同じ段の駒の中心の間隔（描画とテストで共有）。中央の余白から2列ぶんがエリアの半分に収まるよう、PIECE_STEP を上限に縮める。
 func piece_step() -> float:
 	var half_width: float = cell_size().x / 2.0
-	return minf(PIECE_STEP, (half_width - PIECE_EDGE_MARGIN - PIECE_CENTER_GAP) / MAX_PIECES)
+	return minf(PIECE_STEP, (half_width - PIECE_EDGE_MARGIN - PIECE_CENTER_GAP) / PIECE_COLUMNS)
 
 
-## 駒の半径。隣の駒と重ならないよう、間隔に合わせて縮める。
+## 駒の半径（平面図での台座の大きさ）。同じ段の隣の駒と重ならないよう、間隔に合わせて縮める。
 func piece_radius() -> float:
 	return minf(PIECE_DIAMETER / 2.0, piece_step() / 2.0 - 1.0)
 
 
-## index 番目の駒（上限を超えたときの「+N」の札の位置を含む）の中心。自分は中央から左へ、相手は中央から右へ並べる。
+## index 番目の駒（上限を超えたときの「+N」の札の位置を含む）の平面図の中心。1チーム 2列×2段で、添字 0・1 が奥の段、
+## 2・3 が手前の段。自分はエリアの中央から左へ、相手は中央から右へ並べる。
 func piece_center(key: String, is_user: bool, index: int) -> Vector2:
 	var rect: Rect2 = area_rect(key)
 	var direction: float = -1.0 if is_user else 1.0
-	var offset: float = PIECE_CENTER_GAP + piece_step() * (index + 0.5)
-	return Vector2(rect.get_center().x + direction * offset, rect.get_center().y)
+	var offset: float = PIECE_CENTER_GAP + piece_step() * (index % PIECE_COLUMNS + 0.5)
+	var row_rate: float = PIECE_ROW_RATES[mini(floori(float(index) / PIECE_COLUMNS), PIECE_ROW_RATES.size() - 1)]
+	return Vector2(rect.get_center().x + direction * offset, rect.position.y + rect.size.y * row_rate)
 
 
 ## エリアの駒の列の slot 番目の中心。列に収まらない添字（1エリアに5人以上）は最後の位置（MAX_PIECES - 1）で止める。
 ## プレビューの輪・開示で動かす駒の道筋と描画で共有する（止め方を1か所で決める）。
 func slot_center(key: String, is_user: bool, slot: int) -> Vector2:
 	return piece_center(key, is_user, mini(slot, MAX_PIECES - 1))
+
+
+## 立っているもの（駒・プレビューの駒・ボール・「+N」の札）を、奥（平面図の上）から手前の順に並べたもの。描画とテストで
+## 共有する（手前の駒が奥の駒に重なって描かれる）。各要素は {"kind": "piece" | "tag" | "ball", "plan": Vector2（足元）, ...}。
+## 駒は "is_user"・"is_preview"、札は "text" を持つ。開示で動いている間は、駒を選手ごとに道筋の途中に置く。
+func standing_order() -> Array[Dictionary]:
+	var things: Array[Dictionary] = []
+	if is_shifting_pieces():
+		for is_user: bool in [true, false]:
+			var team: Array[Dictionary] = players(is_user)
+			var slots: Array[int] = BoardShift.slots(team)
+			for index: int in range(team.size()):
+				var rest: Vector2 = slot_center(team[index]["area"] as String, is_user, slots[index])
+				things.append({"kind": "piece", "is_user": is_user, "is_preview": false,
+						"plan": shifting_piece_center(team[index]["player_id"] as String, rest)})
+	else:
+		for area: PitchArea in PitchArea.all():
+			for is_user: bool in [true, false]:
+				_append_area_pieces(things, area.to_key(), is_user)
+	for index: int in range(_preview.size()):
+		things.append({"kind": "piece", "is_user": true, "is_preview": true, "plan": preview_center(index)})
+	if not _ball_area.is_empty():
+		things.append({"kind": "ball", "plan": ball_center()})
+	things.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a["plan"] as Vector2).y < (b["plan"] as Vector2).y)
+	return things
+
+
+## エリアの1チームの駒（上限を超えたら駒 (上限 - 1) つと「+N」の札）を things に足す。
+func _append_area_pieces(things: Array[Dictionary], key: String, is_user: bool) -> void:
+	var shown: int = visible_piece_count(key, is_user)
+	for index: int in range(shown):
+		things.append({"kind": "piece", "is_user": is_user, "is_preview": false, "plan": piece_center(key, is_user, index)})
+	var tag: String = overflow_tag(key, is_user)
+	if not tag.is_empty():
+		things.append({"kind": "tag", "text": tag, "plan": piece_center(key, is_user, shown)})
 
 
 ## 札を描くエリア（札があり、選べるエリア）。選べるエリアの順。
@@ -317,8 +381,8 @@ func preview_movements() -> Array[Movement]:
 	return _preview.duplicate()
 
 
-## index 番目のプレビューの移動先の輪の中心。移動先のエリアの自分の駒の列の続き（そのエリアの自分の駒の数 ＋
-## 同じエリアへの先の輪の数）に置く。1エリアに5人以上が集まるのはまれなので、最後の位置（MAX_PIECES - 1）で止める。
+## index 番目のプレビューの移動先の半透明の駒の中心。移動先のエリアの自分の駒の並びの続き（そのエリアの自分の駒の数 ＋
+## 同じエリアへの先のプレビューの駒の数）に置く。1エリアに5人以上が集まるのはまれなので、最後の位置（MAX_PIECES - 1）で止める。
 func preview_center(index: int) -> Vector2:
 	var key: String = _preview[index].to.to_key()
 	var slot: int = (pieces_in(key)["user"] as Array).size()
@@ -329,7 +393,7 @@ func preview_center(index: int) -> Vector2:
 
 
 ## index 番目のプレビューの矢印の始点。動く選手の駒（移動元のエリアの自分の駒の列で、盤面の選手の順の位置）の中心。
-## 駒は番号を描かないが、矢印がどの ● から出るかが分かるよう、駒の上から引く。見つからなければエリアの中央。
+## 駒は番号を描かないが、矢印がどの駒から出るかが分かるよう、駒の足元から引く。見つからなければエリアの中央。
 func preview_origin(index: int) -> Vector2:
 	var key: String = _preview[index].from.to_key()
 	var slot: int = 0

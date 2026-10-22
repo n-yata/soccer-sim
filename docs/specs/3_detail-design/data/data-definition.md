@@ -141,7 +141,7 @@
 | `formations[].players[].id` | `string` | ○ | 全陣形で一意 | 例 `4-4-2-lb` |
 | `formations[].players[].type` | `string` | ○ | `GK`・`DF`・`MF`・`FW` | ポジション種別 |
 | `formations[].players[].label` | `string` | ○ | 1〜4文字 | 例 `LB` |
-| `formations[].players[].number` | `int` | ○ | 1〜99。陣形の中で一意 | 背番号（3D 演出の表示用。2D 作戦ボードの駒には描かない。移植元には無いので本プロダクトで付ける） |
+| `formations[].players[].number` | `int` | ○ | 1〜99。陣形の中で一意 | 背番号（作戦ボードの駒には描かない。3D 演出の表示用に持っていたが、3D 演出は 2026-10-23 にやめた。移植元には無いので本プロダクトで付ける） |
 | `formations[].players[].x` / `.y` | `float` | ○ | 0〜100 | 座標（y が大きいほど相手ゴール側） |
 
 検証: 4陣形の基本配置（アルゴリズム1）が `functional-overview.md` の表と一致すること（NFR-14 の判定例と同じテストで確かめる）。

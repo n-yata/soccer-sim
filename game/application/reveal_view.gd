@@ -1,4 +1,4 @@
-## 1ターンの開示（両者の選択・3D 演出・判定理由）と振り返りの各ターンに渡す値（component-design.md §3.5）。
+## 1ターンの開示（両者の選択・開示の動き・判定理由）と振り返りの各ターンに渡す値（component-design.md §3.5）。
 ## 利用者の視点に揃えてある（§1.2）。ViewConverter.reveal が TurnRecord から作る。
 class_name RevealView
 extends RefCounted

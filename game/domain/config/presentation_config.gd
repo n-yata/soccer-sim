@@ -1,6 +1,6 @@
 ## 表示の調整値（component-design.md §4.2）。値の正本は functional-overview.md「設定値として外部化する値」。
-## .tres の読み込みはデータ層（ConfigRepository）が行う。3D 演出の上限・振り返りで遡るターン数は、それぞれの作業で足す
-## （いま使わない値を先に置かない）。
+## .tres の読み込みはデータ層（ConfigRepository）が行う。振り返りで遡るターン数は、その作業で足す
+## （いま使わない値を先に置かない）。3D 演出の上限は、3D 演出をやめたので持たない（2026-10-23）。
 class_name PresentationConfig
 extends Resource
 

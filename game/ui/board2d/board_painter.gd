@@ -1,27 +1,25 @@
 ## 作戦ボードの描画（screen-common.md §5 の TacticsBoard の描き方）。ボードの _draw から呼ぶ。
-## 値はボードの公開の問い合わせ（pieces_in・drawn_movements・preview_center など）だけから読む。テストも同じ問い合わせを
+## 縦向きのピッチを斜めから見せる（奥 = 上が敵陣）。位置はボードの平面図の座標で受け取り、board.to_screen で画面に写して描く。
+## 値はボードの公開の問い合わせ（area_rect・standing_order・drawn_movements など）だけから読む。テストも同じ問い合わせを
 ## 通るので、「表示している値と描いている値が同じ」ことが保たれる。色・字の大きさはテーマの型 TacticsBoard。
 class_name BoardPainter
 extends RefCounted
 
+## 駒を描く大きさ（平面図の台座の半径に対する倍率）。立てて描くので、平面図の大きさより少し大きく見せる
+const PIECE_DRAW_RATE: float = 1.25
+
 
 static func paint(board: TacticsBoard) -> void:
-	_draw_pitch(board)
+	_draw_ground(board)
 	for area: PitchArea in PitchArea.all():
 		_draw_area_fill(board, area.to_key())
-	_draw_zone_lines(board)
+	_draw_lines(board)
 	_draw_lane_names(board)
-	if board.is_shifting_pieces():
-		_draw_shifting_pieces(board)
-	else:
-		for area: PitchArea in PitchArea.all():
-			_draw_pieces(board, area.to_key(), true)
-			_draw_pieces(board, area.to_key(), false)
-	_draw_ball(board)
 	_draw_movements(board)
-	_draw_preview(board)
 	_draw_intent(board)
-	# 札は矢印の上に描く（選んだ手の矢印が、通り道のエリアの札の字を隠さないように）
+	_draw_preview_paths(board)
+	_draw_standing_things(board)
+	# 札は駒と矢印の上に描く（通り道のエリアの札の字を隠さないように）
 	for key: String in board.drawn_hint_keys():
 		_draw_hint(board, key)
 	_draw_compare(board)
@@ -35,138 +33,181 @@ static func _font_size(board: TacticsBoard, name: StringName) -> int:
 	return board.get_theme_font_size(name, TacticsBoard.THEME_TYPE)
 
 
-static func _draw_pitch(board: TacticsBoard) -> void:
+## 平面図の矩形の四隅を写した四角形（奥が狭い台形）。
+static func _quad(board: TacticsBoard, plan: Rect2) -> PackedVector2Array:
+	return PackedVector2Array([board.to_screen(plan.position), board.to_screen(Vector2(plan.end.x, plan.position.y)),
+			board.to_screen(plan.end), board.to_screen(Vector2(plan.position.x, plan.end.y))])
+
+
+static func _outline(board: TacticsBoard, plan: Rect2, color: Color, width: float) -> void:
+	var quad: PackedVector2Array = _quad(board, plan)
+	quad.append(quad[0])
+	board.draw_polyline(quad, color, width)
+
+
+## 地面: 盤面の地・ピッチ・芝目（横の帯）・ハーフスペースの列。
+static func _draw_ground(board: TacticsBoard) -> void:
 	var size: Vector2 = board.size
-	var whole := Rect2(Vector2.ZERO, size)
-	board.draw_rect(whole, _color(board, &"pitch"))
-	var cell: Vector2 = board.cell_size()
-	# 芝目（縦の帯）とハーフスペースのレーン
+	board.draw_rect(Rect2(Vector2.ZERO, size), _color(board, &"bg"))
+	board.draw_colored_polygon(_quad(board, Rect2(Vector2.ZERO, size)), _color(board, &"pitch"))
 	var stripes: int = PitchArea.ZONE_COUNT * 2
 	for index: int in range(stripes):
 		if index % 2 == 1:
-			board.draw_rect(Rect2(Vector2(size.x * index / stripes, 0), Vector2(size.x / stripes, size.y)), _color(board, &"pitch_stripe"))
-	for lane: int in [GameEnums.Lane.L1, GameEnums.Lane.R1]:
-		board.draw_rect(Rect2(Vector2(0, lane * cell.y), Vector2(size.x, cell.y)), _color(board, &"pitch_halfspace"))
-	# 白線: 外枠・ハーフウェイライン・センターサークル・ペナルティエリア・ゴール
-	var line: Color = _color(board, &"pitch_line")
-	board.draw_rect(whole, line, false, 3.0)
-	board.draw_line(Vector2(size.x / 2.0, 0), Vector2(size.x / 2.0, size.y), line, 2.0)
-	board.draw_arc(size / 2.0, size.y * 0.13, 0.0, TAU, 48, line, 2.0)
-	var box := Vector2(size.x * 0.13, size.y * 0.56)
-	board.draw_rect(Rect2(Vector2(0, (size.y - box.y) / 2.0), box), line, false, 2.0)
-	board.draw_rect(Rect2(Vector2(size.x - box.x, (size.y - box.y) / 2.0), box), line, false, 2.0)
-	var goal := Vector2(8, size.y * 0.16)
-	board.draw_rect(Rect2(Vector2(0, (size.y - goal.y) / 2.0), goal), line)
-	board.draw_rect(Rect2(Vector2(size.x - goal.x, (size.y - goal.y) / 2.0), goal), line)
-
-
-static func _draw_zone_lines(board: TacticsBoard) -> void:
-	var color: Color = _color(board, &"zone_line")
+			board.draw_colored_polygon(_quad(board, Rect2(Vector2(0, size.y * index / stripes), Vector2(size.x, size.y / stripes))),
+					_color(board, &"pitch_stripe"))
 	var cell: Vector2 = board.cell_size()
-	for zone_index: int in range(1, PitchArea.ZONE_COUNT):
-		board.draw_dashed_line(Vector2(zone_index * cell.x, 0), Vector2(zone_index * cell.x, board.size.y), color, 1.0, 6.0)
-	for lane_index: int in range(1, PitchArea.LANE_COUNT):
-		board.draw_dashed_line(Vector2(0, lane_index * cell.y), Vector2(board.size.x, lane_index * cell.y), color, 1.0, 6.0)
+	for lane: int in [GameEnums.Lane.L1, GameEnums.Lane.R1]:
+		board.draw_colored_polygon(_quad(board, Rect2(Vector2(lane * cell.x, 0), Vector2(cell.x, size.y))), _color(board, &"pitch_halfspace"))
 
 
 ## ボールのあるエリアの薄い塗り・選んだエリアの塗り・選べるエリアの点線の枠。
 static func _draw_area_fill(board: TacticsBoard, key: String) -> void:
-	var rect: Rect2 = board.area_rect(key).grow(-3.0)
+	var quad: PackedVector2Array = _quad(board, board.area_rect(key).grow(-3.0))
 	if key == board.ball_area():
-		board.draw_rect(rect, _color(board, &"ball_area_fill"))
+		board.draw_colored_polygon(quad, _color(board, &"ball_area_fill"))
 	if key == board.selected_area():
-		board.draw_rect(rect, _color(board, &"selected_fill"))
+		board.draw_colored_polygon(quad, _color(board, &"selected_fill"))
 	if board.selectable_areas().has(key):
 		var accent: Color = _color(board, &"accent")
-		var corners: Array[Vector2] = [rect.position, Vector2(rect.end.x, rect.position.y), rect.end,
-				Vector2(rect.position.x, rect.end.y)]
 		for index: int in range(4):
-			board.draw_dashed_line(corners[index], corners[(index + 1) % 4], accent, 3.0, 10.0)
+			board.draw_dashed_line(quad[index], quad[(index + 1) % 4], accent, 3.0, 10.0)
 
 
-## 駒は番号を付けず、エリアの縦の中央に1列で並べる。自分の ● は中央から左へ、相手の ◆ は中央から右へ。
-## 上限を超えたら、駒を (上限 - 1) つと「+N」の札にする。
-static func _draw_pieces(board: TacticsBoard, key: String, is_user: bool) -> void:
-	var count: int = (board.pieces_in(key)["user" if is_user else "opponent"] as Array).size()
-	if count == 0:
-		return
-	var radius: float = board.piece_radius()
-	var color: Color = _color(board, &"you" if is_user else &"opponent")
-	var shown: int = board.visible_piece_count(key, is_user)
-	for index: int in range(shown + (1 if shown < count else 0)):
-		var center: Vector2 = board.piece_center(key, is_user, index)
-		if index >= shown:
-			_draw_centered_text(board, center, board.overflow_tag(key, is_user), _font_size(board, &"tag_size"), _color(board, &"text"))
-			continue
-		_draw_piece(board, center, radius, color, is_user)
+## 白線（外枠・ハーフウェイライン・センターサークル・上下のペナルティエリアとゴール）と、エリアの点線。
+static func _draw_lines(board: TacticsBoard) -> void:
+	var size: Vector2 = board.size
+	var line: Color = _color(board, &"pitch_line")
+	_outline(board, Rect2(Vector2.ZERO, size), line, 3.0)
+	board.draw_line(board.to_screen(Vector2(0, size.y / 2.0)), board.to_screen(Vector2(size.x, size.y / 2.0)), line, 2.0)
+	var circle: PackedVector2Array = []
+	for step: int in range(49):
+		var angle: float = TAU * step / 48.0
+		circle.append(board.to_screen(size / 2.0 + Vector2(cos(angle), sin(angle)) * size.x * 0.09))
+	board.draw_polyline(circle, line, 2.0)
+	var box := Vector2(size.x * 0.56, size.y * 0.13)
+	_outline(board, Rect2(Vector2((size.x - box.x) / 2.0, 0), box), line, 2.0)
+	_outline(board, Rect2(Vector2((size.x - box.x) / 2.0, size.y - box.y), box), line, 2.0)
+	var goal := Vector2(size.x * 0.16, 8.0)
+	board.draw_colored_polygon(_quad(board, Rect2(Vector2((size.x - goal.x) / 2.0, 0), goal)), line)
+	board.draw_colored_polygon(_quad(board, Rect2(Vector2((size.x - goal.x) / 2.0, size.y - goal.y), goal)), line)
+	var zone: Color = _color(board, &"zone_line")
+	var cell: Vector2 = board.cell_size()
+	for lane_index: int in range(1, PitchArea.LANE_COUNT):
+		board.draw_dashed_line(board.to_screen(Vector2(lane_index * cell.x, 0)), board.to_screen(Vector2(lane_index * cell.x, size.y)),
+				zone, 1.0, 6.0)
+	for row_index: int in range(1, PitchArea.ZONE_COUNT):
+		board.draw_dashed_line(board.to_screen(Vector2(0, row_index * cell.y)), board.to_screen(Vector2(size.x, row_index * cell.y)),
+				zone, 1.0, 6.0)
 
 
-static func _draw_piece(board: TacticsBoard, center: Vector2, radius: float, color: Color, is_user: bool) -> void:
-	if is_user:
-		board.draw_circle(center, radius, color)
-	else:
-		var points := PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0),
-				center + Vector2(0, radius), center + Vector2(-radius, 0)])
-		board.draw_colored_polygon(points, color)
-
-
-## 動いている間は、駒を選手ごとに描く。動く選手は道筋の途中、動かない選手は駒の列の位置（「+N」の札は出さない。
-## 動き終えると、いつもの描き方に戻る）。
-static func _draw_shifting_pieces(board: TacticsBoard) -> void:
-	var radius: float = board.piece_radius()
-	for is_user: bool in [true, false]:
-		var players: Array[Dictionary] = board.players(is_user)
-		var slots: Array[int] = BoardShift.slots(players)
-		var color: Color = _color(board, &"you" if is_user else &"opponent")
-		for index: int in range(players.size()):
-			var rest: Vector2 = board.slot_center(players[index]["area"] as String, is_user, slots[index])
-			_draw_piece(board, board.shifting_piece_center(players[index]["player_id"] as String, rest), radius, color, is_user)
-
-
-## ヒントの札をエリアの下端の中央に。差がある札は accent、±0 の札は控えめな色。
-static func _draw_hint(board: TacticsBoard, key: String) -> void:
-	var rect: Rect2 = board.area_rect(key)
-	var font: Font = board.get_theme_default_font()
-	var hint: String = board.hint_of(key)
-	var tag_size: int = _font_size(board, &"hint_size")
-	var width: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 14.0
-	var height: float = TacticsBoard.HINT_HEIGHT
-	var tag_box := Rect2(Vector2(rect.get_center().x - width / 2.0, rect.end.y - height - 8.0), Vector2(width, height))
-	var is_even: bool = board.is_hint_even(key)
-	board.draw_rect(tag_box, _color(board, &"tag_muted_bg") if is_even else _color(board, &"accent"))
-	_draw_centered_text(board, tag_box.get_center(), hint, tag_size, _color(board, &"text") if is_even else _color(board, &"bg"))
-
-
-## レーン名を各レーンの自陣のエリアの左上に、小さく薄く。
+## レーン名を、自陣（手前の行）の各エリアの左上に。
 static func _draw_lane_names(board: TacticsBoard) -> void:
 	var font: Font = board.get_theme_default_font()
 	var font_size: int = _font_size(board, &"lane_size")
 	var color: Color = _color(board, &"lane_text")
 	for lane: int in GameEnums.Lane.values():
 		var rect: Rect2 = board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D).to_key())
-		var baseline := Vector2(rect.position.x + 8.0, rect.position.y + 6.0 + font.get_ascent(font_size))
-		board.draw_string(font, baseline, MatchTexts.lane_name(lane as GameEnums.Lane), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+		var at: Vector2 = board.to_screen(rect.position + Vector2(10.0, 8.0))
+		board.draw_string(font, at + Vector2(0, font.get_ascent(font_size)), MatchTexts.lane_name(lane as GameEnums.Lane),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 
-## ボールはエリアの上側の中央（駒の列と札に重ならない位置）。
-static func _draw_ball(board: TacticsBoard) -> void:
-	if board.ball_area().is_empty():
-		return
-	var center: Vector2 = board.ball_center()
-	board.draw_circle(center, TacticsBoard.BALL_RADIUS, _color(board, &"ball"))
-	board.draw_arc(center, TacticsBoard.BALL_RADIUS, 0.0, TAU, 24, _color(board, &"bg"), 2.0)
+## 立っているもの（駒・プレビューの駒・ボール・「+N」の札）を、奥から手前の順に（ボードの standing_order の順）。
+static func _draw_standing_things(board: TacticsBoard) -> void:
+	var radius: float = board.piece_radius() * PIECE_DRAW_RATE
+	for thing: Dictionary in board.standing_order():
+		var foot: Vector2 = board.to_screen(thing["plan"] as Vector2)
+		var scale: float = BoardProjection.scale_at(foot.y, board.size)
+		match thing["kind"]:
+			"piece":
+				_draw_chess_piece(board, foot, radius * scale, thing["is_user"] as bool, 0.38 if thing["is_preview"] else 1.0)
+			"ball":
+				_draw_lifted_ball(board, foot, scale)
+			"tag":
+				_draw_overflow_tag(board, foot + Vector2(0, -radius * scale), thing["text"] as String)
+
+
+## チェスの駒: 影 → 台座 → 胴 → 首の輪 → 頭。自分はポーン（丸い頭）、相手はビショップ風（とがった頭）。
+## 色だけでなく頭の形で区別する（NFR-20 のグレースケールでも判別できる）。alpha はプレビューの半透明に使う。
+static func _draw_chess_piece(board: TacticsBoard, foot: Vector2, r: float, is_user: bool, alpha: float) -> void:
+	var base: Color = _color(board, &"you" if is_user else &"opponent")
+	base.a = alpha
+	var dark: Color = base.darkened(0.35)
+	var light: Color = base.lightened(0.35)
+	_ellipse(board, foot + Vector2(r * 0.25, r * 0.12), r * 1.15, r * 0.42, Color(0, 0, 0, 0.35 * alpha))
+	_ellipse(board, foot, r, r * 0.36, dark)
+	board.draw_rect(Rect2(foot + Vector2(-r, -r * 0.30), Vector2(r * 2.0, r * 0.30)), dark)
+	_ellipse(board, foot + Vector2(0, -r * 0.30), r, r * 0.36, base)
+	var neck_y: float = -r * 1.75
+	board.draw_colored_polygon(PackedVector2Array([foot + Vector2(-r * 0.70, -r * 0.30), foot + Vector2(r * 0.70, -r * 0.30),
+			foot + Vector2(r * 0.30, neck_y), foot + Vector2(-r * 0.30, neck_y)]), base)
+	board.draw_line(foot + Vector2(-r * 0.45, -r * 0.45), foot + Vector2(-r * 0.20, neck_y + r * 0.1), light, maxf(1.5, r * 0.12))
+	_ellipse(board, foot + Vector2(0, neck_y), r * 0.55, r * 0.18, dark)
+	var head: Vector2 = foot + Vector2(0, neck_y - r * 0.55)
+	if is_user:
+		board.draw_circle(head, r * 0.62, base)
+		board.draw_circle(head + Vector2(-r * 0.2, -r * 0.2), r * 0.18, light)
+	else:
+		var tip: Vector2 = head + Vector2(0, -r * 0.95)
+		board.draw_colored_polygon(PackedVector2Array([tip, head + Vector2(r * 0.55, 0), head + Vector2(0, r * 0.45),
+				head + Vector2(-r * 0.55, 0)]), base)
+		board.draw_line(tip, head + Vector2(-r * 0.3, 0), light, maxf(1.5, r * 0.10))
+		board.draw_circle(tip, r * 0.16, dark)
+
+
+## 「+N」の札。駒の上に重なっても読めるよう、控えめな色の地を敷く。
+static func _draw_overflow_tag(board: TacticsBoard, center: Vector2, text: String) -> void:
+	var font: Font = board.get_theme_default_font()
+	var tag_size: int = _font_size(board, &"tag_size")
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 12.0
+	var height: float = TacticsBoard.HINT_HEIGHT
+	board.draw_rect(Rect2(center - Vector2(width, height) / 2.0, Vector2(width, height)), _color(board, &"tag_muted_bg"))
+	_draw_centered_text(board, center, text, tag_size, _color(board, &"text"))
+
+
+## ボールは少し浮かせて、地面に影を落とす。
+static func _draw_lifted_ball(board: TacticsBoard, foot: Vector2, scale: float) -> void:
+	var r: float = TacticsBoard.BALL_RADIUS * scale
+	_ellipse(board, foot, r, r * 0.38, Color(0, 0, 0, 0.35))
+	var center: Vector2 = foot + Vector2(0, -r * 1.6)
+	board.draw_circle(center, r, _color(board, &"ball"))
+	board.draw_arc(center, r, 0.0, TAU, 24, _color(board, &"bg"), 2.0)
+
+
+static func _ellipse(board: TacticsBoard, center: Vector2, rx: float, ry: float, color: Color) -> void:
+	var points: PackedVector2Array = []
+	for step: int in range(24):
+		var angle: float = TAU * step / 24.0
+		points.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
+	board.draw_colored_polygon(points, color)
+
+
+## ヒントの札を、エリアの下端の中央に。差がある札は accent、±0 の札は控えめな色。
+static func _draw_hint(board: TacticsBoard, key: String) -> void:
+	var rect: Rect2 = board.area_rect(key)
+	var at: Vector2 = board.to_screen(Vector2(rect.get_center().x, rect.end.y - 6.0))
+	var font: Font = board.get_theme_default_font()
+	var hint: String = board.hint_of(key)
+	var tag_size: int = _font_size(board, &"hint_size")
+	var width: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 14.0
+	var height: float = TacticsBoard.HINT_HEIGHT
+	var tag_box := Rect2(at + Vector2(-width / 2.0, -height), Vector2(width, height))
+	var is_even: bool = board.is_hint_even(key)
+	board.draw_rect(tag_box, _color(board, &"tag_muted_bg") if is_even else _color(board, &"accent"))
+	_draw_centered_text(board, tag_box.get_center(), hint, tag_size, _color(board, &"text") if is_even else _color(board, &"bg"))
 
 
 static func _draw_compare(board: TacticsBoard) -> void:
 	if board.compare_area().is_empty():
 		return
-	var rect: Rect2 = board.area_rect(board.compare_area()).grow(-2.0)
-	board.draw_rect(rect, _color(board, &"accent"), false, 5.0)
+	_outline(board, board.area_rect(board.compare_area()).grow(-2.0), _color(board, &"accent"), 5.0)
+	var rect: Rect2 = board.area_rect(board.compare_area())
+	var at: Vector2 = board.to_screen(Vector2(rect.get_center().x, rect.end.y - 6.0))
 	var font: Font = board.get_theme_default_font()
 	var tag_size: int = _font_size(board, &"tag_size")
 	var tag: String = board.compare_tag()
 	var width: float = font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 20.0
-	var tag_box := Rect2(Vector2(rect.get_center().x - width / 2.0, rect.end.y - 36.0), Vector2(width, 32))
+	var tag_box := Rect2(at + Vector2(-width / 2.0, -32.0), Vector2(width, 32))
 	board.draw_rect(tag_box, _color(board, &"accent"))
 	_draw_centered_text(board, tag_box.get_center(), tag, tag_size, _color(board, &"bg"))
 
@@ -175,9 +216,9 @@ static func _draw_compare(board: TacticsBoard) -> void:
 ## 同じエリアの間を両チームが動くと重なるので、チームごとに少しずらす。
 static func _draw_movements(board: TacticsBoard) -> void:
 	for movement: Movement in board.drawn_movements():
-		var offset := Vector2(0, -8.0 if movement.side == GameEnums.TeamSide.HOME else 8.0)
-		var from_point: Vector2 = board.area_rect(movement.from.to_key()).get_center() + offset
-		var to_point: Vector2 = board.area_rect(movement.to.to_key()).get_center() + offset
+		var offset := Vector2(-8.0 if movement.side == GameEnums.TeamSide.HOME else 8.0, 0)
+		var from_point: Vector2 = board.screen_center(movement.from.to_key()) + offset
+		var to_point: Vector2 = board.screen_center(movement.to.to_key()) + offset
 		if from_point.distance_to(to_point) < 1.0:
 			continue
 		if movement.reason == GameEnums.MovementReason.DRIBBLE:
@@ -187,29 +228,27 @@ static func _draw_movements(board: TacticsBoard) -> void:
 			_draw_arrow(board, from_point, to_point, team, 4.0)
 
 
-## 決定前のプレビュー。移動先に自分の色の輪（中抜き）、動く選手の駒から輪へ点線の矢印。
-## 開示後の動き（実線の矢印）・いまの駒（塗りの ●）と、線の種類と塗りで区別する（グレースケールでも形で分かる）。
-## 矢印は緩く曲げる（同じ列を横に動くとき、途中のエリアの駒の上を通らないように）。
-static func _draw_preview(board: TacticsBoard) -> void:
-	var color: Color = _color(board, &"you")
-	var radius: float = board.piece_radius()
-	for index: int in range(board.preview_movements().size()):
-		var center: Vector2 = board.preview_center(index)
-		var origin: Vector2 = board.preview_origin(index)
-		if origin.distance_to(center) > radius * 2.0:
-			_draw_curved_dashed_arrow(board, origin, center, radius, color, 3.0)
-		board.draw_arc(center, radius - 1.5, 0.0, TAU, 24, color, 3.0)
-
-
 static func _draw_intent(board: TacticsBoard) -> void:
 	var keys: Array[String] = board.intent_keys()
 	if keys.is_empty():
 		return
-	var from_point: Vector2 = board.area_rect(keys[0]).get_center()
-	var to_point: Vector2 = board.area_rect(keys[1]).get_center()
+	var from_point: Vector2 = board.screen_center(keys[0])
+	var to_point: Vector2 = board.screen_center(keys[1])
 	if from_point.distance_to(to_point) < 1.0:
 		return
 	_draw_arrow(board, from_point, to_point, _color(board, &"accent"), 6.0)
+
+
+## 決定前のプレビューの点線の矢印（地面に沿った緩い曲線）。移動先の半透明の駒は、立っているものと一緒に描く。
+## 開示後の動き（実線の矢印）・いまの駒（不透明）と、線の種類と透明度で区別する。
+static func _draw_preview_paths(board: TacticsBoard) -> void:
+	var color: Color = _color(board, &"you")
+	var radius: float = board.piece_radius()
+	for index: int in range(board.preview_movements().size()):
+		var origin: Vector2 = board.preview_origin(index)
+		var center: Vector2 = board.preview_center(index)
+		if origin.distance_to(center) > radius * 2.0:
+			_draw_curved_dashed_arrow(board, origin, center, color, 3.0)
 
 
 static func _draw_arrow(board: TacticsBoard, from_point: Vector2, to_point: Vector2, color: Color, width: float) -> void:
@@ -222,19 +261,18 @@ static func _draw_arrow(board: TacticsBoard, from_point: Vector2, to_point: Vect
 			to_point - direction * head_length - side]), color)
 
 
-## 駒の縁から駒の縁へ、2次ベジェ曲線の点線と矢じり。曲がりの大きさは距離の 2 割（上限はセルの高さの 3 割）。
-static func _draw_curved_dashed_arrow(board: TacticsBoard, from_center: Vector2, to_center: Vector2, radius: float,
-		color: Color, width: float) -> void:
-	var bulge: float = minf(from_center.distance_to(to_center) * 0.2, board.cell_size().y * 0.3)
-	var control: Vector2 = (from_center + to_center) / 2.0 + (to_center - from_center).normalized().orthogonal() * bulge
-	var start: Vector2 = from_center + (control - from_center).normalized() * radius
-	var tip: Vector2 = to_center + (control - to_center).normalized() * radius
-	var head_length: float = 12.0 + width
+## 平面図の2点の間の、2次ベジェ曲線の点線と矢じり（曲線は平面図で作り、点ごとに画面へ写す）。
+## 曲がりの大きさは距離の 2 割（上限はセルの高さの 3 割）。
+static func _draw_curved_dashed_arrow(board: TacticsBoard, from_plan: Vector2, to_plan: Vector2, color: Color, width: float) -> void:
+	var bulge: float = minf(from_plan.distance_to(to_plan) * 0.2, board.cell_size().y * 0.3)
+	var control: Vector2 = (from_plan + to_plan) / 2.0 + (to_plan - from_plan).normalized().orthogonal() * bulge
 	var segments: int = 24
 	var points: Array[Vector2] = []
 	for step: int in range(segments + 1):
 		var t: float = float(step) / segments
-		points.append(start.lerp(control, t).lerp(control.lerp(tip, t), t))
+		points.append(board.to_screen(from_plan.lerp(control, t).lerp(control.lerp(to_plan, t), t)))
+	var tip: Vector2 = points[segments]
+	var head_length: float = 12.0 + width
 	# 矢じりの分を残して、1区間おきに描く（点線）
 	for step: int in range(0, segments, 2):
 		if points[step + 1].distance_to(tip) < head_length * 0.8:

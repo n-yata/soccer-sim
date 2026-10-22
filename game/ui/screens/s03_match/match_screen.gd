@@ -1,7 +1,7 @@
 ## S-03 試合（screen-03-match.md）。上部バー（スコア・局面のタグ・両者の選択の帯）と、盤面と手の選択（MatchBoardPanel）。
 ## 手の選択から判定理由までの状態はパネルが持ち、この画面は上部バーと画面の進み方（continue_after_reveal）を持つ。
 ##
-## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 3D 演出、試合中のメニュー（設定・中断）。
+## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 試合中のメニュー（設定・中断）。3D 演出は 2026-10-23 にやめた。
 ## メニューが無い間、戻る操作は何もしない（試合画面からアプリを閉じない）。
 class_name MatchScreen
 extends AppScreen

@@ -1,5 +1,5 @@
 ## 選手の動き1つ（component-design.md §2.2）。from・to は、動いた選手のチーム自身から見た座標（§1.2）。
-## 作戦ボードの矢印・3D 演出・振り返りに使う。
+## 作戦ボードの矢印・振り返りに使う。
 class_name Movement
 extends RefCounted
 
