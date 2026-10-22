@@ -87,8 +87,8 @@ MatchScreen (Control)
 | 状態 | 意味 | 見えるもの | 押せるもの |
 |---|---|---|---|
 | `SELECT_ACTION` | 手を選んでいない | ボード・手のボタン | 手のボタン、メニュー |
-| `SELECT_TARGET` | 運ぶ先を持つ手を選び、エリアを選んでいない | ＋選べるエリアの点線の枠・ヒントの札（ON のとき） | 手のボタン（選び直し）、選べるエリア、メニュー |
-| `READY` | 手（と必要なエリア）を選び終えた | ＋選んだエリアの塗り・ボールから運ぶ先への矢印・決定ボタンの要約 | 手のボタン、選べるエリア、「決定」、メニュー |
+| `SELECT_TARGET` | 運ぶ先を持つ手を選び、エリアを選んでいない | ＋選べるエリアの点線の枠・ヒントの札（ON のとき）・プレス／カバーの選べる条件の一言 | 手のボタン（選び直し）、選べるエリア、メニュー |
+| `READY` | 手（と必要なエリア）を選び終えた | ＋選んだエリアの塗り・ボールから運ぶ先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・決定ボタンの要約 | 手のボタン、選べるエリア、「決定」、メニュー |
 | `SUBMITTING` | 「決定」を押し、結果を待っている | そのまま | なし（二重送信を防ぐ） |
 | `REPLAYING` | 開示して 3D 演出を再生している | 両者の選択の帯・3D 演出（`REPLAY`・進み具合）・「スキップ」 | 「スキップ」 |
 | `SHOW_RESULT` | 判定理由を表示している | 両者の選択の帯・ボード（動きの矢印・比較エリアの人数の札）・判定理由のテロップ | 「次へ」、メニュー |
@@ -136,26 +136,32 @@ MatchScreen (Control)
 
 ### 手のボタンを押す（`ChoicePanel.action_selected`）
 
-1. `_selected_family`・`_selected_action` を記録し、`_selected_target` を空にする
+1. `_selected_family`・`_selected_action` を記録し、`_selected_target` を空にする。選んだエリアの塗り・意図の矢印・
+   決定前のプレビューを消す（`show_preview([])`）
 2. 運ぶ先を持つ手なら
    1. `_options` からその手の運ぶ先の一覧を取り、`TacticsBoard.set_selectable(一覧)`
    2. `_hints` からその手の分を取り出し、`TacticsBoard.set_hints({エリアのキー: 表示文})`。表示文は
       人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`GOALKEEPER` なら `GK`、`OUT_OF_GK_REACH` なら `GK外`、`NONE` なら空。例: `+1`、`±0 GK外`。`functional-overview.md`「表示仕様」のヒントの札）
-   3. `_state = SELECT_TARGET`。「決定」は押せない
+   3. プレス・カバーなら、選べる条件の一言（`MatchTexts.target_rule`。誰が動くか・どのエリアを選べるか）を `TargetInfo` に出す
+   4. `_state = SELECT_TARGET`。「決定」は押せない
 3. 運ぶ先を持たない手なら、ボードの枠とヒントを消し、その手のヒントを `TargetInfo` に出す
-   （例: 即時奪回 `周辺 2対4`）。`_state = READY`、「決定」を押せるようにする
+   （例: 即時奪回 `周辺 2対4`）。決定前のプレビュー（`user_preview` → `show_preview`）を出す。
+   `_state = READY`、「決定」を押せるようにする
 4. `PrimaryButton` の要約（`ButtonSummary`）を更新する
 
 ### エリアを押す（`TacticsBoard.area_pressed`）
 
 1. `_state` が `SELECT_TARGET`・`READY` で、押したエリアが選べるエリアのときだけ受け付ける（それ以外は何もしない）
-2. `_selected_target` を記録し、そのエリアを塗り、`TacticsBoard.show_intent(ボールのエリア, 運ぶ先)` でボールから運ぶ先への矢印を描く。
+2. `_selected_target` を記録し、そのエリアを塗る。ボールを運ぶ手（攻撃・カウンター）なら、`TacticsBoard.show_intent(ボールのエリア, 運ぶ先)` で
+   ボールから運ぶ先への矢印を描く。守備の手では描かない（選ぶのは相手が来ると読んだエリアで、ボールはそこへ動かない）。
+   `MatchController.user_preview(手)` の動きを `TacticsBoard.show_preview` で重ねる（決定前のプレビュー。自分の選手だけ。
+   相手の駒は動かさない）。
    決定ボタンの要約を「ショートパス → 中盤・中央」の形にする。`TargetInfo` に運ぶ先の名前と、そのエリアのヒントの札の文（ヒントが ON のとき。例「中盤・中央　+1　1対0」）を出す
 3. `_state = READY`、「決定」を押せるようにする
 
 ### 「決定」を押す
 
-1. `_state = SUBMITTING`。手のボタン・ボード・「決定」・メニューを押せなくする
+1. `_state = SUBMITTING`。手のボタン・ボード・「決定」・メニューを押せなくする。決定前のプレビューを消す
 2. `TurnChoice` を作る（`family`・`action`・`target`。`target` は利用者の視点のエリア。運ぶ先を持たない手は `null`）
 3. `submit_turn(choice)` を呼ぶ
    - `false` なら「ターンを始める」をやり直す（選択を捨てて手のボタンを描き直す）。通知は出さない

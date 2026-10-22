@@ -200,6 +200,50 @@ func test_user_hints_match_the_user_options() -> void:
 				.override_failure_message(str(hint.target)).is_true()
 
 
+# --- 決定前のプレビュー ---
+
+func test_user_preview_of_a_press_ends_in_the_chosen_area_in_the_user_view() -> void:
+	# 利用者は守備（AWAY のキックオフ）。プレスで寄せる選手の行き先は、制限するエリア = 利用者の視点で選んだエリア
+	var controller: MatchController = _controller(_seed_for_kickoff(AWAY))
+	controller.start_match(_user_setup())
+	var target: PitchArea = controller.user_options().targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0]
+	var preview: Array[Movement] = controller.user_preview(TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, target))
+	assert_int(preview.size()).is_greater_equal(1)
+	assert_int(preview[0].side).is_equal(HOME)
+	assert_int(preview[0].reason).is_equal(GameEnums.MovementReason.PRESS)
+	assert_str(preview[0].to.to_key()).is_equal(target.to_key())
+
+
+func test_user_preview_is_empty_before_the_match_for_an_unavailable_choice_and_during_the_reveal() -> void:
+	var controller: MatchController = _controller(_seed_for_kickoff(AWAY))
+	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("M-C"))
+	await assert_error(func() -> void: controller.user_preview(press)) \
+			.is_push_error("MatchController: 試合が始まる前に user_preview は呼べない")
+	controller.start_match(_user_setup())
+	# 守備のときに攻撃の手は選べない
+	var dribble := TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M-L1"))
+	await assert_error(func() -> void: controller.user_preview(dribble)) \
+			.is_push_error("MatchController: 選べない手のプレビューは出せない")
+	assert_array(controller.user_preview(dribble)).is_empty()
+	var target: PitchArea = controller.user_options().targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0]
+	controller.submit_turn(TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, target))
+	# 開示の確認待ちの間は、次のターンで選べて選手が動く手でも空。確認した後は出る
+	var next_choice: TurnChoice = _moving_choice(controller.user_options())
+	assert_object(next_choice).override_failure_message("次のターンにプレスもドリブルも無い").is_not_null()
+	assert_array(controller.user_preview(next_choice)).is_empty()
+	controller.continue_after_reveal()
+	assert_array(controller.user_preview(next_choice)).is_not_empty()
+
+
+## 必ず誰かが動く手（プレスかドリブルの最初の運ぶ先）。どちらも選べなければ null
+func _moving_choice(options: MoveOptions) -> TurnChoice:
+	if options.is_available(DEFENSE, GameEnums.DefenseAction.PRESS):
+		return TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, options.targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0])
+	if options.is_available(ATTACK, GameEnums.PlayType.DRIBBLE):
+		return TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, options.targets(ATTACK, GameEnums.PlayType.DRIBBLE)[0])
+	return null
+
+
 # --- 1ターンの確定 ---
 
 func test_submit_turn_converts_the_user_choice_and_reveals_in_the_user_view() -> void:

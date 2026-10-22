@@ -321,3 +321,37 @@ func test_judge_does_not_modify_its_inputs() -> void:
 		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
 	for player: PlayerState in pair.defender.players:
 		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
+
+
+func test_apply_defense_gives_the_defense_part_of_the_judgement() -> void:
+	# マンツーマン。プレスで寄せた後のマークの付け直しまでが守備の手の動き。シュートは選手を動かさないので、
+	# 判定の動きは守備の手の動きと同じになる
+	var pair: LayoutPair = _scene("4-3-3", "4-4-2", MAN, "M-C")
+	var press_choice: TurnChoice = _defense(GameEnums.DefenseAction.PRESS, "M-L1")
+	var step: LayoutStep = OpenPlayJudge.apply_defense(pair, _styles(MAN), press_choice)
+	var output: JudgeOutput = _judge(pair, MAN, "M-C", _attack(GameEnums.PlayType.SHOT), press_choice)
+	assert_int(step.movements.size()).is_equal(output.movements.size())
+	assert_int(step.movements[0].reason).is_equal(GameEnums.MovementReason.PRESS)
+	for index: int in range(step.movements.size()):
+		assert_str(step.movements[index].player_id).is_equal(output.movements[index].player_id)
+		assert_str(step.movements[index].to.to_key()).is_equal(output.movements[index].to.to_key())
+		assert_int(step.movements[index].reason).is_equal(output.movements[index].reason)
+	assert_dict(step.pair.defender.counts()).is_equal(output.pair.defender.counts())
+
+
+func test_apply_defense_returns_null_for_an_inapplicable_move() -> void:
+	var pair: LayoutPair = _scene("4-4-2", "4-4-2", ZONE, "M-C")
+	assert_object(OpenPlayJudge.apply_defense(pair, _styles(ZONE), _defense(GameEnums.DefenseAction.COVER, "A-C"))).is_null()
+
+
+func test_apply_defense_of_a_zone_press_moves_the_neighbor_in() -> void:
+	# 手で書いた場面: 攻撃側 h1 が M-C、守備側（ゾーン）の a1 が守備側から見て D-C。M-C へのプレスで a1 が寄せる
+	var h1 := PlayerState.new("h1", _area("M-C"), null)
+	var a1 := PlayerState.new("a1", _area("D-C"), null)
+	var pair := LayoutPair.new(TeamLayout.new([h1], {"h1": _area("M-C")}), TeamLayout.new([a1], {"a1": _area("D-C")}), HOME)
+	var step: LayoutStep = OpenPlayJudge.apply_defense(pair, _styles(ZONE), _defense(GameEnums.DefenseAction.PRESS, "M-C"))
+	assert_int(step.movements.size()).is_equal(1)
+	assert_str("%s %s>%s" % [step.movements[0].player_id, step.movements[0].from.to_key(), step.movements[0].to.to_key()]) \
+			.is_equal("a1 D-C>M-C")
+	assert_int(step.movements[0].reason).is_equal(GameEnums.MovementReason.PRESS)
+	assert_str(step.pair.defender.current_area_of("a1").to_key()).is_equal("M-C")

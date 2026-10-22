@@ -158,6 +158,7 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 	_choice_panel.select_action(action)
 	_board.set_selected("")
 	_board.show_intent("", "")
+	_board.show_preview([])
 	if MoveOptions.needs_target(family, action):
 		var keys: Array[String] = []
 		for target: PitchArea in _options.targets(family, action):
@@ -171,7 +172,8 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 					even_keys.append(hint.target.to_key())
 		_board.set_selectable(keys)
 		_board.set_hints(tags, even_keys)
-		_target_info.visible = false
+		_target_info.text = MatchTexts.target_rule(family, action)
+		_target_info.visible = not _target_info.text.is_empty()
 		_state = State.SELECT_TARGET
 		_set_primary(MatchTexts.action_name(family, action), LOCK_IN, false)
 		return
@@ -187,6 +189,7 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 			break
 	_target_info.text = info
 	_target_info.visible = not info.is_empty()
+	_board.show_preview(_controller.user_preview(_current_choice()))
 	_state = State.READY
 	_set_primary(MatchTexts.action_name(family, action), LOCK_IN, true)
 
@@ -196,7 +199,11 @@ func _on_area_pressed(area_key: String) -> void:
 		return
 	_selected_target = area_key
 	_board.set_selected(area_key)
-	_board.show_intent(_snapshot.ball_area, area_key)
+	# ボールから運ぶ先への矢印は、ボールを運ぶ手（攻撃・カウンター）だけ。守備の手で選ぶのは「相手が来ると読んだエリア」で、
+	# ボールはそこへ動かない。動く選手はプレビューで見せる
+	var carries_ball: bool = _selected_family in [GameEnums.ChoiceFamily.ATTACK, GameEnums.ChoiceFamily.POS_TRANS]
+	_board.show_intent(_snapshot.ball_area if carries_ball else "", area_key if carries_ball else "")
+	_board.show_preview(_controller.user_preview(_current_choice()))
 	var info: String = MatchTexts.area_name(area_key)
 	for hint: ChoiceHint in _hints_for(_selected_family, _selected_action):
 		if hint.target != null and hint.target.to_key() == area_key:
@@ -220,6 +227,7 @@ func _on_primary_pressed() -> void:
 func _submit() -> void:
 	_state = State.SUBMITTING
 	_primary_button.disabled = true
+	_board.show_preview([])
 	_choice_panel.set_enabled(false)
 	if not _controller.submit_turn(_current_choice()) and _state == State.SUBMITTING:
 		start_turn()

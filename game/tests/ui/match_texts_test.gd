@@ -119,3 +119,13 @@ func test_clock_text_shows_the_half_and_the_turn() -> void:
 	# ハーフの最終ターンを終えた後の盤面（turn_number は1つ先に進む）も、最終ターンとして出す
 	snapshot.turn_number = 13
 	assert_str(MatchTexts.clock_text(snapshot)).is_equal("後半 12／12")
+
+
+func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press_and_cover() -> void:
+	# シャビの「カバーで選べないマスがあるのはなぜ？」への一言（MoveRules.defense_options の条件と同じ内容）
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS)) \
+			.is_equal("プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる")
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.COVER)) \
+			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも隣にも味方がいないエリアは選べない")
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE)).is_empty()
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_empty()

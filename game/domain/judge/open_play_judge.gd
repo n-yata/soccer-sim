@@ -21,17 +21,12 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 			or not attack.is_complete_for(GameEnums.ChoiceFamily.ATTACK) \
 			or not defense.is_complete_for(GameEnums.ChoiceFamily.DEFENSE):
 		return null
-	var is_man: bool = defender_styles.defense == GameEnums.DefenseStyle.MAN
 	var movements: Array[Movement] = []
 	# 手順2: 守備の手
-	var step: LayoutStep = DefenseMover.apply(pair, defense.action as GameEnums.DefenseAction, defense.target)
+	var step: LayoutStep = apply_defense(pair, defender_styles, defense)
 	if step == null:
 		return null
 	movements.append_array(step.movements)
-	# マンツーマンでプレス・カバーに出たマーカーは固定され、残りのマーカーで付け直す（アルゴリズム4のエッジケース・JE-02/03）
-	if is_man:
-		step = StyleLayoutCalculator.remark(step.pair, defender_styles)
-		movements.append_array(step.movements)
 	# 手順3: 攻撃の手
 	step = apply_attack(step.pair, defender_styles, ball, attack)
 	movements.append_array(step.movements)
@@ -39,6 +34,21 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
 	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
 	return JudgeOutput.new(outcome_of(detail, attack.action == GameEnums.PlayType.SHOT), detail, step.pair, movements)
+
+
+## 手順2。守備の手を適用する（DefenseMover）。マンツーマンでプレス・カバーに出たマーカーは固定され、残りのマーカーで
+## 付け直す（アルゴリズム4のエッジケース・JE-02/03）。適用できない手なら null。
+## 判定と、決定前のプレビュー（MovePreview。相手が何もしない場合）で共有する。
+static func apply_defense(pair: LayoutPair, defender_styles: TeamStyles, defense: TurnChoice) -> LayoutStep:
+	var step: LayoutStep = DefenseMover.apply(pair, defense.action as GameEnums.DefenseAction, defense.target)
+	if step == null:
+		return null
+	if defender_styles.defense != GameEnums.DefenseStyle.MAN:
+		return step
+	var movements: Array[Movement] = step.movements.duplicate()
+	var marked: LayoutStep = StyleLayoutCalculator.remark(step.pair, defender_styles)
+	movements.append_array(marked.movements)
+	return LayoutStep.new(marked.pair, movements)
 
 
 ## 手順3。攻撃の手を適用する。ドリブルだけが選手を動かし（運ぶ選手を運ぶ先に固定）、守備側がマンツーマンなら

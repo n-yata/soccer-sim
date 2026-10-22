@@ -35,6 +35,18 @@ static func action_name(family: GameEnums.ChoiceFamily, action: int) -> String:
 	return (ACTION_NAMES[family] as Array)[action] as String
 
 
+## 運ぶ先を選ぶ間に添える一言（誰が動くか・どのエリアを選べるか）。条件は MoveRules.defense_options と同じ。
+## プレス・カバーだけ（違いが盤面から読みにくく、選べないエリアがある理由が分かりにくいため）。ほかの手は空。
+static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
+	if family != GameEnums.ChoiceFamily.DEFENSE:
+		return ""
+	if action == GameEnums.DefenseAction.PRESS:
+		return "プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる"
+	if action != GameEnums.DefenseAction.COVER:
+		return ""
+	return "カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも隣にも味方がいないエリアは選べない"
+
+
 ## 「ショートパス → 中盤・中央」。運ぶ先を持たない手は手の名前だけ。
 static func choice_summary(choice: TurnChoice) -> String:
 	var name: String = action_name(choice.family, choice.action)

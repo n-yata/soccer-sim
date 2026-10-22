@@ -245,8 +245,10 @@ static func judge(pair: LayoutPair, attacker_styles: TeamStyles, defender_styles
 ## 手順5〜6（人数差とカバー判定）。TransitionJudge のカウンターと共有する。compare は攻撃側の視点
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
-## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒントで共有する
+## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒント・決定前のプレビューで共有する
 static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice) -> LayoutStep
+## 手順2（守備の手の適用。寄せる・下がる1人と、マンツーマンの付け直し）。適用できなければ null。判定と決定前のプレビューで共有する
+static func apply_defense(pair: LayoutPair, defender_styles: TeamStyles, defense: TurnChoice) -> LayoutStep
 
 class_name TransitionJudge extends RefCounted
 ## アルゴリズム6。origin は直前のターン終了時点の配置（奪取側を attacker として持つ）
@@ -264,6 +266,12 @@ class_name MoveHints extends RefCounted
 ## 攻撃の手は攻撃の手だけを適用した後、守備の手は制限するエリアの適用前、カウンターは飛び出しの後、即時奪回は
 ## ボール位置と上下左右の合計で数える。リトリート・保持は比べない。陣形データを使わないため catalog 引数は持たない
 static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions) -> Array[ChoiceHint]
+
+class_name MovePreview extends RefCounted
+## 決定前のプレビュー。選んだ手を「相手が何もしない」と仮定して適用したときの、side の選手の動き（動いたチーム自身の視点）。
+## 計算は判定と同じ関数（apply_attack・apply_defense・TransitionJudge.judge）を通す。トランジションの「何もしない」は、
+## 奪取側の相手を即時奪回、喪失側の相手を保持とする（どちらも配置を変えない手）。選べるかは見ない。適用できなければ空
+static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[Movement]
 ```
 
 `JudgeOutput`（`judge_output.gd`）は `outcome: TurnOutcome`・`detail: JudgeDetail`（`NO_CONTEST` は `null`）・
@@ -458,6 +466,8 @@ func retry_pending_finalize() -> bool
 func start_match(user_setup: TeamSetup) -> void
 func user_options() -> MoveOptions               # 利用者の視点
 func user_hints() -> Array[ChoiceHint]           # 利用者の視点。設定でヒントが OFF なら UI は呼ばない
+## 決定前のプレビュー（利用者の視点の手 → 利用者の選手の動き。利用者の視点）。手を選べないときは空
+func user_preview(user_choice: TurnChoice) -> Array[Movement]
 ## 選択不可の手なら false を返し、状態を変えない（push_error で記録する）
 func submit_turn(user_choice: TurnChoice) -> bool
 ## 開示（演出と判定理由）を利用者が確認した後に呼ぶ。進行段階に応じて次の画面を App に要求する
@@ -873,6 +883,11 @@ func route_back() -> bool
 > **2026-10-22**: 盤面の情報を絞った（シンプル案）。角の優劣記号・駒の番号・方式の動きの矢印・凡例を描かない。
 > ヒントの札は選べるエリアにだけ描き、±0 の札（`set_hints(hints, even_keys)` の `even_keys`）は控えめな色にする。
 > 描く動きは `drawn_movements()`（ドリブル・寄せ・カバー）で、描画とテストで共有する。
+>
+> **2026-10-22（決定前のプレビュー）**: 手とエリアを選ぶと、`MatchController.user_preview` の動きを `TacticsBoard.show_preview` で
+> 盤面に重ねる。移動先は自分の色の輪（中抜き）、動く選手の駒から輪へ点線の曲線の矢印。開示後の動き（実線）と線の種類で区別する。
+> プレビューは理由で絞らない（リトリート・カウンターの飛び出し・マークの付け直しも出す）。ボールから運ぶ先への矢印は、
+> ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバーでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
 
 ### 5.4 3D 演出（`replay3d/`）
 

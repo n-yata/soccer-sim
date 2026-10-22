@@ -95,6 +95,21 @@ func user_hints() -> Array[ChoiceHint]:
 	return ViewConverter.hints_to_user(hints, _state.possession)
 
 
+## 決定前のプレビュー: 利用者の手（利用者の視点）を、相手が何もしないと仮定して適用したときの、利用者の選手の動き
+## （利用者の視点）。手を選べるとき（ターン中・開示の確認待ちでない・試合の後でない）以外は空。
+## 試合前と、選べない手（UI の誤り）は push_error する。
+func user_preview(user_choice: TurnChoice) -> Array[Movement]:
+	if not _is_started_or_error("user_preview"):
+		return []
+	if user_choice == null or _awaiting_continue or _state.stage != GameEnums.MatchStage.TURN or is_match_over():
+		return []
+	var domain_choice: TurnChoice = ViewConverter.choice_to_domain(user_choice, _state.possession)
+	if not MoveRules.is_allowed(MoveRules.options_for(_state, USER), domain_choice):
+		push_error("MatchController: 選べない手のプレビューは出せない")
+		return []
+	return ViewConverter.movements_to_user(MovePreview.own_movements(_state, USER, domain_choice))
+
+
 ## 利用者の手（利用者の視点）でターンを確定する。選べない手・試合中でない・前の開示を確認する前のときは
 ## false を返し、状態を変えない。
 func submit_turn(user_choice: TurnChoice) -> bool:

@@ -181,6 +181,7 @@ func test_the_next_turn_starts_clean() -> void:
 	assert_int(_panel.board().movement_count()).is_equal(0)
 	assert_str(_panel.board().compare_tag()).is_empty()
 	assert_bool(_panel.board().has_intent()).is_false()
+	assert_array(_panel.board().preview_movements()).is_empty()
 	assert_bool(_panel.telop_visible()).is_false()
 	assert_bool(_panel.choice_panel().visible).is_true()
 	assert_str(_panel.primary_summary()).is_empty()
@@ -209,3 +210,105 @@ func test_unbind_stops_receiving_results() -> void:
 	_panel.unbind()
 	assert_bool(_controller.turn_resolved.is_connected(_panel._on_turn_resolved)).is_false()
 	assert_int(_panel.state()).is_equal(State.IDLE)
+
+
+# --- 決定前のプレビュー ---
+
+func _keys_of(movements: Array[Movement]) -> Array[String]:
+	var keys: Array[String] = []
+	for movement: Movement in movements:
+		keys.append("%s %s>%s" % [movement.player_id, movement.from.to_key(), movement.to.to_key()])
+	return keys
+
+
+func test_a_defensive_area_previews_the_movers_without_the_ball_arrow() -> void:
+	_start(false)
+	var action: int = GameEnums.DefenseAction.PRESS
+	_press(action)
+	var target: String = _panel.board().selectable_areas()[0]
+	_panel.board().area_pressed.emit(target)
+	var expected: Array[Movement] = _controller.user_preview(
+			TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, action, PitchArea.from_key(target)))
+	# プレスは必ず1人が寄せる（空振りしない）
+	assert_int(expected.size()).is_greater_equal(1)
+	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+	# 守備の手では、ボールから選んだエリアへの矢印を出さない
+	assert_bool(_panel.board().has_intent()).is_false()
+
+
+func test_an_attacking_area_keeps_the_ball_arrow_and_previews_the_dribbler() -> void:
+	_start(true)
+	var action: int = GameEnums.PlayType.DRIBBLE
+	_press(action)
+	var target: String = _panel.board().selectable_areas()[0]
+	_panel.board().area_pressed.emit(target)
+	var expected: Array[Movement] = _controller.user_preview(
+			TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, action, PitchArea.from_key(target)))
+	# ボールのエリアには必ず保持者がいるので、ドリブルは1人が運ぶ
+	assert_int(expected.size()).is_equal(1)
+	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+	assert_bool(_panel.board().has_intent()).is_true()
+
+
+func test_choosing_another_move_or_submitting_clears_the_preview() -> void:
+	_start(false)
+	_press(GameEnums.DefenseAction.PRESS)
+	_panel.board().area_pressed.emit(_panel.board().selectable_areas()[0])
+	assert_array(_panel.board().preview_movements()).is_not_empty()
+	_press(GameEnums.DefenseAction.COVER)
+	assert_array(_panel.board().preview_movements()).is_empty()
+	_panel.board().area_pressed.emit(_panel.board().selectable_areas()[0])
+	_panel.primary_button().pressed.emit()
+	assert_int(_panel.state()).is_equal(State.SHOW_RESULT)
+	assert_array(_panel.board().preview_movements()).is_empty()
+
+
+func test_press_and_cover_explain_which_areas_can_be_chosen() -> void:
+	_start(false)
+	for action: int in [GameEnums.DefenseAction.PRESS, GameEnums.DefenseAction.COVER]:
+		_press(action)
+		assert_str(_panel.target_info_text()).is_equal(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, action))
+	# エリアを選ぶと、そのエリアの説明に置き換わる
+	var target: String = _panel.board().selectable_areas()[0]
+	_panel.board().area_pressed.emit(target)
+	assert_str(_panel.target_info_text()).starts_with(MatchTexts.area_name(target))
+
+
+## 利用者が喪失側のトランジションで、リトリートで誰かが動く場面まで、両者に選べる手の先頭を選ばせて進める
+func _start_in_a_lost_transition() -> void:
+	for seed_value: int in range(100):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		var config := ConfigRepository.new()
+		var controller := MatchController.new(_catalog, config, rng, CpuOpponent.new(_catalog, config.cpu(), rng),
+				_record, true)
+		controller.start_match(TeamSetup.new("4-4-2",
+				TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER)))
+		for _turn: int in range(8):
+			if controller.stage() != GameEnums.MatchStage.TURN:
+				break
+			var snapshot: BoardSnapshot = controller.snapshot()
+			var retreat := TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT)
+			if snapshot.turn_kind == GameEnums.TurnKind.TRANSITION and not snapshot.user_has_ball \
+					and not controller.user_preview(retreat).is_empty():
+				_controller = controller
+				break
+			controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
+			controller.continue_after_reveal()
+		if _controller != null:
+			break
+	assert_object(_controller).override_failure_message("条件に合うシードが無い").is_not_null()
+	_requests.clear()
+	_panel.bind(_controller)
+	_panel.start_turn()
+
+
+func test_a_move_without_a_target_previews_as_soon_as_it_is_chosen() -> void:
+	_start_in_a_lost_transition()
+	_press(GameEnums.NegTransAction.RETREAT)
+	assert_int(_panel.state()).is_equal(State.READY)
+	var expected: Array[Movement] = _controller.user_preview(
+			TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT))
+	assert_array(expected).is_not_empty()
+	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+	assert_bool(_panel.board().has_intent()).is_false()

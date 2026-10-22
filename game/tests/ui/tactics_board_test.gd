@@ -201,3 +201,55 @@ func test_pieces_in_a_crowded_area_are_folded() -> void:
 	assert_int(_board.visible_piece_count("D-C", true)).is_equal(3)
 	assert_str(_board.overflow_tag("D-C", true)).is_equal("+2")
 	assert_int(_board.visible_piece_count("M-C", true)).is_equal(0)
+
+
+# --- 決定前のプレビュー ---
+
+func _preview_snapshot(user_spec: Dictionary) -> BoardSnapshot:
+	var snapshot := BoardSnapshot.new()
+	var players: Array[Dictionary] = []
+	for player_id: String in user_spec:
+		players.append({"player_id": player_id, "number": 0, "area": user_spec[player_id]})
+	snapshot.user_players = players
+	snapshot.opponent_players = [{"player_id": "o1", "number": 0, "area": "D-C"}]
+	return snapshot
+
+
+func _move(player_id: String, from_key: String, to_key: String,
+		reason: GameEnums.MovementReason = GameEnums.MovementReason.COVER) -> Movement:
+	return Movement.new(GameEnums.TeamSide.HOME, player_id, PitchArea.from_key(from_key), PitchArea.from_key(to_key), reason)
+
+
+func test_preview_rings_continue_the_row_of_pieces_in_the_destination() -> void:
+	# D-C には自分の p1 がいる。M-C の p2 と M-L1 の p3 が D-C へ動くと、輪は p1 の隣から順に並ぶ
+	_board.show_snapshot(_preview_snapshot({"p1": "D-C", "p2": "M-C", "p3": "M-L1"}))
+	_board.show_preview([_move("p2", "M-C", "D-C"), _move("p3", "M-L1", "D-C")])
+	assert_int(_board.preview_movements().size()).is_equal(2)
+	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D-C", true, 1))
+	assert_vector(_board.preview_center(1)).is_equal(_board.piece_center("D-C", true, 2))
+	# 駒は動かさない（相手の駒も、自分の駒も、いまの位置のまま）
+	assert_int((_board.pieces_in("M-C")["user"] as Array).size()).is_equal(1)
+	assert_int((_board.pieces_in("D-C")["opponent"] as Array).size()).is_equal(1)
+
+
+func test_preview_rings_stop_at_the_last_slot_of_a_crowded_area() -> void:
+	_board.show_snapshot(_preview_snapshot({"p1": "D-C", "p2": "D-C", "p3": "D-C", "p4": "D-C", "p5": "M-C"}))
+	_board.show_preview([_move("p5", "M-C", "D-C")])
+	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D-C", true, TacticsBoard.MAX_PIECES - 1))
+
+
+func test_preview_keeps_every_reason_and_is_cleared_with_the_overlays() -> void:
+	# 開示後の矢印と違い、プレビューは方式の動き（リトリート・マークの付け直し）も出す
+	_board.show_snapshot(_preview_snapshot({"p1": "M-C", "p2": "M-L1"}))
+	_board.show_preview([_move("p1", "M-C", "D-C", GameEnums.MovementReason.RETREAT_RESET),
+			_move("p2", "M-L1", "M-C", GameEnums.MovementReason.MARK)])
+	assert_int(_board.preview_movements().size()).is_equal(2)
+	_board.clear_overlays()
+	assert_array(_board.preview_movements()).is_empty()
+
+
+func test_preview_arrows_start_from_the_piece_of_the_moving_player() -> void:
+	# M-C の自分の駒は盤面の選手の順に p0・p2。p2 の矢印は2つ目の駒から出る
+	_board.show_snapshot(_preview_snapshot({"p0": "M-C", "p1": "D-C", "p2": "M-C"}))
+	_board.show_preview([_move("p2", "M-C", "D-C")])
+	assert_vector(_board.preview_origin(0)).is_equal(_board.piece_center("M-C", true, 1))

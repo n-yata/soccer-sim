@@ -38,6 +38,7 @@ var _even_hints: Array[String] = []
 var _intent_from: String = ""
 var _intent_to: String = ""
 var _movements: Array[Movement] = []
+var _preview: Array[Movement] = []
 var _compare_area: String = ""
 var _compare_tag: String = ""
 var _pressed_key: String = ""
@@ -91,6 +92,13 @@ func show_movements(movements: Array[Movement]) -> void:
 	queue_redraw()
 
 
+## 決定前のプレビュー: 選んだ手で動く自分の選手（利用者の視点の Movement）。移動先の輪と点線の矢印を描く。
+## 開示後の矢印（show_movements）と違い、理由で絞らない（その手で起きる自分の動きをすべて見せる）。
+func show_preview(movements: Array[Movement]) -> void:
+	_preview = movements.duplicate()
+	queue_redraw()
+
+
 ## 比較エリアの光と人数の札（`自分対相手`）。
 func show_compare(key: String, user_count: int, opponent_count: int) -> void:
 	_compare_area = key
@@ -107,6 +115,7 @@ func clear_overlays() -> void:
 	_intent_from = ""
 	_intent_to = ""
 	_movements.clear()
+	_preview.clear()
 	_compare_area = ""
 	_compare_tag = ""
 	_pressed_key = ""
@@ -213,6 +222,35 @@ func drawn_movements() -> Array[Movement]:
 	return result
 
 
+func preview_movements() -> Array[Movement]:
+	return _preview.duplicate()
+
+
+## index 番目のプレビューの移動先の輪の中心。移動先のエリアの自分の駒の列の続き（そのエリアの自分の駒の数 ＋
+## 同じエリアへの先の輪の数）に置く。1エリアに5人以上が集まるのはまれなので、最後の位置（MAX_PIECES - 1）で止める。
+func preview_center(index: int) -> Vector2:
+	var key: String = _preview[index].to.to_key()
+	var slot: int = (pieces_in(key)["user"] as Array).size()
+	for earlier: int in range(index):
+		if _preview[earlier].to.to_key() == key:
+			slot += 1
+	return piece_center(key, true, mini(slot, MAX_PIECES - 1))
+
+
+## index 番目のプレビューの矢印の始点。動く選手の駒（移動元のエリアの自分の駒の列で、盤面の選手の順の位置）の中心。
+## 駒は番号を描かないが、矢印がどの ● から出るかが分かるよう、駒の上から引く。見つからなければエリアの中央。
+func preview_origin(index: int) -> Vector2:
+	var key: String = _preview[index].from.to_key()
+	var slot: int = 0
+	for player: Dictionary in _user_players:
+		if player["area"] != key:
+			continue
+		if player["player_id"] == _preview[index].player_id:
+			return piece_center(key, true, mini(slot, MAX_PIECES - 1))
+		slot += 1
+	return area_rect(key).get_center()
+
+
 func has_intent() -> bool:
 	return not _intent_to.is_empty()
 
@@ -259,6 +297,7 @@ func _draw() -> void:
 		_draw_pieces(key, false)
 	_draw_ball()
 	_draw_movements()
+	_draw_preview()
 	_draw_intent()
 	# 札は矢印の上に描く（選んだ手の矢印が、通り道のエリアの札の字を隠さないように）
 	for key: String in drawn_hint_keys():
@@ -408,6 +447,20 @@ func _draw_movements() -> void:
 			_draw_arrow(from_point, to_point, team, 4.0)
 
 
+## 決定前のプレビュー。移動先に自分の色の輪（中抜き）、動く選手の駒から輪へ点線の矢印。
+## 開示後の動き（実線の矢印）・いまの駒（塗りの ●）と、線の種類と塗りで区別する（グレースケールでも形で分かる）。
+## 矢印は緩く曲げる（同じ列を横に動くとき、途中のエリアの駒の上を通らないように）。
+func _draw_preview() -> void:
+	var color: Color = _color(&"you")
+	var radius: float = piece_radius()
+	for index: int in range(_preview.size()):
+		var center: Vector2 = preview_center(index)
+		var origin: Vector2 = preview_origin(index)
+		if origin.distance_to(center) > radius * 2.0:
+			_draw_curved_dashed_arrow(origin, center, radius, color, 3.0)
+		draw_arc(center, radius - 1.5, 0.0, TAU, 24, color, 3.0)
+
+
 func _draw_intent() -> void:
 	if _intent_to.is_empty() or _intent_from.is_empty():
 		return
@@ -426,6 +479,29 @@ func _draw_arrow(from_point: Vector2, to_point: Vector2, color: Color, width: fl
 	var side: Vector2 = direction.orthogonal() * head_length * 0.5
 	draw_colored_polygon(PackedVector2Array([to_point, to_point - direction * head_length + side,
 			to_point - direction * head_length - side]), color)
+
+
+## 駒の縁から駒の縁へ、2次ベジェ曲線の点線と矢じり。曲がりの大きさは距離の 2 割（上限はセルの高さの 3 割）。
+func _draw_curved_dashed_arrow(from_center: Vector2, to_center: Vector2, radius: float, color: Color, width: float) -> void:
+	var bulge: float = minf(from_center.distance_to(to_center) * 0.2, cell_size().y * 0.3)
+	var control: Vector2 = (from_center + to_center) / 2.0 + (to_center - from_center).normalized().orthogonal() * bulge
+	var start: Vector2 = from_center + (control - from_center).normalized() * radius
+	var tip: Vector2 = to_center + (control - to_center).normalized() * radius
+	var head_length: float = 12.0 + width
+	var segments: int = 24
+	var points: Array[Vector2] = []
+	for step: int in range(segments + 1):
+		var t: float = float(step) / segments
+		points.append(start.lerp(control, t).lerp(control.lerp(tip, t), t))
+	# 矢じりの分を残して、1区間おきに描く（点線）
+	for step: int in range(0, segments, 2):
+		if points[step + 1].distance_to(tip) < head_length * 0.8:
+			break
+		draw_line(points[step], points[step + 1], color, width)
+	var direction: Vector2 = (tip - points[segments - 2]).normalized()
+	var side: Vector2 = direction.orthogonal() * head_length * 0.5
+	draw_colored_polygon(PackedVector2Array([tip, tip - direction * head_length + side,
+			tip - direction * head_length - side]), color)
 
 
 func _draw_centered_text(font: Font, center: Vector2, text: String, font_size: int, color: Color) -> void:

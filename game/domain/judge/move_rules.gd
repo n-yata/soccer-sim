@@ -52,6 +52,7 @@ static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions:
 
 
 ## 守備の手。運ぶ先（制限するエリア）は攻撃側から見た座標で返す（DefenseMover.apply の target と同じ）。
+## 条件を変えたら、画面に出す選べる条件の一言（MatchTexts.target_rule）の文言も直す。
 ## 守備側の人数は、守備側から見た座標（T_d = target.mirrored()）で数える。
 static func defense_options(pair: LayoutPair) -> MoveOptions:
 	var options := MoveOptions.new()
