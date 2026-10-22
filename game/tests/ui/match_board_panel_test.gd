@@ -346,6 +346,12 @@ func test_the_reveal_shifts_every_player_whose_area_changed_and_the_next_turn_st
 		assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
 	assert_array(moved).contains(expected)
 	assert_bool(_panel.board().is_shifting()).is_true()
+	# ボールも、判定前の位置から次のターン開始時の位置へ動く（同じ位置なら動かない）
+	# この場面（守備でプレス）ではボールの位置が変わる（空振りしない）
+	assert_str(reveal.ball_before).is_not_equal(snapshot.ball_area)
+	var ball_path: Dictionary = _panel.board().shift_ball_path()
+	assert_str(_panel.board().area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
+	assert_str(_panel.board().area_at(ball_path["to"] as Vector2)).is_equal(snapshot.ball_area)
 	_panel.primary_button().pressed.emit()
 	_controller.continue_after_reveal()
 	_panel.start_turn()

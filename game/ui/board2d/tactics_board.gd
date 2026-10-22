@@ -1,10 +1,10 @@
 ## 作戦ボード（screen-common.md §5 の TacticsBoard）。15エリアの盤面を描き、エリアを押す操作を受ける。
 ## ピッチを横に置き、利用者の攻撃方向は常に右（列は左から D・M・A、行は上から L2〜R2）。受け取るエリアは
 ## すべて利用者の視点のキー（BoardSnapshot・RevealView の値）で、ボードはエリアを変換しない。
-## 描画と入力とテストは、同じ計算（area_rect・area_at・pieces_in など）を使う。色はテーマの型 TacticsBoard。
-## ファイルの目安（300行）を超えているが、描画を別のクラスへ切り出さない。描画は重ね表示の値（選べるエリア・
-## ヒント・矢印・比較）とエリアの位置の計算をすべて読むため、切り出すとそれらを外へ公開することになり、
-## 「表示している値と描いている値が同じ」ことをこのクラスの中で保てなくなる。3D 演出の作業で描画が増えたら見直す。
+## このクラスは、外から渡す値と状態・位置の計算・表示している値の問い合わせ・入力・開示の動きの Tween を持つ。
+## 描画は BoardPainter、開示の動きの状態は BoardShift に分けた（2026-10-23。ファイルの目安 300 行を超えていたため）。
+## 描画もテストも、同じ公開の問い合わせ（area_rect・pieces_in・drawn_movements など）を読むので、
+## 「表示している値と描いている値が同じ」ことが保たれる。色はテーマの型 TacticsBoard。
 class_name TacticsBoard
 extends Control
 
@@ -27,6 +27,9 @@ const DRAWN_REASONS: Array[GameEnums.MovementReason] = [
 	GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER, GameEnums.MovementReason.DRIBBLE,
 ]
 const HINT_HEIGHT: float = 26.0
+## ボールの中心のエリアの上端からの距離と半径（エリアの上側の中央。駒の列と札に重ならない位置）
+const BALL_TOP_OFFSET: float = 22.0
+const BALL_RADIUS: float = 11.0
 
 var _user_players: Array[Dictionary] = []
 var _opponent_players: Array[Dictionary] = []
@@ -42,9 +45,8 @@ var _preview: Array[Movement] = []
 var _compare_area: String = ""
 var _compare_tag: String = ""
 var _pressed_key: String = ""
-## 開示で動かしている駒の道筋（BoardShift.paths）と進み具合（0〜1）。動いていなければ空
-var _shift_paths: Array[Dictionary] = []
-var _shift_progress: float = 1.0
+## 開示の動きの状態（道筋と進み具合）と、それを進める Tween
+var _shift := BoardShift.new()
 var _shift_tween: Tween
 
 
@@ -129,34 +131,54 @@ func clear_overlays() -> void:
 
 
 ## 開示で、動く前の配置（user_before・opponent_before。RevealView の判定前）から、いまの盤面（show_snapshot の後の
-## 次のターン開始時の配置）へ、エリアが変わった選手の駒を duration_sec 秒で動かす。ルールの動き（手・方式・保持者）を
+## 次のターン開始時の配置）へ、位置が変わった選手の駒を duration_sec 秒で動かす。ルールの動き（手・方式・保持者）を
 ## 区別せず全員を動かし、チーム全体がボールに合わせて動いていることを、矢印を増やさずに見せる。0 以下なら動かさない。
-func start_shift(user_before: Array[Dictionary], opponent_before: Array[Dictionary], duration_sec: float) -> void:
+## ボールも、動く前のエリア（ball_before。空文字・読めないキーなら動かさない）から、いまのエリアへ一緒に動かす。
+func start_shift(user_before: Array[Dictionary], opponent_before: Array[Dictionary], ball_before: String,
+		duration_sec: float) -> void:
 	_stop_shift()
 	if not duration_sec > 0.0:
 		return
-	_shift_paths = BoardShift.paths(user_before, _user_players, true, slot_center)
-	_shift_paths.append_array(BoardShift.paths(opponent_before, _opponent_players, false, slot_center))
-	if _shift_paths.is_empty():
+	var piece_paths: Array[Dictionary] = BoardShift.paths(user_before, _user_players, true, slot_center)
+	piece_paths.append_array(BoardShift.paths(opponent_before, _opponent_players, false, slot_center))
+	var ball_path: Dictionary = {}
+	if PitchArea.from_key(ball_before) != null and PitchArea.from_key(_ball_area) != null and ball_before != _ball_area:
+		ball_path = {"from": _ball_point(ball_before), "to": _ball_point(_ball_area)}
+	_shift.start(piece_paths, ball_path)
+	if not _shift.is_active():
 		return
-	_shift_progress = 0.0
 	_shift_tween = create_tween()
 	_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, duration_sec)
 	_shift_tween.finished.connect(_stop_shift)
 
 
-## 開示で駒を動かしている途中か（動いている間は、駒を選手ごとに描く）。
+## 開示で駒かボールを動かしている途中か。
 func is_shifting() -> bool:
-	return not _shift_paths.is_empty()
+	return _shift.is_active()
+
+
+## 開示で駒を動かしている途中か（このときだけ、駒を選手ごとに描く。ボールだけが動くときは、いつもの描き方のまま）。
+func is_shifting_pieces() -> bool:
+	return not _shift.piece_paths.is_empty()
 
 
 ## 動かしている駒の道筋（{"player_id", "is_user", "from", "to"}）。描画とテストで共有する。動いていなければ空。
 func shift_paths() -> Array[Dictionary]:
-	return _shift_paths.duplicate()
+	return _shift.piece_paths.duplicate()
+
+
+## 動かしているボールの道筋（{"from", "to"}）。描画とテストで共有する。ボールが動いていなければ空。
+func shift_ball_path() -> Dictionary:
+	return _shift.ball_path.duplicate()
+
+
+## player_id の駒を描く位置。開示で動いていれば道筋の途中、そうでなければ rest（駒の列の位置）。
+func shifting_piece_center(player_id: String, rest: Vector2) -> Vector2:
+	return _shift.piece_position(player_id, rest)
 
 
 func _set_shift_progress(progress: float) -> void:
-	_shift_progress = progress
+	_shift.progress = progress
 	queue_redraw()
 
 
@@ -165,8 +187,7 @@ func _stop_shift() -> void:
 	if _shift_tween != null:
 		_shift_tween.kill()
 		_shift_tween = null
-	_shift_paths.clear()
-	_shift_progress = 1.0
+	_shift.clear()
 	queue_redraw()
 
 
@@ -215,6 +236,22 @@ func overflow_tag(key: String, is_user: bool) -> String:
 
 func ball_area() -> String:
 	return _ball_area
+
+
+## ボールを描く位置。開示で動いていれば道筋の途中、そうでなければいまのエリアの位置。
+func ball_center() -> Vector2:
+	return _shift.ball_position(_ball_point(_ball_area))
+
+
+## エリアのボールの位置。エリアの上側の中央（駒の列と札に重ならない位置）。
+func _ball_point(key: String) -> Vector2:
+	var rect: Rect2 = area_rect(key)
+	return Vector2(rect.get_center().x, rect.position.y + BALL_TOP_OFFSET)
+
+
+## is_user のチームの選手（BoardSnapshot.user_players と同じ形）。
+func players(is_user: bool) -> Array[Dictionary]:
+	return (_user_players if is_user else _opponent_players).duplicate()
 
 
 func selectable_areas() -> Array[String]:
@@ -309,8 +346,19 @@ func has_intent() -> bool:
 	return not _intent_to.is_empty()
 
 
+## 意図の矢印の両端 [ボールのエリア, 運ぶ先]。無ければ空。
+func intent_keys() -> Array[String]:
+	if _intent_from.is_empty() or _intent_to.is_empty():
+		return []
+	return [_intent_from, _intent_to]
+
+
 func movement_count() -> int:
 	return _movements.size()
+
+
+func compare_area() -> String:
+	return _compare_area
 
 
 func compare_tag() -> String:
@@ -339,253 +387,7 @@ func _gui_input(event: InputEvent) -> void:
 # --- 描画 ---
 
 func _draw() -> void:
-	_draw_pitch()
-	for area: PitchArea in PitchArea.all():
-		var key: String = area.to_key()
-		_draw_area_fill(key)
-	_draw_zone_lines()
-	_draw_lane_names()
-	if is_shifting():
-		_draw_shifting_pieces()
-	else:
-		for area: PitchArea in PitchArea.all():
-			var key: String = area.to_key()
-			_draw_pieces(key, true)
-			_draw_pieces(key, false)
-	_draw_ball()
-	_draw_movements()
-	_draw_preview()
-	_draw_intent()
-	# 札は矢印の上に描く（選んだ手の矢印が、通り道のエリアの札の字を隠さないように）
-	for key: String in drawn_hint_keys():
-		_draw_hint(key)
-	_draw_compare()
-
-
-func _color(name: StringName) -> Color:
-	return get_theme_color(name, THEME_TYPE)
-
-
-func _font_size(name: StringName) -> int:
-	return get_theme_font_size(name, THEME_TYPE)
-
-
-func _draw_pitch() -> void:
-	var board := Rect2(Vector2.ZERO, size)
-	draw_rect(board, _color(&"pitch"))
-	var cell: Vector2 = cell_size()
-	# 芝目（縦の帯）とハーフスペースのレーン
-	var stripes: int = PitchArea.ZONE_COUNT * 2
-	for index: int in range(stripes):
-		if index % 2 == 1:
-			draw_rect(Rect2(Vector2(size.x * index / stripes, 0), Vector2(size.x / stripes, size.y)), _color(&"pitch_stripe"))
-	for lane: int in [GameEnums.Lane.L1, GameEnums.Lane.R1]:
-		var tint: Color = _color(&"pitch_halfspace")
-		draw_rect(Rect2(Vector2(0, lane * cell.y), Vector2(size.x, cell.y)), tint)
-	# 白線: 外枠・ハーフウェイライン・センターサークル・ペナルティエリア・ゴール
-	var line: Color = _color(&"pitch_line")
-	draw_rect(board, line, false, 3.0)
-	draw_line(Vector2(size.x / 2.0, 0), Vector2(size.x / 2.0, size.y), line, 2.0)
-	draw_arc(size / 2.0, size.y * 0.13, 0.0, TAU, 48, line, 2.0)
-	var box := Vector2(size.x * 0.13, size.y * 0.56)
-	draw_rect(Rect2(Vector2(0, (size.y - box.y) / 2.0), box), line, false, 2.0)
-	draw_rect(Rect2(Vector2(size.x - box.x, (size.y - box.y) / 2.0), box), line, false, 2.0)
-	var goal := Vector2(8, size.y * 0.16)
-	draw_rect(Rect2(Vector2(0, (size.y - goal.y) / 2.0), goal), line)
-	draw_rect(Rect2(Vector2(size.x - goal.x, (size.y - goal.y) / 2.0), goal), line)
-
-
-func _draw_zone_lines() -> void:
-	var color: Color = _color(&"zone_line")
-	var cell: Vector2 = cell_size()
-	for zone_index: int in range(1, PitchArea.ZONE_COUNT):
-		draw_dashed_line(Vector2(zone_index * cell.x, 0), Vector2(zone_index * cell.x, size.y), color, 1.0, 6.0)
-	for lane_index: int in range(1, PitchArea.LANE_COUNT):
-		draw_dashed_line(Vector2(0, lane_index * cell.y), Vector2(size.x, lane_index * cell.y), color, 1.0, 6.0)
-
-
-## ボールのあるエリアの薄い塗り・選んだエリアの塗り・選べるエリアの点線の枠。
-func _draw_area_fill(key: String) -> void:
-	var rect: Rect2 = area_rect(key).grow(-3.0)
-	if key == _ball_area:
-		draw_rect(rect, _color(&"ball_area_fill"))
-	if key == _selected:
-		draw_rect(rect, _color(&"selected_fill"))
-	if _selectable.has(key):
-		var accent: Color = _color(&"accent")
-		var corners: Array[Vector2] = [rect.position, Vector2(rect.end.x, rect.position.y), rect.end,
-				Vector2(rect.position.x, rect.end.y)]
-		for index: int in range(4):
-			draw_dashed_line(corners[index], corners[(index + 1) % 4], accent, 3.0, 10.0)
-
-
-## 駒は番号を付けず、エリアの縦の中央に1列で並べる。自分の ● は中央から左へ、相手の ◆ は中央から右へ。
-## 上限を超えたら、駒を (上限 - 1) つと「+N」の札にする。
-func _draw_pieces(key: String, is_user: bool) -> void:
-	var count: int = (pieces_in(key)["user" if is_user else "opponent"] as Array).size()
-	if count == 0:
-		return
-	var radius: float = piece_radius()
-	var color: Color = _color(&"you" if is_user else &"opponent")
-	var shown: int = visible_piece_count(key, is_user)
-	for index: int in range(shown + (1 if shown < count else 0)):
-		var center: Vector2 = piece_center(key, is_user, index)
-		if index >= shown:
-			_draw_centered_text(get_theme_default_font(), center, overflow_tag(key, is_user), _font_size(&"tag_size"), _color(&"text"))
-			continue
-		_draw_piece(center, radius, color, is_user)
-
-
-func _draw_piece(center: Vector2, radius: float, color: Color, is_user: bool) -> void:
-	if is_user:
-		draw_circle(center, radius, color)
-	else:
-		var points := PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0),
-				center + Vector2(0, radius), center + Vector2(-radius, 0)])
-		draw_colored_polygon(points, color)
-
-
-## 動いている間は、駒を選手ごとに描く。動く選手は道筋の途中、動かない選手は駒の列の位置（「+N」の札は出さない。
-## 動き終えると、いつもの描き方に戻る）。
-func _draw_shifting_pieces() -> void:
-	var moving: Dictionary = {}
-	for path: Dictionary in _shift_paths:
-		moving[path["player_id"]] = (path["from"] as Vector2).lerp(path["to"] as Vector2, _shift_progress)
-	var radius: float = piece_radius()
-	for is_user: bool in [true, false]:
-		var players: Array[Dictionary] = _user_players if is_user else _opponent_players
-		var slots: Array[int] = BoardShift.slots(players)
-		var color: Color = _color(&"you" if is_user else &"opponent")
-		for index: int in range(players.size()):
-			var center: Vector2 = moving.get(players[index]["player_id"],
-					slot_center(players[index]["area"] as String, is_user, slots[index])) as Vector2
-			_draw_piece(center, radius, color, is_user)
-
-
-## ヒントの札をエリアの下端の中央に。差がある札は accent、±0 の札は控えめな色。
-func _draw_hint(key: String) -> void:
-	var rect: Rect2 = area_rect(key)
-	var font: Font = get_theme_default_font()
-	var hint: String = hint_of(key)
-	var tag_size: int = _font_size(&"hint_size")
-	var width: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 14.0
-	var tag_box := Rect2(Vector2(rect.get_center().x - width / 2.0, rect.end.y - HINT_HEIGHT - 8.0), Vector2(width, HINT_HEIGHT))
-	var is_even: bool = is_hint_even(key)
-	draw_rect(tag_box, _color(&"tag_muted_bg") if is_even else _color(&"accent"))
-	_draw_centered_text(font, tag_box.get_center(), hint, tag_size, _color(&"text") if is_even else _color(&"bg"))
-
-
-## レーン名を各レーンの自陣のエリアの左上に、小さく薄く。
-func _draw_lane_names() -> void:
-	var font: Font = get_theme_default_font()
-	var font_size: int = _font_size(&"lane_size")
-	var color: Color = _color(&"lane_text")
-	for lane: int in GameEnums.Lane.values():
-		var rect: Rect2 = area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D).to_key())
-		var baseline := Vector2(rect.position.x + 8.0, rect.position.y + 6.0 + font.get_ascent(font_size))
-		draw_string(font, baseline, MatchTexts.lane_name(lane as GameEnums.Lane), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-
-
-## ボールはエリアの上側の中央（駒の列と札に重ならない位置）。
-func _draw_ball() -> void:
-	if _ball_area.is_empty():
-		return
-	var rect: Rect2 = area_rect(_ball_area)
-	var center := Vector2(rect.get_center().x, rect.position.y + 22.0)
-	draw_circle(center, 11.0, _color(&"ball"))
-	draw_arc(center, 11.0, 0.0, TAU, 24, _color(&"bg"), 2.0)
-
-
-func _draw_compare() -> void:
-	if _compare_area.is_empty():
-		return
-	var rect: Rect2 = area_rect(_compare_area).grow(-2.0)
-	draw_rect(rect, _color(&"accent"), false, 5.0)
-	var font: Font = get_theme_default_font()
-	var tag_size: int = _font_size(&"tag_size")
-	var width: float = font.get_string_size(_compare_tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 20.0
-	var tag_box := Rect2(Vector2(rect.get_center().x - width / 2.0, rect.end.y - 36.0), Vector2(width, 32))
-	draw_rect(tag_box, _color(&"accent"))
-	_draw_centered_text(font, tag_box.get_center(), _compare_tag, tag_size, _color(&"bg"))
-
-
-## 動きの矢印。ドリブル（ボール）は accent の太線、プレス・カバーはチームの色の実線。それ以外の動きは描かない。
-## 同じエリアの間を両チームが動くと重なるので、チームごとに少しずらす。
-func _draw_movements() -> void:
-	for movement: Movement in drawn_movements():
-		var offset := Vector2(0, -8.0 if movement.side == GameEnums.TeamSide.HOME else 8.0)
-		var from_point: Vector2 = area_rect(movement.from.to_key()).get_center() + offset
-		var to_point: Vector2 = area_rect(movement.to.to_key()).get_center() + offset
-		if from_point.distance_to(to_point) < 1.0:
-			continue
-		if movement.reason == GameEnums.MovementReason.DRIBBLE:
-			_draw_arrow(from_point, to_point, _color(&"accent"), 6.0)
-		else:
-			var team: Color = _color(&"you" if movement.side == GameEnums.TeamSide.HOME else &"opponent")
-			_draw_arrow(from_point, to_point, team, 4.0)
-
-
-## 決定前のプレビュー。移動先に自分の色の輪（中抜き）、動く選手の駒から輪へ点線の矢印。
-## 開示後の動き（実線の矢印）・いまの駒（塗りの ●）と、線の種類と塗りで区別する（グレースケールでも形で分かる）。
-## 矢印は緩く曲げる（同じ列を横に動くとき、途中のエリアの駒の上を通らないように）。
-func _draw_preview() -> void:
-	var color: Color = _color(&"you")
-	var radius: float = piece_radius()
-	for index: int in range(_preview.size()):
-		var center: Vector2 = preview_center(index)
-		var origin: Vector2 = preview_origin(index)
-		if origin.distance_to(center) > radius * 2.0:
-			_draw_curved_dashed_arrow(origin, center, radius, color, 3.0)
-		draw_arc(center, radius - 1.5, 0.0, TAU, 24, color, 3.0)
-
-
-func _draw_intent() -> void:
-	if _intent_to.is_empty() or _intent_from.is_empty():
-		return
-	var from_point: Vector2 = area_rect(_intent_from).get_center()
-	var to_point: Vector2 = area_rect(_intent_to).get_center()
-	if from_point.distance_to(to_point) < 1.0:
-		return
-	_draw_arrow(from_point, to_point, _color(&"accent"), 6.0)
-
-
-func _draw_arrow(from_point: Vector2, to_point: Vector2, color: Color, width: float) -> void:
-	var direction: Vector2 = (to_point - from_point).normalized()
-	var head_length: float = 14.0 + width
-	var shaft_end: Vector2 = to_point - direction * head_length * 0.8
-	draw_line(from_point, shaft_end, color, width)
-	var side: Vector2 = direction.orthogonal() * head_length * 0.5
-	draw_colored_polygon(PackedVector2Array([to_point, to_point - direction * head_length + side,
-			to_point - direction * head_length - side]), color)
-
-
-## 駒の縁から駒の縁へ、2次ベジェ曲線の点線と矢じり。曲がりの大きさは距離の 2 割（上限はセルの高さの 3 割）。
-func _draw_curved_dashed_arrow(from_center: Vector2, to_center: Vector2, radius: float, color: Color, width: float) -> void:
-	var bulge: float = minf(from_center.distance_to(to_center) * 0.2, cell_size().y * 0.3)
-	var control: Vector2 = (from_center + to_center) / 2.0 + (to_center - from_center).normalized().orthogonal() * bulge
-	var start: Vector2 = from_center + (control - from_center).normalized() * radius
-	var tip: Vector2 = to_center + (control - to_center).normalized() * radius
-	var head_length: float = 12.0 + width
-	var segments: int = 24
-	var points: Array[Vector2] = []
-	for step: int in range(segments + 1):
-		var t: float = float(step) / segments
-		points.append(start.lerp(control, t).lerp(control.lerp(tip, t), t))
-	# 矢じりの分を残して、1区間おきに描く（点線）
-	for step: int in range(0, segments, 2):
-		if points[step + 1].distance_to(tip) < head_length * 0.8:
-			break
-		draw_line(points[step], points[step + 1], color, width)
-	var direction: Vector2 = (tip - points[segments - 2]).normalized()
-	var side: Vector2 = direction.orthogonal() * head_length * 0.5
-	draw_colored_polygon(PackedVector2Array([tip, tip - direction * head_length + side,
-			tip - direction * head_length - side]), color)
-
-
-func _draw_centered_text(font: Font, center: Vector2, text: String, font_size: int, color: Color) -> void:
-	var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-	var baseline := Vector2(center.x - text_size.x / 2.0, center.y + font.get_ascent(font_size) / 2.0 - 2.0)
-	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+	BoardPainter.paint(self)
 
 
 static func _numbers_in(players: Array[Dictionary], key: String) -> Array[int]:

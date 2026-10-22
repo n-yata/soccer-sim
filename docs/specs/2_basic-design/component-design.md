@@ -895,8 +895,12 @@ func route_back() -> bool
 >
 > **2026-10-22（開示で駒を動かす）**: 開示では、`TacticsBoard.start_shift` で、判定前の配置（`RevealView` の判定前の選手）から
 > 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす。
-> 道筋（選手ごとの移動元と移動先の駒の列の位置）の計算は `BoardShift`（`board_shift.gd`）に置き、描画と Tween はボードが持つ。
+> 道筋（選手ごとの移動元と移動先の駒の列の位置）の計算は `BoardShift`（`board_shift.gd`）に置き、Tween はボードが持つ（描画は下の 2026-10-23 の注記のとおり `BoardPainter`）。
 > 画面の状態は増やさない（テロップ・矢印はすぐ出し、「次へ」も押せる）。次の盤面・重ね表示の消去で動きを止める。
+>
+> **2026-10-23**: ボールも駒と一緒に、判定前のエリア（`RevealView.ball_before`）から動かす。あわせて `TacticsBoard` を分けた。
+> 描画は `BoardPainter`（`board_painter.gd`。ボードの公開の問い合わせだけを読んで描く）、開示の動きの状態（駒とボールの
+> 道筋・進み具合）は `BoardShift` に置き、ボードは外から渡す値と状態・位置の計算・問い合わせ・入力・Tween を持つ。
 
 ### 5.4 3D 演出（`replay3d/`）
 

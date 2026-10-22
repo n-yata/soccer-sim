@@ -271,7 +271,7 @@ func _shift_board(duration_sec: float) -> void:
 	snapshot.opponent_players = _players_of({"o1": "M-C"})
 	_board.show_snapshot(snapshot)
 	# 動く前: p2 は D-C（p1 の次）、o1 は A-C。p1・p3 は動かない。p4 は動く前に居ない（動かさない）
-	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C", "p3": "M-L1"}), _players_of({"o1": "A-C"}), duration_sec)
+	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C", "p3": "M-L1"}), _players_of({"o1": "A-C"}), "", duration_sec)
 
 
 func _path_of(player_id: String) -> Dictionary:
@@ -321,7 +321,7 @@ func test_a_player_who_only_moves_along_the_row_is_shifted_too() -> void:
 	var snapshot := BoardSnapshot.new()
 	snapshot.user_players = _players_of({"p1": "M-C", "p2": "D-C"})
 	_board.show_snapshot(snapshot)
-	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C"}), [], 1.0)
+	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C"}), [], "", 1.0)
 	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D-C", true, 1))
 	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("D-C", true, 0))
 	assert_int(_board.shift_paths().size()).is_equal(2)
@@ -333,3 +333,76 @@ func test_shift_ends_by_itself_after_the_duration() -> void:
 	await await_millis(300)
 	assert_bool(_board.is_shifting()).is_false()
 	assert_array(_board.shift_paths()).is_empty()
+
+
+# --- 開示でボールを動かす ---
+
+## ボールの位置が key のエリアの上側の中央にあること（screen-common.md: ボールはエリアの上側の中央。
+## 実装の式を写さず、エリア・横の中央・上半分で確かめる）
+func _assert_ball_in(point: Vector2, key: String) -> void:
+	var rect: Rect2 = _board.area_rect(key)
+	assert_str(_board.area_at(point)).override_failure_message(key).is_equal(key)
+	assert_float(point.x).override_failure_message(key).is_equal_approx(rect.get_center().x, 0.001)
+	assert_float(point.y).override_failure_message(key).is_less(rect.get_center().y)
+
+
+func _ball_board(ball_after: String, ball_before: String, user_before: Dictionary, duration_sec: float = 1.0) -> void:
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "M-C"})
+	snapshot.ball_area = ball_after
+	_board.show_snapshot(snapshot)
+	_board.start_shift(_players_of(user_before), [], ball_before, duration_sec)
+
+
+func test_the_ball_moves_with_the_pieces_from_its_area_before_the_turn() -> void:
+	_ball_board("A-C", "M-C", {"p1": "D-C"})
+	var path: Dictionary = _board.shift_ball_path()
+	_assert_ball_in(path["from"] as Vector2, "M-C")
+	_assert_ball_in(path["to"] as Vector2, "A-C")
+	# 動き始めは判定前の位置に描く
+	assert_vector(_board.ball_center()).is_equal(path["from"] as Vector2)
+
+
+func test_the_ball_alone_moves_when_no_piece_does() -> void:
+	_ball_board("A-C", "M-C", {"p1": "M-C"})
+	assert_array(_board.shift_paths()).is_empty()
+	assert_bool(_board.is_shifting()).is_true()
+	assert_dict(_board.shift_ball_path()).is_not_empty()
+	# 駒は動いていないので、駒はいつもの描き方（エリアごとの列と「+N」）のまま
+	assert_bool(_board.is_shifting_pieces()).is_false()
+
+
+func test_the_ball_does_not_move_without_a_readable_area_or_time() -> void:
+	# 判定前のキーが読めない
+	_ball_board("A-C", "X-9", {"p1": "M-C"})
+	assert_dict(_board.shift_ball_path()).is_empty()
+	assert_bool(_board.is_shifting()).is_false()
+	# いまの盤面にボールが無い
+	_ball_board("", "M-C", {"p1": "M-C"})
+	assert_dict(_board.shift_ball_path()).is_empty()
+	# 時間が 0
+	_ball_board("A-C", "M-C", {"p1": "M-C"}, 0.0)
+	assert_dict(_board.shift_ball_path()).is_empty()
+	assert_bool(_board.is_shifting()).is_false()
+
+
+func test_the_ball_stays_when_its_area_does_not_change() -> void:
+	_ball_board("M-C", "M-C", {"p1": "D-C"})
+	assert_dict(_board.shift_ball_path()).is_empty()
+	assert_bool(_board.is_shifting()).is_true()
+	_board.clear_overlays()
+	# 判定前のボールが無い（空文字）ときも動かさない
+	_ball_board("M-C", "", {"p1": "M-C"})
+	assert_dict(_board.shift_ball_path()).is_empty()
+	assert_bool(_board.is_shifting()).is_false()
+
+
+func test_the_ball_is_drawn_where_it_now_is_after_the_shift_stops() -> void:
+	_ball_board("A-C", "M-C", {"p1": "D-C"}, 0.05)
+	await await_millis(300)
+	assert_bool(_board.is_shifting()).is_false()
+	assert_dict(_board.shift_ball_path()).is_empty()
+	_assert_ball_in(_board.ball_center(), "A-C")
+	_ball_board("A-C", "M-C", {"p1": "D-C"})
+	_board.show_snapshot(BoardSnapshot.new())
+	assert_dict(_board.shift_ball_path()).is_empty()
