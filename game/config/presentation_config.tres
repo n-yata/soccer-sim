@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="PresentationConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://domain/config/presentation_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+board_shift_sec = 0.6

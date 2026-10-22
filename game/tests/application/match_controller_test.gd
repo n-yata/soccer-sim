@@ -89,6 +89,9 @@ func _config(turns: int) -> ConfigRepository:
 	rules.turns_per_half = turns
 	ResourceSaver.save(rules, dir.path_join("match_rule_config.tres"))
 	ResourceSaver.save(CpuConfig.new(), dir.path_join("cpu_config.tres"))
+	var presentation := PresentationConfig.new()
+	presentation.board_shift_sec = 1.5
+	ResourceSaver.save(presentation, dir.path_join("presentation_config.tres"))
 	return ConfigRepository.new(dir)
 
 
@@ -198,6 +201,13 @@ func test_user_hints_match_the_user_options() -> void:
 	for hint: ChoiceHint in controller.user_hints():
 		assert_bool(MoveRules.is_allowed(options, TurnChoice.new(hint.family, hint.action, hint.target))) \
 				.override_failure_message(str(hint.target)).is_true()
+
+
+# --- 表示の調整値 ---
+
+func test_board_shift_sec_comes_from_the_presentation_settings() -> void:
+	# テストの設定ファイルは 1.5 秒（同梱の 0.6 秒と違う値で、設定から読んでいることを確かめる）
+	assert_float(_controller(1).board_shift_sec()).is_equal(1.5)
 
 
 # --- 決定前のプレビュー ---

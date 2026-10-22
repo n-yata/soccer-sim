@@ -42,6 +42,10 @@ var _preview: Array[Movement] = []
 var _compare_area: String = ""
 var _compare_tag: String = ""
 var _pressed_key: String = ""
+## 開示で動かしている駒の道筋（BoardShift.paths）と進み具合（0〜1）。動いていなければ空
+var _shift_paths: Array[Dictionary] = []
+var _shift_progress: float = 1.0
+var _shift_tween: Tween
 
 
 func _init() -> void:
@@ -53,6 +57,7 @@ func _init() -> void:
 # --- 外から渡す値 ---
 
 func show_snapshot(snapshot: BoardSnapshot) -> void:
+	_stop_shift()
 	_user_players = snapshot.user_players.duplicate()
 	_opponent_players = snapshot.opponent_players.duplicate()
 	_ball_area = snapshot.ball_area
@@ -108,6 +113,7 @@ func show_compare(key: String, user_count: int, opponent_count: int) -> void:
 
 ## 盤面（駒・記号・ボール）以外の重ね表示をすべて消す。
 func clear_overlays() -> void:
+	_stop_shift()
 	_selectable.clear()
 	_selected = ""
 	_hints.clear()
@@ -119,6 +125,48 @@ func clear_overlays() -> void:
 	_compare_area = ""
 	_compare_tag = ""
 	_pressed_key = ""
+	queue_redraw()
+
+
+## 開示で、動く前の配置（user_before・opponent_before。RevealView の判定前）から、いまの盤面（show_snapshot の後の
+## 次のターン開始時の配置）へ、エリアが変わった選手の駒を duration_sec 秒で動かす。ルールの動き（手・方式・保持者）を
+## 区別せず全員を動かし、チーム全体がボールに合わせて動いていることを、矢印を増やさずに見せる。0 以下なら動かさない。
+func start_shift(user_before: Array[Dictionary], opponent_before: Array[Dictionary], duration_sec: float) -> void:
+	_stop_shift()
+	if not duration_sec > 0.0:
+		return
+	_shift_paths = BoardShift.paths(user_before, _user_players, true, slot_center)
+	_shift_paths.append_array(BoardShift.paths(opponent_before, _opponent_players, false, slot_center))
+	if _shift_paths.is_empty():
+		return
+	_shift_progress = 0.0
+	_shift_tween = create_tween()
+	_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, duration_sec)
+	_shift_tween.finished.connect(_stop_shift)
+
+
+## 開示で駒を動かしている途中か（動いている間は、駒を選手ごとに描く）。
+func is_shifting() -> bool:
+	return not _shift_paths.is_empty()
+
+
+## 動かしている駒の道筋（{"player_id", "is_user", "from", "to"}）。描画とテストで共有する。動いていなければ空。
+func shift_paths() -> Array[Dictionary]:
+	return _shift_paths.duplicate()
+
+
+func _set_shift_progress(progress: float) -> void:
+	_shift_progress = progress
+	queue_redraw()
+
+
+## 動きを止め、いまの盤面の描き方（エリアごとの列と「+N」）に戻す。次の盤面・重ね表示の消去で呼ぶ（前のターンの動きを残さない）。
+func _stop_shift() -> void:
+	if _shift_tween != null:
+		_shift_tween.kill()
+		_shift_tween = null
+	_shift_paths.clear()
+	_shift_progress = 1.0
 	queue_redraw()
 
 
@@ -204,6 +252,12 @@ func piece_center(key: String, is_user: bool, index: int) -> Vector2:
 	return Vector2(rect.get_center().x + direction * offset, rect.get_center().y)
 
 
+## エリアの駒の列の slot 番目の中心。列に収まらない添字（1エリアに5人以上）は最後の位置（MAX_PIECES - 1）で止める。
+## プレビューの輪・開示で動かす駒の道筋と描画で共有する（止め方を1か所で決める）。
+func slot_center(key: String, is_user: bool, slot: int) -> Vector2:
+	return piece_center(key, is_user, mini(slot, MAX_PIECES - 1))
+
+
 ## 札を描くエリア（札があり、選べるエリア）。選べるエリアの順。
 func drawn_hint_keys() -> Array[String]:
 	var keys: Array[String] = []
@@ -234,7 +288,7 @@ func preview_center(index: int) -> Vector2:
 	for earlier: int in range(index):
 		if _preview[earlier].to.to_key() == key:
 			slot += 1
-	return piece_center(key, true, mini(slot, MAX_PIECES - 1))
+	return slot_center(key, true, slot)
 
 
 ## index 番目のプレビューの矢印の始点。動く選手の駒（移動元のエリアの自分の駒の列で、盤面の選手の順の位置）の中心。
@@ -246,7 +300,7 @@ func preview_origin(index: int) -> Vector2:
 		if player["area"] != key:
 			continue
 		if player["player_id"] == _preview[index].player_id:
-			return piece_center(key, true, mini(slot, MAX_PIECES - 1))
+			return slot_center(key, true, slot)
 		slot += 1
 	return area_rect(key).get_center()
 
@@ -291,10 +345,13 @@ func _draw() -> void:
 		_draw_area_fill(key)
 	_draw_zone_lines()
 	_draw_lane_names()
-	for area: PitchArea in PitchArea.all():
-		var key: String = area.to_key()
-		_draw_pieces(key, true)
-		_draw_pieces(key, false)
+	if is_shifting():
+		_draw_shifting_pieces()
+	else:
+		for area: PitchArea in PitchArea.all():
+			var key: String = area.to_key()
+			_draw_pieces(key, true)
+			_draw_pieces(key, false)
 	_draw_ball()
 	_draw_movements()
 	_draw_preview()
@@ -376,12 +433,33 @@ func _draw_pieces(key: String, is_user: bool) -> void:
 		if index >= shown:
 			_draw_centered_text(get_theme_default_font(), center, overflow_tag(key, is_user), _font_size(&"tag_size"), _color(&"text"))
 			continue
-		if is_user:
-			draw_circle(center, radius, color)
-		else:
-			var points := PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0),
-					center + Vector2(0, radius), center + Vector2(-radius, 0)])
-			draw_colored_polygon(points, color)
+		_draw_piece(center, radius, color, is_user)
+
+
+func _draw_piece(center: Vector2, radius: float, color: Color, is_user: bool) -> void:
+	if is_user:
+		draw_circle(center, radius, color)
+	else:
+		var points := PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0),
+				center + Vector2(0, radius), center + Vector2(-radius, 0)])
+		draw_colored_polygon(points, color)
+
+
+## 動いている間は、駒を選手ごとに描く。動く選手は道筋の途中、動かない選手は駒の列の位置（「+N」の札は出さない。
+## 動き終えると、いつもの描き方に戻る）。
+func _draw_shifting_pieces() -> void:
+	var moving: Dictionary = {}
+	for path: Dictionary in _shift_paths:
+		moving[path["player_id"]] = (path["from"] as Vector2).lerp(path["to"] as Vector2, _shift_progress)
+	var radius: float = piece_radius()
+	for is_user: bool in [true, false]:
+		var players: Array[Dictionary] = _user_players if is_user else _opponent_players
+		var slots: Array[int] = BoardShift.slots(players)
+		var color: Color = _color(&"you" if is_user else &"opponent")
+		for index: int in range(players.size()):
+			var center: Vector2 = moving.get(players[index]["player_id"],
+					slot_center(players[index]["area"] as String, is_user, slots[index])) as Vector2
+			_draw_piece(center, radius, color, is_user)
 
 
 ## ヒントの札をエリアの下端の中央に。差がある札は accent、±0 の札は控えめな色。

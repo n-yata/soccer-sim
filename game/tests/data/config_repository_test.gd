@@ -108,3 +108,51 @@ func test_out_of_range_style_bonus_falls_back_to_the_initial_values() -> void:
 		var cpu: CpuConfig = repository.cpu()
 		assert_float(cpu.style_bonus).override_failure_message(str(bonus)).is_equal(CpuConfig.new().style_bonus)
 		assert_float(cpu.temperature).override_failure_message(str(bonus)).is_equal(CpuConfig.new().temperature)
+
+
+# --- 表示の調整値（PresentationConfig） ---
+
+const PRESENTATION_FILE: String = "presentation_config.tres"
+
+
+func _presentation_with(case_name: String, shift_sec: float) -> ConfigRepository:
+	var dir: String = create_temp_dir("config_repository/presentation_" + case_name)
+	var presentation := PresentationConfig.new()
+	presentation.board_shift_sec = shift_sec
+	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
+	return ConfigRepository.new(dir)
+
+
+func test_bundled_presentation_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の初期値 0.6 秒
+	assert_float(ConfigRepository.new().presentation().board_shift_sec).is_equal(0.6)
+	assert_float(PresentationConfig.new().board_shift_sec).is_equal(0.6)
+
+
+func test_board_shift_inside_the_range_is_read_including_the_upper_bound() -> void:
+	for shift_sec: float in [0.01, 1.2, 2.0]:
+		var repository: ConfigRepository = _presentation_with("ok_%s" % shift_sec, shift_sec)
+		assert_float(repository.presentation().board_shift_sec).override_failure_message(str(shift_sec)).is_equal(shift_sec)
+	var cached: ConfigRepository = _presentation_with("cached", 1.0)
+	assert_object(cached.presentation()).is_same(cached.presentation())
+
+
+func test_out_of_range_board_shift_falls_back_to_the_initial_value() -> void:
+	# 0 より大きく 2 以下の有限の値。0・負・2 超・NaN・無限大は範囲外
+	for shift_sec: float in [0.0, -0.5, 2.01, NAN, INF]:
+		var repository: ConfigRepository = _presentation_with("bad_%s" % shift_sec, shift_sec)
+		assert_float(repository.presentation().board_shift_sec).override_failure_message(str(shift_sec)) \
+				.is_equal(PresentationConfig.new().board_shift_sec)
+
+
+func test_out_of_range_board_shift_reports_an_error() -> void:
+	var repository: ConfigRepository = _presentation_with("error", 3.0)
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_shift_sec=3.0）のため、初期値を使う")
+
+
+func test_missing_presentation_falls_back_to_the_initial_value_with_an_error() -> void:
+	var repository := ConfigRepository.new(create_temp_dir("config_repository/presentation_missing"))
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres を読めないため、初期値を使う")
+	assert_float(repository.presentation().board_shift_sec).is_equal(PresentationConfig.new().board_shift_sec)

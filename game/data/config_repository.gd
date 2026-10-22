@@ -9,10 +9,14 @@ extends RefCounted
 
 const MATCH_RULE_FILE: String = "match_rule_config.tres"
 const CPU_FILE: String = "cpu_config.tres"
+const PRESENTATION_FILE: String = "presentation_config.tres"
+## 駒を動かす時間の上限（秒）。範囲の正本は functional-overview.md「設定値として外部化する値」
+const MAX_BOARD_SHIFT_SEC: float = 2.0
 
 var _config_dir: String
 var _match_rules: MatchRuleConfig
 var _cpu: CpuConfig
+var _presentation: PresentationConfig
 
 
 ## config_dir はテストで別の場所を読ませるための引数。アプリは既定値を使う。
@@ -32,6 +36,13 @@ func cpu() -> CpuConfig:
 	if _cpu == null:
 		_cpu = _load_cpu()
 	return _cpu
+
+
+## 開示で駒を動かす時間など。1回読んだら持っておく。
+func presentation() -> PresentationConfig:
+	if _presentation == null:
+		_presentation = _load_presentation()
+	return _presentation
 
 
 func _load_match_rules() -> MatchRuleConfig:
@@ -59,6 +70,18 @@ func _load_cpu() -> CpuConfig:
 		push_error("ConfigRepository: %s の値が範囲外（temperature=%s, floor_probability=%s, style_bonus=%s）のため、初期値を使う"
 				% [CPU_FILE, loaded.temperature, loaded.floor_probability, loaded.style_bonus])
 		return CpuConfig.new()
+	return loaded
+
+
+func _load_presentation() -> PresentationConfig:
+	var loaded: PresentationConfig = _load(PRESENTATION_FILE) as PresentationConfig
+	if loaded == null:
+		push_error("ConfigRepository: %s を読めないため、初期値を使う" % PRESENTATION_FILE)
+		return PresentationConfig.new()
+	var shift_sec: float = loaded.board_shift_sec
+	if not (is_finite(shift_sec) and shift_sec > 0.0 and shift_sec <= MAX_BOARD_SHIFT_SEC):
+		push_error("ConfigRepository: %s の値が範囲外（board_shift_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, shift_sec])
+		return PresentationConfig.new()
 	return loaded
 
 

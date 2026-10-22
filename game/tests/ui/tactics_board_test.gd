@@ -253,3 +253,83 @@ func test_preview_arrows_start_from_the_piece_of_the_moving_player() -> void:
 	_board.show_snapshot(_preview_snapshot({"p0": "M-C", "p1": "D-C", "p2": "M-C"}))
 	_board.show_preview([_move("p2", "M-C", "D-C")])
 	assert_vector(_board.preview_origin(0)).is_equal(_board.piece_center("M-C", true, 1))
+
+
+# --- 開示で駒を動かす ---
+
+func _players_of(spec: Dictionary) -> Array[Dictionary]:
+	var players: Array[Dictionary] = []
+	for player_id: String in spec:
+		players.append({"player_id": player_id, "number": 0, "area": spec[player_id]})
+	return players
+
+
+## 動いた後の盤面: 自分 p1 D-C・p2 M-C・p3 M-L1・p4 A-C、相手 o1 M-C
+func _shift_board(duration_sec: float) -> void:
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "D-C", "p2": "M-C", "p3": "M-L1", "p4": "A-C"})
+	snapshot.opponent_players = _players_of({"o1": "M-C"})
+	_board.show_snapshot(snapshot)
+	# 動く前: p2 は D-C（p1 の次）、o1 は A-C。p1・p3 は動かない。p4 は動く前に居ない（動かさない）
+	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C", "p3": "M-L1"}), _players_of({"o1": "A-C"}), duration_sec)
+
+
+func _path_of(player_id: String) -> Dictionary:
+	for path: Dictionary in _board.shift_paths():
+		if path["player_id"] == player_id:
+			return path
+	return {}
+
+
+func test_shift_moves_only_the_players_whose_area_changed_in_both_teams() -> void:
+	_shift_board(1.0)
+	assert_bool(_board.is_shifting()).is_true()
+	var moved: Array[String] = []
+	for path: Dictionary in _board.shift_paths():
+		moved.append(path["player_id"] as String)
+	assert_array(moved).contains_exactly_in_any_order(["p2", "o1"])
+
+
+func test_shift_runs_from_the_row_slot_before_to_the_row_slot_after() -> void:
+	_shift_board(1.0)
+	# p2 は動く前の D-C で自分の2つ目、動いた後の M-C で自分の1つ目
+	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D-C", true, 1))
+	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("M-C", true, 0))
+	assert_vector(_path_of("o1")["from"] as Vector2).is_equal(_board.piece_center("A-C", false, 0))
+	assert_vector(_path_of("o1")["to"] as Vector2).is_equal(_board.piece_center("M-C", false, 0))
+
+
+func test_shift_stops_on_the_next_snapshot_or_when_the_overlays_are_cleared() -> void:
+	_shift_board(1.0)
+	_board.show_snapshot(BoardSnapshot.new())
+	assert_bool(_board.is_shifting()).is_false()
+	assert_array(_board.shift_paths()).is_empty()
+	_shift_board(1.0)
+	_board.clear_overlays()
+	assert_bool(_board.is_shifting()).is_false()
+	assert_array(_board.shift_paths()).is_empty()
+
+
+func test_shift_with_no_time_does_not_move() -> void:
+	_shift_board(0.0)
+	assert_bool(_board.is_shifting()).is_false()
+	assert_array(_board.shift_paths()).is_empty()
+
+
+func test_a_player_who_only_moves_along_the_row_is_shifted_too() -> void:
+	# p1 が D-C から出ていくと、D-C に残る p2 は列の2つ目から1つ目へ詰まる（エリアは同じでも、駒は動く）
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "M-C", "p2": "D-C"})
+	_board.show_snapshot(snapshot)
+	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C"}), [], 1.0)
+	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D-C", true, 1))
+	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("D-C", true, 0))
+	assert_int(_board.shift_paths().size()).is_equal(2)
+
+
+func test_shift_ends_by_itself_after_the_duration() -> void:
+	_shift_board(0.05)
+	assert_bool(_board.is_shifting()).is_true()
+	await await_millis(300)
+	assert_bool(_board.is_shifting()).is_false()
+	assert_array(_board.shift_paths()).is_empty()

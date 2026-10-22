@@ -20,6 +20,7 @@ const CPU: GameEnums.TeamSide = GameEnums.TeamSide.AWAY
 
 var _catalog: ContentCatalog
 var _rules: MatchRuleConfig
+var _config: ConfigRepository
 var _rng: RandomNumberGenerator
 var _opponent: OpponentPolicy
 var _request_screen: Callable
@@ -41,6 +42,7 @@ func _init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberG
 		request_screen: Callable, assert_on_invalid_cpu: bool = OS.is_debug_build()) -> void:
 	_catalog = catalog
 	_rules = config.match_rules()
+	_config = config
 	_rng = rng
 	_opponent = opponent
 	_request_screen = request_screen
@@ -190,6 +192,12 @@ func leave_result() -> bool:
 		return false
 	_request_screen.call(AppScreens.Id.S01_TITLE, {})
 	return true
+
+
+## 開示で、ターン前の配置から次のターン開始時の配置へ駒を動かす時間（秒。PresentationConfig）。
+## 画面が使うときに初めて読む（試合を進めるだけの呼び出し側に、表示の設定ファイルを求めないため）。
+func board_shift_sec() -> float:
+	return _config.presentation().board_shift_sec
 
 
 ## 開示済みの相手の陣形・方式（FR-16・21）。試合前は null。

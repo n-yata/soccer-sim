@@ -477,6 +477,7 @@ func submit_halftime(user_setup: TeamSetup) -> void
 func opponent_setup() -> TeamSetup               # 開示済みの相手の陣形・方式（FR-16・21）
 func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）。試合の開始前は、suspended_status() が RESUMABLE のときに中断データの状態を返す（タイトルの再開カード用）
 func replay_max_sec() -> float                   # 3D 演出の上限（PresentationConfig）
+func board_shift_sec() -> float                  # 開示で駒を動かす時間（PresentationConfig。2026-10-22）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
 ## 試合中のメニューから中断してタイトルへ。直前の保存に失敗していれば保存をやり直す（保存の時点④）
@@ -683,7 +684,7 @@ func validation_errors() -> Array[String]
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus |
-| `PresentationConfig` | `presentation_config.tres` | 3D 演出の長さの上限（秒）・振り返りで遡るターン数 |
+| `PresentationConfig` | `presentation_config.tres` | 3D 演出の長さの上限（秒）・振り返りで遡るターン数・開示で駒を動かす時間（秒） |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
 ```gdscript
@@ -693,13 +694,16 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus は0以上（いずれも有限の値）、演出の上限は0より大きく5以下、遡るターン数は
+値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus は0以上（いずれも有限の値）、演出の上限は0より大きく5以下、駒を動かす時間は0より大きく2以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
 > （テストで別の場所を読ませるための引数）、1回読んだ値を持っておく。ファイルが無い・型が違う・範囲外のときは、
 > 初期値の Resource を返して `push_error` する（エラーハンドリング「設定値が不正」: 利用者には表示しない）。範囲は
 > 内側にあることを肯定形で確かめ、`is_finite` で NaN・無限大を拒否する。同梱の `.tres` が範囲内であることはテストで確かめる
+>
+> 2026-10-22 に `presentation()` を足した。`PresentationConfig` は、いまは駒を動かす時間（`board_shift_sec`）だけを持つ。
+> 3D 演出の上限と振り返りで遡るターン数は、それぞれの作業で足す（いま使わない値を先に置かない）。
 
 ### 4.3 端末内保存
 
@@ -888,6 +892,11 @@ func route_back() -> bool
 > 盤面に重ねる。移動先は自分の色の輪（中抜き）、動く選手の駒から輪へ点線の曲線の矢印。開示後の動き（実線）と線の種類で区別する。
 > プレビューは理由で絞らない（リトリート・カウンターの飛び出し・マークの付け直しも出す）。ボールから運ぶ先への矢印は、
 > ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバーでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
+>
+> **2026-10-22（開示で駒を動かす）**: 開示では、`TacticsBoard.start_shift` で、判定前の配置（`RevealView` の判定前の選手）から
+> 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす。
+> 道筋（選手ごとの移動元と移動先の駒の列の位置）の計算は `BoardShift`（`board_shift.gd`）に置き、描画と Tween はボードが持つ。
+> 画面の状態は増やさない（テロップ・矢印はすぐ出し、「次へ」も押せる）。次の盤面・重ね表示の消去で動きを止める。
 
 ### 5.4 3D 演出（`replay3d/`）
 

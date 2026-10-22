@@ -312,3 +312,41 @@ func test_a_move_without_a_target_previews_as_soon_as_it_is_chosen() -> void:
 	assert_array(expected).is_not_empty()
 	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
 	assert_bool(_panel.board().has_intent()).is_false()
+
+
+# --- 開示で駒を動かす ---
+
+## 判定前と次のターン開始時で、エリアが変わった選手の ID（両チーム）
+func _moved_ids(before: Array[Dictionary], after: Array[Dictionary]) -> Array[String]:
+	var before_areas: Dictionary = {}
+	for player: Dictionary in before:
+		before_areas[player["player_id"]] = player["area"]
+	var moved: Array[String] = []
+	for player: Dictionary in after:
+		if before_areas.has(player["player_id"]) and before_areas[player["player_id"]] != player["area"]:
+			moved.append(player["player_id"] as String)
+	return moved
+
+
+func test_the_reveal_shifts_every_player_whose_area_changed_and_the_next_turn_stops_it() -> void:
+	_start(false)
+	_press(GameEnums.DefenseAction.PRESS)
+	_panel.board().area_pressed.emit(_panel.board().selectable_areas()[0])
+	_panel.primary_button().pressed.emit()
+	var reveal: RevealView = _controller.last_reveal()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var expected: Array[String] = _moved_ids(reveal.user_players_before, snapshot.user_players)
+	expected.append_array(_moved_ids(reveal.opponent_players_before, snapshot.opponent_players))
+	# プレスで1人は必ず動く（空振りしない）
+	assert_array(expected).is_not_empty()
+	# エリアが変わった選手はすべて動く。ほかに動くのは、同じエリアで列の位置だけが変わった選手で、どの道筋も位置が変わっている
+	var moved: Array[String] = []
+	for path: Dictionary in _panel.board().shift_paths():
+		moved.append(path["player_id"] as String)
+		assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
+	assert_array(moved).contains(expected)
+	assert_bool(_panel.board().is_shifting()).is_true()
+	_panel.primary_button().pressed.emit()
+	_controller.continue_after_reveal()
+	_panel.start_turn()
+	assert_bool(_panel.board().is_shifting()).is_false()

@@ -257,6 +257,8 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	reveal_started.emit(reveal)
 	_board.clear_overlays()
 	_board.show_snapshot(snapshot)
+	# 判定前の配置から次のターン開始時の配置へ、全員の駒を動かす（方式でずれた選手も。テロップ・矢印はすぐ出す）
+	_board.start_shift(reveal.user_players_before, reveal.opponent_players_before, _controller.board_shift_sec())
 	_board.show_movements(reveal.movements)
 	if reveal.has_detail:
 		_board.show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)

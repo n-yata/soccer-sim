@@ -1,0 +1,9 @@
+## 表示の調整値（component-design.md §4.2）。値の正本は functional-overview.md「設定値として外部化する値」。
+## .tres の読み込みはデータ層（ConfigRepository）が行う。3D 演出の上限・振り返りで遡るターン数は、それぞれの作業で足す
+## （いま使わない値を先に置かない）。
+class_name PresentationConfig
+extends Resource
+
+## 開示で、ターン前の配置から次のターン開始時の配置へ駒を動かす時間（秒）。0 より大きく 2 以下
+## （毎ターン見る動きなので、長いとテンポが落ちる。範囲外の値はデータ層が初期値に戻す）
+@export var board_shift_sec: float = 0.6

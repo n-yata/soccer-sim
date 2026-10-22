@@ -176,6 +176,12 @@ MatchScreen (Control)
 3. `ChoicePanel`・`TargetInfo` を隠し、`ReplayLayer` を出し、`ReplayStage.play(reveal, match_controller.replay_max_sec())`
 4. `_state = REPLAYING`
 
+> **2026-10-22 時点の実装**: 3D 演出はまだ無いので、開示を受けたらすぐ判定理由を出す（`SHOW_RESULT`）。そのとき、
+> `TacticsBoard.show_snapshot(snapshot)` の後に `start_shift(reveal.user_players_before, reveal.opponent_players_before,
+> match_controller.board_shift_sec())` で、判定前の配置から次のターン開始時の配置へ全選手の駒を動かす（方式でずれた選手も
+> 動き、チーム全体がボールに合わせて動くことが見える）。テロップ・矢印はすぐ出し、「次へ」も押せる。方式の選び直し・
+> ハーフタイムの後と試合の最初は「ターンを始める」だけを通るので動かさない。3D 演出を足すときに、この動きとの関係を見直す。
+
 ### 演出の終了（`ReplayStage.finished(was_cut)`）・「スキップ」
 
 1. 「スキップ」を押したら `ReplayStage.skip()`（すぐに `finished(false)` が届く）
