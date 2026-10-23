@@ -28,6 +28,9 @@ enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }
 ## 同数時のカバー判定の内訳（判定理由の表示に使う）。背後に守備側が多いときだけ DEFENDER。
 ## GK はカバーに数えない（2026-10-24 に GOALKEEPER・OUT_OF_GK_REACH を外した。functional-overview.md アルゴリズム5）
 enum CoverKind { NONE, DEFENDER }
+## 守備の読みの段階（functional-overview.md アルゴリズム5）。守備の手で制限したエリアが比較エリアと同じなら EXACT、
+## 同じゾーンでレーンが1つ隣なら NEAR、それ以外は NONE。トランジション・ヒントでは NONE
+enum ReadKind { NONE, NEAR, EXACT }
 ## 選手が動いた理由。DRIBBLE_STOPPED は膠着したドリブルの選手がボールのエリアへ戻る動き、
 ## BALL_HOLDER はボールのエリアに保持側がいないとき、いちばん近い選手が置かれる動き（末尾に足し、既存の値の番号を変えない）
 enum MovementReason {

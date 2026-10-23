@@ -14,21 +14,23 @@ var possessions: int = 0
 var possession_turns: int = 0
 ## プレー中の入れ替わり（判定でボールが相手に渡った回数: ロスト・シュート阻止・奪回成功）。キックオフで渡った分は含まない
 var turnovers: int = 0
-## 攻守ターンのシュート以外の手で、守備が運ぶ先を読んだか（JudgeDetail.is_read）ごとの回数と、そのうちロストした回数
+## 攻守ターンのシュート以外の手で、守備が運ぶ先を読んだか（JudgeDetail.read がぴったり・隣）ごとの回数と、そのうちロストした回数
 var read_moves: int = 0
 var read_losses: int = 0
 var unread_moves: int = 0
 var unread_losses: int = 0
 
 
-## match_count 試合を回す。HOME は home_cpu、AWAY は away_cpu の設定で CpuPlanner が手を選ぶ。
-static func run(match_count: int, seed_value: int, home_cpu: CpuConfig, away_cpu: CpuConfig,
+## シードごとに match_count 試合を回して合計する（1つのシードの偶然で目標の内外が決まらないよう、複数のシードで測る）。
+## HOME は home_cpu、AWAY は away_cpu の設定で CpuPlanner が手を選ぶ。
+static func run(match_count: int, seeds: Array[int], home_cpu: CpuConfig, away_cpu: CpuConfig,
 		catalog: ContentCatalog, rules: MatchRuleConfig) -> MatchBalanceProbe:
 	var probe := MatchBalanceProbe.new()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	for _index: int in range(match_count):
-		probe._play(rng, home_cpu, away_cpu, catalog, rules)
+	for seed_value: int in seeds:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		for _index: int in range(match_count):
+			probe._play(rng, home_cpu, away_cpu, catalog, rules)
 	return probe
 
 
@@ -112,7 +114,7 @@ func _count(record: TurnRecord) -> void:
 		shots += 1
 		return
 	var lost_count: int = 1 if record.outcome == GameEnums.TurnOutcome.LOSS else 0
-	if record.judge.is_read:
+	if record.judge.read != GameEnums.ReadKind.NONE:
 		read_moves += 1
 		read_losses += lost_count
 	else:

@@ -229,11 +229,11 @@ func test_reveal_without_judge_detail_has_no_counts() -> void:
 	var reveal: RevealView = ViewConverter.reveal(record, _catalog)
 	assert_bool(reveal.has_detail).is_false()
 	assert_str(reveal.compare_area).is_equal("")
-	assert_bool(reveal.is_read).is_false()
+	assert_int(reveal.read).is_equal(GameEnums.ReadKind.NONE)
 
 
-func test_reveal_carries_whether_the_defense_read_the_target() -> void:
+func test_reveal_carries_how_closely_the_defense_read_the_target() -> void:
 	var record: TurnRecord = _away_attack_record()
-	for is_read: bool in [true, false]:
-		record.judge.is_read = is_read
-		assert_bool(ViewConverter.reveal(record, _catalog).is_read).override_failure_message(str(is_read)).is_equal(is_read)
+	for read: GameEnums.ReadKind in [GameEnums.ReadKind.EXACT, GameEnums.ReadKind.NEAR, GameEnums.ReadKind.NONE]:
+		record.judge.read = read
+		assert_int(ViewConverter.reveal(record, _catalog).read).override_failure_message(str(read)).is_equal(read)

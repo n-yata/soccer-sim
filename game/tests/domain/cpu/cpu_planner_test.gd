@@ -22,13 +22,14 @@ func _rng(seed_value: int) -> RandomNumberGenerator:
 	return rng
 
 
-## ゴールへ向かう加点は 0 にする（評価値・方式の癖の確率を確かめるテストに混ぜないため。加点のテストは _goal_cpu）
+## 局面の加点（ゴールへ向かう加点・守備の先読み）は 0 にする（評価値・方式の癖の確率を確かめるテストに混ぜないため。加点のテストは _goal_cpu）
 func _cpu(temperature: float = 1.0, floor_probability: float = 0.1) -> CpuConfig:
 	var cpu := CpuConfig.new()
 	cpu.temperature = temperature
 	cpu.floor_probability = floor_probability
 	cpu.forward_bonus = 0.0
 	cpu.shot_bonus = 0.0
+	cpu.anticipation_bonus = 0.0
 	return cpu
 
 
@@ -229,18 +230,19 @@ func test_choose_turn_follows_the_style_bonus() -> void:
 	assert_int(counts.get(forward_key, 0) as int).is_greater((counts.get(side_key, 0) as int) * 3)
 
 
-# --- ゴールへ向かう加点 ---
+# --- 局面の加点（ゴールへ向かう加点と守備の先読み） ---
 
-## 方式の癖の加点は 0 にして、ゴールへ向かう加点だけを効かせる
-func _goal_cpu(forward_bonus: float, shot_bonus: float) -> CpuConfig:
+## 方式の癖の加点は 0 にして、局面の加点だけを効かせる
+func _goal_cpu(forward_bonus: float, shot_bonus: float, anticipation_bonus: float = 0.0) -> CpuConfig:
 	var cpu: CpuConfig = _bonus_cpu(0.0)
 	cpu.forward_bonus = forward_bonus
 	cpu.shot_bonus = shot_bonus
+	cpu.anticipation_bonus = anticipation_bonus
 	return cpu
 
 
-func test_goal_bonus_rewards_moving_forward_and_shooting() -> void:
-	var cpu: CpuConfig = _goal_cpu(0.5, 2.0)
+func test_situation_bonus_rewards_moving_forward_shooting_and_anticipating() -> void:
+	var cpu: CpuConfig = _goal_cpu(0.5, 2.0, 0.75)
 	# [手の種類, 手, 運ぶ先, ボール位置, 加点]
 	var cases: Array = [
 		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C", "M-C", 0.5],
@@ -252,24 +254,50 @@ func test_goal_bonus_rewards_moving_forward_and_shooting() -> void:
 		[ATTACK, GameEnums.PlayType.SHOT, "", "A-C", 2.0],
 		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-C", "D-C", 1.0],
 		[POS_TRANS, GameEnums.PosTransAction.SECURE, "", "D-C", 0.0],
-		# 守備側の手は、運ぶ先がボールより前でも加点しない
-		[DEFENSE, GameEnums.DefenseAction.PRESS, "A-C", "D-C", 0.0],
+		# 守備の手は先読みの加点。制限するエリアがボールより前（攻撃側の視点）ほど大きく、後ろは負
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "A-C", "D-C", 1.5],
+		[DEFENSE, GameEnums.DefenseAction.COVER, "M-L1", "M-C", 0.0],
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "D-C", "M-C", -0.75],
 		[NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, "", "M-C", 0.0],
 	]
 	for case: Array in cases:
 		var target_key: String = case[2] as String
 		var hint := ChoiceHint.new(case[0] as GameEnums.ChoiceFamily, case[1] as int,
 				null if target_key == "" else _area(target_key), true, 1, 1, GameEnums.CoverKind.NONE)
-		assert_float(CpuPlanner.goal_bonus(hint, _area(case[3] as String), cpu)).override_failure_message(str(case)) \
+		assert_float(CpuPlanner.situation_bonus(hint, _area(case[3] as String), cpu)).override_failure_message(str(case)) \
 				.is_equal(case[4] as float)
 
 
-func test_zero_goal_bonus_adds_nothing() -> void:
+func test_zero_situation_bonus_adds_nothing() -> void:
 	var cpu: CpuConfig = _goal_cpu(0.0, 0.0)
 	var shot := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHOT, null, true, 1, 1, GameEnums.CoverKind.NONE)
 	var forward_pass := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, _area("A-C"), true, 1, 1, GameEnums.CoverKind.NONE)
-	assert_float(CpuPlanner.goal_bonus(shot, _area("A-C"), cpu)).is_equal(0.0)
-	assert_float(CpuPlanner.goal_bonus(forward_pass, _area("D-C"), cpu)).is_equal(0.0)
+	assert_float(CpuPlanner.situation_bonus(shot, _area("A-C"), cpu)).is_equal(0.0)
+	assert_float(CpuPlanner.situation_bonus(forward_pass, _area("D-C"), cpu)).is_equal(0.0)
+	var press := ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("A-C"), true, 1, 1, GameEnums.CoverKind.NONE)
+	assert_float(CpuPlanner.situation_bonus(press, _area("D-C"), cpu)).is_equal(0.0)
+
+
+func test_anticipation_bonus_raises_the_press_ahead_of_the_ball() -> void:
+	# AWAY が守備。HOME のボールは M-C。先読みの加点で、ボールより前（A ゾーン）を制限する手が選ばれやすくなる
+	var state: MatchState = _scene()
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, AWAY, MoveRules.options_for(state, AWAY))
+	var ahead: int = -1
+	var behind: int = -1
+	for index: int in range(hints.size()):
+		var target: PitchArea = hints[index].target
+		if hints[index].family != DEFENSE or target == null:
+			continue
+		if target.zone == GameEnums.Zone.A:
+			ahead = index
+		elif target.zone == GameEnums.Zone.D:
+			behind = index
+	assert_int(ahead).is_not_equal(-1)
+	assert_int(behind).is_not_equal(-1)
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, AWAY, _goal_cpu(0.0, 0.0, 0.0))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, AWAY, _goal_cpu(0.0, 0.0, 2.0))
+	assert_float(biased[ahead]).is_greater(none[ahead])
+	assert_float(biased[behind]).is_less(none[behind])
 
 
 func test_forward_bonus_raises_the_forward_moves_probability() -> void:

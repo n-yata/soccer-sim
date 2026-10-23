@@ -126,7 +126,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **配置ファイル**（2026-10-19 時点）:
 - `match_rule_config.tres`: 1ハーフのターン数
-- `cpu_config.tres`: CPU の選択の温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus
+- `cpu_config.tres`: CPU の選択の温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus
 - `presentation_config.tres`: 開示で駒を動かす時間（2026-10-22 に追加。振り返りで遡るターン数は、それを使う作業で足す）
 - 自己対戦検証の調整値（`verification_config.tres`）は、それを使う作業で作る
 

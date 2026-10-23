@@ -89,6 +89,7 @@ enum PrincipleStatus { UNVERIFIED, VERIFIED, NO_SOURCE }
 enum TeamSide { HOME, AWAY }
 enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }   # TurnChoice.action がどの enum の値か
 enum CoverKind { NONE, DEFENDER } # 同数時のカバー判定の内訳（判定理由の表示に使う。GK はカバーに数えない）
+enum ReadKind { NONE, NEAR, EXACT } # 守備の読みの段階（アルゴリズム5。制限したエリアと比較エリアの近さ）
 enum MovementReason { SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE,
         DRIBBLE_STOPPED, BALL_HOLDER }                          # 末尾の2つは保持者の動き（アルゴリズム5・7）
 enum MatchResult { WIN, DRAW, LOSE }                           # 戦績の勝敗（利用者から見た値）
@@ -118,7 +119,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`）・`is_complete_for(family)`（判定に使える形か。攻守ターン・トランジションの判定で共有） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
 | `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持は比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`diff()`。評価値や推奨の印は持たない |
-| `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`is_read: bool`（守備が比較エリアを読んだか） |
+| `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`read: ReadKind`（守備の読みの段階） |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣 `D-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリアと固定先）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
@@ -242,8 +243,10 @@ class_name OpenPlayJudge extends RefCounted
 ## アルゴリズム5の手順2〜6。pair はアルゴリズム2を適用済みの配置
 static func judge(pair: LayoutPair, attacker_styles: TeamStyles, defender_styles: TeamStyles,
         ball: PitchArea, attack: TurnChoice, defense: TurnChoice) -> JudgeOutput
+## 手順5の読みの段階（ぴったり・隣・外れ。ボールのエリアへの寄せは隣に数えない）。すべて攻撃側の視点
+static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) -> GameEnums.ReadKind
 ## 手順5〜6（人数差・読み・カバー判定）。TransitionJudge のカウンターと共有する。compare は攻撃側の視点。
-## 読み（detail.is_read）は judge が守備の手から入れる（トランジションは読み無し）
+## 読み（detail.read）は judge が read_of で入れる（トランジションは NONE）
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
 ## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒント・決定前のプレビューで共有する
@@ -359,9 +362,9 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide,
 static func score(hint: ChoiceHint) -> float
 ## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表はアルゴリズム8）
 static func style_bonus(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea, cpu: CpuConfig) -> float
-## ゴールへ向かう加点。攻撃の手・カウンターは forward_bonus × 前へ進むゾーン数、シュートは shot_bonus、ほかは 0（アルゴリズム8）
-static func goal_bonus(hint: ChoiceHint, ball: PitchArea, cpu: CpuConfig) -> float
-## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。score + style_bonus + goal_bonus を probabilities に通す（choose_turn と同じ計算）
+## 局面の加点。攻撃の手・カウンターは forward_bonus × 前へ進むゾーン数、シュートは shot_bonus、守備の手は anticipation_bonus × ボールより前のゾーン数、ほかは 0（アルゴリズム8）
+static func situation_bonus(hint: ChoiceHint, ball: PitchArea, cpu: CpuConfig) -> float
+## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。score + style_bonus + situation_bonus を probabilities に通す（choose_turn と同じ計算）
 static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]
 ## 試合開始時・ハーフタイムの陣形と方式（一様ランダム）
 static func choose_setup(catalog: ContentCatalog, rng: RandomNumberGenerator) -> TeamSetup
@@ -644,7 +647,7 @@ func mark_tutorial_completed() -> bool
 | `user_role` | 利用者の役割。`GameEnums.Phase`（攻撃側＝`ATTACK`／守備側＝`DEFENSE`／喪失側＝`NEG_TRANSITION`／奪取側＝`POS_TRANSITION`）。判定理由の文の主語を決める |
 | `user_choice` / `opponent_choice` | 両者の手と、運ぶ先・寄せるエリア |
 | `outcome` | ターン結果（`TurnOutcome`） |
-| `compare_area` / `user_count` / `opponent_count` / `cover` / `is_read` | 判定の内訳（`NO_CONTEST` では空。`is_read` は判定理由の「読まれて」に使う） |
+| `compare_area` / `user_count` / `opponent_count` / `cover` / `read` | 判定の内訳（`NO_CONTEST` では空。`read` は判定理由の「読まれて」「隣を読まれて」に使う） |
 | `ball_before` / `ball_after` | 判定前後のボール位置 |
 | `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。各要素は `BoardSnapshot.user_players` と同じ形（`player_id`・`number`・`area`。利用者の視点）。開示の動き（判定前の位置）と、振り返りのミニピッチ（判定時の人数はエリアごとに数えるだけ）に使う |
 | `movements` | 選手の動き（方式の動き → 守備の手 → 攻撃の手の順） |
@@ -685,7 +688,7 @@ func validation_errors() -> Array[String]
 | Resource（`class_name`） | ファイル（`game/config/`） | 持つ値 |
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数 |
-| `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus |
+| `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus |
 | `PresentationConfig` | `presentation_config.tres` | 開示で駒を動かす時間（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
@@ -696,7 +699,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus は0以上（いずれも有限の値）、駒を動かす時間は0より大きく2以下、遡るターン数は
+値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間は0より大きく2以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り

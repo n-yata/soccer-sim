@@ -7,9 +7,8 @@
 class_name OpenPlayJudge
 extends RefCounted
 
-## 守備に読まれた（制限したエリアに来た）パス・ドリブルが通るのに要る、攻撃側の人数の上回り
-const _READ_ADVANTAGE_NEEDED: int = 2
-
+## 守備に読まれたパス・ドリブルが通るのに要る、攻撃側の人数の上回り（読みの段階ごと。外れは同数の扱いが別なので持たない）
+const _ADVANTAGE_NEEDED: Dictionary[GameEnums.ReadKind, int] = {GameEnums.ReadKind.EXACT: 2, GameEnums.ReadKind.NEAR: 1}
 
 ## 両者の手を適用し、比較エリアの人数差とカバーの有無で結果を決める。
 ## 選べない手（手の種類の取り違え、運ぶ先の欠け、適用できない守備の手）とボール位置の欠けでは null を返す。
@@ -33,8 +32,7 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	# 手順4〜6
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
 	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
-	# 読みを当てた = 守備の手で制限したエリアが比較エリア（運ぶ先。シュートはボールのエリア）と同じ
-	detail.is_read = defense.target.equals(compare)
+	detail.read = read_of(defense.target, compare, ball)
 	return JudgeOutput.new(outcome_of(detail, attack.action == GameEnums.PlayType.SHOT), detail, step.pair, movements)
 
 
@@ -98,10 +96,24 @@ static func _dribble(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> Layout
 	return LayoutStep.new(moved, movements)
 
 
+## 守備の読みの段階。restricted は守備の手で制限したエリア、compare は比較エリア（運ぶ先。シュートはボールのエリア）。
+## どちらも攻撃側の視点。隣は同じゾーンでレーンが1つ隣だけ（ゾーンが違うエリアは、背後のカバーとして判定に効く）。
+## ボールのエリアへの寄せは、持っている選手への寄せで、運ぶ先の読みではないので隣に数えない
+## （数えると、ボールへのプレスだけで横への同数のパスがすべて奪われ、カバーのいない外側へ通す JE-02 が成り立たない）。
+static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) -> GameEnums.ReadKind:
+	if restricted.equals(compare):
+		return GameEnums.ReadKind.EXACT
+	if restricted.equals(ball):
+		return GameEnums.ReadKind.NONE
+	if restricted.zone == compare.zone and absi(restricted.lane - compare.lane) == 1:
+		return GameEnums.ReadKind.NEAR
+	return GameEnums.ReadKind.NONE
+
+
 ## 手順5〜6の前半。比較エリアの人数と、同数のときのカバーの内訳（シュートはカバー判定をしない）。
 ## カバーは、背後のエリアで守備側が攻撃側より多いときだけ。背後が盤外（敵陣）ならカバーなし（GK はカバーに数えない。
 ## 敵陣の同数を GK が止めると、ほとんどの攻撃が敵陣で膠着して点が入らなかったため。2026-10-24）。
-## 読み（is_read）は偽で返す。攻守ターンの判定（judge）だけが真にする。
+## 読み（read）は NONE で返す。攻守ターンの判定（judge）だけが入れる。
 ## compare は攻撃側の視点。トランジションのカウンター（アルゴリズム6）と共有する。
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail:
 	var attackers: int = pair.attacker.count_at(compare)
@@ -117,16 +129,19 @@ static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> Ju
 
 ## 手順5〜6の後半。内訳から結果を決める。トランジションのカウンター（アルゴリズム6）と共有する。
 ## 読みを当てた守備が得をする（2026-10-24。読み合いを報わせ、攻守がこまめに入れ替わるようにするため）:
-## - シュート: 人数で上回れば得点。同数でも、読まれていなければ得点。それ以外は阻止
-## - それ以外で読まれた: 攻撃側が 2人以上多ければ前進、それ以外はロスト
+## - シュート: 人数で上回れば得点。同数でも、ぴったり読まれていなければ得点。それ以外は阻止
+## - それ以外でぴったり読まれた: 攻撃側が 2人以上多ければ前進、それ以外はロスト
+## - それ以外で隣を読まれた: 1人以上多ければ前進、それ以外はロスト（同数をカバーの有無によらず奪える。
+##   ぴったり読むのは難しく、守備が奪えるのがまれだったため、近くを読んだ守備にも得をさせる）
 ## - それ以外で読まれていない: 多ければ前進、少なければロスト。同数は、守備のカバーがいれば膠着、いなければ前進
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome:
 	var diff: int = detail.attacker_count - detail.defender_count
 	if is_shot:
-		var scores: bool = diff > 0 or (diff == 0 and not detail.is_read)
+		var scores: bool = diff > 0 or (diff == 0 and detail.read != GameEnums.ReadKind.EXACT)
 		return GameEnums.TurnOutcome.GOAL if scores else GameEnums.TurnOutcome.SAVE
-	if detail.is_read:
-		return GameEnums.TurnOutcome.ADVANCE if diff >= _READ_ADVANTAGE_NEEDED else GameEnums.TurnOutcome.LOSS
+	if detail.read != GameEnums.ReadKind.NONE:
+		var needed: int = _ADVANTAGE_NEEDED[detail.read]
+		return GameEnums.TurnOutcome.ADVANCE if diff >= needed else GameEnums.TurnOutcome.LOSS
 	if diff > 0:
 		return GameEnums.TurnOutcome.ADVANCE
 	if diff < 0:

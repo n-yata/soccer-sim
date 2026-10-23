@@ -191,7 +191,7 @@ func test_level_counter_in_the_final_third_advances_without_a_keeper_cover() -> 
 	assert_str(_summary(_level_counter("A-L2"))).is_equal("ADVANCE A-L2 1-1 NONE")
 	assert_str(_summary(_level_counter("A-C"))).is_equal("ADVANCE A-C 1-1 NONE")
 	assert_str(_summary(_level_counter("A-R1"))).is_equal("ADVANCE A-R1 1-1 NONE")
-	assert_bool(_level_counter("A-C").detail.is_read).is_false()
+	assert_int(_level_counter("A-C").detail.read).is_equal(GameEnums.ReadKind.NONE)
 
 
 # --- リトリート ---

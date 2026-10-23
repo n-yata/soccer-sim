@@ -21,12 +21,45 @@ func test_advance_with_more_players() -> void:
 	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対0。こちらが数的優位で前進")
 
 
-## 守備が運ぶ先を読んだ判定の開示
+## 守備が運ぶ先を読んだ判定の開示（read はぴったり・隣）
 func _read_reveal(role: GameEnums.Phase, outcome: GameEnums.TurnOutcome, area: String, user_count: int,
-		opponent_count: int) -> RevealView:
+		opponent_count: int, read: GameEnums.ReadKind = GameEnums.ReadKind.EXACT) -> RevealView:
 	var reveal: RevealView = _reveal(role, outcome, area, user_count, opponent_count)
-	reveal.is_read = true
+	reveal.read = read
 	return reveal
+
+
+func test_loss_read_next_door_says_so() -> void:
+	# 隣を読まれると、同数でも奪われる（アルゴリズム5）。人数の句ではなく、隣の読みを原因にする
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M-C", 1, 1,
+			GameEnums.ReadKind.NEAR)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対1。隣を読まれてロスト")
+	reveal.user_role = GameEnums.Phase.DEFENSE
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対1。隣を読んでロスト")
+
+
+func test_loss_with_fewer_attackers_blames_the_numbers_even_when_read() -> void:
+	# 1人少なければ、読まれていなくてもロスト。原因は人数
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M-C", 1, 2,
+			GameEnums.ReadKind.NEAR)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対2。相手が数的優位でロスト")
+	reveal.read = GameEnums.ReadKind.EXACT
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対2。相手が数的優位でロスト")
+
+
+func test_level_shot_read_next_door_still_scores() -> void:
+	# 隣の読みはシュートに効かない。守備は隣を読んでいたので「読まれず」とは言わない
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.GOAL, "A-C", 1, 1,
+			GameEnums.ReadKind.NEAR)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・中央で 1対1。隣を読まれたが同数で得点")
+	reveal.user_role = GameEnums.Phase.DEFENSE
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・中央で 1対1。隣を読んだが同数で得点")
+
+
+func test_advance_read_next_door_keeps_the_numbers_phrase() -> void:
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, "M-C", 2, 1,
+			GameEnums.ReadKind.NEAR)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 2対1。こちらが数的優位で前進")
 
 
 func test_read_loss_says_the_move_was_read_even_with_more_players() -> void:

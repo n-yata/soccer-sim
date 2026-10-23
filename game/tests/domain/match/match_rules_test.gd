@@ -458,7 +458,7 @@ func test_a_holder_is_placed_on_the_ball_at_the_start_of_a_transition() -> void:
 			_choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-L1"))
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.LOSS)
-	assert_bool(resolution.record.judge.is_read).is_true()
+	assert_int(resolution.record.judge.read).is_equal(GameEnums.ReadKind.EXACT)
 	assert_int(next.turn_kind).is_equal(TRANSITION)
 	assert_str(next.transition_origin.attacker.current_area_of("a2").to_key()).is_equal("M-R1")
 	assert_str(next.away_players[1].fixed_area.to_key()).is_equal("M-R1")
