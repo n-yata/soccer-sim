@@ -186,13 +186,12 @@ func _level_counter(target_key: String) -> JudgeOutput:
 			_styles(ZONE, COUNTER), _area("D-C"), _counter(target_key), _counter_press())
 
 
-func test_level_counter_on_the_final_third_wing_advances_out_of_keeper_reach() -> void:
-	assert_str(_summary(_level_counter("A-L2"))).is_equal("ADVANCE A-L2 1-1 OUT_OF_GK_REACH")
-
-
-func test_level_counter_in_the_final_third_center_stalls_by_the_keeper() -> void:
-	assert_str(_summary(_level_counter("A-C"))).is_equal("STALL A-C 1-1 GOALKEEPER")
-	assert_str(_summary(_level_counter("A-R1"))).is_equal("STALL A-R1 1-1 GOALKEEPER")
+func test_level_counter_in_the_final_third_advances_without_a_keeper_cover() -> void:
+	# GK はカバーに数えない（2026-10-24）。カウンターに読みは無いので、敵陣の同数はどのレーンでも前進
+	assert_str(_summary(_level_counter("A-L2"))).is_equal("ADVANCE A-L2 1-1 NONE")
+	assert_str(_summary(_level_counter("A-C"))).is_equal("ADVANCE A-C 1-1 NONE")
+	assert_str(_summary(_level_counter("A-R1"))).is_equal("ADVANCE A-R1 1-1 NONE")
+	assert_bool(_level_counter("A-C").detail.is_read).is_false()
 
 
 # --- リトリート ---
@@ -236,7 +235,7 @@ func test_retreat_with_man_marks_the_winner_after_the_breakout() -> void:
 	var output: JudgeOutput = TransitionJudge.judge(LayoutPair.new(winner, loser, HOME), _styles(ZONE, COUNTER),
 			_styles(MAN, COUNTER), _area("D-C"), _counter("A-L2"), _retreat())
 	assert_array(_moves(output)).is_equal(["w2:M-L2>A-L2:COUNTER_BREAKOUT", "m1:A-C>D-R2:RETREAT_RESET"])
-	assert_str(_summary(output)).is_equal("ADVANCE A-L2 1-1 OUT_OF_GK_REACH")
+	assert_str(_summary(output)).is_equal("ADVANCE A-L2 1-1 NONE")
 
 
 # --- カウンター型の飛び出し ---

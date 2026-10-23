@@ -74,12 +74,12 @@ func test_options_convert_targets_and_keep_targetless_moves() -> void:
 
 func test_hints_convert_targets_and_keep_counts() -> void:
 	var hints: Array[ChoiceHint] = [ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.COVER, _area("A-L1"),
-			true, 1, 2, GameEnums.CoverKind.GOALKEEPER)]
+			true, 1, 2, GameEnums.CoverKind.DEFENDER)]
 	var converted: Array[ChoiceHint] = ViewConverter.hints_to_user(hints, AWAY)
 	assert_str(converted[0].target.to_key()).is_equal("D-R1")
 	assert_int(converted[0].own_count).is_equal(1)
 	assert_int(converted[0].opponent_count).is_equal(2)
-	assert_int(converted[0].cover).is_equal(GameEnums.CoverKind.GOALKEEPER)
+	assert_int(converted[0].cover).is_equal(GameEnums.CoverKind.DEFENDER)
 	# 入力は書き換えない
 	assert_str(hints[0].target.to_key()).is_equal("A-L1")
 
@@ -229,3 +229,11 @@ func test_reveal_without_judge_detail_has_no_counts() -> void:
 	var reveal: RevealView = ViewConverter.reveal(record, _catalog)
 	assert_bool(reveal.has_detail).is_false()
 	assert_str(reveal.compare_area).is_equal("")
+	assert_bool(reveal.is_read).is_false()
+
+
+func test_reveal_carries_whether_the_defense_read_the_target() -> void:
+	var record: TurnRecord = _away_attack_record()
+	for is_read: bool in [true, false]:
+		record.judge.is_read = is_read
+		assert_bool(ViewConverter.reveal(record, _catalog).is_read).override_failure_message(str(is_read)).is_equal(is_read)

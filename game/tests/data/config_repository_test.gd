@@ -9,7 +9,8 @@ const CPU_FILE: String = "cpu_config.tres"
 
 ## turns と、τ・floor を持つ .tres を一時ディレクトリに書き、その場所を読む ConfigRepository を返す。
 func _repository_with(case_name: String, turns: int, temperature: float, floor_probability: float,
-		style_bonus: float = CpuConfig.new().style_bonus) -> ConfigRepository:
+		style_bonus: float = CpuConfig.new().style_bonus, forward_bonus: float = CpuConfig.new().forward_bonus,
+		shot_bonus: float = CpuConfig.new().shot_bonus) -> ConfigRepository:
 	var dir: String = create_temp_dir("config_repository/" + case_name)
 	var rules := MatchRuleConfig.new()
 	rules.turns_per_half = turns
@@ -18,6 +19,8 @@ func _repository_with(case_name: String, turns: int, temperature: float, floor_p
 	cpu.temperature = temperature
 	cpu.floor_probability = floor_probability
 	cpu.style_bonus = style_bonus
+	cpu.forward_bonus = forward_bonus
+	cpu.shot_bonus = shot_bonus
 	assert_int(ResourceSaver.save(cpu, dir.path_join(CPU_FILE))).is_equal(OK)
 	return ConfigRepository.new(dir)
 
@@ -28,6 +31,8 @@ func test_bundled_settings_match_the_initial_values() -> void:
 	assert_int(repository.match_rules().turns_per_half).is_equal(12)
 	assert_float(repository.cpu().temperature).is_equal(0.5)
 	assert_float(repository.cpu().floor_probability).is_equal(0.05)
+	assert_float(repository.cpu().forward_bonus).is_equal(1.0)
+	assert_float(repository.cpu().shot_bonus).is_equal(0.75)
 	assert_float(repository.cpu().style_bonus).is_equal(1.0)
 
 
@@ -74,8 +79,9 @@ func test_out_of_range_cpu_values_fall_back_to_the_initial_values() -> void:
 func test_out_of_range_cpu_values_report_an_error() -> void:
 	var repository: ConfigRepository = _repository_with("cpu_error", 12, 0.0, 0.1)
 	await assert_error(func() -> void: repository.cpu()) \
-			.is_push_error("ConfigRepository: cpu_config.tres の値が範囲外（temperature=0.0, floor_probability=0.1, style_bonus=%s）のため、初期値を使う"
-					% CpuConfig.new().style_bonus)
+			.is_push_error(("ConfigRepository: cpu_config.tres の値が範囲外（temperature=0.0, floor_probability=0.1, style_bonus=%s,"
+					+ " forward_bonus=%s, shot_bonus=%s）のため、初期値を使う")
+					% [CpuConfig.new().style_bonus, CpuConfig.new().forward_bonus, CpuConfig.new().shot_bonus])
 
 
 func test_boundary_values_inside_the_range_are_accepted() -> void:
@@ -108,6 +114,24 @@ func test_out_of_range_style_bonus_falls_back_to_the_initial_values() -> void:
 		var cpu: CpuConfig = repository.cpu()
 		assert_float(cpu.style_bonus).override_failure_message(str(bonus)).is_equal(CpuConfig.new().style_bonus)
 		assert_float(cpu.temperature).override_failure_message(str(bonus)).is_equal(CpuConfig.new().temperature)
+
+
+func test_goal_bonuses_are_read_including_zero() -> void:
+	for bonus: float in [0.0, 2.5]:
+		var repository: ConfigRepository = _repository_with("goal_bonus_%s" % bonus, 12, 0.5, 0.2, 1.0, bonus, bonus + 1.0)
+		assert_float(repository.cpu().forward_bonus).override_failure_message(str(bonus)).is_equal(bonus)
+		assert_float(repository.cpu().shot_bonus).override_failure_message(str(bonus)).is_equal(bonus + 1.0)
+
+
+func test_out_of_range_goal_bonuses_fall_back_to_the_initial_values() -> void:
+	# 前へ運ぶ加点・シュートの加点は、それぞれ 0 以上の有限の値。片方だけ範囲外でも、全体を初期値へ戻す
+	for case: Array in [[-0.1, 1.0], [NAN, 1.0], [INF, 1.0], [1.0, -0.1], [1.0, NAN], [1.0, INF]]:
+		var repository: ConfigRepository = _repository_with("bad_goal_%s_%s" % [case[0], case[1]], 12, 0.5, 0.2, 2.0,
+				case[0] as float, case[1] as float)
+		var cpu: CpuConfig = repository.cpu()
+		assert_float(cpu.forward_bonus).override_failure_message(str(case)).is_equal(CpuConfig.new().forward_bonus)
+		assert_float(cpu.shot_bonus).override_failure_message(str(case)).is_equal(CpuConfig.new().shot_bonus)
+		assert_float(cpu.style_bonus).override_failure_message(str(case)).is_equal(CpuConfig.new().style_bonus)
 
 
 # --- 表示の調整値（PresentationConfig） ---

@@ -86,7 +86,7 @@ static func attack_style_name(style: GameEnums.AttackStyle) -> String:
 	return ATTACK_STYLE_NAMES[style]
 
 
-## ヒントの札（表示仕様「`+1`、`±0 GK外`」）。カバーは同数のときだけ添える（同数のときだけ判定に効くため）。
+## ヒントの札（表示仕様「`+1`、`±0 カバーあり`」）。カバーは同数のときだけ添える（同数のときだけ判定に効くため）。
 ## 人数を比べない手（リトリート・保持）は空。
 static func hint_tag(hint: ChoiceHint) -> String:
 	if not hint.is_compared:
@@ -109,14 +109,7 @@ static func hint_counts(hint: ChoiceHint) -> String:
 
 ## カバーの短い表記（ヒントの札・判定の内訳）。カバーが無ければ空。
 static func cover_short(cover: GameEnums.CoverKind) -> String:
-	match cover:
-		GameEnums.CoverKind.DEFENDER:
-			return "カバーあり"
-		GameEnums.CoverKind.GOALKEEPER:
-			return "GK"
-		GameEnums.CoverKind.OUT_OF_GK_REACH:
-			return "GK外"
-	return ""
+	return "カバーあり" if cover == GameEnums.CoverKind.DEFENDER else ""
 
 
 ## 「前半 5／12」。ハーフの最終ターンを終えた後の盤面（turn_number が1つ先に進む）も最終ターンとして出す。

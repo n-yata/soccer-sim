@@ -11,11 +11,11 @@ func test_choice_hint_diff_is_own_minus_opponent() -> void:
 
 func test_choice_hint_duplicate_deep_copies_the_target() -> void:
 	var hint := ChoiceHint.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.COVER,
-			PitchArea.from_key("A-C"), true, 2, 2, GameEnums.CoverKind.GOALKEEPER)
+			PitchArea.from_key("A-C"), true, 2, 2, GameEnums.CoverKind.DEFENDER)
 	var copy: ChoiceHint = hint.duplicate_deep()
 	assert_object(copy.target).is_not_same(hint.target)
 	assert_str(copy.target.to_key()).is_equal("A-C")
-	assert_int(copy.cover).is_equal(GameEnums.CoverKind.GOALKEEPER)
+	assert_int(copy.cover).is_equal(GameEnums.CoverKind.DEFENDER)
 	assert_int(copy.own_count).is_equal(2)
 
 

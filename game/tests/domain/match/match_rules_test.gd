@@ -200,9 +200,11 @@ func test_open_play_advance_moves_the_ball_and_keeps_fixes() -> void:
 
 
 func test_open_play_stall_keeps_the_ball_in_place() -> void:
-	# 相手の a2 が A-C（相手から見て D-C）にいて1対1。敵陣の中央なので GK のカバーで膠着
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "A-L2", ""], ["a2", "D-C", ""]], "M-C")
-	var resolution: TurnResolution = _resolve(state, _pass_to_a_c(), _press_far())
+	# M-L1 へのパスは h2 と相手の a2 で1対1。背後の A-L1 に相手の a3 がいて（攻撃側は0人）守備のカバーがあり膠着
+	var holder_spec: Array = [["h1", "M-C", ""], ["h2", "M-L1", ""], ["h3", "D-C", "D-L1"]]
+	var other_spec: Array = [["a1", "A-L2", ""], ["a2", "M-R1", ""], ["a3", "D-R1", ""]]
+	var state: MatchState = _open_state(HOME, holder_spec, other_spec, "M-C")
+	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "M-L1"), _press_far())
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.STALL)
 	assert_int(resolution.next_state.possession).is_equal(HOME)
 	assert_str(resolution.next_state.ball_area.to_key()).is_equal("M-C")
@@ -254,9 +256,10 @@ func test_open_play_goal_scores_and_goes_to_the_style_change_with_the_conceding_
 
 
 func test_open_play_save_gives_the_defender_the_ball_in_their_own_d_c() -> void:
-	# シュートは1対1で阻止。守備側が自陣 D-C で持ち、トランジションへ
-	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""]], [["a1", "A-L2", ""], ["a2", "D-C", ""]], "A-C")
-	var resolution: TurnResolution = _resolve(state, _shot(), _press_far())
+	# 守備がボールのエリア（A-C。相手から見て D-C）へプレスしてシュートを読み、隣の a2 が寄せて1対1で阻止。
+	# 守備側が自陣 D-C で持ち、トランジションへ
+	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""]], [["a1", "A-L2", ""], ["a2", "D-L1", ""]], "A-C")
+	var resolution: TurnResolution = _resolve(state, _shot(), _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "A-C"))
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.SAVE)
 	assert_int(next.possession).is_equal(AWAY)
@@ -447,17 +450,20 @@ func test_players_at_the_same_distance_are_placed_in_layout_order() -> void:
 
 
 func test_a_holder_is_placed_on_the_ball_at_the_start_of_a_transition() -> void:
-	# ボールの A-C に誰もいないままシュートし、0対0 で阻止（壊れた状態からでも、次のターンには保持者がいる）。
-	# 相手が自陣 D-C で持つが、D-C に相手はいない。いちばん近い a2（M-C）を起点の配置で D-C に置く
-	var state: MatchState = _open_state(HOME, [["h1", "M-C", ""]], [["a1", "A-L2", ""], ["a2", "M-C", ""]], "A-C")
-	var resolution: TurnResolution = _resolve(state, _shot(), _press_far())
+	# 守備が M-L1（相手から見て M-R1）をカバーで読み、隣の a2（M-C）が背後の D-R1 へ下がる。M-L1 へのパスは1対0だが、
+	# 読まれたので2人以上多くないと通らずロスト。相手は M-R1 で持つが、M-R1 に相手はいない（壊れた状態からでも、次のターンには保持者がいる）。
+	# いちばん近い a2（D-R1）を起点の配置で M-R1 に置く
+	var state: MatchState = _open_state(HOME, [["h1", "M-C", ""], ["h2", "M-L1", ""]], [["a1", "A-L2", ""], ["a2", "M-C", ""]], "M-C")
+	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "M-L1"),
+			_choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-L1"))
 	var next: MatchState = resolution.next_state
-	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.SAVE)
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.LOSS)
+	assert_bool(resolution.record.judge.is_read).is_true()
 	assert_int(next.turn_kind).is_equal(TRANSITION)
-	assert_str(next.transition_origin.attacker.current_area_of("a2").to_key()).is_equal("D-C")
-	assert_str(next.away_players[1].fixed_area.to_key()).is_equal("D-C")
-	assert_int(MatchRules.current_layouts(next).pair.attacker.count_at(_area("D-C"))).is_equal(1)
-	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_equal(["a2:M-C>D-C"])
+	assert_str(next.transition_origin.attacker.current_area_of("a2").to_key()).is_equal("M-R1")
+	assert_str(next.away_players[1].fixed_area.to_key()).is_equal("M-R1")
+	assert_int(MatchRules.current_layouts(next).pair.attacker.count_at(_area("M-R1"))).is_equal(1)
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_equal(["a2:D-R1>M-R1"])
 
 
 func test_no_one_is_placed_when_a_holder_is_already_on_the_ball() -> void:

@@ -12,7 +12,7 @@ func _pair() -> LayoutPair:
 
 
 func _detail() -> JudgeDetail:
-	return JudgeDetail.new(_area("A-L2"), 1, 1, GameEnums.CoverKind.OUT_OF_GK_REACH)
+	return JudgeDetail.new(_area("A-L2"), 1, 1, GameEnums.CoverKind.DEFENDER, true)
 
 
 func _movement() -> Movement:
@@ -25,7 +25,8 @@ func test_judge_detail_keeps_values_and_copies_the_area() -> void:
 	assert_str(copy.compare_area.to_key()).is_equal("A-L2")
 	assert_int(copy.attacker_count).is_equal(1)
 	assert_int(copy.defender_count).is_equal(1)
-	assert_int(copy.cover).is_equal(GameEnums.CoverKind.OUT_OF_GK_REACH)
+	assert_int(copy.cover).is_equal(GameEnums.CoverKind.DEFENDER)
+	assert_bool(copy.is_read).is_true()
 	assert_object(copy.compare_area).is_not_same(detail.compare_area)
 
 

@@ -102,6 +102,7 @@ static func reveal(record: TurnRecord, catalog: ContentCatalog) -> RevealView:
 		view.user_count = record.judge.attacker_count if is_user_attacker else record.judge.defender_count
 		view.opponent_count = record.judge.defender_count if is_user_attacker else record.judge.attacker_count
 		view.cover = record.judge.cover
+		view.is_read = record.judge.is_read
 	view.ball_before = to_user(record.ball_before, attacker).to_key()
 	view.ball_after = to_user(record.ball_after, attacker).to_key()
 	var home_numbers: Dictionary = _numbers(catalog, record.home_setup)

@@ -17,6 +17,8 @@ var compare_area: String = ""
 var user_count: int = 0
 var opponent_count: int = 0
 var cover: GameEnums.CoverKind = GameEnums.CoverKind.NONE
+## 守備側が攻撃の運ぶ先（シュートはボール位置）を読んだか（アルゴリズム5）。内訳が無ければ false
+var is_read: bool = false
 ## 判定前後のボール位置（エリアのキー）
 var ball_before: String = ""
 var ball_after: String = ""

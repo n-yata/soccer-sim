@@ -22,10 +22,13 @@ func _rng(seed_value: int) -> RandomNumberGenerator:
 	return rng
 
 
+## ゴールへ向かう加点は 0 にする（評価値・方式の癖の確率を確かめるテストに混ぜないため。加点のテストは _goal_cpu）
 func _cpu(temperature: float = 1.0, floor_probability: float = 0.1) -> CpuConfig:
 	var cpu := CpuConfig.new()
 	cpu.temperature = temperature
 	cpu.floor_probability = floor_probability
+	cpu.forward_bonus = 0.0
+	cpu.shot_bonus = 0.0
 	return cpu
 
 
@@ -224,6 +227,80 @@ func test_choose_turn_follows_the_style_bonus() -> void:
 		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _bonus_cpu(3.0), _rng(seed_value)))
 		counts[key] = (counts.get(key, 0) as int) + 1
 	assert_int(counts.get(forward_key, 0) as int).is_greater((counts.get(side_key, 0) as int) * 3)
+
+
+# --- ゴールへ向かう加点 ---
+
+## 方式の癖の加点は 0 にして、ゴールへ向かう加点だけを効かせる
+func _goal_cpu(forward_bonus: float, shot_bonus: float) -> CpuConfig:
+	var cpu: CpuConfig = _bonus_cpu(0.0)
+	cpu.forward_bonus = forward_bonus
+	cpu.shot_bonus = shot_bonus
+	return cpu
+
+
+func test_goal_bonus_rewards_moving_forward_and_shooting() -> void:
+	var cpu: CpuConfig = _goal_cpu(0.5, 2.0)
+	# [手の種類, 手, 運ぶ先, ボール位置, 加点]
+	var cases: Array = [
+		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C", "M-C", 0.5],
+		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A-L1", "D-C", 1.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "M-L1", "M-C", 0.0],
+		# 後ろへ運ぶ手は負
+		[ATTACK, GameEnums.PlayType.SHORT_PASS, "D-C", "M-C", -0.5],
+		[ATTACK, GameEnums.PlayType.SWITCH, "M-R2", "M-L2", 0.0],
+		[ATTACK, GameEnums.PlayType.SHOT, "", "A-C", 2.0],
+		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-C", "D-C", 1.0],
+		[POS_TRANS, GameEnums.PosTransAction.SECURE, "", "D-C", 0.0],
+		# 守備側の手は、運ぶ先がボールより前でも加点しない
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "A-C", "D-C", 0.0],
+		[NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, "", "M-C", 0.0],
+	]
+	for case: Array in cases:
+		var target_key: String = case[2] as String
+		var hint := ChoiceHint.new(case[0] as GameEnums.ChoiceFamily, case[1] as int,
+				null if target_key == "" else _area(target_key), true, 1, 1, GameEnums.CoverKind.NONE)
+		assert_float(CpuPlanner.goal_bonus(hint, _area(case[3] as String), cpu)).override_failure_message(str(case)) \
+				.is_equal(case[4] as float)
+
+
+func test_zero_goal_bonus_adds_nothing() -> void:
+	var cpu: CpuConfig = _goal_cpu(0.0, 0.0)
+	var shot := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHOT, null, true, 1, 1, GameEnums.CoverKind.NONE)
+	var forward_pass := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, _area("A-C"), true, 1, 1, GameEnums.CoverKind.NONE)
+	assert_float(CpuPlanner.goal_bonus(shot, _area("A-C"), cpu)).is_equal(0.0)
+	assert_float(CpuPlanner.goal_bonus(forward_pass, _area("D-C"), cpu)).is_equal(0.0)
+
+
+func test_forward_bonus_raises_the_forward_moves_probability() -> void:
+	# 前（A-C）へのドリブルと横（M-L1）へのドリブルは、評価値がどちらも +1。前へ運ぶ加点で前の手が選ばれやすくなる
+	var state: MatchState = _scene()
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
+	var forward: int = _dribble_index(hints, "A-C")
+	var side: int = _dribble_index(hints, "M-L1")
+	assert_int(forward).is_not_equal(-1)
+	assert_int(side).is_not_equal(-1)
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0))
+	assert_float(none[forward]).is_equal_approx(none[side], 0.000001)
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(2.0, 0.0))
+	assert_float(biased[forward]).is_greater(biased[side])
+	assert_float(_sum(biased)).is_equal_approx(1.0, 0.000001)
+
+
+func test_shot_bonus_raises_the_shot_probability() -> void:
+	# h1 がボールの A-C にいて、シュートを選べる場面
+	var state: MatchState = _scene()
+	state.ball_area = _area("A-C")
+	state.home_players = _players([["h1", "A-C"], ["h2", "A-L1"]])
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
+	var shot: int = -1
+	for index: int in range(hints.size()):
+		if hints[index].family == ATTACK and hints[index].action == GameEnums.PlayType.SHOT:
+			shot = index
+	assert_int(shot).is_not_equal(-1)
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 3.0))
+	assert_float(biased[shot]).is_greater(none[shot])
 
 
 # --- 手の選択 ---

@@ -21,6 +21,44 @@ func test_advance_with_more_players() -> void:
 	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対0。こちらが数的優位で前進")
 
 
+## 守備が運ぶ先を読んだ判定の開示
+func _read_reveal(role: GameEnums.Phase, outcome: GameEnums.TurnOutcome, area: String, user_count: int,
+		opponent_count: int) -> RevealView:
+	var reveal: RevealView = _reveal(role, outcome, area, user_count, opponent_count)
+	reveal.is_read = true
+	return reveal
+
+
+func test_read_loss_says_the_move_was_read_even_with_more_players() -> void:
+	# 読まれると、1人多いだけでは前進できない（アルゴリズム5）。人数の句ではなく、読まれたことを原因にする
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M-C", 1, 0)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 1対0。読まれてロスト")
+
+
+func test_read_save_says_the_shot_was_read() -> void:
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.SAVE, "A-C", 1, 1)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・中央で 1対1。読まれてシュート阻止")
+
+
+func test_read_loss_from_the_defending_side_says_the_defense_read_it() -> void:
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.LOSS, "M-C", 0, 1)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 0対1。読み切ってロスト")
+
+
+func test_read_advance_with_a_two_player_advantage_keeps_the_numbers_phrase() -> void:
+	# 2人以上多ければ、読まれても前進する。原因は人数
+	var reveal: RevealView = _read_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, "M-C", 2, 0)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 2対0。こちらが数的優位で前進")
+
+
+func test_unread_level_shot_scores_because_it_was_not_read() -> void:
+	# シュートはカバー判定をしない。同数で得点した理由は、読まれなかったこと（アルゴリズム5）
+	var reveal: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.GOAL, "A-C", 1, 1)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・中央で 1対1。同数で読まれず得点")
+	reveal.user_role = GameEnums.Phase.DEFENSE
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・中央で 1対1。同数で読めず得点")
+
+
 func test_loss_with_fewer_players() -> void:
 	var reveal: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M-L1", 1, 2)
 	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・左HSで 1対2。相手が数的優位でロスト")
@@ -32,17 +70,17 @@ func test_stall_with_a_defender_covering() -> void:
 	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・左大外で 1対1。同数で背後にカバーがいて膠着")
 
 
-func test_stall_with_the_goalkeeper_covering_from_the_defending_side() -> void:
+func test_stall_with_a_defender_covering_from_the_defending_side() -> void:
 	# 利用者が守備側でも、人数は「自分 対 相手」の順
-	var reveal: RevealView = _reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.STALL, "D-C", 2, 2,
-			GameEnums.CoverKind.GOALKEEPER)
-	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("自陣・中央で 2対2。同数でGKがカバーして膠着")
+	var reveal: RevealView = _reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.STALL, "M-C", 2, 2,
+			GameEnums.CoverKind.DEFENDER)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("中盤・中央で 2対2。同数で背後にカバーがいて膠着")
 
 
-func test_advance_out_of_the_goalkeeper_reach() -> void:
-	var reveal: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, "A-R2", 1, 1,
-			GameEnums.CoverKind.OUT_OF_GK_REACH)
-	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・右大外で 1対1。同数でGKのカバーが届かず前進")
+func test_level_numbers_in_the_final_third_advance_without_a_cover() -> void:
+	# GK はカバーに数えない（2026-10-24）
+	var reveal: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, "A-C", 1, 1)
+	assert_str(JudgeReasonFormatter.format(reveal)).is_equal("敵陣・中央で 1対1。同数でカバーがいなくて前進")
 
 
 func test_goal_and_save() -> void:
@@ -78,7 +116,4 @@ func test_detail_lists_the_area_both_counts_and_the_cover() -> void:
 	assert_str(JudgeReasonFormatter.detail(reveal)).is_equal("比較エリア 中盤・中央／● 自分 1 対 0 相手 ◆／カバー なし")
 	reveal.cover = GameEnums.CoverKind.DEFENDER
 	assert_str(JudgeReasonFormatter.detail(reveal)).ends_with("カバー あり")
-	reveal.cover = GameEnums.CoverKind.GOALKEEPER
-	assert_str(JudgeReasonFormatter.detail(reveal)).ends_with("カバー GK")
-	reveal.cover = GameEnums.CoverKind.OUT_OF_GK_REACH
-	assert_str(JudgeReasonFormatter.detail(reveal)).ends_with("カバー GK外")
+

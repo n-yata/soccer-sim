@@ -88,7 +88,7 @@ func set_selected(key: String) -> void:
 	queue_redraw()
 
 
-## エリアのキー → ヒントの札の文（`+1`・`±0 GK外`）。even_keys は人数差が ±0 の札のキーで、控えめな色で描く。
+## エリアのキー → ヒントの札の文（`+1`・`±0 カバーあり`）。even_keys は人数差が ±0 の札のキーで、控えめな色で描く。
 ## 札は選べるエリアにだけ描く。
 func set_hints(hints: Dictionary, even_keys: Array[String] = []) -> void:
 	_hints = hints.duplicate()

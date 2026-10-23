@@ -81,6 +81,7 @@
 | `judge.compare_area` | `area` | ○ | — | 比較エリア（攻撃側の視点。即時奪回×保持では奪ったエリア） |
 | `judge.attacker_count` / `judge.defender_count` | `int` | ○ | 0〜10（即時奪回×保持は周辺の合計で 0〜10） | 攻撃側人数・守備側人数 |
 | `judge.cover` | `enum<CoverKind>` | ○ | — | カバーの有無 |
+| `judge.is_read` | `bool` | ○ | — | 守備が攻撃の運ぶ先（シュートはボール位置）を読んだか（アルゴリズム5。トランジションは `false`）。2026-10-24 に追加 |
 | `outcome` | `enum<TurnOutcome>` | ○ | — | ターン結果 |
 
 ### 2.2 戦績 `match_records.json`（形式の版 1）

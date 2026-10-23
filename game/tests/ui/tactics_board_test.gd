@@ -167,7 +167,7 @@ func test_only_dribble_press_and_cover_are_drawn() -> void:
 func test_hints_are_drawn_only_on_selectable_areas_and_even_ones_are_muted() -> void:
 	_board.set_selectable(["M-L1", "A-C"])
 	var even: Array[String] = ["A-C"]
-	_board.set_hints({"M-L1": "+1", "A-C": "±0 GK", "D-C": "−1"}, even)
+	_board.set_hints({"M-L1": "+1", "A-C": "±0 カバーあり", "D-C": "−1"}, even)
 	assert_array(_board.drawn_hint_keys()).is_equal(["M-L1", "A-C"])
 	assert_bool(_board.is_hint_even("A-C")).is_true()
 	assert_bool(_board.is_hint_even("M-L1")).is_false()

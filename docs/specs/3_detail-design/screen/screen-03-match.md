@@ -133,7 +133,7 @@ MatchScreen (Control)
 2. 運ぶ先を持つ手なら
    1. `_options` からその手の運ぶ先の一覧を取り、`TacticsBoard.set_selectable(一覧)`
    2. `_hints` からその手の分を取り出し、`TacticsBoard.set_hints({エリアのキー: 表示文})`。表示文は
-      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`GOALKEEPER` なら `GK`、`OUT_OF_GK_REACH` なら `GK外`、`NONE` なら空。例: `+1`、`±0 GK外`。`functional-overview.md`「表示仕様」のヒントの札）
+      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`NONE` なら空。例: `+1`、`±0 カバーあり`。`functional-overview.md`「表示仕様」のヒントの札）
    3. プレス・カバーなら、選べる条件の一言（`MatchTexts.target_rule`。誰が動くか・どのエリアを選べるか）を `TargetInfo` に出す
    4. `_state = SELECT_TARGET`。「決定」は押せない
 3. 運ぶ先を持たない手なら、ボードの枠とヒントを消し、その手のヒントを `TargetInfo` に出す

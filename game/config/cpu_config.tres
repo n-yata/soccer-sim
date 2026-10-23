@@ -7,3 +7,5 @@ script = ExtResource("1")
 temperature = 0.5
 floor_probability = 0.05
 style_bonus = 1.0
+forward_bonus = 1.0
+shot_bonus = 0.75

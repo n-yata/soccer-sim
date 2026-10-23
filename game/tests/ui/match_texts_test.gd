@@ -92,10 +92,6 @@ func test_hint_tag_shows_the_difference_and_the_cover_only_when_even() -> void:
 	assert_str(MatchTexts.hint_tag(hint)).is_equal("−2")
 	hint.opponent_count = 1
 	assert_str(MatchTexts.hint_tag(hint)).is_equal("±0")
-	hint.cover = GameEnums.CoverKind.OUT_OF_GK_REACH
-	assert_str(MatchTexts.hint_tag(hint)).is_equal("±0 GK外")
-	hint.cover = GameEnums.CoverKind.GOALKEEPER
-	assert_str(MatchTexts.hint_tag(hint)).is_equal("±0 GK")
 	hint.cover = GameEnums.CoverKind.DEFENDER
 	assert_str(MatchTexts.hint_tag(hint)).is_equal("±0 カバーあり")
 	assert_str(MatchTexts.hint_counts(hint)).is_equal("1対1")

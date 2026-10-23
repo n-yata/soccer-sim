@@ -85,8 +85,8 @@ func _scene() -> MatchState:
 
 func test_attack_hints_count_the_target_after_applying_only_the_attack() -> void:
 	assert_array(_describe_all(_hints(_scene(), HOME))).is_equal([
-		# パス: A-C は1対1で、敵陣の中央なので GK のカバー
-		"SHORT_PASS A-C 1-1 GOALKEEPER",
+		# パス: A-C は1対1。背後は盤外で、GK はカバーに数えないのでカバーなし
+		"SHORT_PASS A-C 1-1 NONE",
 		# ドリブル: h1 が運ぶ先へ動いた後の人数（A-C は h1 と h2 で2対1）
 		"DRIBBLE M-L1 1-0 NONE", "DRIBBLE M-R1 1-0 NONE", "DRIBBLE A-C 2-1 NONE",
 	])
@@ -105,8 +105,8 @@ func test_dribble_hint_lets_the_man_marker_follow() -> void:
 	# 相手はマンツーマン。m1 は h1 につく（AWAY から見て M-C）。far は基本エリアが A なのでマーカーにならない
 	var state: MatchState = _open_state([["h1", "M-C", ""]], [["m1", "M-L1", ""], ["far", "A-L2", ""]], "M-C", MAN)
 	var hints: Array[String] = _describe_all(_hints(state, HOME))
-	# A-C へのドリブルにマーカーがついていき、1対1。敵陣の中央なので GK のカバー
-	assert_array(hints).contains(["DRIBBLE A-C 1-1 GOALKEEPER"])
+	# A-C へのドリブルにマーカーがついていき、1対1。背後は盤外でカバーなし
+	assert_array(hints).contains(["DRIBBLE A-C 1-1 NONE"])
 	assert_array(hints).not_contains(["DRIBBLE A-C 1-0 NONE"])
 
 
@@ -116,10 +116,10 @@ func test_defense_hints_count_the_restricted_area_before_applying_the_move() -> 
 	var hints: Array[String] = _describe_all(_hints(_scene(), AWAY))
 	# M-C: 守備側（AWAY）0・攻撃側1。守備側から見て 0-1
 	assert_array(hints).contains(["PRESS M-C 0-1 NONE"])
-	# A-L1（AWAY から見て D-R1）は0対0。敵陣のハーフスペースなので GK のカバー
-	assert_array(hints).contains(["PRESS A-L1 0-0 GOALKEEPER"])
+	# A-L1（AWAY から見て D-R1）は0対0。背後は盤外でカバーなし
+	assert_array(hints).contains(["PRESS A-L1 0-0 NONE"])
 	# A-C は守備側1・攻撃側1（隣接に守備側がいないのでプレスは選べず、カバーだけ）
-	assert_array(hints).not_contains(["PRESS A-C 1-1 GOALKEEPER"])
+	assert_array(hints).not_contains(["PRESS A-C 1-1 NONE"])
 
 
 # --- トランジション ---

@@ -9,3 +9,7 @@ extends Resource
 @export var floor_probability: float = 0.05
 ## 方式の癖の加点。0 以上。CPU の方式が好む手の評価値に足す（0 なら癖なし）
 @export var style_bonus: float = 1.0
+## 前へ運ぶ加点（1ゾーンあたり）。0 以上。攻撃の手・奪取側の手の評価値に 加点 × 前へ進むゾーン数 を足す（後ろへ運ぶ手は負）
+@export var forward_bonus: float = 1.0
+## シュートの加点。0 以上。シュートの評価値に足す
+@export var shot_bonus: float = 0.75

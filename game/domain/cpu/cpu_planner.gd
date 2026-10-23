@@ -19,7 +19,8 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide, cpu: CpuCon
 	return TurnChoice.new(picked.family, picked.action, target)
 
 
-## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点を足して probabilities を通す。
+## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点とゴールへ向かう加点を足して
+## probabilities を通す。
 static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]:
 	return _probabilities_of(MoveHints.evaluate(state, side, MoveRules.options_for(state, side)), state, side, cpu)
 
@@ -29,8 +30,24 @@ static func _probabilities_of(hints: Array[ChoiceHint], state: MatchState, side:
 	var styles: TeamStyles = state.setup_of(side).styles
 	var scores: Array[float] = []
 	for hint: ChoiceHint in hints:
-		scores.append(score(hint) + style_bonus(hint, styles, state.ball_area, cpu))
+		scores.append(score(hint) + style_bonus(hint, styles, state.ball_area, cpu)
+				+ goal_bonus(hint, state.ball_area, cpu))
 	return probabilities(scores, cpu)
+
+
+## ゴールへ向かう加点（functional-overview.md アルゴリズム8）。人数差だけの評価では、CPU が前へ運ばずシュートも
+## 打たないため。攻撃の手・奪取側の手で運ぶ先があれば forward_bonus × (運ぶ先のゾーン − ボールのゾーン)
+## （後ろへ運ぶ手は負）、シュートなら shot_bonus、ほかは 0。ball は保持側の視点のボール位置。
+static func goal_bonus(hint: ChoiceHint, ball: PitchArea, cpu: CpuConfig) -> float:
+	var is_carrier: bool = hint.family == GameEnums.ChoiceFamily.ATTACK \
+			or hint.family == GameEnums.ChoiceFamily.POS_TRANS
+	if not is_carrier:
+		return 0.0
+	if hint.family == GameEnums.ChoiceFamily.ATTACK and hint.action == GameEnums.PlayType.SHOT:
+		return cpu.shot_bonus
+	if hint.target == null:
+		return 0.0
+	return cpu.forward_bonus * (hint.target.zone - ball.zone)
 
 
 ## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表は functional-overview.md
