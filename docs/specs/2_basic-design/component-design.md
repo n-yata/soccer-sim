@@ -157,7 +157,7 @@ static func all() -> Array[PitchArea]            # 15エリア。D→M→A、各
 `TeamLayout` は、選手ごとの現在エリアを `base_area`・`fixed_area` とは別に持つ。アルゴリズム2の方式の動き
 （スライド・マーク・保持型の前進）で、固定されていない選手の現在エリアも基本エリアからずれるため。
 ターンの中の計算では `TeamLayout` の現在エリアが正で、`PlayerState.current_area` は試合の状態（`MatchState`）へ
-持ち越すための値（`TeamLayout.from_players` で配置を作り、`MatchRules` が判定後の配置から写し戻す。2026-10-24）。
+持ち越すための値（`TeamLayout.from_players` で配置を作り、`MatchRules`（実体は `MatchPositions`）が判定後の配置から写し戻す。2026-10-24）。
 
 ```gdscript
 class_name TeamLayout extends RefCounted
@@ -363,6 +363,9 @@ static func finish(state: MatchState) -> MatchState
   - 置ける保持者は、ターン開始の位置と今いるエリアのどちらからも、ボールのエリアが1マス以内の選手だけ。いなければ置かない。
     キックオフ（`create_match`・`apply_halftime`・得点の後）は距離を問わない
   - 膠着したドリブルの選手は、`current_area` もボールのエリア（ターン開始の位置）へ戻す
+  - 選手の位置の持ち越し（キックオフのリセット・固定の解除・写し戻し・`moved_in_turn`・ドリブルの戻し・保持者を置く）は、
+    `MatchRules` から呼ぶ内部のクラス `MatchPositions`（`match/`）に分けている（2026-10-24。ファイルの大きさの目安を保つため）。
+    アプリケーション層は `MatchPositions` を呼ばない
 - 中断データ（`data-definition.md` §2.1）は、トランジションの起点と判定時の配置を「選手単位の基本エリア・固定先」で持つ形に
   なっているが、現在エリアが無いと復元できない（ターン記録の判定前・判定時の配置も同じ）。ドメインでは `LayoutPair`（現在エリアを含む）で持つ。
   保存の作業で形式を見直す
@@ -980,7 +983,7 @@ func route_back() -> bool
 | オートロード | `App` |
 | enum（`GameEnums` 内） | `Lane`・`Zone`・`DefenseStyle`・`AttackStyle`・`TurnKind`・`PlayType`・`DefenseAction`・`NegTransAction`・`PosTransAction`・`TurnOutcome`・`MatchStatus`・`MatchStage`・`PrincipleStatus`・`TeamSide`・`ChoiceFamily`・`CoverKind`・`MovementReason`・`MatchResult`・`Phase`・`JudgeTally` |
 | enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`MatchController.SuspendedStatus`・`MatchController.StartupResult`・`SuspendedLoad.Status`・`RecordStore.LoadState`（`QuizAnswerStore`・`SettingsStore` も同名の enum を各クラス内に持つ。クラスの内側なので衝突しない） |
-| ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
+| ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
 | UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`StylePicker`・`MatchScreenLayout` |

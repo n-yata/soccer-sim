@@ -374,6 +374,8 @@ func test_the_kickoff_after_a_goal_puts_everyone_on_the_base_area() -> void:
 	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""], ["h2", "D-C", ""]],
 			[["a1", "A-L2", ""], ["a2", "D-L2", "D-L1"]], "A-C")
 	state.home_players[1].current_area = _area("M-C")
+	# h2 は前のターンに動いた（印が立っている）。キックオフで印も消える
+	state.home_players[1].moved_in_turn = true
 	var resolution: TurnResolution = _resolve(state, _shot(), _press_far())
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.GOAL)
 	var next: MatchState = resolution.next_state
