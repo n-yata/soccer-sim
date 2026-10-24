@@ -182,7 +182,7 @@ func duplicate_deep() -> TeamLayout
 class_name BaseLayoutDeriver extends RefCounted
 ## アルゴリズム1。座標からエリアを決める
 static func area_of(x: float, y: float) -> PitchArea
-## GK を除く10人の基本エリアを持つ配置（固定なし）
+## GK を除く10人の基本エリアを持つ配置（固定なし）。座標のエリアで重なるゾーンは1マス1人に散らす（2026-10-24）
 static func derive(formation: FormationDef) -> TeamLayout
 
 class_name StyleLayoutCalculator extends RefCounted

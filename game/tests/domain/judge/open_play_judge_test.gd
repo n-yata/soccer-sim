@@ -38,12 +38,13 @@ func _defense(action: GameEnums.DefenseAction, target_key: String) -> TurnChoice
 	return TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, action, _area(target_key))
 
 
-## 判定例の場面: 実際の陣形データから基本配置を作り、アルゴリズム2を適用した配置（どちらもカウンター型）
+## 判定例の場面: 陣形の座標のエリアをそのまま使った配置（JudgeExampleLayouts）に、アルゴリズム2を適用した配置
+## （どちらもカウンター型）
 func _scene(attacker_id: String, defender_id: String, defense: GameEnums.DefenseStyle, ball_key: String,
 		attacker_side: GameEnums.TeamSide = HOME) -> LayoutPair:
 	# 判定例の配置は、方式の動きが落ち着いた後（1ターン1マスなので、同じボール位置で誰も動かなくなるまでターン開始を繰り返す）
-	var pair := LayoutPair.new(BaseLayoutDeriver.derive(_catalog.formation(attacker_id)),
-			BaseLayoutDeriver.derive(_catalog.formation(defender_id)), attacker_side)
+	var pair := LayoutPair.new(JudgeExampleLayouts.at_coordinates(_catalog.formation(attacker_id)),
+			JudgeExampleLayouts.at_coordinates(_catalog.formation(defender_id)), attacker_side)
 	for _turn: int in range(5):
 		var step: LayoutStep = StyleLayoutCalculator.compute(pair.attacker, _styles(ZONE), pair.defender,
 				_styles(defense), _area(ball_key), attacker_side)

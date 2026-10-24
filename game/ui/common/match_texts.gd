@@ -58,6 +58,11 @@ static func choice_summary(choice: TurnChoice) -> String:
 	return "%s → %s" % [name, area_name(choice.target.to_key())]
 
 
+## 上部バーに常に出す、どちらのボールか（2026-10-24）。駒と同じ記号を添える。
+static func possession_text(user_has_ball: bool) -> String:
+	return "● 自分のボール" if user_has_ball else "◆ CPU のボール"
+
+
 ## 局面のタグ。トランジションでボールを持っているのは奪取側（ポジティブ）。
 static func phase_tag(turn_kind: GameEnums.TurnKind, user_has_ball: bool) -> String:
 	if turn_kind == GameEnums.TurnKind.TRANSITION:

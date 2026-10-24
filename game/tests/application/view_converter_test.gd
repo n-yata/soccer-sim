@@ -107,7 +107,10 @@ func test_snapshot_shows_both_teams_from_the_user_view_with_numbers() -> void:
 	# 人数は駒の位置を数えた値と一致する。CPU の 4-3-3 の前線（A: L2・C・R2）は、利用者の視点で D の R2・C・L2
 	assert_int(snapshot.opponent_counts["D-R2"] as int).is_equal(1)
 	assert_int(snapshot.opponent_counts["D-C"] as int).is_equal(1)
-	assert_int(snapshot.user_counts["D-C"] as int).is_equal(2)
+	# 利用者の 4-4-2 のセンターバック2人は、中央の左右（D-L1・D-R1）に散らしてある（アルゴリズム1。2026-10-24）
+	assert_int(snapshot.user_counts["D-C"] as int).is_equal(0)
+	assert_int(snapshot.user_counts["D-L1"] as int).is_equal(1)
+	assert_int(snapshot.user_counts["D-R1"] as int).is_equal(1)
 	var total: int = 0
 	for key: String in snapshot.opponent_counts:
 		total += snapshot.opponent_counts[key] as int

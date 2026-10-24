@@ -466,6 +466,29 @@ func test_dribble_advance_keeps_the_carrier_on_the_target() -> void:
 	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_empty()
 
 
+func test_a_dribble_diagonally_backwards_advances_into_an_empty_area() -> void:
+	# 2026-10-24 の8方向のドリブル。M-C から斜め後ろの D-L1（相手なし）へ運ぶと、運んだ先で 1対0 → 前進（ボールが D-L1 へ）
+	var state: MatchState = _open_state(HOME, [["h1", "M-C", ""], ["h2", "A-C", ""]], [["a1", "A-L2", ""]], "M-C")
+	var resolution: TurnResolution = _resolve(state, _dribble("D-L1"), _press_far())
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
+	assert_str(resolution.record.judge.compare_area.to_key()).is_equal("D-L1")
+	assert_str(resolution.next_state.ball_area.to_key()).is_equal("D-L1")
+	assert_str(resolution.next_state.home_players[0].fixed_area.to_key()).is_equal("D-L1")
+
+
+func test_a_dribble_backwards_stalls_against_a_cover_on_the_attackers_forward_side_and_returns() -> void:
+	# 後ろの D-L1 に運ぶ。D-L1 は 1対1（相手の a2）。守備側から見た背後は攻撃側の視点の前の M-L1 で、相手の a3 がいて
+	# 攻撃側は0人なのでカバーあり → 膠着。運んだ h1 はボールの M-C へ戻る
+	var state: MatchState = _open_state(HOME, [["h1", "M-C", ""], ["h2", "A-C", ""]],
+			[["a1", "A-L2", ""], ["a2", "A-R1", ""], ["a3", "M-R1", ""]], "M-C")
+	var resolution: TurnResolution = _resolve(state, _dribble("D-L1"), _press_far())
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.STALL)
+	assert_int(resolution.record.judge.cover).is_equal(GameEnums.CoverKind.DEFENDER)
+	assert_str(resolution.next_state.ball_area.to_key()).is_equal("M-C")
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.DRIBBLE)).is_equal(["h1:M-C>D-L1"])
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.DRIBBLE_STOPPED)).is_equal(["h1:D-L1>M-C"])
+
+
 func test_the_nearest_player_within_one_area_is_placed_on_the_ball() -> void:
 	# 保持 × リトリートで、奪取側が X（D-C）から攻守ターンを始める。D-C には誰もいない。
 	# 1マス以内のいちばん近い h1（M-C）を D-C に置いて固定する（h2 は M-L2。2マス離れていて届かない）

@@ -79,17 +79,82 @@ func test_derive_excludes_goalkeeper_and_keeps_ten_players() -> void:
 
 
 func test_derive_places_each_player_on_area_of_its_coordinates() -> void:
+	# 座標のエリアは cb1・cb2 が D-C、st1・st2 が A-C で重なる。重なるゾーン（D・A）だけ、並び順のままレーンへ散らす
+	# （レーンの中心 10・30・50・70・90 との差の合計が最小）。重ならない M はそのまま
 	var layout: TeamLayout = BaseLayoutDeriver.derive(_sample_formation())
 	var expected: Dictionary = {
-		"lb": "D-L2", "cb1": "D-C", "cb2": "D-C", "rb": "D-R2",
+		"lb": "D-L2", "cb1": "D-L1", "cb2": "D-R1", "rb": "D-R2",
 		"lm": "M-L2", "cm1": "M-L1", "cm2": "M-R1", "rm": "M-R2",
-		"st1": "A-C", "st2": "A-C",
+		"st1": "A-C", "st2": "A-R1",
 	}
 	for player: PlayerState in layout.players:
 		assert_str(player.base_area.to_key()).override_failure_message(player.player_id) \
 				.is_equal(expected[player.player_id])
 		assert_str(layout.current_area_of(player.player_id).to_key()).is_equal(expected[player.player_id])
 		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
+
+
+## GK と、指定したゾーンの y に並べた選手（id, x）だけの陣形。足りない人数は D-L2〜 に1人ずつ置く（重ならない）
+func _formation_with(zone_y: float, spec: Array) -> FormationDef:
+	var slots: Array[PlayerSlotDef] = [_slot("gk", "GK", 50.0, 5.0)]
+	for entry: Array in spec:
+		slots.append(_slot(entry[0] as String, "MF", entry[1] as float, zone_y))
+	return FormationDef.new("spread", "spread", "テスト用", [] as Array[String], slots)
+
+
+func _areas(layout: TeamLayout, ids: Array[String]) -> Array[String]:
+	var result: Array[String] = []
+	for player_id: String in ids:
+		result.append(layout.current_area_of(player_id).to_key())
+	return result
+
+
+func test_two_central_players_are_spread_symmetrically() -> void:
+	# x=40・60 はどちらも C。散らし方は (L1,C)・(C,R1)・(L1,R1) のどれも差の合計 20 で同じ。
+	# 同じなら、置いたレーンの中心の平均が座標の平均（50）に近い、左右の釣り合いが取れた (L1,R1) を選ぶ
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(85.0, [["a", 40.0], ["b", 60.0]]))
+	assert_array(_areas(layout, ["a", "b"])).is_equal(["A-L1", "A-R1"])
+
+
+func test_a_symmetric_pair_close_to_the_center_leans_left() -> void:
+	# x=45・55 は (L1,C)・(C,R1) が差の合計 20・釣り合い 10 で同じ（(L1,R1) は差 30）。左右対称にはならず、左を先に詰める
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(50.0, [["a", 45.0], ["b", 55.0]]))
+	assert_array(_areas(layout, ["a", "b"])).is_equal(["M-L1", "M-C"])
+
+
+func test_players_on_the_same_coordinate_keep_the_formation_order() -> void:
+	# 同じ x=50 の2人。(L1,C) と (C,R1) は差の合計も釣り合いも同じ。陣形データの順で先の選手を左に置く
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(50.0, [["first", 50.0], ["second", 50.0]]))
+	assert_array(_areas(layout, ["first", "second"])).is_equal(["M-L1", "M-C"])
+
+
+func test_spreading_keeps_the_left_to_right_order_of_the_coordinates() -> void:
+	# 中央に3人（x=45・50・55）と大外に1人。左右の並び順は変えない
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(50.0,
+			[["right", 55.0], ["left", 45.0], ["wide", 90.0], ["middle", 50.0]]))
+	assert_array(_areas(layout, ["left", "middle", "right", "wide"])).is_equal(["M-L1", "M-C", "M-R1", "M-R2"])
+
+
+func test_a_zone_without_overlap_keeps_the_areas_of_the_coordinates() -> void:
+	# x=36 は d=14 で C。置き直すとレーンの中心 30（L1）のほうが近いが、重なりが無いので座標のエリアのまま
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(50.0, [["near_center", 36.0], ["wide", 90.0]]))
+	assert_array(_areas(layout, ["near_center", "wide"])).is_equal(["M-C", "M-R2"])
+
+
+func test_coordinates_that_are_not_numbers_are_left_as_they_are() -> void:
+	# 読み込み（ContentRepository）は座標が有限で 0〜100 かを確かめるので、通常は起きない。
+	# 起きても、置き方を比べられない（差が NaN）ので置き直さず、座標のエリアのまま返す（範囲外を参照しない）
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(50.0, [["a", NAN], ["b", NAN]]))
+	var expected: String = BaseLayoutDeriver.area_of(NAN, 50.0).to_key()
+	assert_array(_areas(layout, ["a", "b"])).is_equal([expected, expected])
+
+
+func test_a_zone_with_more_players_than_lanes_is_not_spread() -> void:
+	# 6人は1マス1人にできないので、座標のエリアのまま（重なりを残す）
+	var spec: Array = [["p1", 10.0], ["p2", 30.0], ["p3", 50.0], ["p4", 50.0], ["p5", 70.0], ["p6", 90.0]]
+	var layout: TeamLayout = BaseLayoutDeriver.derive(_formation_with(50.0, spec))
+	assert_array(_areas(layout, ["p1", "p2", "p3", "p4", "p5", "p6"])) \
+			.is_equal(["M-L2", "M-L1", "M-C", "M-C", "M-R1", "M-R2"])
 
 
 func test_derive_does_not_change_the_formation() -> void:

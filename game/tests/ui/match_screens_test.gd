@@ -65,6 +65,32 @@ func test_match_screen_shows_the_score_and_the_phase() -> void:
 	assert_str(screen.phase_text()).is_equal(MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball))
 	assert_array(screen.reveal_texts()).is_empty()
 	assert_int(screen.board_panel().state()).is_equal(MatchBoardPanel.State.SELECT_ACTION)
+	# どちらのボールかを、上部バーに常に出す（2026-10-24）
+	assert_str(screen.possession_text()).is_equal(MatchTexts.possession_text(snapshot.user_has_ball))
+
+
+func test_possession_stays_visible_through_the_reveal_and_follows_the_result() -> void:
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var sides_seen: Dictionary = {}
+	for _turn: int in range(12):
+		_play_turn(screen)
+		# 開示中（局面のタグが両者の選択の帯に替わっている間）も消えず、判定後の保持を、保持側のチームの色で出す
+		assert_str(screen.phase_text()).is_empty()
+		_assert_possession(screen, controller.snapshot().user_has_ball)
+		sides_seen[controller.snapshot().user_has_ball] = true
+		if controller.state().stage != GameEnums.MatchStage.TURN:
+			break
+		screen.board_panel().primary_button().pressed.emit()
+		_assert_possession(screen, controller.snapshot().user_has_ball)
+	# 両方の保持を通っている（色の切り替えを確かめたことになる）
+	assert_int(sides_seen.size()).is_equal(2)
+
+
+func _assert_possession(screen: MatchScreen, user_has_ball: bool) -> void:
+	assert_bool((screen.find_child("PossessionLabel", true, false) as Label).is_visible_in_tree()).is_true()
+	assert_str(screen.possession_text()).is_equal("● 自分のボール" if user_has_ball else "◆ CPU のボール")
+	assert_str(screen.possession_variation()).is_equal("YouChipLabel" if user_has_ball else "OpponentChipLabel")
 
 
 func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() -> void:

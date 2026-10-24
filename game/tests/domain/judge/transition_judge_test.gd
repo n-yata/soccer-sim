@@ -87,8 +87,8 @@ func _summary(output: JudgeOutput) -> String:
 func _je07_origin(winner_side: GameEnums.TeamSide = HOME) -> LayoutPair:
 	var loser_side: GameEnums.TeamSide = AWAY if winner_side == HOME else HOME
 	var before: LayoutStep = StyleLayoutCalculator.compute(
-			BaseLayoutDeriver.derive(_catalog.formation("4-3-3")), _styles(ZONE, POSSESSION),
-			BaseLayoutDeriver.derive(_catalog.formation("4-4-2")), _styles(ZONE, COUNTER),
+			JudgeExampleLayouts.at_coordinates(_catalog.formation("4-3-3")), _styles(ZONE, POSSESSION),
+			JudgeExampleLayouts.at_coordinates(_catalog.formation("4-4-2")), _styles(ZONE, COUNTER),
 			_area("A-C"), loser_side)
 	return LayoutPair.new(before.pair.defender, before.pair.attacker, winner_side)
 

@@ -160,6 +160,9 @@ func test_style_bonus_goes_to_the_moves_each_style_prefers() -> void:
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "A-C", 1.5, 0.0],
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "M-L1", 0.0, 0.0],
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "D-C", 0.0, 0.0],
+		# 斜め前は前（ゾーンが前）へのドリブルとして加点、斜め後ろは加点しない（2026-10-24 の8方向のドリブル）
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "A-L1", 1.5, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "D-R1", 0.0, 0.0],
 		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C", 0.0, 1.5],
 		[ATTACK, GameEnums.PlayType.SWITCH, "M-L2", 0.0, 1.5],
 		[ATTACK, GameEnums.PlayType.SHOT, "", 0.0, 0.0],
@@ -359,7 +362,9 @@ func test_choose_turn_picks_better_moves_more_often_but_keeps_every_move() -> vo
 		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value)))
 		counts[key] = (counts.get(key, 0) as int) + 1
 	var pass_key: String = "%d:%d:A-C" % [ATTACK, GameEnums.PlayType.SHORT_PASS]
-	assert_int(counts.size()).is_equal(4)
+	# 選べる手はパス1つとドリブル8つ（周り8エリア。2026-10-24）。どれも1回以上選ばれる
+	assert_int(counts.size()).is_equal(MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME)).size())
+	assert_int(counts.size()).is_equal(9)
 	for key: String in counts:
 		if key != pass_key:
 			assert_int(counts[key] as int).override_failure_message(key).is_greater(counts[pass_key] as int)

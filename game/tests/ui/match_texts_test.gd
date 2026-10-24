@@ -156,6 +156,11 @@ func test_outcome_tag_marks_the_successful_side_with_its_piece_symbol() -> void:
 			.is_equal(MatchTexts.outcome_label(GameEnums.TurnOutcome.NO_CONTEST))
 
 
+func test_possession_text_names_the_side_with_the_ball_and_its_piece_symbol() -> void:
+	assert_str(MatchTexts.possession_text(true)).is_equal("● 自分のボール")
+	assert_str(MatchTexts.possession_text(false)).is_equal("◆ CPU のボール")
+
+
 func test_clock_text_shows_the_half_and_the_turn() -> void:
 	var snapshot := BoardSnapshot.new()
 	snapshot.half = 1

@@ -21,10 +21,11 @@ func test_formations_returns_a_copy_of_the_list() -> void:
 
 func test_base_counts_of_4_4_2_match_the_algorithm_1_table() -> void:
 	# functional-overview.md アルゴリズム1の表の 4-4-2（列は L2 / L1 / C / R1 / R2）
+	# 2026-10-24 から、重なりを1マス1人に散らした値
 	var expected: Dictionary = {
-		"A": [0, 0, 2, 0, 0],
-		"M": [1, 0, 2, 0, 1],
-		"D": [1, 0, 2, 0, 1],
+		"A": [0, 1, 0, 1, 0],
+		"M": [1, 1, 0, 1, 1],
+		"D": [1, 1, 0, 1, 1],
 	}
 	var lanes: Array[String] = ["L2", "L1", "C", "R1", "R2"]
 	var counts: Dictionary = _library().base_counts("4-4-2")

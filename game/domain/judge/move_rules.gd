@@ -39,7 +39,8 @@ static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions:
 		var lane_gap: int = absi(target.lane - ball.lane)
 		if has_teammate and _is_neighbor8(ball, target):
 			options.add_target(family, GameEnums.PlayType.SHORT_PASS, target)
-		if target.equals(ball.forward()) or (target.zone == ball.zone and lane_gap == 1):
+		# ドリブルは周り8エリアのどこへでも（斜め・後ろも。2026-10-24）。味方の有無は問わない
+		if _is_neighbor8(ball, target):
 			options.add_target(family, GameEnums.PlayType.DRIBBLE, target)
 		if has_teammate and ball.zone == GameEnums.Zone.D and target.zone == GameEnums.Zone.A \
 				and lane_gap <= _LONG_BEHIND_MAX_LANE_GAP:

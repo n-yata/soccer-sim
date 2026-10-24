@@ -87,8 +87,10 @@ func test_attack_hints_count_the_target_after_applying_only_the_attack() -> void
 	assert_array(_describe_all(_hints(_scene(), HOME))).is_equal([
 		# パス: A-C は1対1。背後は盤外で、GK はカバーに数えないのでカバーなし
 		"SHORT_PASS A-C 1-1 NONE",
-		# ドリブル: h1 が運ぶ先へ動いた後の人数（A-C は h1 と h2 で2対1）
-		"DRIBBLE M-L1 1-0 NONE", "DRIBBLE M-R1 1-0 NONE", "DRIBBLE A-C 2-1 NONE",
+		# ドリブル: h1 が運ぶ先へ動いた後の人数（A-C は h1 と h2 で2対1）。周り8エリアへ運べる（2026-10-24）
+		"DRIBBLE D-L1 1-0 NONE", "DRIBBLE D-C 1-0 NONE", "DRIBBLE D-R1 1-0 NONE",
+		"DRIBBLE M-L1 1-0 NONE", "DRIBBLE M-R1 1-0 NONE",
+		"DRIBBLE A-L1 1-0 NONE", "DRIBBLE A-C 2-1 NONE", "DRIBBLE A-R1 1-0 NONE",
 	])
 
 

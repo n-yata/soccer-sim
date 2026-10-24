@@ -10,6 +10,8 @@ const TOP_BAR_HEIGHT: float = 96.0
 
 var _controller: MatchController
 var _score_bug: ScoreBug
+## どちらのボールか。開示中も消さず、常に出す（2026-10-24）
+var _possession_label: Label
 var _phase_tag: Label
 var _reveal_banner: VBoxContainer
 var _user_choice_label: Label
@@ -63,6 +65,14 @@ func phase_text() -> String:
 	return _phase_tag.text if _phase_tag.visible else ""
 
 
+func possession_text() -> String:
+	return _possession_label.text
+
+
+func possession_variation() -> String:
+	return _possession_label.theme_type_variation
+
+
 func reveal_texts() -> Array[String]:
 	if not _reveal_banner.visible:
 		return []
@@ -77,6 +87,7 @@ func _on_state_changed(_snapshot: BoardSnapshot) -> void:
 
 func _on_turn_started(snapshot: BoardSnapshot) -> void:
 	_score_bug.show_snapshot(snapshot)
+	_show_possession(snapshot)
 	_phase_tag.text = MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball)
 	_phase_tag.visible = true
 	_reveal_banner.visible = false
@@ -92,6 +103,13 @@ func _on_reveal_started(reveal: RevealView) -> void:
 
 func _on_result_shown(snapshot: BoardSnapshot) -> void:
 	_score_bug.show_snapshot(snapshot)
+	_show_possession(snapshot)
+
+
+## 保持の表示を、保持している側のチームの色の帯で出す（記号も添え、色だけで示さない）。
+func _show_possession(snapshot: BoardSnapshot) -> void:
+	_possession_label.text = MatchTexts.possession_text(snapshot.user_has_ball)
+	_possession_label.theme_type_variation = &"YouChipLabel" if snapshot.user_has_ball else &"OpponentChipLabel"
 
 
 func _on_turn_ready_to_leave() -> void:
@@ -120,6 +138,12 @@ func _build() -> void:
 	_score_bug = ScoreBug.new()
 	_score_bug.name = "ScoreBug"
 	top_bar.add_child(_score_bug)
+	_possession_label = Label.new()
+	_possession_label.name = "PossessionLabel"
+	_possession_label.theme_type_variation = &"YouChipLabel"
+	_possession_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_possession_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top_bar.add_child(_possession_label)
 	_phase_tag = Label.new()
 	_phase_tag.name = "PhaseTag"
 	_phase_tag.theme_type_variation = &"TagLabel"

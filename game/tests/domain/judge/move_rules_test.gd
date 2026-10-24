@@ -62,13 +62,16 @@ func test_short_pass_is_unavailable_without_teammates_nearby() -> void:
 	assert_bool(options.is_available(ATTACK, SHORT_PASS)).is_false()
 
 
-func test_dribble_goes_forward_left_or_right_without_teammates() -> void:
-	assert_array(_attack_targets(["M-C"], "M-C", DRIBBLE)).is_equal(["M-L1", "M-R1", "A-C"])
+func test_dribble_goes_to_any_of_the_eight_neighbors_without_teammates() -> void:
+	# 2026-10-24: 前・横だけでなく、斜めと後ろへも運べる（周り8エリア）。並びは PitchArea.all() の順（D→M→A）
+	assert_array(_attack_targets(["M-C"], "M-C", DRIBBLE)) \
+			.is_equal(["D-L1", "D-C", "D-R1", "M-L1", "M-R1", "A-L1", "A-C", "A-R1"])
 
 
-func test_dribble_never_goes_back_or_off_the_board() -> void:
-	assert_array(_attack_targets(["A-L2"], "A-L2", DRIBBLE)).is_equal(["A-L1"])
-	assert_array(_attack_targets(["D-R2"], "D-R2", DRIBBLE)).is_equal(["D-R1", "M-R2"])
+func test_dribble_never_goes_off_the_board() -> void:
+	# 隅では盤面の中の隣だけ（敵陣の大外は3つ、自陣の大外は3つ）
+	assert_array(_attack_targets(["A-L2"], "A-L2", DRIBBLE)).is_equal(["M-L2", "M-L1", "A-L1"])
+	assert_array(_attack_targets(["D-R2"], "D-R2", DRIBBLE)).is_equal(["D-R1", "M-R1", "M-R2"])
 
 
 func test_long_behind_from_d_reaches_a_zone_within_one_lane() -> void:
@@ -186,8 +189,8 @@ func test_options_for_open_play_gives_attack_to_the_holder_and_defense_to_the_ot
 	var state: MatchState = _state(GameEnums.TurnKind.OPEN_PLAY)
 	var holder: MoveOptions = MoveRules.options_for(state, GameEnums.TeamSide.HOME)
 	var other: MoveOptions = MoveRules.options_for(state, GameEnums.TeamSide.AWAY)
-	# ボールは D-C。ドリブルは左右と前、パスは隣接8エリアに味方（h2 は M-L2 でレーンが2つ離れる）がいないので選べない
-	assert_array(_keys(holder.targets(ATTACK, DRIBBLE))).is_equal(["D-L1", "D-R1", "M-C"])
+	# ボールは D-C。ドリブルは盤面の中の周り5エリア、パスは隣接8エリアに味方（h2 は M-L2 でレーンが2つ離れる）がいないので選べない
+	assert_array(_keys(holder.targets(ATTACK, DRIBBLE))).is_equal(["D-L1", "D-R1", "M-L1", "M-C", "M-R1"])
 	assert_bool(holder.is_available(ATTACK, SHORT_PASS)).is_false()
 	assert_bool(holder.is_available(ATTACK, LONG_BEHIND)).is_false()
 	assert_bool(holder.is_available(DEFENSE, PRESS)).is_false()

@@ -239,22 +239,31 @@ func test_user_preview_is_empty_before_the_match_for_an_unavailable_choice_and_d
 	await assert_error(func() -> void: controller.user_preview(dribble)) \
 			.is_push_error("MatchController: 選べない手のプレビューは出せない")
 	assert_array(controller.user_preview(dribble)).is_empty()
-	var target: PitchArea = controller.user_options().targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0]
-	controller.submit_turn(TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, target))
-	# 開示の確認待ちの間は、次のターンで選べて選手が動く手でも空。確認した後は出る
-	var next_choice: TurnChoice = _moving_choice(controller.user_options())
-	assert_object(next_choice).override_failure_message("次のターンにプレスもドリブルも無い").is_not_null()
-	assert_array(controller.user_preview(next_choice)).is_empty()
-	controller.continue_after_reveal()
-	assert_array(controller.user_preview(next_choice)).is_not_empty()
+	# 開示の確認待ちの間は、次のターンで選べて選手が動く手でも空。確認した後は出る。
+	# 次のターンに選手が動く手がある（保持しか選べないトランジションにならない）プレスの先を、順に試して使う
+	var targets: Array[PitchArea] = controller.user_options().targets(DEFENSE, GameEnums.DefenseAction.PRESS)
+	for target: PitchArea in targets:
+		var attempt: MatchController = _controller(_seed_for_kickoff(AWAY))
+		attempt.start_match(_user_setup())
+		attempt.submit_turn(TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, target))
+		var next_choice: TurnChoice = _moving_choice(attempt.user_options())
+		if next_choice == null:
+			continue
+		assert_array(attempt.user_preview(next_choice)).is_empty()
+		attempt.continue_after_reveal()
+		assert_array(attempt.user_preview(next_choice)).is_not_empty()
+		return
+	fail("どのプレスの後にも、選手が動く手が無い")
 
 
-## 必ず誰かが動く手（プレスかドリブルの最初の運ぶ先）。どちらも選べなければ null
+## 必ず誰かが動く手（プレス・カバー・ドリブル・カウンターの最初の運ぶ先）。どれも選べなければ null
 func _moving_choice(options: MoveOptions) -> TurnChoice:
-	if options.is_available(DEFENSE, GameEnums.DefenseAction.PRESS):
-		return TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, options.targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0])
-	if options.is_available(ATTACK, GameEnums.PlayType.DRIBBLE):
-		return TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, options.targets(ATTACK, GameEnums.PlayType.DRIBBLE)[0])
+	var moving: Array = [[DEFENSE, GameEnums.DefenseAction.PRESS], [DEFENSE, GameEnums.DefenseAction.COVER],
+			[ATTACK, GameEnums.PlayType.DRIBBLE], [GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.COUNTER]]
+	for entry: Array in moving:
+		var family: GameEnums.ChoiceFamily = entry[0] as GameEnums.ChoiceFamily
+		if options.is_available(family, entry[1] as int):
+			return TurnChoice.new(family, entry[1] as int, options.targets(family, entry[1] as int)[0])
 	return null
 
 

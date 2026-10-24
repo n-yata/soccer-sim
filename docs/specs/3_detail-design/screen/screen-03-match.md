@@ -30,6 +30,7 @@ MatchScreen (Control)
 │   │   │   ├── ScoreLabel (Label)            # 「1 – 0」。白地に暗い文字、52px
 │   │   │   ├── OpponentChip (Label)          # 「CPU ◆」。地 #4A2611
 │   │   │   └── ClockLabel (Label)            # 「前半 5／15」。アディショナルタイムは「前半 15＋2」
+│   │   ├── PossessionLabel (Label)           # 「● 自分のボール」／「◆ CPU のボール」。地は保持側のチームの色。開示中も隠さず、判定後の保持に替える（2026-10-24）
 │   │   ├── PhaseTag (Label)                  # 「ATTACK 攻撃」。地 accent、文字 bg。開示中は隠し、RevealBanner に替える
 │   │   └── RevealBanner (VBoxContainer)      # 両者の選択の帯（2段）。開示から次のターンまで表示（それ以外は非表示）。各段 24px、ELLIPSIS
 │   │       ├── UserChoiceLabel (Label)       # 「YOU ショートパス → 中盤・中央」。地 #0E3A55
@@ -69,7 +70,7 @@ MatchScreen (Control)
   盤面は縦向きのピッチを斜めから見せ、利用者の攻撃方向は上（2026-10-23 に、3D 演出の表示場所 `ReplayLayer` から置き換えた）
 - **盤面と操作の列の部品**: `BoardPanel`（`MatchBoardPanel`）の中身は S-08 と共用する。画面ごとの違いは
   `SideTopSlot`・`SideBottomSlot` に置く（[`screen-08-tutorial.md`](./screen-08-tutorial.md)）
-- **処理の持ち主**: 下の「画面の状態」と、「ターンを始める」〜「開示」・「次へ」の 1. は `MatchBoardPanel` のスクリプトが持つ（`turn_resolved` をつなぐのもパネル）。`MatchScreen` は上部バー・メニュー・画面遷移を持ち、`state_changed` を受けて進行段階が `TURN` のままなら `BoardPanel.start_turn()` を呼び、`turn_ready_to_leave` を受けて `continue_after_reveal()` を呼ぶ（「次へ」の 2.）。上部バー（`PhaseTag`・`RevealBanner`・スコア）は `MatchScreen` の部品なので、パネルが出す `turn_started(snapshot)`（「ターンを始める」の 3.）・`reveal_started(reveal)`（「開示」の 1.）・`result_shown(snapshot)`（「開示」の 4.）を受けて `MatchScreen` が描き直す。下の手順の中の上部バーの操作は、この受け渡しのことを指す
+- **処理の持ち主**: 下の「画面の状態」と、「ターンを始める」〜「開示」・「次へ」の 1. は `MatchBoardPanel` のスクリプトが持つ（`turn_resolved` をつなぐのもパネル）。`MatchScreen` は上部バー・メニュー・画面遷移を持ち、`state_changed` を受けて進行段階が `TURN` のままなら `BoardPanel.start_turn()` を呼び、`turn_ready_to_leave` を受けて `continue_after_reveal()` を呼ぶ（「次へ」の 2.）。上部バー（`PossessionLabel`・`PhaseTag`・`RevealBanner`・スコア）は `MatchScreen` の部品なので、パネルが出す `turn_started(snapshot)`（「ターンを始める」の 3.）・`reveal_started(reveal)`（「開示」の 1.）・`result_shown(snapshot)`（「開示」の 4.）を受けて `MatchScreen` が描き直す。下の手順の中の上部バーの操作は、この受け渡しのことを指す
 - **見た目**: 色・書体は `screen-common.md` §2・§3、方向性は `screen-design.md`「ビジュアルの方向性」。
   `TacticsBoard` の描き方（駒の並べ方・札・矢印の線種）は `screen-common.md` §5 の `TacticsBoard` の項
 
@@ -123,7 +124,7 @@ MatchScreen (Control)
 
 1. `_options = user_options()`。`ChoicePanel.show_options(_options, snapshot.turn_kind, snapshot.user_has_ball)`
 2. `App.user_data.settings().show_hints` が真なら `_hints = user_hints()`、偽なら空
-3. `TacticsBoard.clear_overlays()`、`RevealBanner`・`JudgeTelop` を隠し、`PhaseTag`・`ChoicePanel` を出す。`SetupCard` を描き直す。`TargetInfo` は空にして隠す
+3. `TacticsBoard.clear_overlays()`、`RevealBanner`・`JudgeTelop` を隠し、`PhaseTag`・`ChoicePanel` を出す。`PossessionLabel` をそのターンの保持で描き直す。`SetupCard` を描き直す。`TargetInfo` は空にして隠す
 4. `PrimaryButton` の要約を空、操作を「LOCK IN」にして押せなくする。`_state = SELECT_ACTION`
 
 ### 手のボタンを押す（`ChoicePanel.action_selected`）
@@ -170,7 +171,7 @@ MatchScreen (Control)
    配置へ全選手の駒とボールを動かす（方式でずれた選手も動き、チーム全体がボールに合わせて動くことが見える）。
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
-4. 上部バーのスコアを `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
+4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
    空でなければ、該当する単純化の「実戦では」を `RealWorldNote` に出す（複数なら先頭の1件）
 5. `PrimaryButton` を「次のターンへ／NEXT」にする。`_state = SHOW_RESULT`
 
