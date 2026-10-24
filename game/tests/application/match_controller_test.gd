@@ -82,11 +82,12 @@ func _user_setup() -> TeamSetup:
 	return TeamSetup.new("4-4-2", TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER))
 
 
-## 1ハーフのターン数を turns にした ConfigRepository（一時ディレクトリに .tres を書く）
-func _config(turns: int) -> ConfigRepository:
-	var dir: String = create_temp_dir("match_controller/turns_%d" % turns)
+## 1ハーフのターン数を turns、アディショナルタイムの上限を additional にした ConfigRepository（一時ディレクトリに .tres を書く）
+func _config(turns: int, additional: int = 0) -> ConfigRepository:
+	var dir: String = create_temp_dir("match_controller/turns_%d_%d" % [turns, additional])
 	var rules := MatchRuleConfig.new()
 	rules.turns_per_half = turns
+	rules.max_additional_turns = additional
 	ResourceSaver.save(rules, dir.path_join("match_rule_config.tres"))
 	ResourceSaver.save(CpuConfig.new(), dir.path_join("cpu_config.tres"))
 	var presentation := PresentationConfig.new()
@@ -95,9 +96,11 @@ func _config(turns: int) -> ConfigRepository:
 	return ConfigRepository.new(dir)
 
 
-func _controller(seed_value: int, opponent: OpponentPolicy = FixedOpponent.new(), turns: int = 12,
-		assert_on_invalid_cpu: bool = true) -> MatchController:
-	return MatchController.new(_catalog, _config(turns), _rng(seed_value), opponent, _record_request, assert_on_invalid_cpu)
+## additional はアディショナルタイムの最大ターン数。既存のテストは 0（ハーフの最終ターンで終わる）で確かめる
+func _controller(seed_value: int, opponent: OpponentPolicy = FixedOpponent.new(), turns: int = 15,
+		assert_on_invalid_cpu: bool = true, additional: int = 0) -> MatchController:
+	return MatchController.new(_catalog, _config(turns, additional), _rng(seed_value), opponent, _record_request,
+			assert_on_invalid_cpu)
 
 
 ## 前半のキックオフが side になるシード（0 から順に探す）。探すために作った試合の画面の要求は消しておく
@@ -132,7 +135,8 @@ func test_start_match_creates_the_match_with_the_cpu_setup_and_emits_the_state()
 	var snapshot: BoardSnapshot = controller.snapshot()
 	assert_int(snapshot.half).is_equal(1)
 	assert_int(snapshot.turn_number).is_equal(1)
-	assert_int(snapshot.turns_per_half).is_equal(12)
+	assert_int(snapshot.turns_per_half).is_equal(15)
+	assert_bool(snapshot.is_half_over).is_false()
 	assert_str(snapshot.user_setup.formation_id).is_equal("4-4-2")
 	assert_str(snapshot.opponent_setup.formation_id).is_equal("4-3-3")
 	assert_str(controller.opponent_setup().formation_id).is_equal("4-3-3")
@@ -291,7 +295,7 @@ func test_invalid_cpu_choice_is_replaced_by_the_first_selectable_move() -> void:
 	# 書き出し版の経路（開発時は assert で止めるため、テストでは止めない設定にする）
 	var opponent := FixedOpponent.new()
 	opponent.invalid = true
-	var controller: MatchController = _controller(_seed_for_kickoff(HOME), opponent, 12, false)
+	var controller: MatchController = _controller(_seed_for_kickoff(HOME), opponent, 15, false)
 	controller.start_match(_user_setup())
 	var choice: TurnChoice = MatchControllerTestHelper.first_choice(controller.user_options())
 	await assert_error(func() -> void: controller.submit_turn(choice)) \
@@ -360,6 +364,8 @@ func test_halftime_and_the_end_request_their_screens() -> void:
 	controller.continue_after_reveal()
 	await assert_signal(monitor).is_emitted("stage_changed", [GameEnums.MatchStage.HALFTIME])
 	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME])
+	# ハーフタイムの盤面は、ハーフを終えた後として出す（時計は最後に行ったターン）
+	assert_bool(controller.snapshot().is_half_over).is_true()
 	monitor = monitor_signals(controller, false)
 	assert_bool(controller.submit_halftime(_user_setup())).is_true()
 	await assert_signal(monitor).is_emitted("state_changed", [any()])
@@ -373,12 +379,53 @@ func test_halftime_and_the_end_request_their_screens() -> void:
 	controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
 	controller.continue_after_reveal()
 	assert_bool(controller.is_match_over()).is_true()
+	assert_bool(controller.snapshot().is_half_over).is_true()
 	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME, AppScreens.Id.S03_MATCH, AppScreens.Id.S06_RESULT])
 	# 結果の画面は1回だけ頼む
 	controller.continue_after_reveal()
 	assert_array(_requests).is_equal([AppScreens.Id.S03_MATCH, AppScreens.Id.S05_HALFTIME, AppScreens.Id.S03_MATCH, AppScreens.Id.S06_RESULT])
 	# 終わった試合ではターンを受け付けない
 	assert_bool(controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))).is_false()
+
+
+func test_additional_time_keeps_the_match_screen_and_then_requests_halftime() -> void:
+	# 1ハーフ2ターン・アディショナルタイム最大2。最終ターンで攻撃が続く試合を、シードと利用者の手（先頭・前へ運ぶ手）を
+	# 順に試して探す（どの手で攻撃が続くかは配置で決まるため。見つからなければテストが落ちる）
+	var rules: MatchRuleConfig = _config(2, 2).match_rules()
+	for seed_value: int in range(30):
+		for use_forward: bool in [false, true]:
+			_requests.clear()
+			var controller: MatchController = _controller(seed_value, FixedOpponent.new(), 2, true, 2)
+			controller.start_match(_user_setup())
+			# 規定の2ターン（得点で方式の選び直しになったら、その試合は使わない）
+			for _turn: int in range(2):
+				if controller.stage() != GameEnums.MatchStage.TURN:
+					break
+				var options: MoveOptions = controller.user_options()
+				controller.submit_turn(ScreenTestHelper.forward_choice(options) if use_forward
+						else MatchControllerTestHelper.first_choice(options))
+				if controller.state().turn_number <= 2:
+					controller.continue_after_reveal()
+			if not MatchRules.is_additional_time(controller.state(), rules):
+				continue
+			# アディショナルタイム: 盤面はハーフの途中として出し、時計は「前半 2＋1」。ハーフタイムの画面は頼まない
+			assert_bool(controller.snapshot().is_half_over).is_false()
+			assert_str(MatchTexts.clock_text(controller.snapshot())).is_equal("前半 2＋1")
+			var requested: int = _requests.size()
+			controller.continue_after_reveal()
+			assert_int(_requests.size()).is_equal(requested)
+			assert_int(controller.stage()).is_equal(GameEnums.MatchStage.TURN)
+			# 攻撃が終わるか、上限の2ターンを使い切るまで進めると、ハーフタイムの画面を頼む
+			for _turn: int in range(2):
+				if controller.stage() != GameEnums.MatchStage.TURN:
+					break
+				controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
+				controller.continue_after_reveal()
+			assert_int(controller.stage()).is_equal(GameEnums.MatchStage.HALFTIME)
+			assert_int(_requests.back() as int).is_equal(AppScreens.Id.S05_HALFTIME)
+			assert_int(controller.state().turn_records.size()).is_between(3, 4)
+			return
+	fail("最終ターンで攻撃が続く試合が見つからない")
 
 
 func test_style_change_and_halftime_are_rejected_in_the_wrong_stage() -> void:
@@ -434,7 +481,10 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 				controller.continue_after_reveal()
 		assert_bool(controller.is_match_over()).override_failure_message("seed %d" % seed_value).is_true()
 		assert_int(_requests.back() as int).is_equal(AppScreens.Id.S06_RESULT)
-		assert_int(controller.state().turn_records.size()).is_equal(24)
+		# 両ハーフとも、規定のターン数＋アディショナルタイム（0〜上限）
+		var rules: MatchRuleConfig = ConfigRepository.new().match_rules()
+		assert_int(controller.state().turn_records.size()).is_between(rules.turns_per_half * 2,
+				(rules.turns_per_half + rules.max_additional_turns) * 2)
 		assert_int(_requests.count(AppScreens.Id.S04_STYLE_CHANGE)).is_equal(stages.count(GameEnums.MatchStage.STYLE_CHANGE))
 	# 20試合のどこかで得点（方式の選び直し）が起き、CPU の方式が入れ替わる経路も通っていることを確かめる
 	assert_int(style_changes).is_greater(0)

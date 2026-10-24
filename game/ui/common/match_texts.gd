@@ -12,6 +12,9 @@ const ACTION_NAMES: Dictionary = {
 	GameEnums.ChoiceFamily.NEG_TRANS: ["即時奪回", "リトリート"],
 	GameEnums.ChoiceFamily.POS_TRANS: ["カウンター", "保持"],
 }
+## 判定で手が成功した側（利用者から見た値）。NONE は奪い合いの無い結果（NO_CONTEST）
+enum TurnWinner { USER, OPPONENT, NONE }
+
 const OUTCOME_WORDS: Array[String] = ["前進", "膠着", "ロスト", "得点", "シュート阻止", "奪回成功", "奪回失敗", "判定なし"]
 const DEFENSE_STYLE_NAMES: Array[String] = ["ゾーン", "マンツーマン"]
 const ATTACK_STYLE_NAMES: Array[String] = ["保持型", "カウンター型"]
@@ -67,6 +70,29 @@ static func outcome_label(outcome: GameEnums.TurnOutcome) -> String:
 	return "%s %s" % [GameEnums.TurnOutcome.find_key(outcome), outcome_word(outcome)]
 
 
+## 判定でどちらの手が成功したか（結果の札の色分けに使う。2026-10-24）。
+## 保持側（攻守ターンの攻撃側・トランジションの奪った側）の成功は前進・得点・奪い返しの失敗、相手側の成功は膠着・
+## ロスト・シュート阻止・奪回成功。奪い合いの無い判定なし（保持 × リトリート）はどちらでもない。
+static func turn_winner(reveal: RevealView) -> TurnWinner:
+	if reveal.outcome == GameEnums.TurnOutcome.NO_CONTEST:
+		return TurnWinner.NONE
+	var is_user_holder: bool = reveal.user_role in [GameEnums.Phase.ATTACK, GameEnums.Phase.POS_TRANSITION]
+	var holder_won: bool = reveal.outcome in [GameEnums.TurnOutcome.ADVANCE, GameEnums.TurnOutcome.GOAL,
+			GameEnums.TurnOutcome.REGAIN_FAILED]
+	return TurnWinner.USER if holder_won == is_user_holder else TurnWinner.OPPONENT
+
+
+## 結果の札「● ADVANCE 前進」。成功した側を、色だけでなく駒と同じ記号（自分 ●・相手 ◆）でも示す。
+## どちらでもない結果は記号を付けない。
+static func outcome_tag(reveal: RevealView) -> String:
+	match turn_winner(reveal):
+		TurnWinner.USER:
+			return "● " + outcome_label(reveal.outcome)
+		TurnWinner.OPPONENT:
+			return "◆ " + outcome_label(reveal.outcome)
+	return outcome_label(reveal.outcome)
+
+
 ## 「前進」など、結果の日本語名だけ。
 static func outcome_word(outcome: GameEnums.TurnOutcome) -> String:
 	return OUTCOME_WORDS[outcome]
@@ -112,8 +138,11 @@ static func cover_short(cover: GameEnums.CoverKind) -> String:
 	return "カバーあり" if cover == GameEnums.CoverKind.DEFENDER else ""
 
 
-## 「前半 5／12」。ハーフの最終ターンを終えた後の盤面（turn_number が1つ先に進む）も最終ターンとして出す。
+## 「前半 5／15」。アディショナルタイムは「前半 15＋2」（規定のターン数＋何ターン目か）。
+## ハーフを終えた後の盤面（turn_number が1つ先に進む）は、最後に行ったターンを出す。
 static func clock_text(snapshot: BoardSnapshot) -> String:
 	var half_name: String = "前半" if snapshot.half == 1 else "後半"
-	var turn: int = mini(snapshot.turn_number, snapshot.turns_per_half)
+	var turn: int = snapshot.turn_number - 1 if snapshot.is_half_over else snapshot.turn_number
+	if turn > snapshot.turns_per_half:
+		return "%s %d＋%d" % [half_name, snapshot.turns_per_half, turn - snapshot.turns_per_half]
 	return "%s %d／%d" % [half_name, turn, snapshot.turns_per_half]

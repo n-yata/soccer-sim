@@ -27,9 +27,11 @@ func _styles(attack: GameEnums.AttackStyle = GameEnums.AttackStyle.COUNTER) -> T
 	return TeamStyles.new(GameEnums.DefenseStyle.ZONE, attack)
 
 
-func _rules(turns: int) -> MatchRuleConfig:
+## additional はアディショナルタイムの最大ターン数。既存のテストは 0（ハーフの最終ターンで終わる）で確かめる
+func _rules(turns: int, additional: int = 0) -> MatchRuleConfig:
 	var rules := MatchRuleConfig.new()
 	rules.turns_per_half = turns
+	rules.max_additional_turns = additional
 	return rules
 
 
@@ -82,10 +84,11 @@ func _choice(family: GameEnums.ChoiceFamily, action: int, target_key: String = "
 
 
 ## holder の手と相手の手を、HOME/AWAY の枠に入れて解決する
-func _resolve(state: MatchState, holder_choice: TurnChoice, other_choice: TurnChoice, turns: int = 12) -> TurnResolution:
+func _resolve(state: MatchState, holder_choice: TurnChoice, other_choice: TurnChoice, turns: int = 12,
+		additional: int = 0) -> TurnResolution:
 	var home_choice: TurnChoice = holder_choice if state.possession == HOME else other_choice
 	var away_choice: TurnChoice = other_choice if state.possession == HOME else holder_choice
-	return MatchRules.resolve_turn(state, home_choice, away_choice, _rules(turns))
+	return MatchRules.resolve_turn(state, home_choice, away_choice, _rules(turns, additional))
 
 
 ## 攻守ターンの共通の場面（保持側の視点）: h1 がボールの M-C、h2 が A-C、h3 は基本 D-C で D-L1 に固定。
@@ -640,6 +643,128 @@ func test_goal_on_the_last_turn_of_the_second_half_ends_play_without_a_style_cha
 	assert_object(_resolve(next, _shot(), _press_far(), 2)).is_null()
 
 
+# --- アディショナルタイム（2026-10-24。ハーフの最終ターンで続いている攻撃を、シュート・ボールを失うまで続ける） ---
+
+## 1ハーフ1ターンの最終ターンを、攻撃が続く結果（ADVANCE）で終える。ボールは A-C の h2
+func _advance_on_the_last_turn(additional: int, half: int = 1) -> MatchState:
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "A-L2", ""]], "M-C")
+	state.half = half
+	var resolution: TurnResolution = _resolve(state, _pass_to_a_c(), _press_far(), 1, additional)
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
+	return resolution.next_state
+
+
+## 選べる守備の手の先頭（判定に関わらない手を選びたいとき）
+func _any_defense(state: MatchState) -> TurnChoice:
+	var options: MoveOptions = MoveRules.options_for(state, MatchState.other(state.possession))
+	for action: GameEnums.DefenseAction in [GameEnums.DefenseAction.PRESS, GameEnums.DefenseAction.COVER]:
+		if options.is_available(DEFENSE, action):
+			return TurnChoice.new(DEFENSE, action, options.targets(DEFENSE, action)[0])
+	return null
+
+
+func test_an_attack_going_on_at_the_end_of_the_half_continues_into_additional_time() -> void:
+	var next: MatchState = _advance_on_the_last_turn(5)
+	assert_int(next.stage).is_equal(GameEnums.MatchStage.TURN)
+	assert_int(next.half).is_equal(1)
+	assert_int(next.turn_number).is_equal(2)
+	assert_int(next.possession).is_equal(HOME)
+	assert_str(next.ball_area.to_key()).is_equal("A-C")
+	assert_bool(MatchRules.is_additional_time(next, _rules(1, 5))).is_true()
+	# 後半でも同じ。アディショナルタイムの間は、まだ試合を終えていない
+	var second: MatchState = _advance_on_the_last_turn(5, 2)
+	assert_bool(MatchRules.is_additional_time(second, _rules(1, 5))).is_true()
+	assert_bool(MatchRules.is_play_complete(second, _rules(1, 5))).is_false()
+
+
+func test_a_regular_turn_is_not_additional_time() -> void:
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "A-L2", ""]], "M-C")
+	assert_bool(MatchRules.is_additional_time(state, _rules(1, 5))).is_false()
+	var next: MatchState = _resolve(state, _pass_to_a_c(), _press_far(), 2, 5).next_state
+	assert_bool(MatchRules.is_additional_time(next, _rules(2, 5))).is_false()
+
+
+func test_a_goal_in_additional_time_ends_the_half_without_a_style_change() -> void:
+	# A-C に相手がいないので、シュートは決まる
+	var at: MatchState = _advance_on_the_last_turn(5)
+	var resolution: TurnResolution = _resolve(at, _shot(), _any_defense(at), 1, 5)
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.GOAL)
+	assert_int(resolution.next_state.home_score).is_equal(1)
+	assert_int(resolution.next_state.stage).is_equal(GameEnums.MatchStage.HALFTIME)
+	assert_bool(MatchRules.is_additional_time(resolution.next_state, _rules(1, 5))).is_false()
+	# 後半なら、試合を終える（もうターンを解決しない）
+	var second_at: MatchState = _advance_on_the_last_turn(5, 2)
+	var end: MatchState = _resolve(second_at, _shot(), _any_defense(second_at), 1, 5).next_state
+	assert_bool(MatchRules.is_play_complete(end, _rules(1, 5))).is_true()
+	assert_object(_resolve(end, _shot(), _any_defense(end), 1, 5)).is_null()
+
+
+func test_a_saved_shot_in_additional_time_ends_the_half_without_a_transition() -> void:
+	# 最終ターン: A-C の h1 から、相手のいない A-L1 の h2 へのパスで前進。
+	# アディショナルタイム: ゾーンの a2・a3 がボールの A-L1 へ1レーンずれ、h2 の1人に対して2人。シュートは止められる
+	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""], ["h2", "A-L1", ""]],
+			[["a1", "A-L2", ""], ["a2", "D-C", ""], ["a3", "D-C", ""]], "A-C")
+	var first: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A-L1"), _press_far(), 1, 5)
+	assert_int(first.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
+	var at: MatchState = first.next_state
+	var resolution: TurnResolution = _resolve(at, _shot(), _any_defense(at), 1, 5)
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.SAVE)
+	var next: MatchState = resolution.next_state
+	assert_int(next.stage).is_equal(GameEnums.MatchStage.HALFTIME)
+	assert_int(next.turn_kind).is_equal(OPEN_PLAY)
+	assert_object(next.transition_origin).is_null()
+
+
+func test_a_regain_on_the_last_turn_ends_the_half_and_a_failed_regain_goes_into_additional_time() -> void:
+	# 規定の最終ターンがトランジション。奪い返されたらハーフを終える（アディショナルタイムに入らない）
+	var regained: TurnResolution = _resolve(_transition_state([["h1", "D-C", ""]],
+			[["a1", "A-C", ""], ["a3", "M-L2", "A-L1"]]), _secure(), _counter_press(), 1, 5)
+	assert_int(regained.record.outcome).is_equal(GameEnums.TurnOutcome.REGAIN)
+	assert_int(regained.next_state.stage).is_equal(GameEnums.MatchStage.HALFTIME)
+	# 奪い返しに失敗したら、奪った HOME の攻撃としてアディショナルタイムに入る
+	var kept: TurnResolution = _resolve(_transition_state([["h1", "D-C", ""], ["h2", "M-C", ""]],
+			[["a1", "A-C", ""], ["a3", "M-L2", "A-L1"]]), _secure(), _counter_press(), 1, 5)
+	assert_int(kept.record.outcome).is_equal(GameEnums.TurnOutcome.REGAIN_FAILED)
+	assert_int(kept.next_state.stage).is_equal(GameEnums.MatchStage.TURN)
+	assert_int(kept.next_state.possession).is_equal(HOME)
+	assert_bool(MatchRules.is_additional_time(kept.next_state, _rules(1, 5))).is_true()
+
+
+func test_losing_the_ball_in_additional_time_ends_the_half_without_a_transition() -> void:
+	# 最終ターン（トランジション）は保持 × リトリートで、奪った HOME が持ったまま（NO_CONTEST）→ アディショナルタイム。
+	# 次の M-C へのパスは、h2 の1人に対して相手の a2・a3 の2人（守備は M-C を読んでカバー）で、ボールを失う
+	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-C", ""]],
+			[["a1", "D-L2", ""], ["a2", "M-C", ""], ["a3", "M-C", ""]])
+	var first: TurnResolution = _resolve(state, _secure(), _retreat(), 1, 5)
+	assert_int(first.record.outcome).is_equal(GameEnums.TurnOutcome.NO_CONTEST)
+	var at: MatchState = first.next_state
+	assert_bool(MatchRules.is_additional_time(at, _rules(1, 5))).is_true()
+	var resolution: TurnResolution = _resolve(at, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "M-C"),
+			_choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-C"), 1, 5)
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.LOSS)
+	var next: MatchState = resolution.next_state
+	assert_int(next.stage).is_equal(GameEnums.MatchStage.HALFTIME)
+	assert_int(next.turn_kind).is_equal(OPEN_PLAY)
+	assert_object(next.transition_origin).is_null()
+
+
+func test_additional_time_lasts_at_most_the_configured_number_of_turns() -> void:
+	# アディショナルタイムでは、攻撃が続く手（M-C の h1 へ戻すパス → A-C の h2 へのパス。相手のいないエリア）を繰り返す。
+	# 上限 n なら、n ターン目を終えたところで、攻撃が続いていてもハーフを終える
+	for additional: int in [1, 2]:
+		var state: MatchState = _advance_on_the_last_turn(additional)
+		var passes: Array[String] = ["M-C", "A-C"]
+		for index: int in range(additional):
+			assert_bool(MatchRules.is_additional_time(state, _rules(1, additional))) \
+					.override_failure_message("上限 %d の %d ターン目" % [additional, index + 1]).is_true()
+			var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, passes[index]),
+					_any_defense(state), 1, additional)
+			assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
+			state = resolution.next_state
+		assert_int(state.stage).override_failure_message("上限 %d" % additional).is_equal(GameEnums.MatchStage.HALFTIME)
+		assert_int(state.turn_number).is_equal(1 + additional + 1)
+
+
 func test_halftime_kicks_off_the_second_half_from_the_other_side_of_the_first_half() -> void:
 	# 前半のキックオフは AWAY。前半最後に HOME が得点しても、後半のキックオフは失点側の AWAY ではなく HOME
 	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""]], [["a1", "A-L2", ""]], "A-C")
@@ -744,15 +869,18 @@ func test_a_full_match_runs_both_halves_to_the_end() -> void:
 		assert_int(state.home_players.size()).is_equal(10)
 		assert_int(state.away_players.size()).is_equal(10)
 	assert_bool(MatchRules.is_play_complete(state, rules)).is_true()
-	assert_int(state.turn_records.size()).is_equal(rules.turns_per_half * 2)
+	# 各ハーフは規定のターン数＋アディショナルタイム（0〜上限）。ターン番号はハーフごとに1から続く
+	var per_half: Dictionary = {1: 0, 2: 0}
 	var goals: int = 0
 	for index: int in range(state.turn_records.size()):
 		var record: TurnRecord = state.turn_records[index]
 		assert_int(record.seq).is_equal(index + 1)
-		assert_int(record.half).is_equal(1 if index < rules.turns_per_half else 2)
-		assert_int(record.turn_number).is_equal(index % rules.turns_per_half + 1)
+		per_half[record.half] = (per_half[record.half] as int) + 1
+		assert_int(record.turn_number).is_equal(per_half[record.half] as int)
 		if record.outcome == GameEnums.TurnOutcome.GOAL:
 			goals += 1
+	for half: int in [1, 2]:
+		assert_int(per_half[half] as int).is_between(rules.turns_per_half, rules.turns_per_half + rules.max_additional_turns)
 	assert_int(state.home_score + state.away_score).is_equal(goals)
 	# ハーフタイムをちょうど1回通る。得点の経路（方式の選び直し・最終ターンの得点）は個別のテストで確かめている
 	# （決まった手では得点が入るとは限らないため、ここでは得点の有無を前提にしない）

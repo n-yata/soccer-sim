@@ -140,13 +140,45 @@ func test_submitting_shows_the_result_and_the_reason() -> void:
 	assert_array(shown).is_equal([reveal])
 	assert_bool(_panel.telop_visible()).is_true()
 	assert_bool(_panel.choice_panel().visible).is_false()
-	assert_str(_panel.outcome_text()).is_equal(MatchTexts.outcome_label(reveal.outcome))
+	assert_str(_panel.outcome_text()).is_equal(MatchTexts.outcome_tag(reveal))
+	# 結果の札は、成功した側の色（自分は水色、相手はオレンジ。駒と同じ）。判定なしは元の札
+	var expected_variation: Dictionary = {MatchTexts.TurnWinner.USER: "YouOutcomeTagLabel",
+			MatchTexts.TurnWinner.OPPONENT: "OpponentOutcomeTagLabel", MatchTexts.TurnWinner.NONE: "OutcomeTagLabel"}
+	assert_str(_panel.outcome_variation()).is_equal(expected_variation[MatchTexts.turn_winner(reveal)] as String)
 	assert_str(_panel.reason_text()).is_equal(JudgeReasonFormatter.format(reveal))
 	assert_str(_panel.detail_text()).is_equal(JudgeReasonFormatter.detail(reveal))
 	if reveal.has_detail:
 		assert_str(_panel.board().compare_tag()).is_equal("%d対%d" % [reveal.user_count, reveal.opponent_count])
 	assert_int(_panel.board().movement_count()).is_equal(reveal.movements.size())
 	assert_str(_panel.primary_summary()).is_equal("次のターンへ")
+
+
+func test_the_outcome_tag_color_follows_the_side_that_succeeded() -> void:
+	assert_str(MatchBoardPanel.outcome_variation_for(MatchTexts.TurnWinner.USER)).is_equal("YouOutcomeTagLabel")
+	assert_str(MatchBoardPanel.outcome_variation_for(MatchTexts.TurnWinner.OPPONENT)).is_equal("OpponentOutcomeTagLabel")
+	assert_str(MatchBoardPanel.outcome_variation_for(MatchTexts.TurnWinner.NONE)).is_equal("OutcomeTagLabel")
+	# 地はチームの色（駒と同じ。TacticsBoard の you・opponent）で、2つは違う色。文字は元の札の暗い色を受け継ぐ
+	var you: StyleBoxFlat = _panel.get_theme_stylebox("normal", &"YouOutcomeTagLabel") as StyleBoxFlat
+	var opponent: StyleBoxFlat = _panel.get_theme_stylebox("normal", &"OpponentOutcomeTagLabel") as StyleBoxFlat
+	assert_object(you).is_not_null()
+	assert_object(opponent).is_not_null()
+	assert_bool(you.bg_color.is_equal_approx(_panel.get_theme_color(&"you", TacticsBoard.THEME_TYPE))).is_true()
+	assert_bool(opponent.bg_color.is_equal_approx(_panel.get_theme_color(&"opponent", TacticsBoard.THEME_TYPE))).is_true()
+	assert_bool(you.bg_color.is_equal_approx(opponent.bg_color)).is_false()
+	# 札に付けたときの文字の色と大きさは、元の札（OutcomeTagLabel）から受け継ぐ（Label に付けて、種類の継承を通して確かめる）
+	var base: Label = _tag_label(&"OutcomeTagLabel")
+	for variation: StringName in [&"YouOutcomeTagLabel", &"OpponentOutcomeTagLabel"]:
+		var label: Label = _tag_label(variation)
+		assert_bool(label.get_theme_color(&"font_color").is_equal_approx(base.get_theme_color(&"font_color"))) \
+				.override_failure_message(variation).is_true()
+		assert_int(label.get_theme_font_size(&"font_size")).is_equal(base.get_theme_font_size(&"font_size"))
+
+
+func _tag_label(variation: StringName) -> Label:
+	var label := Label.new()
+	label.theme_type_variation = variation
+	_panel.add_child(label)
+	return label
 
 
 func test_next_is_sent_only_once() -> void:

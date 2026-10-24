@@ -37,7 +37,7 @@ func test_the_ball_always_has_a_holder_in_cpu_matches() -> void:
 							CpuPlanner.choose_turn(state, GameEnums.TeamSide.HOME, config.cpu(), rng),
 							CpuPlanner.choose_turn(state, GameEnums.TeamSide.AWAY, config.cpu(), rng), rules).next_state
 		assert_bool(MatchRules.is_play_complete(state, rules)).override_failure_message("match %d" % match_index).is_true()
-	# 1試合は 24 ターン以上なので、確かめた回数がそれより少なければ試合が回っていない
+	# 1試合は（1ハーフのターン数 × 2）ターン以上なので、確かめた回数がそれより少なければ試合が回っていない
 	assert_int(checked).is_greater_equal(MATCHES * rules.turns_per_half * 2)
 
 

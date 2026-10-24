@@ -50,9 +50,11 @@ func _load_match_rules() -> MatchRuleConfig:
 	if loaded == null:
 		push_error("ConfigRepository: %s を読めないため、初期値を使う" % MATCH_RULE_FILE)
 		return MatchRuleConfig.new()
-	if not loaded.turns_per_half >= 1:
-		push_error("ConfigRepository: %s の値が範囲外（turns_per_half=%d）のため、初期値を使う"
-				% [MATCH_RULE_FILE, loaded.turns_per_half])
+	# アディショナルタイムの上限は1ハーフのターン数まで（保存データの件数の上限が効くように）
+	if not (loaded.turns_per_half >= 1 and loaded.max_additional_turns >= 0
+			and loaded.max_additional_turns <= loaded.turns_per_half):
+		push_error("ConfigRepository: %s の値が範囲外（turns_per_half=%d, max_additional_turns=%d）のため、初期値を使う"
+				% [MATCH_RULE_FILE, loaded.turns_per_half, loaded.max_additional_turns])
 		return MatchRuleConfig.new()
 	return loaded
 

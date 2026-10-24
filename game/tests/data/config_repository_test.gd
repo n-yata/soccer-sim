@@ -11,10 +11,12 @@ const CPU_FILE: String = "cpu_config.tres"
 func _repository_with(case_name: String, turns: int, temperature: float, floor_probability: float,
 		style_bonus: float = CpuConfig.new().style_bonus, forward_bonus: float = CpuConfig.new().forward_bonus,
 		shot_bonus: float = CpuConfig.new().shot_bonus,
-		anticipation_bonus: float = CpuConfig.new().anticipation_bonus) -> ConfigRepository:
+		anticipation_bonus: float = CpuConfig.new().anticipation_bonus,
+		additional: int = 0) -> ConfigRepository:
 	var dir: String = create_temp_dir("config_repository/" + case_name)
 	var rules := MatchRuleConfig.new()
 	rules.turns_per_half = turns
+	rules.max_additional_turns = additional
 	assert_int(ResourceSaver.save(rules, dir.path_join(MATCH_RULE_FILE))).is_equal(OK)
 	var cpu := CpuConfig.new()
 	cpu.temperature = temperature
@@ -30,7 +32,8 @@ func _repository_with(case_name: String, turns: int, temperature: float, floor_p
 func test_bundled_settings_match_the_initial_values() -> void:
 	# 同梱の .tres が範囲内で、functional-overview.md の初期値と一致する（不正なら開発時のこのテストで気づく）
 	var repository := ConfigRepository.new()
-	assert_int(repository.match_rules().turns_per_half).is_equal(12)
+	assert_int(repository.match_rules().turns_per_half).is_equal(15)
+	assert_int(repository.match_rules().max_additional_turns).is_equal(5)
 	assert_float(repository.cpu().temperature).is_equal(0.5)
 	assert_float(repository.cpu().floor_probability).is_equal(0.05)
 	assert_float(repository.cpu().forward_bonus).is_equal(1.5)
@@ -58,15 +61,15 @@ func test_missing_files_fall_back_to_the_initial_values_with_an_error() -> void:
 			.is_push_error("ConfigRepository: match_rule_config.tres を読めないため、初期値を使う")
 	await assert_error(func() -> void: repository.cpu()) \
 			.is_push_error("ConfigRepository: cpu_config.tres を読めないため、初期値を使う")
-	assert_int(repository.match_rules().turns_per_half).is_equal(12)
+	assert_int(repository.match_rules().turns_per_half).is_equal(15)
 	assert_float(repository.cpu().temperature).is_equal(CpuConfig.new().temperature)
 
 
 func test_zero_turns_falls_back_to_the_initial_value_with_an_error() -> void:
 	var repository: ConfigRepository = _repository_with("zero_turns", 0, 1.0, 0.1)
 	await assert_error(func() -> void: repository.match_rules()) \
-			.is_push_error("ConfigRepository: match_rule_config.tres の値が範囲外（turns_per_half=0）のため、初期値を使う")
-	assert_int(repository.match_rules().turns_per_half).is_equal(12)
+			.is_push_error("ConfigRepository: match_rule_config.tres の値が範囲外（turns_per_half=0, max_additional_turns=0）のため、初期値を使う")
+	assert_int(repository.match_rules().turns_per_half).is_equal(15)
 
 
 func test_out_of_range_cpu_values_fall_back_to_the_initial_values() -> void:
@@ -88,6 +91,39 @@ func test_out_of_range_cpu_values_report_an_error() -> void:
 							CpuConfig.new().anticipation_bonus])
 
 
+func test_negative_additional_turns_fall_back_to_the_initial_values_with_an_error() -> void:
+	var repository: ConfigRepository = _repository_with("negative_additional", 3, 1.0, 0.1,
+			CpuConfig.new().style_bonus, CpuConfig.new().forward_bonus, CpuConfig.new().shot_bonus,
+			CpuConfig.new().anticipation_bonus, -1)
+	await assert_error(func() -> void: repository.match_rules()) \
+			.is_push_error("ConfigRepository: match_rule_config.tres の値が範囲外（turns_per_half=3, max_additional_turns=-1）のため、初期値を使う")
+	assert_int(repository.match_rules().turns_per_half).is_equal(15)
+	assert_int(repository.match_rules().max_additional_turns).is_equal(5)
+
+
+func test_additional_turns_above_the_turns_per_half_fall_back_to_the_initial_values() -> void:
+	# 上限は1ハーフのターン数（保存データの件数の上限が効くように。ありえない値で試合が延びないように）
+	var repository: ConfigRepository = _repository_with("too_many_additional", 3, 1.0, 0.1,
+			CpuConfig.new().style_bonus, CpuConfig.new().forward_bonus, CpuConfig.new().shot_bonus,
+			CpuConfig.new().anticipation_bonus, 4)
+	await assert_error(func() -> void: repository.match_rules()) \
+			.is_push_error("ConfigRepository: match_rule_config.tres の値が範囲外（turns_per_half=3, max_additional_turns=4）のため、初期値を使う")
+	assert_int(repository.match_rules().max_additional_turns).is_equal(5)
+	# 境界: ターン数と同じなら受け付ける
+	var equal: ConfigRepository = _repository_with("equal_additional", 3, 1.0, 0.1,
+			CpuConfig.new().style_bonus, CpuConfig.new().forward_bonus, CpuConfig.new().shot_bonus,
+			CpuConfig.new().anticipation_bonus, 3)
+	assert_int(equal.match_rules().max_additional_turns).is_equal(3)
+
+
+func test_zero_additional_turns_are_accepted() -> void:
+	# 境界: アディショナルタイムの上限 0 は「アディショナルタイム無し」として受け付ける
+	var repository: ConfigRepository = _repository_with("zero_additional", 3, 1.0, 0.1,
+			CpuConfig.new().style_bonus, CpuConfig.new().forward_bonus, CpuConfig.new().shot_bonus,
+			CpuConfig.new().anticipation_bonus, 0)
+	assert_int(repository.match_rules().max_additional_turns).is_equal(0)
+
+
 func test_boundary_values_inside_the_range_are_accepted() -> void:
 	var repository: ConfigRepository = _repository_with("boundary", 1, 0.001, 0.0)
 	assert_int(repository.match_rules().turns_per_half).is_equal(1)
@@ -102,7 +138,7 @@ func test_a_file_of_the_wrong_type_falls_back_to_the_initial_value() -> void:
 	var repository := ConfigRepository.new(dir)
 	await assert_error(func() -> void: repository.match_rules()) \
 			.is_push_error("ConfigRepository: match_rule_config.tres を読めないため、初期値を使う")
-	assert_int(repository.match_rules().turns_per_half).is_equal(12)
+	assert_int(repository.match_rules().turns_per_half).is_equal(15)
 
 
 func test_style_bonus_is_read_including_zero() -> void:

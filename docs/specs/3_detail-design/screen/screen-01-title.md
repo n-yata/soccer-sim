@@ -30,7 +30,7 @@ TitleScreen (Control)
     ├── ResumeCard (Button)                # 再開カード。RESUMABLE のときだけ。高さ 112px。縁 accent
     │   ├── ResumeTag (Label)              # 「RESUME」
     │   ├── ResumeTitle (Label)            # 「中断した試合を再開」
-    │   ├── ResumeSummary (Label)          # 「前半 7／12・4-3-3 対 4-4-2」
+    │   ├── ResumeSummary (Label)          # 「前半 7／15・4-3-3 対 4-4-2」
     │   └── ResumeScore (Label)            # 「1 – 0」（自分の数字は you、相手は opponent の色）
     ├── TutorialCard (Button)              # 未完了のときだけここに置く。高さ 104px
     │   ├── TutorialTitle (Label)          # 「チュートリアル」

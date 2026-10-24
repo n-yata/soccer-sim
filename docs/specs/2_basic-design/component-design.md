@@ -334,7 +334,10 @@ static func apply_style_change(state: MatchState, home: TeamStyles, away: TeamSt
 ## ハーフタイムの選び直し（HALFTIME → TURN）。後半のキックオフを行う
 static func apply_halftime(state: MatchState, home: TeamSetup, away: TeamSetup,
         catalog: ContentCatalog) -> MatchState
-## 後半の最終ターンまで終えたか（確定事項「試合終了から破棄までの順序」のやり直し判定に使う）
+## アディショナルタイムのターンか（規定の最終ターンを終えても攻撃が続いていて、まだハーフを終えていない）。
+## 時計は BoardSnapshot の turn_number・turns_per_half・is_half_over から表示する（UI はドメインを呼ばない）
+static func is_additional_time(state: MatchState, rules: MatchRuleConfig) -> bool
+## 後半を終えたか（アディショナルタイムがあればその終わりまで。確定事項「試合終了から破棄までの順序」のやり直し判定に使う）
 static func is_play_complete(state: MatchState, rules: MatchRuleConfig) -> bool
 ## 試合を FINISHED にした状態を返す
 static func finish(state: MatchState) -> MatchState
@@ -349,7 +352,10 @@ static func finish(state: MatchState) -> MatchState
 - 得点のときは、その時点で失点側のキックオフ（`M-C`・全員を基本エリアへ・固定を解く）を済ませてから `STYLE_CHANGE` にする（選び直しの間も
   ボール位置が保持側の視点になるように）。`apply_style_change` は方式を差し替えて `TURN` に戻すだけ
 - ハーフの最終ターンの判定が `LOSS`・`SAVE` でも、トランジションに入らずハーフを終える（`turn_kind` は攻守ターン、起点は `null`）
-- ハーフを終えた状態（`HALFTIME`・後半の終わり）の `turn_number` は ターン数＋1。`data-definition.md` §2.1 の範囲では
+- アディショナルタイム（アルゴリズム7。2026-10-24）: ハーフを終えたかは、次のターンの番号と直前のターンの記録（`turn_records` の最後）から
+  判断する（状態に印を足さない）。規定のターン数以下なら続く、規定＋最大ターン数を超えたら終える、その間は直前の結果が
+  `GOAL`・`SAVE`・`LOSS`・`REGAIN` なら終える。記録が無い状態（テストで直接作った状態）は、続いている攻撃が無いので終える
+- ハーフを終えた状態（`HALFTIME`・後半の終わり）の `turn_number` は 最後に行ったターン＋1（アディショナルタイムがあれば ターン数＋最大ターン数＋1 まで）。`data-definition.md` §2.1 の範囲では
   `HALFTIME` の ターン数＋1 が含まれないため、保存の作業で範囲を見直す
 - （仕様の確認）攻守ターンの続き（`ADVANCE`・`STALL`）は固定を維持し、トランジションが終わって攻守ターンが始まる時だけ固定を解く（位置は戻さない。2026-10-24。アルゴリズム5の手順7と「配置区間」の定義のとおり）
 - ボールの保持者（アルゴリズム7。2026-10-22）: `resolve_turn` はハーフの最終ターンの切り替えの後に、`create_match`・
@@ -651,7 +657,7 @@ func mark_tutorial_completed() -> bool
 | `ball_area` | ボール位置 |
 | `user_has_ball` | 利用者がボールを持っているか |
 | `last_goal_by` | 直前の得点の側（`HOME`／`AWAY`。まだ得点が無ければ空）。方式の選び直しの「〜が得点しました」に使う |
-| `turn_kind` / `half` / `turn_number` / `turns_per_half` | 局面と残りターンの表示用 |
+| `turn_kind` / `half` / `turn_number` / `turns_per_half` / `is_half_over` | 局面と残りターンの表示用。`is_half_over` はハーフを終えた後の盤面か（ハーフタイム・試合終了。時計は最後に行ったターンを出す。2026-10-24） |
 | `score_user` / `score_opponent` | スコア |
 | `user_setup` / `opponent_setup` | 陣形と方式（相手の方式の常時表示。FR-16・21） |
 | `movements` | 直前の判定で動いた選手（利用者の視点に変換済み）。矢印の表示に使う |
@@ -707,7 +713,7 @@ func validation_errors() -> Array[String]
 
 | Resource（`class_name`） | ファイル（`game/config/`） | 持つ値 |
 |---|---|---|
-| `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数 |
+| `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数・アディショナルタイムの最大ターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus |
 | `PresentationConfig` | `presentation_config.tres` | 開示で駒を動かす時間（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
@@ -719,7 +725,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間は0より大きく2以下、遡るターン数は
+値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間は0より大きく2以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -811,7 +817,7 @@ ISO 8601（タイムゾーンなし）で書く。
 - ファイルが大きすぎる（5MB を超える。戦績を数千件ためても 2MB に届かない大きさ。改変されたファイルを全量読み込まない）
 - JSON として読めない、`format_version` が無い
 - 必須のキーが無い、型・範囲が違う（存在しないエリア名・区分値、10人でない配置など）
-- 件数が上限を超える（中断データの `turn_records` が「1ハーフのターン数 × 2」を超える、など）
+- 件数が上限を超える（中断データの `turn_records` が「（1ハーフのターン数＋アディショナルタイムの最大ターン数）× 2」を超える、など）
 
 **形式の変換**（NFR-26）: `SaveMigrator`（`save_migrator.gd`）が、読み込んだ `format_version` から今の版まで、
 1版ずつ変換する関数を順に適用する。形式を変えるたびに変換関数を1つ足し、変更前の形式のテスト用データを

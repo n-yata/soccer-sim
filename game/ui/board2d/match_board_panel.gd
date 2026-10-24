@@ -135,6 +135,20 @@ func outcome_text() -> String:
 	return _outcome_tag.text
 
 
+func outcome_variation() -> String:
+	return _outcome_tag.theme_type_variation
+
+
+## 結果の札のテーマの種類。成功した側の色（自分・相手）で、どちらでもなければ元の札。
+static func outcome_variation_for(winner: MatchTexts.TurnWinner) -> StringName:
+	match winner:
+		MatchTexts.TurnWinner.USER:
+			return &"YouOutcomeTagLabel"
+		MatchTexts.TurnWinner.OPPONENT:
+			return &"OpponentOutcomeTagLabel"
+	return &"OutcomeTagLabel"
+
+
 func reason_text() -> String:
 	return _reason_label.text
 
@@ -265,7 +279,8 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 		_board.show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)
 	_choice_panel.visible = false
 	_target_info.visible = false
-	_outcome_tag.text = MatchTexts.outcome_label(reveal.outcome)
+	_outcome_tag.text = MatchTexts.outcome_tag(reveal)
+	_outcome_tag.theme_type_variation = outcome_variation_for(MatchTexts.turn_winner(reveal))
 	_reason_label.text = JudgeReasonFormatter.format(reveal)
 	_judge_detail.text = JudgeReasonFormatter.detail(reveal)
 	_judge_detail.visible = not _judge_detail.text.is_empty()

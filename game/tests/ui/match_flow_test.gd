@@ -71,7 +71,14 @@ func test_a_whole_match_can_be_played_through_the_screens() -> void:
 		await _frames()
 
 	assert_bool(shell.current_screen() is TitleScreen).is_true()
-	assert_int(controller.state().turn_records.size()).is_equal(24)
+	# 各ハーフは規定のターン数＋アディショナルタイム（0〜上限）
+	var rules: MatchRuleConfig = ConfigRepository.new().match_rules()
+	for half: int in [1, 2]:
+		var turns: int = 0
+		for record: TurnRecord in controller.state().turn_records:
+			if record.half == half:
+				turns += 1
+		assert_int(turns).is_between(rules.turns_per_half, rules.turns_per_half + rules.max_additional_turns)
 	# S-02 はループの前に通っている（上で MatchSetupScreen であることを確かめた）
 	for screen_id: int in [AppScreens.Id.S03_MATCH, AppScreens.Id.S04_STYLE_CHANGE,
 			AppScreens.Id.S05_HALFTIME, AppScreens.Id.S06_RESULT, AppScreens.Id.S01_TITLE]:
@@ -81,7 +88,7 @@ func test_a_whole_match_can_be_played_through_the_screens() -> void:
 	await _start_from_title(shell)
 	assert_bool(shell.current_screen() is MatchScreen).is_true()
 	assert_array(controller.state().turn_records).is_empty()
-	assert_str((shell.current_screen() as MatchScreen).score_bug().clock_text()).is_equal("前半 1／12")
+	assert_str((shell.current_screen() as MatchScreen).score_bug().clock_text()).is_equal("前半 1／15")
 	assert_str((shell.current_screen() as MatchScreen).score_bug().score_text()).is_equal("0 – 0")
 
 

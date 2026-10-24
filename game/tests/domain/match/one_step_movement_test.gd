@@ -87,7 +87,7 @@ func _check_matches(rng: RandomNumberGenerator, choose: Callable) -> void:
 						_assert_within_one(before_layouts, MatchRules.current_layouts(state).pair, label + " next turn")
 						checked_turns += 1
 		assert_bool(MatchRules.is_play_complete(state, _rules)).override_failure_message("match %d" % match_index).is_true()
-	# 1試合 24 ターンのうち、得点とハーフの終わりを除いてもその大半を確かめているはず
+	# 1試合 30 ターン以上のうち、得点とハーフの終わりを除いてもその大半を確かめているはず
 	assert_int(checked_turns).is_greater_equal(MATCHES * _rules.turns_per_half)
 
 

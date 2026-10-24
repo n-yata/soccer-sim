@@ -98,7 +98,7 @@ func test_movements_convert_by_the_side_that_moved() -> void:
 
 func test_snapshot_shows_both_teams_from_the_user_view_with_numbers() -> void:
 	var state: MatchState = _state(AWAY)
-	var snapshot: BoardSnapshot = ViewConverter.snapshot(state, _catalog, [], -1, 12)
+	var snapshot: BoardSnapshot = ViewConverter.snapshot(state, _catalog, [], -1, 15, false)
 	# 利用者の 4-4-2 の左SB（3番）は D-L2。CPU の 4-3-3 の左WG（11番）は CPU の視点で A-L2 → 利用者の視点で D-R2
 	assert_dict(_player(snapshot.user_players, "4-4-2-lb")).is_equal({"player_id": "4-4-2-lb", "number": 3, "area": "D-L2"})
 	assert_dict(_player(snapshot.opponent_players, "4-3-3-lw")).is_equal({"player_id": "4-3-3-lw", "number": 11, "area": "D-R2"})
@@ -121,7 +121,7 @@ func test_snapshot_converts_the_ball_and_reports_possession_and_score() -> void:
 	state.home_score = 2
 	state.away_score = 1
 	state.turn_number = 5
-	var snapshot: BoardSnapshot = ViewConverter.snapshot(state, _catalog, [], AWAY, 12)
+	var snapshot: BoardSnapshot = ViewConverter.snapshot(state, _catalog, [], AWAY, 15, false)
 	assert_str(snapshot.ball_area).is_equal("A-C")
 	assert_bool(snapshot.user_has_ball).is_false()
 	assert_int(snapshot.score_user).is_equal(2)
@@ -129,7 +129,8 @@ func test_snapshot_converts_the_ball_and_reports_possession_and_score() -> void:
 	assert_int(snapshot.last_goal_by).is_equal(AWAY)
 	assert_int(snapshot.half).is_equal(1)
 	assert_int(snapshot.turn_number).is_equal(5)
-	assert_int(snapshot.turns_per_half).is_equal(12)
+	assert_int(snapshot.turns_per_half).is_equal(15)
+	assert_bool(snapshot.is_half_over).is_false()
 	assert_int(snapshot.turn_kind).is_equal(GameEnums.TurnKind.OPEN_PLAY)
 	assert_str(snapshot.user_setup.formation_id).is_equal("4-4-2")
 	assert_str(snapshot.opponent_setup.formation_id).is_equal("4-3-3")
@@ -137,9 +138,11 @@ func test_snapshot_converts_the_ball_and_reports_possession_and_score() -> void:
 
 func test_snapshot_converts_the_last_movements() -> void:
 	var movements: Array[Movement] = [Movement.new(AWAY, "4-3-3-lw", _area("A-L2"), _area("A-L1"), GameEnums.MovementReason.PRESS)]
-	var snapshot: BoardSnapshot = ViewConverter.snapshot(_state(HOME), _catalog, movements, -1, 12)
+	var snapshot: BoardSnapshot = ViewConverter.snapshot(_state(HOME), _catalog, movements, -1, 15, true)
 	assert_str("%s>%s" % [snapshot.movements[0].from.to_key(), snapshot.movements[0].to.to_key()]).is_equal("D-R2>D-R1")
 	assert_bool(snapshot.user_has_ball).is_true()
+	# ハーフを終えたかは、呼び出し側が渡した値をそのまま持つ
+	assert_bool(snapshot.is_half_over).is_true()
 
 
 # --- RevealView ---

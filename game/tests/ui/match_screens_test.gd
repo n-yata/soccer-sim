@@ -61,7 +61,7 @@ func test_match_screen_shows_the_score_and_the_phase() -> void:
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
 	var snapshot: BoardSnapshot = controller.snapshot()
 	assert_str(screen.score_bug().score_text()).is_equal("0 – 0")
-	assert_str(screen.score_bug().clock_text()).is_equal("前半 1／12")
+	assert_str(screen.score_bug().clock_text()).is_equal("前半 1／15")
 	assert_str(screen.phase_text()).is_equal(MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball))
 	assert_array(screen.reveal_texts()).is_empty()
 	assert_int(screen.board_panel().state()).is_equal(MatchBoardPanel.State.SELECT_ACTION)
@@ -150,7 +150,7 @@ func test_next_starts_the_next_turn_in_the_middle_of_a_half() -> void:
 	assert_int(controller.state().turn_records.size()).is_equal(1)
 	assert_int(screen.board_panel().state()).is_equal(MatchBoardPanel.State.SELECT_ACTION)
 	assert_array(screen.reveal_texts()).is_empty()
-	assert_str(screen.score_bug().clock_text()).is_equal("前半 2／12")
+	assert_str(screen.score_bug().clock_text()).is_equal("前半 2／15")
 	assert_array(_requested).is_empty()
 
 

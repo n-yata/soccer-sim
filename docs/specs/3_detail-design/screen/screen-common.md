@@ -83,6 +83,7 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | `accent` | `#F5C518` | 11.9（`bg`） | 強調（主ボタン・選んだエリア・タグ・札）。上に載せる文字は `bg` の色（11.9） |
 | `you` | `#4CC3FF` | 9.8（`bg`） | 利用者のチームの色 |
 | `opponent` | `#FF8A3D` | 8.3（`bg`） | CPU のチームの色 |
+| 結果の札（`YouOutcomeTagLabel`・`OpponentOutcomeTagLabel`） | 地は `you`／`opponent`、文字は `bg` の色 | 9.8 ／ 8.3 | 手が成功した側の色で結果のラベルを塗る（判定なしは `accent`）。記号（● ／ ◆）も添え、色だけで示さない（2026-10-24） |
 | `caution` | `#FBBF77` | 10.9（`surface`） | 「実戦では」 |
 | `telop_bg` / `telop_text` / `telop_sub` | `#F8FAFC` / `#070D18` / `#334155` | 18.6 ／ 9.9 | 判定理由のテロップ（白地に暗い文字） |
 | `disabled_bg` / `disabled_text` | `#1E293B` / `#94A3B8` | 5.7 | 選択不可のボタン。「選択不可」の文字を添え、色だけで示さない |

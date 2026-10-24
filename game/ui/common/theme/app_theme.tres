@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=20 format=3]
+[gd_resource type="Theme" load_steps=22 format=3]
 
 ; アプリ全体のテーマ（project.godot の gui/theme/custom）。各画面は色を直接書かない。
 ; 色は docs/specs/3_detail-design/screen/screen-common.md §3 の写し（bg #070D18・surface #101827・text #F8FAFC・
@@ -166,6 +166,28 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="you_outcome_box"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(0.298039, 0.764706, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="opponent_outcome_box"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.541176, 0.239216, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [sub_resource type="StyleBoxFlat" id="choice_normal"]
 content_margin_left = 8.0
 content_margin_top = 4.0
@@ -325,6 +347,10 @@ OutcomeTagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
 OutcomeTagLabel/fonts/font = ExtResource("1_barlow_bold")
 OutcomeTagLabel/font_sizes/font_size = 44
 OutcomeTagLabel/styles/normal = SubResource("outcome_box")
+YouOutcomeTagLabel/base_type = &"OutcomeTagLabel"
+YouOutcomeTagLabel/styles/normal = SubResource("you_outcome_box")
+OpponentOutcomeTagLabel/base_type = &"OutcomeTagLabel"
+OpponentOutcomeTagLabel/styles/normal = SubResource("opponent_outcome_box")
 ResultLabel/base_type = &"Label"
 ResultLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
 ResultLabel/fonts/font = ExtResource("1_barlow_bold")

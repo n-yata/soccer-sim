@@ -212,7 +212,8 @@ func opponent_setup() -> TeamSetup:
 func snapshot() -> BoardSnapshot:
 	if not _is_started_or_error("snapshot"):
 		return null
-	return ViewConverter.snapshot(_state, _catalog, _board_movements, _last_goal_by, _rules.turns_per_half)
+	return ViewConverter.snapshot(_state, _catalog, _board_movements, _last_goal_by, _rules.turns_per_half,
+			_state.stage == GameEnums.MatchStage.HALFTIME or is_match_over())
 
 
 ## 直前のターンの開示（まだ無ければ null）。写しではないので、受け取った側は読むだけにする。

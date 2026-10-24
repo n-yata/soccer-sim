@@ -60,9 +60,9 @@ static func movements_to_user(movements: Array[Movement]) -> Array[Movement]:
 
 
 ## 試合の現在の状態。選手の位置はターン開始時の配置（MatchRules.current_layouts）。
-## last_goal_by は直前の得点の側（無ければ -1）。
+## last_goal_by は直前の得点の側（無ければ -1）。is_half_over はハーフを終えた後か（呼び出し側が規則から判断する）。
 static func snapshot(state: MatchState, catalog: ContentCatalog, last_movements: Array[Movement],
-		last_goal_by: int, turns_per_half: int) -> BoardSnapshot:
+		last_goal_by: int, turns_per_half: int, is_half_over: bool) -> BoardSnapshot:
 	var view := BoardSnapshot.new()
 	var pair: LayoutPair = MatchRules.current_layouts(state).pair
 	var home_layout: TeamLayout = pair.attacker if pair.attacker_side == GameEnums.TeamSide.HOME else pair.defender
@@ -78,6 +78,7 @@ static func snapshot(state: MatchState, catalog: ContentCatalog, last_movements:
 	view.half = state.half
 	view.turn_number = state.turn_number
 	view.turns_per_half = turns_per_half
+	view.is_half_over = is_half_over
 	view.score_user = state.home_score
 	view.score_opponent = state.away_score
 	view.user_setup = state.home_setup.duplicate_deep()

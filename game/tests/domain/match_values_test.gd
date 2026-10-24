@@ -155,6 +155,7 @@ func test_turn_start_returns_a_copy_of_the_origin_in_transition() -> void:
 	assert_array(step.movements).is_empty()
 
 
-func test_match_rule_config_defaults_to_twelve_turns_per_half() -> void:
-	# functional-overview.md「設定値として外部化する値」の初期値
-	assert_int(MatchRuleConfig.new().turns_per_half).is_equal(12)
+func test_match_rule_config_defaults_to_fifteen_turns_per_half_and_five_additional_turns() -> void:
+	# functional-overview.md「設定値として外部化する値」の初期値（2026-10-24 に 12 → 15、アディショナルタイムの上限 5 を足した）
+	assert_int(MatchRuleConfig.new().turns_per_half).is_equal(15)
+	assert_int(MatchRuleConfig.new().max_additional_turns).is_equal(5)

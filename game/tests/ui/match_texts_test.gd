@@ -103,18 +103,87 @@ func test_hint_of_an_uncompared_move_has_no_tag() -> void:
 	assert_str(MatchTexts.hint_counts(retreat)).is_empty()
 
 
+func _reveal_of(role: GameEnums.Phase, outcome: GameEnums.TurnOutcome) -> RevealView:
+	var reveal := RevealView.new()
+	reveal.user_role = role
+	reveal.outcome = outcome
+	return reveal
+
+
+func test_turn_winner_is_the_side_whose_action_succeeded() -> void:
+	# [利用者の役割, 結果, 成功した側]。攻撃側（トランジションは奪った側）の成功は前進・得点・奪い返しの失敗、
+	# 守備側の成功は膠着・奪取・セーブ・奪い返し。奪い合いの無い NO_CONTEST はどちらでもない
+	var you := MatchTexts.TurnWinner.USER
+	var cpu := MatchTexts.TurnWinner.OPPONENT
+	var none := MatchTexts.TurnWinner.NONE
+	var cases: Array = [
+		[GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, you],
+		[GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.GOAL, you],
+		[GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.STALL, cpu],
+		[GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, cpu],
+		[GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.SAVE, cpu],
+		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.ADVANCE, cpu],
+		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.GOAL, cpu],
+		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.STALL, you],
+		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.LOSS, you],
+		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.SAVE, you],
+		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.ADVANCE, you],
+		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.REGAIN_FAILED, you],
+		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.REGAIN, cpu],
+		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.STALL, cpu],
+		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.LOSS, cpu],
+		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.NO_CONTEST, none],
+		[GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.REGAIN, you],
+		[GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.REGAIN_FAILED, cpu],
+		[GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.ADVANCE, cpu],
+		[GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.STALL, you],
+		[GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.LOSS, you],
+		[GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.NO_CONTEST, none],
+	]
+	for case: Array in cases:
+		var reveal: RevealView = _reveal_of(case[0] as GameEnums.Phase, case[1] as GameEnums.TurnOutcome)
+		assert_int(MatchTexts.turn_winner(reveal)).override_failure_message("%s %s" % [
+			GameEnums.Phase.find_key(case[0]), GameEnums.TurnOutcome.find_key(case[1])]).is_equal(case[2] as int)
+
+
+func test_outcome_tag_marks_the_successful_side_with_its_piece_symbol() -> void:
+	# 色だけに頼らず、駒と同じ記号（自分 ●・相手 ◆）でも示す
+	assert_str(MatchTexts.outcome_tag(_reveal_of(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE))) \
+			.is_equal("● ADVANCE 前進")
+	assert_str(MatchTexts.outcome_tag(_reveal_of(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS))) \
+			.is_equal("◆ LOSS ロスト")
+	assert_str(MatchTexts.outcome_tag(_reveal_of(GameEnums.Phase.NEG_TRANSITION, GameEnums.TurnOutcome.NO_CONTEST))) \
+			.is_equal(MatchTexts.outcome_label(GameEnums.TurnOutcome.NO_CONTEST))
+
+
 func test_clock_text_shows_the_half_and_the_turn() -> void:
 	var snapshot := BoardSnapshot.new()
 	snapshot.half = 1
 	snapshot.turn_number = 5
-	snapshot.turns_per_half = 12
-	assert_str(MatchTexts.clock_text(snapshot)).is_equal("前半 5／12")
+	snapshot.turns_per_half = 15
+	assert_str(MatchTexts.clock_text(snapshot)).is_equal("前半 5／15")
 	snapshot.half = 2
-	snapshot.turn_number = 12
-	assert_str(MatchTexts.clock_text(snapshot)).is_equal("後半 12／12")
-	# ハーフの最終ターンを終えた後の盤面（turn_number は1つ先に進む）も、最終ターンとして出す
-	snapshot.turn_number = 13
-	assert_str(MatchTexts.clock_text(snapshot)).is_equal("後半 12／12")
+	snapshot.turn_number = 15
+	assert_str(MatchTexts.clock_text(snapshot)).is_equal("後半 15／15")
+	# ハーフを終えた後の盤面（turn_number は1つ先に進む）は、最後に行ったターンとして出す
+	snapshot.turn_number = 16
+	snapshot.is_half_over = true
+	assert_str(MatchTexts.clock_text(snapshot)).is_equal("後半 15／15")
+
+
+func test_clock_text_shows_additional_time_as_plus_turns() -> void:
+	var snapshot := BoardSnapshot.new()
+	snapshot.half = 1
+	snapshot.turns_per_half = 15
+	# アディショナルタイムの1ターン目・2ターン目
+	snapshot.turn_number = 16
+	assert_str(MatchTexts.clock_text(snapshot)).is_equal("前半 15＋1")
+	snapshot.turn_number = 17
+	assert_str(MatchTexts.clock_text(snapshot)).is_equal("前半 15＋2")
+	# アディショナルタイムの2ターン目でハーフを終えた後も、そのターンを出す
+	snapshot.turn_number = 18
+	snapshot.is_half_over = true
+	assert_str(MatchTexts.clock_text(snapshot)).is_equal("前半 15＋2")
 
 
 func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press_and_cover() -> void:

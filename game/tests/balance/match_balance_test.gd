@@ -1,5 +1,5 @@
 ## ゲームバランスの計測（.steering/20261023-game-balance・20261024-in-play-turnovers）。
-## 目標はシャビと決めた 1試合 2〜3点、プレー中の攻守の入れ替わり 6〜10回・保持 2〜4ターン。
+## 目標はシャビと決めた 1試合 3〜4.5点（2026-10-24 に前後半 15ターン＋アディショナルタイムにしたとき 2〜3点から広げた）、プレー中の攻守の入れ替わり 6〜10回・保持 2〜4ターン。
 ## 同梱の設定（cpu_config.tres・match_rule_config.tres）で、固定した複数のシードの試合を回して数える
 ## （1つのシードの偶然で目標の内外が決まらないよう、平均で見る）。規則や初期値を変えて目標から外れたら、ここで気づく。
 extends GdUnitTestSuite
@@ -30,17 +30,17 @@ func _user_like() -> CpuConfig:
 	return cpu
 
 
-func test_cpu_matches_score_two_to_three_goals_and_change_hands_six_to_ten_times_in_play() -> void:
+func test_cpu_matches_score_three_to_four_and_a_half_goals_and_change_hands_six_to_ten_times_in_play() -> void:
 	# 入れ替わりはプレー中の分（ロスト・シュート阻止・奪回成功）。得点後のキックオフで渡った分は数えない
 	var probe: MatchBalanceProbe = _cpu_probe
 	assert_int(probe.matches).is_equal(MATCHES_PER_SEED * SEEDS.size())
-	assert_float(probe.goals_per_match()).override_failure_message(probe.summary()).is_between(2.0, 3.0)
+	assert_float(probe.goals_per_match()).override_failure_message(probe.summary()).is_between(3.0, 4.5)
 	assert_float(probe.turnovers_per_match()).override_failure_message(probe.summary()).is_between(6.0, 10.0)
 	assert_float(probe.average_possession_turns()).override_failure_message(probe.summary()).is_between(2.0, 4.0)
 
 
 func test_a_player_choosing_the_best_moves_scores_but_not_at_will() -> void:
-	# 目安は CPU 同士（1チーム約1.2点）より多く、1試合で大差がつくほどではないこと
+	# 目安は CPU 同士（1チーム約2点）と同じかそれより多く、1試合で大差がつくほどではないこと
 	var probe: MatchBalanceProbe = MatchBalanceProbe.run(MATCHES_PER_SEED, SEEDS, _user_like(), _cpu, _catalog, _rules)
 	assert_int(probe.matches).is_equal(MATCHES_PER_SEED * SEEDS.size())
 	assert_float(probe.home_goals_per_match()).override_failure_message(probe.summary()).is_between(1.0, 2.5)

@@ -29,7 +29,7 @@ MatchScreen (Control)
 │   │   │   ├── UserChip (Label)              # 「● YOU」。地 #0E3A55
 │   │   │   ├── ScoreLabel (Label)            # 「1 – 0」。白地に暗い文字、52px
 │   │   │   ├── OpponentChip (Label)          # 「CPU ◆」。地 #4A2611
-│   │   │   └── ClockLabel (Label)            # 「1H 05/12」
+│   │   │   └── ClockLabel (Label)            # 「前半 5／15」。アディショナルタイムは「前半 15＋2」
 │   │   ├── PhaseTag (Label)                  # 「ATTACK 攻撃」。地 accent、文字 bg。開示中は隠し、RevealBanner に替える
 │   │   └── RevealBanner (VBoxContainer)      # 両者の選択の帯（2段）。開示から次のターンまで表示（それ以外は非表示）。各段 24px、ELLIPSIS
 │   │       ├── UserChoiceLabel (Label)       # 「YOU ショートパス → 中盤・中央」。地 #0E3A55
@@ -48,7 +48,7 @@ MatchScreen (Control)
 │       │       │       ├── ChoicePanel           # board2d/choice_panel.tscn。手のボタン（高さ 96px、2列。シュートなど5つ目は列の幅いっぱい）
 │       │       │       ├── TargetInfo (Label)    # 選んだ運ぶ先の名前と、ヒントの札の文（ヒントが ON のとき）。地 surface
 │       │       │       └── JudgeTelop (VBoxContainer) # 判定理由の表示中だけ（ChoicePanel・TargetInfo の代わりに出す）
-│       │       │           ├── OutcomeTag (Label)     # 「ADVANCE 前進」。地 accent
+│       │       │           ├── OutcomeTag (Label)     # 「● ADVANCE 前進」。地は成功した側の色（自分 水色・相手 オレンジ。判定なしは accent）
 │       │       │           ├── ReasonLabel (Label)    # JudgeReasonFormatter の文。地 telop_bg
 │       │       │           ├── JudgeDetail (Label)    # 判定の内訳「比較エリア 中盤・中央／● 自分 1 対 0 相手 ◆／カバー なし」。NO_CONTEST では隠す
 │       │       │           └── RealWorldNote (Label)  # 「実戦では: …」。該当するときだけ。文字 caution
@@ -170,7 +170,7 @@ MatchScreen (Control)
    配置へ全選手の駒とボールを動かす（方式でずれた選手も動き、チーム全体がボールに合わせて動くことが見える）。
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
-4. 上部バーのスコアを `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `ADVANCE 前進`）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
+4. 上部バーのスコアを `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
    空でなければ、該当する単純化の「実戦では」を `RealWorldNote` に出す（複数なら先頭の1件）
 5. `PrimaryButton` を「次のターンへ／NEXT」にする。`_state = SHOW_RESULT`
 

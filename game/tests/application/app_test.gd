@@ -40,7 +40,7 @@ func test_ready_creates_a_match_controller_that_requests_screens_through_the_app
 	# 同梱の陣形で試合を作れる（library と同じカタログ）
 	var setup := TeamSetup.new("4-4-2", TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER))
 	assert_bool(controller.start_match(setup)).is_true()
-	assert_int(controller.snapshot().turns_per_half).is_equal(12)
+	assert_int(controller.snapshot().turns_per_half).is_equal(15)
 	# 試合を終えるまで進めると、結果の画面を App 経由で頼む（画面が無い前半・後半の切り替えは選び直しで進める）
 	var steps: int = 0
 	while not controller.is_match_over() and steps < 100:

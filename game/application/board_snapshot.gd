@@ -18,6 +18,8 @@ var turn_kind: GameEnums.TurnKind = GameEnums.TurnKind.OPEN_PLAY
 var half: int = 1
 var turn_number: int = 1
 var turns_per_half: int = 0
+## ハーフを終えた後の盤面か（ハーフタイム・試合終了。turn_number は1つ先に進んでいる）。2026-10-24 のアディショナルタイムで足した
+var is_half_over: bool = false
 var score_user: int = 0
 var score_opponent: int = 0
 var user_setup: TeamSetup

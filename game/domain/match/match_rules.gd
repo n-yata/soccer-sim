@@ -70,14 +70,16 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 	if output.outcome != GameEnums.TurnOutcome.GOAL:
 		MatchPositions.mark_moved(next, start.pair)
 	next.turn_number += 1
-	# ハーフの最終ターン: 得点でも方式の選び直しを行わない。前半はハーフタイムへ、後半は試合終了（is_play_complete）
-	if next.turn_number > rules.turns_per_half:
+	var half_over: bool = _is_half_over(next.turn_number, record, rules)
+	# ハーフの終わり（最終ターン、またはアディショナルタイムの終わり）: 得点でも方式の選び直しを行わない。
+	# 前半はハーフタイムへ、後半は試合終了（is_play_complete）
+	if half_over:
 		next.stage = GameEnums.MatchStage.HALFTIME if next.half == 1 else GameEnums.MatchStage.TURN
-		# 最終ターンの LOSS・SAVE でもトランジションには入らない（次のターンが無いため）
+		# 最後のターンの LOSS・SAVE でもトランジションには入らない（次のターンが無いため）
 		next.turn_kind = GameEnums.TurnKind.OPEN_PLAY
 		next.transition_origin = null
 	# ハーフタイム・試合終了には次のターンが無い（配置は後半のキックオフで置き直すか、捨てる）。置くと起きなかった動きが記録に残る
-	if next.stage != GameEnums.MatchStage.HALFTIME and not is_play_complete(next, rules):
+	if not half_over:
 		var kickoff: bool = output.outcome == GameEnums.TurnOutcome.GOAL
 		record.movements.append_array(MatchPositions.place_holder(next, null if kickoff else start.pair))
 	next.turn_records.append(record)
@@ -118,9 +120,37 @@ static func apply_halftime(state: MatchState, home: TeamSetup, away: TeamSetup, 
 	return next
 
 
-## 後半の最終ターンまで終えたか（試合結果へ進む判断と、終了処理のやり直し判定に使う）。
+## アディショナルタイムのターンか（ハーフの最終ターンを終えても攻撃が続いていて、まだハーフを終えていない）。
+## アディショナルタイムの得点はハーフを終えるので、方式の選び直し（STYLE_CHANGE）の段階とは重ならない。
+static func is_additional_time(state: MatchState, rules: MatchRuleConfig) -> bool:
+	return state.turn_number > rules.turns_per_half \
+			and not _is_half_over(state.turn_number, _last_record(state), rules)
+
+
+## 後半を終えたか（最終ターン、またはアディショナルタイムの終わりまで。試合結果へ進む判断と、終了処理のやり直し判定に使う）。
 static func is_play_complete(state: MatchState, rules: MatchRuleConfig) -> bool:
-	return state.half == 2 and state.turn_number > rules.turns_per_half
+	return state.half == 2 and _is_half_over(state.turn_number, _last_record(state), rules)
+
+
+## turn_number（これから行うターンの番号）の時点でハーフを終えているか。最終ターンを終えた後は、直前のターン（last）で
+## 攻撃が終わっていれば終える。攻撃が続いていればアディショナルタイムとして、最大 max_additional_turns ターンまで続ける。
+## 直前のターンが無い（状態を直接作ったとき）は、続いている攻撃が無いので終える。
+static func _is_half_over(turn_number: int, last: TurnRecord, rules: MatchRuleConfig) -> bool:
+	if turn_number <= rules.turns_per_half:
+		return false
+	if turn_number > rules.turns_per_half + rules.max_additional_turns:
+		return true
+	return last == null or _ends_attack(last.outcome)
+
+
+## 攻撃が終わる結果: シュートした（GOAL・SAVE）か、ボールを失った（LOSS・REGAIN）。
+static func _ends_attack(outcome: GameEnums.TurnOutcome) -> bool:
+	return outcome in [GameEnums.TurnOutcome.GOAL, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.LOSS,
+			GameEnums.TurnOutcome.REGAIN]
+
+
+static func _last_record(state: MatchState) -> TurnRecord:
+	return null if state.turn_records.is_empty() else state.turn_records.back()
 
 
 ## 試合を FINISHED にした状態を返す。

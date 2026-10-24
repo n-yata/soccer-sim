@@ -39,7 +39,7 @@
 | `match.status` | `enum<MatchStatus>` | ○ | — | 状態 |
 | `match.stage` | `enum<MatchStage>` | ○ | — | 進行段階 |
 | `match.half` | `int` | ○ | 1〜2 | ハーフ |
-| `match.turn_number` | `int` | ○ | 1〜1ハーフのターン数（`FINISHED` と終了処理待ちでは ターン数＋1 まで） | ターン番号 |
+| `match.turn_number` | `int` | ○ | 1〜（1ハーフのターン数＋アディショナルタイムの最大ターン数）（`FINISHED` と終了処理待ちでは その＋1 まで。2026-10-24） | ターン番号 |
 | `match.turn_kind` | `enum<TurnKind>` | ○ | — | ターン種別 |
 | `match.possession` | `enum<TeamSide>` | ○ | — | ボール保持側 |
 | `match.ball_area` | `area` | ○ | — | ボール位置（保持側の視点） |
@@ -57,7 +57,7 @@
 | `match.players.*[].moved_in_turn` | `bool` | ○ | `bool` 以外なら中断データを使わない | 直前のターンの手などで、そのターン開始の位置から動いたか。次のターン開始の方式の動きでは動かない（2026-10-24 に追加） |
 | `match.transition_origin` | `object|null` | ○ | `turn_kind` が `TRANSITION` のときだけ `null` でない | 直前の配置（`attacker`・`defender` に、それぞれ `players` と同じ形の10件） |
 | `match.started_at` | `datetime` | ○ | — | 開始日時 |
-| `match.turn_records` | `array` | ○ | 0〜（1ハーフのターン数 × 2）件 | ターン記録（次表） |
+| `match.turn_records` | `array` | ○ | 0〜（（1ハーフのターン数＋アディショナルタイムの最大ターン数）× 2）件 | ターン記録（次表） |
 
 **ターン記録** `match.turn_records[]`（ER図「ターン記録」）
 
@@ -97,7 +97,7 @@
 | `records[].finished_at` | `datetime` | ○ | — | 終了日時 |
 | `records[].score_user` / `score_cpu` | `int` | ○ | 0〜99 | 利用者得点・CPU得点 |
 | `records[].result` | `enum<MatchResult>` | ○ | スコアと一致すること | 勝敗（利用者から見た値） |
-| `records[].timeline` | `array` | ○ | 1〜（1ハーフのターン数 × 2 ＋ 2）件 | 陣形と方式の推移 |
+| `records[].timeline` | `array` | ○ | 1〜（（1ハーフのターン数＋アディショナルタイムの最大ターン数）× 2 ＋ 2）件 | 陣形と方式の推移 |
 | `records[].timeline[].half` / `.from_turn` | `int` | ○ | — | その陣形・方式になったハーフとターン |
 | `records[].timeline[].user` / `.cpu` | `object` | ○ | 試合の `setups.*` と同じ形 | — |
 
