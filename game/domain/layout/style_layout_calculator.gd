@@ -1,7 +1,8 @@
 ## アルゴリズム2: 現在配置の算出（方式による動き方。functional-overview.md。component-design.md §2.3）。
 ##
 ## 各チームの配置はそのチーム自身から見た座標、ボール位置は攻撃側から見た座標で受け取る（§1.2）。
-## 固定されていない選手は、毎回基本エリアを起点に方式の動きを適用する（前のターンの方式の動きを持ち越さない）。
+## 選手の位置はターンをまたいで持ち越す。方式の動きは、方式が目指す位置（目標）を基本エリアから出し、
+## 今いるエリアから目標へ1マス（斜めを含む）だけ近づける。1ターンに動けるのは1マスまでのため（2026-10-24）。
 ##
 ## 余りのマーカーの置き場所とマークの対象の優先順は、ルールの定義そのもので、調整値ではない。そのため定数で持つ。
 class_name StyleLayoutCalculator
@@ -17,7 +18,7 @@ const _MARK_LANE_PRIORITY: Array[GameEnums.Lane] = [
 
 
 ## 試合の状態からターン開始時の両チームの配置（保持側を attacker として持つ）を出す。
-## 攻守ターンは手順2〜4（compute）を適用した配置と方式の動き。トランジションは起点の写しで、動きは無い。
+## 攻守ターンは今いるエリアから手順2〜4（compute）を適用した配置と方式の動き。トランジションは起点の写しで、動きは無い。
 ## 選べる手（MoveRules.options_for。judge/）と試合進行（MatchRules。match/）の両方から呼ぶため layout/ に置く。
 static func turn_start(state: MatchState) -> LayoutStep:
 	if state.turn_kind == GameEnums.TurnKind.TRANSITION:
@@ -25,76 +26,87 @@ static func turn_start(state: MatchState) -> LayoutStep:
 		return LayoutStep.new(state.transition_origin.duplicate_deep(), no_movements)
 	var defender_side: GameEnums.TeamSide = MatchState.other(state.possession)
 	return compute(
-			TeamLayout.at_base(state.players_of(state.possession)), state.setup_of(state.possession).styles,
-			TeamLayout.at_base(state.players_of(defender_side)), state.setup_of(defender_side).styles,
+			TeamLayout.from_players(state.players_of(state.possession)), state.setup_of(state.possession).styles,
+			TeamLayout.from_players(state.players_of(defender_side)), state.setup_of(defender_side).styles,
 			state.ball_area, state.possession)
 
 
-## 手順1。全選手を基本エリアに戻し、固定を解除する。
-static func reset_segment(layout: TeamLayout) -> TeamLayout:
-	var players: Array[PlayerState] = []
-	for player: PlayerState in layout.players:
-		players.append(PlayerState.new(player.player_id, player.base_area.duplicate_deep()))
-	return TeamLayout.at_base(players)
-
-
 ## 手順2〜4。ターン開始時の両チームの配置と、方式の動きを返す。固定は解除しない。
-## movements は起点（固定されていなければ基本エリア）から変わった選手だけで、攻撃側 → 守備側の順。
+## 起点は各選手の今いるエリア（layout の現在エリア）。目標は基本エリア（固定されていれば固定先）から方式の動きで出し、
+## 固定されていない選手を目標へ1マス近づける。前のターンに動いた選手（moved_in_turn）は動かさない。
+## movements は位置が変わった選手だけで、攻撃側 → 守備側の順。
 static func compute(attacker: TeamLayout, attacker_styles: TeamStyles,
 		defender: TeamLayout, defender_styles: TeamStyles,
 		ball: PitchArea, attacker_side: GameEnums.TeamSide) -> LayoutStep:
-	var attacker_start: Dictionary = _start_areas(attacker)
-	var defender_start: Dictionary = _start_areas(defender)
-	var attacker_areas: Dictionary = attacker_start.duplicate()
+	var attacker_now: Dictionary = _current_areas(attacker)
+	var attacker_targets: Dictionary = _start_areas(attacker)
 	var attacker_reasons: Dictionary = {}
 	if attacker_styles.attack == GameEnums.AttackStyle.POSSESSION:
-		_advance_wide_players(attacker, attacker_areas, attacker_reasons)
-	var defender_areas: Dictionary = defender_start.duplicate()
+		_advance_wide_players(attacker, attacker_targets, attacker_reasons)
+	var attacker_areas: Dictionary = _stepped(attacker, attacker_now, attacker_targets)
+	var defender_now: Dictionary = _current_areas(defender)
+	var defender_targets: Dictionary = _start_areas(defender)
 	var defender_reasons: Dictionary = {}
 	if defender_styles.defense == GameEnums.DefenseStyle.ZONE:
-		_slide(defender, defender_areas, defender_reasons, ball.mirrored())
+		_slide(defender, defender_targets, defender_reasons, ball.mirrored())
 	else:
-		_mark(defender, defender_areas, defender_reasons, attacker.players, attacker_areas)
+		# マンツーマンの対象は、攻撃側が動いた後の位置
+		_mark(defender, defender_targets, defender_reasons, attacker.players, attacker_areas, defender_now)
+	var defender_areas: Dictionary = _stepped(defender, defender_now, defender_targets)
 	var pair := LayoutPair.new(
 			_layout_with(attacker, attacker_areas), _layout_with(defender, defender_areas), attacker_side)
 	var movements: Array[Movement] = []
-	movements.append_array(_movements(attacker, attacker_start, attacker_areas, attacker_reasons, attacker_side))
+	movements.append_array(_movements(attacker, attacker_now, attacker_areas, attacker_reasons, attacker_side))
 	movements.append_array(
-			_movements(defender, defender_start, defender_areas, defender_reasons, pair.defender_side()))
+			_movements(defender, defender_now, defender_areas, defender_reasons, pair.defender_side()))
 	return LayoutStep.new(pair, movements)
 
 
-## マンツーマンのマークを付け直す（ドリブル・プレス・カバーの後に呼ぶ）。起点は pair の現在エリア。
-## ZONE ではずれる基準がターン開始時のボール位置なので、何も動かさない。
-static func remark(pair: LayoutPair, defender_styles: TeamStyles) -> LayoutStep:
+## マンツーマンのマークを付け直す（ドリブル・プレス・カバーの後に呼ぶ）。割り当ては pair の現在エリアで決める。
+## マーカーは、ターン開始の位置（start の守備側。省略したら pair の守備側）から対象へ1マス近づいた位置に置く。
+## 1ターンの中で付け直しが2回（プレスの後とドリブルの後）あっても、ターン開始から1マス以内に保つため。
+## マーカーでない選手は動かない。ZONE ではずれる基準がターン開始時のボール位置なので、何も動かさない。
+static func remark(pair: LayoutPair, defender_styles: TeamStyles, start: TeamLayout = null) -> LayoutStep:
 	var copied: LayoutPair = pair.duplicate_deep()
 	var no_movements: Array[Movement] = []
 	if defender_styles.defense != GameEnums.DefenseStyle.MAN:
 		return LayoutStep.new(copied, no_movements)
-	var defender_start: Dictionary = _current_areas(copied.defender)
-	var defender_areas: Dictionary = defender_start.duplicate()
+	var defender_now: Dictionary = _current_areas(copied.defender)
+	var targets: Dictionary = defender_now.duplicate()
 	var reasons: Dictionary = {}
-	_mark(copied.defender, defender_areas, reasons, copied.attacker.players, _current_areas(copied.attacker))
+	_mark(copied.defender, targets, reasons, copied.attacker.players, _current_areas(copied.attacker), defender_now)
+	var origins: Dictionary = defender_now if start == null else _current_areas(start)
+	var defender_areas: Dictionary = {}
+	for player: PlayerState in copied.defender.players:
+		var here: PitchArea = defender_now[player.player_id] as PitchArea
+		# マーカーでない選手（固定された選手を含む）は、目標が今の位置のままなので動かない
+		if (targets[player.player_id] as PitchArea).equals(here):
+			defender_areas[player.player_id] = here.duplicate_deep()
+		else:
+			defender_areas[player.player_id] = (origins[player.player_id] as PitchArea).step_toward(
+					targets[player.player_id] as PitchArea)
 	var result := LayoutPair.new(copied.attacker, _layout_with(copied.defender, defender_areas), copied.attacker_side)
 	return LayoutStep.new(result,
-			_movements(copied.defender, defender_start, defender_areas, reasons, copied.defender_side()))
+			_movements(copied.defender, defender_now, defender_areas, reasons, copied.defender_side()))
 
 
-## アルゴリズム6のリトリート。守備側（喪失側）を基本配置に戻して固定を解除し、守備方式で動かす。
+## アルゴリズム6のリトリート。守備側（喪失側）の固定を解き、基本配置＋守備方式の目標へ1マス近づく。
 ## ball は攻撃側（奪取側）から見た座標。マンツーマンの対象は pair.attacker の現在の配置。
-## 動きは直前の配置から位置が変わった選手だけで、基本エリアへ戻る動きと方式の動きを1本にまとめる（理由 RETREAT_RESET）。
+## 動きは直前の配置から位置が変わった選手だけで、理由は RETREAT_RESET にまとめる。
 static func retreat(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea) -> LayoutStep:
-	var reset: TeamLayout = reset_segment(pair.defender)
-	var areas: Dictionary = _start_areas(reset)
+	var released: TeamLayout = _released(pair.defender)
+	var now: Dictionary = _current_areas(released)
+	var targets: Dictionary = _start_areas(released)
 	var reasons: Dictionary = {}
 	if defender_styles.defense == GameEnums.DefenseStyle.ZONE:
-		_slide(reset, areas, reasons, ball.mirrored())
+		_slide(released, targets, reasons, ball.mirrored())
 	else:
-		_mark(reset, areas, reasons, pair.attacker.players, _current_areas(pair.attacker))
-	var defender: TeamLayout = _layout_with(reset, areas)
+		_mark(released, targets, reasons, pair.attacker.players, _current_areas(pair.attacker), now)
+	var areas: Dictionary = _stepped(released, now, targets, true)
+	var defender: TeamLayout = _layout_with(released, areas)
 	var movements: Array[Movement] = []
-	for player: PlayerState in reset.players:
-		var from: PitchArea = pair.defender.current_area_of(player.player_id)
+	for player: PlayerState in released.players:
+		var from: PitchArea = now[player.player_id] as PitchArea
 		var to: PitchArea = areas[player.player_id] as PitchArea
 		if not to.equals(from):
 			movements.append(Movement.new(pair.defender_side(), player.player_id, from.duplicate_deep(),
@@ -102,7 +114,17 @@ static func retreat(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchAr
 	return LayoutStep.new(LayoutPair.new(pair.attacker.duplicate_deep(), defender, pair.attacker_side), movements)
 
 
-## 選手 ID → 起点のエリア。固定された選手は固定先、それ以外は基本エリア。
+## layout の固定を解いた写し（位置は変えない）。
+static func _released(layout: TeamLayout) -> TeamLayout:
+	var players: Array[PlayerState] = []
+	for player: PlayerState in layout.players:
+		var copied: PlayerState = player.duplicate_deep()
+		copied.fixed_area = null
+		players.append(copied)
+	return TeamLayout.new(players, _current_areas(layout))
+
+
+## 選手 ID → 目標の起点。固定された選手は固定先、それ以外は基本エリア。
 static func _start_areas(layout: TeamLayout) -> Dictionary:
 	var result: Dictionary = {}
 	for player: PlayerState in layout.players:
@@ -118,7 +140,21 @@ static func _current_areas(layout: TeamLayout) -> Dictionary:
 	return result
 
 
-## POSSESSION: 固定されていない大外（L2/R2）の選手が1ゾーン前へ出る。A の選手はそのまま。
+## 今いるエリアから目標へ1マス近づいた位置。前のターンに動いた選手（moved_in_turn）は、ターン開始の方式の動きでは
+## 動かさない（ターン開始から次のターン開始までを1マス以内に保つ）。ignore_moved はターンの途中の動き
+## （付け直し・リトリート）で、ターン開始からの1マスとして数えるので moved_in_turn を見ない。
+static func _stepped(layout: TeamLayout, now: Dictionary, targets: Dictionary, ignore_moved: bool = false) -> Dictionary:
+	var result: Dictionary = {}
+	for player: PlayerState in layout.players:
+		var here: PitchArea = now[player.player_id] as PitchArea
+		if player.moved_in_turn and not ignore_moved:
+			result[player.player_id] = here.duplicate_deep()
+		else:
+			result[player.player_id] = here.step_toward(targets[player.player_id] as PitchArea)
+	return result
+
+
+## POSSESSION: 固定されていない大外（L2/R2）の選手の目標が1ゾーン前。A の選手はそのまま。
 static func _advance_wide_players(layout: TeamLayout, areas: Dictionary, reasons: Dictionary) -> void:
 	for player: PlayerState in layout.players:
 		if player.is_fixed():
@@ -132,7 +168,7 @@ static func _advance_wide_players(layout: TeamLayout, areas: Dictionary, reasons
 			reasons[player.player_id] = GameEnums.MovementReason.POSSESSION_ADVANCE
 
 
-## ZONE: ボールが左右どちらかのハーフスペース／大外なら、固定されていない全員が1レーンボールサイドへずれる。
+## ZONE: ボールが左右どちらかのハーフスペース／大外なら、固定されていない全員の目標が1レーンボールサイドへずれる。
 ## ボールサイドの大外の選手はそのまま。ball は守備側から見た座標。
 static func _slide(layout: TeamLayout, areas: Dictionary, reasons: Dictionary, ball: PitchArea) -> void:
 	var direction: int = signi(ball.lane - GameEnums.Lane.C)
@@ -148,13 +184,14 @@ static func _slide(layout: TeamLayout, areas: Dictionary, reasons: Dictionary, b
 			reasons[player.player_id] = GameEnums.MovementReason.SLIDE
 
 
-## MAN: 守備側の D・M にいる攻撃側の選手に、マーカーを1人ずつ同じエリアにつける。
+## MAN: 守備側の D・M にいる攻撃側の選手に、マーカーを1人ずつつける（目標を対象と同じエリアにする）。
 ## マーカーは固定されていない、基本エリアが D・M の選手。優先順の上からマーカーの人数分の対象をマークする。
-## 対象のエリアに既にいるマーカーを先に残し、残りは優先順に、起点がいちばん近い（ゾーン差＋レーン差が最小。
-## 同じなら配置の選手の順）マーカーを割り当てる。余ったマーカーは D-C へ。
-## attacker_areas は攻撃側から見た座標。
+## 対象のエリアに既にいるマーカーを先に残し、残りは優先順に、今いるエリアがいちばん近い（ゾーン差＋レーン差が最小。
+## 同じなら配置の選手の順）マーカーを割り当てる。余ったマーカーの目標は D-C。
+## 近さを今いるエリア（positions）で測るのは、1ターン1マスで追いかけるので、基本エリアで選ぶと
+## 遠いマーカーが走り続けて追いつかないため。attacker_areas は攻撃側から見た座標。
 static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
-		attacker_players: Array[PlayerState], attacker_areas: Dictionary) -> void:
+		attacker_players: Array[PlayerState], attacker_areas: Dictionary, positions: Dictionary) -> void:
 	var targets: Array[PitchArea] = []
 	for player: PlayerState in attacker_players:
 		var seen: PitchArea = (attacker_areas[player.player_id] as PitchArea).mirrored()
@@ -178,26 +215,26 @@ static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
 	# 別の対象のマーカーと入れ替わって矢印が交差しないようにするため（マーカーがついていく）
 	var unassigned: Array[int] = []
 	for index: int in order:
-		var standing: int = _nearest_marker(markers, areas, targets[index])
-		if (areas[markers[standing].player_id] as PitchArea).distance_to(targets[index]) == 0:
+		var standing: int = _nearest_marker(markers, positions, targets[index])
+		if (positions[markers[standing].player_id] as PitchArea).distance_to(targets[index]) == 0:
 			_place(markers[standing], targets[index], areas, reasons)
 			markers.remove_at(standing)
 		else:
 			unassigned.append(index)
 	for index: int in unassigned:
-		var nearest: int = _nearest_marker(markers, areas, targets[index])
+		var nearest: int = _nearest_marker(markers, positions, targets[index])
 		_place(markers[nearest], targets[index], areas, reasons)
 		markers.remove_at(nearest)
 	for spare: PlayerState in markers:
 		_place(spare, PitchArea.new(_SPARE_MARKER_LANE, _SPARE_MARKER_ZONE), areas, reasons)
 
 
-## 起点が target にいちばん近いマーカーの添字（同じ距離なら先のもの）。markers は空でないこと。
-static func _nearest_marker(markers: Array[PlayerState], areas: Dictionary, target: PitchArea) -> int:
+## 今いるエリアが target にいちばん近いマーカーの添字（同じ距離なら先のもの）。markers は空でないこと。
+static func _nearest_marker(markers: Array[PlayerState], positions: Dictionary, target: PitchArea) -> int:
 	var nearest: int = 0
 	for candidate: int in range(1, markers.size()):
-		if (areas[markers[candidate].player_id] as PitchArea).distance_to(target) \
-				< (areas[markers[nearest].player_id] as PitchArea).distance_to(target):
+		if (positions[markers[candidate].player_id] as PitchArea).distance_to(target) \
+				< (positions[markers[nearest].player_id] as PitchArea).distance_to(target):
 			nearest = candidate
 	return nearest
 
@@ -206,9 +243,10 @@ static func _target_rank(area: PitchArea) -> int:
 	return area.zone * _MARK_LANE_PRIORITY.size() + _MARK_LANE_PRIORITY.find(area.lane)
 
 
+## マーカーの目標を area にする。理由は常に MARK（目標がたまたま基本エリアと同じでも、マークのために動くので
+## RETURN にしない。理由は動いた選手の記録にだけ使う）。
 static func _place(player: PlayerState, area: PitchArea, areas: Dictionary, reasons: Dictionary) -> void:
-	if not area.equals(areas[player.player_id] as PitchArea):
-		reasons[player.player_id] = GameEnums.MovementReason.MARK
+	reasons[player.player_id] = GameEnums.MovementReason.MARK
 	areas[player.player_id] = area
 
 
@@ -220,6 +258,7 @@ static func _layout_with(layout: TeamLayout, areas: Dictionary) -> TeamLayout:
 	return TeamLayout.new(players, areas)
 
 
+## 位置が変わった選手の動き。理由は目標を決めた方式の動き。方式の動きの理由が無ければ（目標が基本エリア）RETURN。
 static func _movements(layout: TeamLayout, start: Dictionary, areas: Dictionary, reasons: Dictionary,
 		side: GameEnums.TeamSide) -> Array[Movement]:
 	var result: Array[Movement] = []
@@ -227,6 +266,6 @@ static func _movements(layout: TeamLayout, start: Dictionary, areas: Dictionary,
 		var from: PitchArea = start[player.player_id] as PitchArea
 		var to: PitchArea = areas[player.player_id] as PitchArea
 		if not from.equals(to):
-			result.append(Movement.new(side, player.player_id, from.duplicate_deep(), to.duplicate_deep(),
-					reasons[player.player_id] as GameEnums.MovementReason))
+			var reason: GameEnums.MovementReason = reasons.get(player.player_id, GameEnums.MovementReason.RETURN) as GameEnums.MovementReason
+			result.append(Movement.new(side, player.player_id, from.duplicate_deep(), to.duplicate_deep(), reason))
 	return result

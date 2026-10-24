@@ -142,11 +142,18 @@ func test_cover_drops_the_player_in_the_area_one_zone_back() -> void:
 	assert_int(step.movements[0].side).is_equal(AWAY)
 
 
-func test_cover_without_a_player_in_the_area_takes_a_neighbor_like_press() -> void:
-	# T_d = M-C に誰もいない。隣接は前方 A-C と横 M-R1（余りは同じ）→ 前方の A-C から背後の D-C へ
+func test_cover_without_a_player_in_the_area_takes_a_side_neighbor_not_the_front() -> void:
+	# T_d = M-C に誰もいない。前方 A-C から背後の D-C へは2ゾーン下がることになるので選ばない（1ターン1マス）。
+	# 横の M-R1 から、斜めに D-C へ
 	var step: LayoutStep = DefenseMover.apply(
 			_pair([], [["side", "M-R1", ""], ["front", "A-C", ""]]), COVER, _area("M-C"))
-	assert_array(_moves(step)).is_equal(["front:A-C>D-C:COVER"])
+	assert_array(_moves(step)).is_equal(["side:M-R1>D-C:COVER"])
+
+
+func test_cover_with_only_a_player_in_front_returns_null() -> void:
+	# T_d = M-C の前方 A-C にしか守備側がいない。背後の D-C まで1マスで届く選手がいないので、カバーは選べない
+	var step: LayoutStep = DefenseMover.apply(_pair([], [["front", "A-C", ""]]), COVER, _area("M-C"))
+	assert_object(step).is_null()
 
 
 func test_cover_by_a_player_already_behind_fixes_in_place_without_a_movement() -> void:

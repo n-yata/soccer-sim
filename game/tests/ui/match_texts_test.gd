@@ -122,6 +122,6 @@ func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS)) \
 			.is_equal("プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.COVER)) \
-			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも隣にも味方がいないエリアは選べない")
+			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE)).is_empty()
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_empty()

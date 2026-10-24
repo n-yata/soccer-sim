@@ -123,6 +123,13 @@ func test_cover_excludes_the_defender_d_zone_and_counts_the_area_itself() -> voi
 	assert_array(_keys(wide.targets(DEFENSE, PRESS))).is_equal(["D-R2", "M-R1", "A-R2"])
 
 
+func test_cover_needs_a_defender_within_one_area_of_the_area_behind() -> void:
+	# 守備側から見て A-C に1人。その場の A-C と横の A-L1・A-R1 は選べるが、M-C は選べない
+	# （A-C は M-C の前方で、M-C の背後 D-C まで2ゾーンあるため。1ターン1マス）。攻撃側の視点では D-L1・D-C・D-R1
+	var options: MoveOptions = MoveRules.defense_options(_pair([], ["A-C"]))
+	assert_array(_keys(options.targets(DEFENSE, COVER))).is_equal(["D-L1", "D-C", "D-R1"])
+
+
 func test_defense_moves_are_unavailable_without_defenders() -> void:
 	var options: MoveOptions = MoveRules.defense_options(_pair(["M-C"], []))
 	assert_bool(options.is_available(DEFENSE, PRESS)).is_false()

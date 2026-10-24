@@ -2,7 +2,7 @@
 ##
 ## origin は直前のターン終了時点（ロスト・阻止の瞬間）の配置で、奪取側を attacker として持つ。
 ## ball（奪ったエリア X）・運ぶ先・比較エリアは奪取側の視点（§1.2）。
-## 結果の反映（保持・ボール位置・次のターン種別・配置区間のリセット）は試合進行（アルゴリズム7）が行う。
+## 結果の反映（保持・ボール位置・次のターン種別・配置区間の始まりの固定の解除）は試合進行（アルゴリズム7）が行う。
 class_name TransitionJudge
 extends RefCounted
 
@@ -23,7 +23,7 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
 		winner = counter_layout(origin.attacker, winner_styles)
 		movements.append_array(_breakout_movements(origin.attacker, winner, origin.attacker_side))
 	var pair := LayoutPair.new(winner, origin.defender.duplicate_deep(), origin.attacker_side)
-	# 喪失側: リトリートなら基本配置に戻って守備方式で動く（マンツーマンは飛び出した後の奪取側につく）。即時奪回は直前のまま
+	# 喪失側: リトリートなら基本配置＋守備方式の目標へ1マス近づく（マンツーマンは飛び出した後の奪取側を追う）。即時奪回は直前のまま
 	if loser_choice.action == GameEnums.NegTransAction.RETREAT:
 		var step: LayoutStep = StyleLayoutCalculator.retreat(pair, loser_styles, ball)
 		pair = step.pair

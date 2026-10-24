@@ -53,6 +53,8 @@
 | `match.players.*[].player_id` | `string` | ○ | — | — |
 | `match.players.*[].base_area` | `area` | ○ | 陣形の座標から導出したエリアと一致（アルゴリズム1） | — |
 | `match.players.*[].fixed_area` | `area|null` | ○ | — | 固定されていなければ `null` |
+| `match.players.*[].current_area` | `area` | ○ | 有効なエリアのキー（`area` 型）。読み込み時に不正なら中断データを使わない | 今いるエリア（チーム自身の視点）。ターンをまたいで持ち越す（1ターン1マス。2026-10-24 に追加） |
+| `match.players.*[].moved_in_turn` | `bool` | ○ | `bool` 以外なら中断データを使わない | 直前のターンの手などで、そのターン開始の位置から動いたか。次のターン開始の方式の動きでは動かない（2026-10-24 に追加） |
 | `match.transition_origin` | `object|null` | ○ | `turn_kind` が `TRANSITION` のときだけ `null` でない | 直前の配置（`attacker`・`defender` に、それぞれ `players` と同じ形の10件） |
 | `match.started_at` | `datetime` | ○ | — | 開始日時 |
 | `match.turn_records` | `array` | ○ | 0〜（1ハーフのターン数 × 2）件 | ターン記録（次表） |

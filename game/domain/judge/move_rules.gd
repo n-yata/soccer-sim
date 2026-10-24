@@ -59,10 +59,12 @@ static func defense_options(pair: LayoutPair) -> MoveOptions:
 	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.DEFENSE
 	for target: PitchArea in PitchArea.all():
 		var restricted: PitchArea = target.mirrored()
-		var has_neighbor: bool = _has_player_in(pair.defender, restricted.neighbors4())
-		if has_neighbor:
+		if _has_player_in(pair.defender, restricted.neighbors4()):
 			options.add_target(family, GameEnums.DefenseAction.PRESS, target)
-		if restricted.zone != GameEnums.Zone.D and (has_neighbor or pair.defender.count_at(restricted) >= 1):
+		# カバーで下がる選手は、T_d の背後まで1マスで届く選手（T_d・横・背後。前方は除く。DefenseMover.cover_neighbors）
+		var can_cover: bool = pair.defender.count_at(restricted) >= 1 \
+				or _has_player_in(pair.defender, DefenseMover.cover_neighbors(restricted))
+		if restricted.zone != GameEnums.Zone.D and can_cover:
 			options.add_target(family, GameEnums.DefenseAction.COVER, target)
 	return options
 

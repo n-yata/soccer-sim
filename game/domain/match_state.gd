@@ -1,6 +1,7 @@
 ## 試合の状態（component-design.md §2.2。ER図「試合」）。MatchRules が写しを作って書き換え、新しい状態として返す。
 ##
-## 選手は基本エリアと固定先だけを持つ。攻守ターンの現在エリアは、ターン開始時にアルゴリズム2で出し直す
+## 選手は基本エリア・固定先・今いるエリア（current_area）を持ち、位置はターンをまたいで持ち越す（1ターン1マス。2026-10-24）。
+## 攻守ターンの現在エリアは、ターン開始時に今いるエリアからアルゴリズム2で1マス動かして出す
 ## （StyleLayoutCalculator.turn_start）。トランジションの起点は、判定時の現在エリアを含む配置（LayoutPair）で持つ。
 class_name MatchState
 extends RefCounted

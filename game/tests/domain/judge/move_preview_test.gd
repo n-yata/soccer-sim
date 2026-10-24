@@ -136,12 +136,12 @@ func test_man_marking_press_includes_the_remark() -> void:
 
 
 func test_man_marking_cover_includes_the_remark() -> void:
-	# マンツーマン。ターン開始で m1 は h2（AWAY から見て D-C）に残り、m2 は h1（M-C）へ付き、余った m3 は D-C へ。
-	# M-C のカバーで m2 が背後の D-C へ下がり、空いた h1 のマークに、D-C の m3 が付け直す
+	# マンツーマン。ターン開始で m1 は h2（AWAY から見て D-C）に残り、m2 は h1（M-C）へ付き、余った m3 は D-C へ1マス（D-R1）近づく。
+	# M-C のカバーで m2 が背後の D-C へ下がり、空いた h1 のマークに、D-R1 の m3 が付け直す（斜めに1マス）
 	var state: MatchState = _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]],
 			[["m1", "D-C", ""], ["m2", "M-L1", ""], ["m3", "M-R2", ""]], "M-C", MAN)
 	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-C"),
-			["AWAY m2 M-C>D-C COVER", "AWAY m3 D-C>M-C MARK"])
+			["AWAY m2 M-C>D-C COVER", "AWAY m3 D-R1>M-C MARK"])
 
 
 # --- 攻撃の手 ---
@@ -175,12 +175,13 @@ func test_retreat_returns_the_fixed_player_to_the_base_area() -> void:
 
 
 func test_man_marking_retreat_resets_and_marks_in_one_movement_each() -> void:
-	# 喪失側 AWAY はマンツーマン。基本エリアへ戻った後、自陣・中盤にいる奪取側は h2（AWAY から見て M-R2）だけ。
-	# 起点（基本エリア）からの距離が同じ3なので配置の順で a1 がつき、余った a2 は D-C へ。動きは直前の位置からの1本ずつ
+	# 喪失側 AWAY はマンツーマン。自陣・中盤にいる奪取側は h2（AWAY から見て M-R2）だけ。
+	# 今いる位置で近い a1（M-C。距離2）がつき、1マスの M-R1 まで近づく。余った a2 は D-C へ（M-L1 から斜めに1マス）。
+	# 動きは直前の位置からの1本ずつ（2026-10-24。1ターン1マス）
 	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]],
 			[["a1", "D-C", "M-C"], ["a2", "M-L1", ""]], MAN)
 	_assert_matches_judge(state, AWAY, _choice(NEG_TRANS, GameEnums.NegTransAction.RETREAT),
-			["AWAY a1 M-C>M-R2 RETREAT_RESET", "AWAY a2 M-L1>D-C RETREAT_RESET"])
+			["AWAY a1 M-C>M-R1 RETREAT_RESET", "AWAY a2 M-L1>D-C RETREAT_RESET"])
 
 
 func test_secure_and_counter_press_move_nobody() -> void:

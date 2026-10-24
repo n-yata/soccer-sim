@@ -44,7 +44,7 @@ static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
 		return "プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる"
 	if action != GameEnums.DefenseAction.COVER:
 		return ""
-	return "カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも隣にも味方がいないエリアは選べない"
+	return "カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）"
 
 
 ## 「ショートパス → 中盤・中央」。運ぶ先を持たない手は手の名前だけ。

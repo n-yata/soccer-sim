@@ -67,6 +67,22 @@ func distance_to(other: PitchArea) -> int:
 	return absi(zone - other.zone) + absi(lane - other.lane)
 
 
+## 1ターンに動くのに要るターン数（ゾーン差とレーン差の大きい方。斜めも1マス。functional-overview.md アルゴリズム2）。
+func steps_to(other: PitchArea) -> int:
+	return maxi(absi(zone - other.zone), absi(lane - other.lane))
+
+
+## 1ターンで動ける範囲（同じエリアか、斜めを含む周り8エリア）か。
+func is_within_one(other: PitchArea) -> bool:
+	return steps_to(other) <= 1
+
+
+## target へ1マス近づいたエリア。ゾーン差・レーン差をそれぞれ1ずつ詰める（斜めを優先し、最も少ないターンで着く）。
+func step_toward(target: PitchArea) -> PitchArea:
+	return PitchArea.new((lane + signi(target.lane - lane)) as GameEnums.Lane,
+			(zone + signi(target.zone - zone)) as GameEnums.Zone)
+
+
 ## "M-L1" 形式。保存データと判定例の表記に合わせる。
 func to_key() -> String:
 	return "%s-%s" % [_ZONE_NAMES[zone], _LANE_NAMES[lane]]

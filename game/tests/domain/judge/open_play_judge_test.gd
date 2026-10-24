@@ -41,11 +41,17 @@ func _defense(action: GameEnums.DefenseAction, target_key: String) -> TurnChoice
 ## 判定例の場面: 実際の陣形データから基本配置を作り、アルゴリズム2を適用した配置（どちらもカウンター型）
 func _scene(attacker_id: String, defender_id: String, defense: GameEnums.DefenseStyle, ball_key: String,
 		attacker_side: GameEnums.TeamSide = HOME) -> LayoutPair:
-	var step: LayoutStep = StyleLayoutCalculator.compute(
-			BaseLayoutDeriver.derive(_catalog.formation(attacker_id)), _styles(ZONE),
-			BaseLayoutDeriver.derive(_catalog.formation(defender_id)), _styles(defense),
-			_area(ball_key), attacker_side)
-	return step.pair
+	# 判定例の配置は、方式の動きが落ち着いた後（1ターン1マスなので、同じボール位置で誰も動かなくなるまでターン開始を繰り返す）
+	var pair := LayoutPair.new(BaseLayoutDeriver.derive(_catalog.formation(attacker_id)),
+			BaseLayoutDeriver.derive(_catalog.formation(defender_id)), attacker_side)
+	for _turn: int in range(5):
+		var step: LayoutStep = StyleLayoutCalculator.compute(pair.attacker, _styles(ZONE), pair.defender,
+				_styles(defense), _area(ball_key), attacker_side)
+		pair = step.pair
+		if step.movements.is_empty():
+			return pair
+	fail("方式の動きが5ターンで落ち着かない")
+	return pair
 
 
 ## 守備側の人数を攻撃側の視点の行で表す（判定例の書き方。"A l2 l1 c r1 r2 / M ... / D ..."）

@@ -128,3 +128,37 @@ func test_distance_is_the_zone_gap_plus_the_lane_gap() -> void:
 	assert_int(center.distance_to(PitchArea.from_key("D-R1"))).is_equal(2)
 	assert_int(PitchArea.from_key("D-R1").distance_to(center)).is_equal(2)
 	assert_int(PitchArea.from_key("D-L2").distance_to(PitchArea.from_key("A-R2"))).is_equal(6)
+
+
+func test_step_toward_moves_one_area_closing_both_gaps() -> void:
+	# [起点, 目標, 1マス近づいた先]。ゾーン差・レーン差をそれぞれ1ずつ詰める（斜めを優先）
+	var cases: Array = [
+		["M-C", "M-C", "M-C"],
+		["M-C", "A-C", "A-C"],
+		["D-L2", "D-R2", "D-L1"],
+		["D-C", "A-R2", "M-R1"],
+		["A-R2", "D-L2", "M-R1"],
+		["M-L1", "M-R2", "M-C"],
+	]
+	for case: Array in cases:
+		assert_str(_area(case[0] as String).step_toward(_area(case[1] as String)).to_key()) \
+				.override_failure_message(str(case)).is_equal(case[2] as String)
+
+
+func test_step_toward_never_moves_more_than_one_area() -> void:
+	for start: PitchArea in PitchArea.all():
+		for target: PitchArea in PitchArea.all():
+			var stepped: PitchArea = start.step_toward(target)
+			assert_bool(start.is_within_one(stepped)).override_failure_message("%s>%s" % [start.to_key(), target.to_key()]).is_true()
+			# 目標から離れない（チェビシェフ距離で1つ詰まるか、すでに目標）
+			assert_int(stepped.steps_to(target)).is_equal(maxi(start.steps_to(target) - 1, 0))
+
+
+func test_within_one_counts_diagonals_as_one() -> void:
+	var center: PitchArea = _area("M-C")
+	assert_bool(center.is_within_one(_area("M-C"))).is_true()
+	assert_bool(center.is_within_one(_area("A-R1"))).is_true()
+	assert_bool(center.is_within_one(_area("D-L1"))).is_true()
+	assert_bool(center.is_within_one(_area("M-L2"))).is_false()
+	assert_bool(center.is_within_one(_area("A-R2"))).is_false()
+	assert_int(_area("D-L2").steps_to(_area("A-R2"))).is_equal(4)

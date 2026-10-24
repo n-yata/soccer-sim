@@ -32,9 +32,11 @@ enum CoverKind { NONE, DEFENDER }
 ## 同じゾーンでレーンが1つ隣なら NEAR、それ以外は NONE。トランジション・ヒントでは NONE
 enum ReadKind { NONE, NEAR, EXACT }
 ## 選手が動いた理由。DRIBBLE_STOPPED は膠着したドリブルの選手がボールのエリアへ戻る動き、
-## BALL_HOLDER はボールのエリアに保持側がいないとき、いちばん近い選手が置かれる動き（末尾に足し、既存の値の番号を変えない）
+## BALL_HOLDER はボールのエリアに保持側がいないとき、いちばん近い選手が置かれる動き、
+## RETURN は方式の動きの理由が無いまま、基本エリアへ1マス戻る動き（末尾に足し、既存の値の番号を変えない）
 enum MovementReason {
 	SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE, DRIBBLE_STOPPED, BALL_HOLDER,
+	RETURN,
 }
 ## 戦績の勝敗（利用者から見た値）
 enum MatchResult { WIN, DRAW, LOSE }

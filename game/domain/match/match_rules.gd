@@ -24,7 +24,7 @@ static func create_match(match_id: String, home: TeamSetup, away: TeamSetup, kic
 	state.home_players = BaseLayoutDeriver.derive(home_formation).players
 	state.away_players = BaseLayoutDeriver.derive(away_formation).players
 	_kickoff(state, kickoff_side)
-	_place_holder(state)
+	_place_holder(state, null)
 	return state
 
 
@@ -65,6 +65,9 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 	if state.turn_kind == GameEnums.TurnKind.OPEN_PLAY and holder_choice.action == GameEnums.PlayType.DRIBBLE \
 			and output.outcome == GameEnums.TurnOutcome.STALL:
 		record.movements.append_array(_stop_dribble(next, state, output))
+	# 得点はキックオフで全員を基本エリアに置いた（仕切り直し）ので、ターン開始からの動きは数えない
+	if output.outcome != GameEnums.TurnOutcome.GOAL:
+		_mark_moved(next, start.pair)
 	next.turn_number += 1
 	# ハーフの最終ターン: 得点でも方式の選び直しを行わない。前半はハーフタイムへ、後半は試合終了（is_play_complete）
 	if next.turn_number > rules.turns_per_half:
@@ -74,7 +77,8 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 		next.transition_origin = null
 	# ハーフタイム・試合終了には次のターンが無い（配置は後半のキックオフで置き直すか、捨てる）。置くと起きなかった動きが記録に残る
 	if next.stage != GameEnums.MatchStage.HALFTIME and not is_play_complete(next, rules):
-		record.movements.append_array(_place_holder(next))
+		var kickoff: bool = output.outcome == GameEnums.TurnOutcome.GOAL
+		record.movements.append_array(_place_holder(next, null if kickoff else start.pair))
 	next.turn_records.append(record)
 	return TurnResolution.new(next, record)
 
@@ -109,7 +113,7 @@ static func apply_halftime(state: MatchState, home: TeamSetup, away: TeamSetup, 
 	next.away_players = BaseLayoutDeriver.derive(away_formation).players
 	_kickoff(next, MatchState.other(next.first_half_kickoff))
 	next.stage = GameEnums.MatchStage.TURN
-	_place_holder(next)
+	_place_holder(next, null)
 	return next
 
 
@@ -125,13 +129,17 @@ static func finish(state: MatchState) -> MatchState:
 	return next
 
 
-## キックオフ: ボールは M-C、side の保持で攻守ターンから始める。両チームの配置区間をリセットする。
+## キックオフ: ボールは M-C、side の保持で攻守ターンから始める。全員を基本エリアに置き、固定を解く
+## （試合の仕切り直しなので、1ターン1マスの例外。2026-10-24）。
 static func _kickoff(state: MatchState, side: GameEnums.TeamSide) -> void:
 	state.possession = side
 	state.ball_area = PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.M)
 	state.turn_kind = GameEnums.TurnKind.OPEN_PLAY
 	state.transition_origin = null
 	_release_fixes(state)
+	for player: PlayerState in state.home_players + state.away_players:
+		player.current_area = player.base_area.duplicate_deep()
+		player.moved_in_turn = false
 
 
 static func _release_fixes(state: MatchState) -> void:
@@ -181,15 +189,15 @@ static func _apply_outcome(next: MatchState, kind: GameEnums.TurnKind, output: J
 		return
 	next.turn_kind = GameEnums.TurnKind.OPEN_PLAY
 	next.transition_origin = null
-	# トランジションが終わって攻守ターンが始まる時は、配置区間をリセットする（攻守ターンからの続きは固定を維持）
+	# トランジションが終わって攻守ターンが始まる時は、固定を解く（攻守ターンからの続きは固定を維持）。
+	# 位置は戻さない。次のターン開始から、方式の目標へ1マスずつ近づく（2026-10-24。1ターン1マス）
 	if kind == GameEnums.TurnKind.TRANSITION:
 		_release_fixes(next)
 
 
 ## 膠着したドリブル: 運んだ選手の固定を判定前に戻す（ボールは元のエリアに残るので、運んだ選手もそこへ戻る）。
 ## 判定と判定時の配置（ターン記録の pair_at_judgement）は運んだ後の位置のまま。戻る動きを返す。
-## 判定前に固定されていなかった選手の次のターンの位置は、方式の動き（アルゴリズム2）で決まる。入力が判定前と同じなので
-## B に戻る（テストで確かめている）。方式の動きが判定の結果に依存するように変わったら、記録の移動先 B とずれうる。
+## 運んだ選手の今いるエリア（current_area）も B（ターン開始の位置）に戻す。次のターン開始の方式の動きは、B から1マス。
 static func _stop_dribble(next: MatchState, state: MatchState, output: JudgeOutput) -> Array[Movement]:
 	var result: Array[Movement] = []
 	var holder: GameEnums.TeamSide = state.possession
@@ -202,35 +210,58 @@ static func _stop_dribble(next: MatchState, state: MatchState, output: JudgeOutp
 		if before == null or carrier == null:
 			continue
 		carrier.fixed_area = null if before.fixed_area == null else before.fixed_area.duplicate_deep()
+		carrier.current_area = movement.from.duplicate_deep()
 		result.append(Movement.new(holder, movement.player_id, movement.to.duplicate_deep(), movement.from.duplicate_deep(),
 				GameEnums.MovementReason.DRIBBLE_STOPPED))
 	return result
 
 
 ## 次のターンの開始時の配置で、ボールのエリアに保持側の選手がいなければ、いちばん近い選手を1人置いて固定する。
-## 近さはゾーン差＋レーン差で、同じなら配置の選手の順で先の選手（アルゴリズム2のマーカーの選び方と同じ）。
+## 近さは今いるエリア（判定時の位置）からのゾーン差＋レーン差で、同じなら配置の選手の順で先の選手
+## （アルゴリズム2のマーカーの選び方と同じ）。
+## start はそのターンの開始時の配置。置ける選手は、ターン開始の位置と今いるエリアのどちらからも、ボールのエリアが
+## 1マス以内の選手だけ（ターン開始から次のターン開始までを1マス以内に保つ。2026-10-24）。いなければ誰も置かない
+## （ボールのエリアに保持側がいないまま進む）。start が null のキックオフは、仕切り直しなので距離を問わない。
 ## トランジションは起点の配置も同じく変える。置いた動きを返す（置かなければ空）。
-static func _place_holder(next: MatchState) -> Array[Movement]:
+static func _place_holder(next: MatchState, start: LayoutPair) -> Array[Movement]:
 	var result: Array[Movement] = []
 	var holders: TeamLayout = StyleLayoutCalculator.turn_start(next).pair.attacker
 	if holders.count_at(next.ball_area) > 0:
 		return result
+	var started: TeamLayout = null
+	if start != null:
+		started = start.attacker if start.attacker_side == next.possession else start.defender
 	var nearest: PlayerState = null
 	var nearest_distance: int = 0
-	for player: PlayerState in holders.players:
-		var distance: int = holders.current_area_of(player.player_id).distance_to(next.ball_area)
+	for player: PlayerState in next.players_of(next.possession):
+		if started != null and not (started.current_area_of(player.player_id).is_within_one(next.ball_area)
+				and player.current_area.is_within_one(next.ball_area)):
+			continue
+		var distance: int = player.current_area.distance_to(next.ball_area)
 		if nearest == null or distance < nearest_distance:
 			nearest = player
 			nearest_distance = distance
 	if nearest == null:
 		return result
-	_player_of(next.players_of(next.possession), nearest.player_id).fixed_area = next.ball_area.duplicate_deep()
+	# 動きの移動元は、今いるエリア（判定時の位置）。仮に出した次のターン開始の位置は、置いた選手がいなかった場所になりうる
+	var from: PitchArea = nearest.current_area.duplicate_deep()
+	nearest.fixed_area = next.ball_area.duplicate_deep()
+	nearest.current_area = next.ball_area.duplicate_deep()
+	nearest.moved_in_turn = true
 	if next.turn_kind == GameEnums.TurnKind.TRANSITION:
 		next.transition_origin.attacker = next.transition_origin.attacker.with_fixed(nearest.player_id, next.ball_area)
-	result.append(Movement.new(next.possession, nearest.player_id,
-			holders.current_area_of(nearest.player_id).duplicate_deep(), next.ball_area.duplicate_deep(),
+	result.append(Movement.new(next.possession, nearest.player_id, from, next.ball_area.duplicate_deep(),
 			GameEnums.MovementReason.BALL_HOLDER))
 	return result
+
+
+## 各選手が、ターン開始の位置（start）から動いたか（moved_in_turn）を付け直す。動いた選手は、次のターン開始の
+## 方式の動きでは動かない（ターン開始から次のターン開始までを1マス以内に保つ）。
+static func _mark_moved(next: MatchState, start: LayoutPair) -> void:
+	for side: GameEnums.TeamSide in [GameEnums.TeamSide.HOME, GameEnums.TeamSide.AWAY]:
+		var started: TeamLayout = start.attacker if start.attacker_side == side else start.defender
+		for player: PlayerState in next.players_of(side):
+			player.moved_in_turn = not player.current_area.equals(started.current_area_of(player.player_id))
 
 
 static func _player_of(players: Array[PlayerState], player_id: String) -> PlayerState:
@@ -240,20 +271,26 @@ static func _player_of(players: Array[PlayerState], player_id: String) -> Player
 	return null
 
 
-## 判定時の配置の選手（基本エリア・固定先）を、保持側・相手の枠に写す。
+## 判定時の配置の選手（基本エリア・固定先・今いるエリア）を、保持側・相手の枠に写す。
+## 今いるエリアは配置（TeamLayout）の現在エリアが正なので、そこから写し戻す（次のターンへ持ち越す位置）。
 static func _store_players(next: MatchState, pair: LayoutPair) -> void:
-	var attacker_players: Array[PlayerState] = []
-	for player: PlayerState in pair.attacker.players:
-		attacker_players.append(player.duplicate_deep())
-	var defender_players: Array[PlayerState] = []
-	for player: PlayerState in pair.defender.players:
-		defender_players.append(player.duplicate_deep())
+	var attacker_players: Array[PlayerState] = _players_at(pair.attacker)
+	var defender_players: Array[PlayerState] = _players_at(pair.defender)
 	if pair.attacker_side == GameEnums.TeamSide.HOME:
 		next.home_players = attacker_players
 		next.away_players = defender_players
 	else:
 		next.away_players = attacker_players
 		next.home_players = defender_players
+
+
+static func _players_at(layout: TeamLayout) -> Array[PlayerState]:
+	var result: Array[PlayerState] = []
+	for player: PlayerState in layout.players:
+		var copied: PlayerState = player.duplicate_deep()
+		copied.current_area = layout.current_area_of(player.player_id).duplicate_deep()
+		result.append(copied)
+	return result
 
 
 static func _record(state: MatchState, start: LayoutStep, output: JudgeOutput, home_choice: TurnChoice,

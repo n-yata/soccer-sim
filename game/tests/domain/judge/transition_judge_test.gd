@@ -222,20 +222,22 @@ func test_counter_against_counter_press_compares_the_layout_left_as_it_was() -> 
 
 
 func test_counter_against_retreat_compares_after_the_loser_gets_back() -> void:
-	# リトリートで l1 は M-C、l2 は D-C（奪取側から見て背後の A-C）へ戻る。同数で、背後に守備1 > 攻撃0
+	# リトリートで l1 は M-C、l2 は D-C（奪取側から見て背後の A-C）へ戻りたいが、1ターンに1マスしか動けない
+	# （2026-10-24）。l1 は M-L1、l2 は D-L1 までで、M-C は空いたまま。戻りきれない守備をカウンターが突いて前進する
 	var output: JudgeOutput = _counter_to_center(_retreat())
-	assert_array(_moves(output)).is_equal(["l1:A-L2>M-C:RETREAT_RESET", "l2:M-L2>D-C:RETREAT_RESET"])
-	assert_str(_summary(output)).is_equal("STALL M-C 1-1 DEFENDER")
+	assert_array(_moves(output)).is_equal(["l1:A-L2>M-L1:RETREAT_RESET", "l2:M-L2>D-L1:RETREAT_RESET"])
+	assert_str(_summary(output)).is_equal("ADVANCE M-C 1-0 NONE")
 
 
 func test_retreat_with_man_marks_the_winner_after_the_breakout() -> void:
-	# 奪取側（カウンター型）の w2 は M-L2 から A-L2 へ飛び出す。喪失側のマーカー m1 は、飛び出した後の位置（喪失側から見て D-R2）につく
+	# 奪取側（カウンター型）の w2 は M-L2 から A-L2 へ飛び出す。喪失側のマーカー m1 は、飛び出した後の位置（喪失側から見て D-R2）を
+	# 追うが、1ターンでは A-C から1マスの M-R1 まで。A-L2 は空いたまま前進される（2026-10-24。1ターン1マス）
 	var winner: TeamLayout = _team([["w1", "D-C", "", ""], ["w2", "M-L2", "", ""]])
 	var loser: TeamLayout = _team([["m1", "M-C", "A-C", ""]])
 	var output: JudgeOutput = TransitionJudge.judge(LayoutPair.new(winner, loser, HOME), _styles(ZONE, COUNTER),
 			_styles(MAN, COUNTER), _area("D-C"), _counter("A-L2"), _retreat())
-	assert_array(_moves(output)).is_equal(["w2:M-L2>A-L2:COUNTER_BREAKOUT", "m1:A-C>D-R2:RETREAT_RESET"])
-	assert_str(_summary(output)).is_equal("ADVANCE A-L2 1-1 NONE")
+	assert_array(_moves(output)).is_equal(["w2:M-L2>A-L2:COUNTER_BREAKOUT", "m1:A-C>M-R1:RETREAT_RESET"])
+	assert_str(_summary(output)).is_equal("ADVANCE A-L2 1-0 NONE")
 
 
 # --- カウンター型の飛び出し ---

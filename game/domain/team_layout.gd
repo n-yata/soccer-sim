@@ -24,6 +24,14 @@ static func at_base(p_players: Array[PlayerState]) -> TeamLayout:
 	return TeamLayout.new(p_players, current)
 
 
+## 各選手の今いるエリア（PlayerState.current_area）を現在エリアにした配置。試合の状態からターン開始の起点を作る。
+static func from_players(p_players: Array[PlayerState]) -> TeamLayout:
+	var current: Dictionary = {}
+	for player: PlayerState in p_players:
+		current[player.player_id] = player.current_area
+	return TeamLayout.new(p_players, current)
+
+
 ## いない選手なら null。
 func current_area_of(player_id: String) -> PitchArea:
 	if not _current_areas.has(player_id):

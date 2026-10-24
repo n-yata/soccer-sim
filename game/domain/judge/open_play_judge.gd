@@ -27,7 +27,7 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 		return null
 	movements.append_array(step.movements)
 	# 手順3: 攻撃の手
-	step = apply_attack(step.pair, defender_styles, ball, attack)
+	step = apply_attack(step.pair, defender_styles, ball, attack, pair)
 	movements.append_array(step.movements)
 	# 手順4〜6
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
@@ -46,21 +46,24 @@ static func apply_defense(pair: LayoutPair, defender_styles: TeamStyles, defense
 	if defender_styles.defense != GameEnums.DefenseStyle.MAN:
 		return step
 	var movements: Array[Movement] = step.movements.duplicate()
-	var marked: LayoutStep = StyleLayoutCalculator.remark(step.pair, defender_styles)
+	var marked: LayoutStep = StyleLayoutCalculator.remark(step.pair, defender_styles, pair.defender)
 	movements.append_array(marked.movements)
 	return LayoutStep.new(marked.pair, movements)
 
 
 ## 手順3。攻撃の手を適用する。ドリブルだけが選手を動かし（運ぶ選手を運ぶ先に固定）、守備側がマンツーマンなら
 ## マークを付け直す。ドリブル以外は配置の写しと空の動き。判定と、ヒント（MoveHints。相手が何もしない場合）で共有する。
-static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice) -> LayoutStep:
+## start はターン開始の配置（省略したら pair）。守備の手の後に呼ぶときに渡し、付け直しのマーカーをターン開始から
+## 1マス以内に保つ（StyleLayoutCalculator.remark）。
+static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice,
+		start: LayoutPair = null) -> LayoutStep:
 	var movements: Array[Movement] = []
 	if attack.action != GameEnums.PlayType.DRIBBLE:
 		return LayoutStep.new(pair.duplicate_deep(), movements)
 	var step: LayoutStep = _dribble(pair, ball, attack.target)
 	movements.append_array(step.movements)
 	if defender_styles.defense == GameEnums.DefenseStyle.MAN:
-		step = StyleLayoutCalculator.remark(step.pair, defender_styles)
+		step = StyleLayoutCalculator.remark(step.pair, defender_styles, (pair if start == null else start).defender)
 		movements.append_array(step.movements)
 	return LayoutStep.new(step.pair, movements)
 

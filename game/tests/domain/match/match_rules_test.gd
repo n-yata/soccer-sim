@@ -247,7 +247,7 @@ func test_open_play_goal_scores_and_goes_to_the_style_change_with_the_conceding_
 	assert_str(next.ball_area.to_key()).is_equal("M-C")
 	assert_int(next.turn_kind).is_equal(OPEN_PLAY)
 	assert_object(next.transition_origin).is_null()
-	# 配置区間はリセットされる。ただしキックオフの M-C に AWAY の選手がいないので、いちばん近い a1 を置いて固定する
+	# キックオフで全員が基本エリアに戻る。キックオフの M-C に AWAY の選手がいないので、いちばん近い a1 を置いて固定する（距離は問わない）
 	assert_bool(next.home_players[0].is_fixed()).is_false()
 	assert_str(next.away_players[0].fixed_area.to_key()).is_equal("M-C")
 	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_equal(["a1:A-L2>M-C"])
@@ -288,14 +288,14 @@ func _retreat() -> TurnChoice:
 	return _choice(NEG_TRANS, GameEnums.NegTransAction.RETREAT)
 
 
-func _assert_segment_reset(next: MatchState) -> void:
+func _assert_fixes_released(next: MatchState) -> void:
 	assert_int(next.turn_kind).is_equal(OPEN_PLAY)
 	assert_object(next.transition_origin).is_null()
 	for player: PlayerState in next.home_players + next.away_players:
 		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
 
 
-func test_transition_regain_gives_the_ball_back_to_the_loser_and_resets_the_segment() -> void:
+func test_transition_regain_gives_the_ball_back_to_the_loser_and_releases_the_fixes() -> void:
 	# X の周り: 奪取側 1（D-C）、喪失側 2（A-C と、A-L1 に固定された a3）
 	var state: MatchState = _transition_state([["h1", "D-C", ""]], [["a1", "A-C", ""], ["a3", "M-L2", "A-L1"]])
 	var resolution: TurnResolution = _resolve(state, _secure(), _counter_press())
@@ -303,7 +303,7 @@ func test_transition_regain_gives_the_ball_back_to_the_loser_and_resets_the_segm
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.REGAIN)
 	assert_int(next.possession).is_equal(AWAY)
 	assert_str(next.ball_area.to_key()).is_equal("A-C")
-	_assert_segment_reset(next)
+	_assert_fixes_released(next)
 
 
 func test_transition_regain_failed_keeps_the_ball_with_the_winner() -> void:
@@ -313,7 +313,7 @@ func test_transition_regain_failed_keeps_the_ball_with_the_winner() -> void:
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.REGAIN_FAILED)
 	assert_int(resolution.next_state.possession).is_equal(HOME)
 	assert_str(resolution.next_state.ball_area.to_key()).is_equal("D-C")
-	_assert_segment_reset(resolution.next_state)
+	_assert_fixes_released(resolution.next_state)
 
 
 func test_transition_no_contest_keeps_the_ball_with_the_winner_without_a_judgement() -> void:
@@ -323,7 +323,7 @@ func test_transition_no_contest_keeps_the_ball_with_the_winner_without_a_judgeme
 	assert_object(resolution.record.judge).is_null()
 	assert_int(resolution.next_state.possession).is_equal(HOME)
 	assert_str(resolution.next_state.ball_area.to_key()).is_equal("D-C")
-	_assert_segment_reset(resolution.next_state)
+	_assert_fixes_released(resolution.next_state)
 
 
 func test_transition_counter_advance_moves_the_ball_to_the_target() -> void:
@@ -333,7 +333,7 @@ func test_transition_counter_advance_moves_the_ball_to_the_target() -> void:
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
 	assert_int(resolution.next_state.possession).is_equal(HOME)
 	assert_str(resolution.next_state.ball_area.to_key()).is_equal("M-C")
-	_assert_segment_reset(resolution.next_state)
+	_assert_fixes_released(resolution.next_state)
 
 
 func test_transition_counter_stall_keeps_the_ball_where_it_was_won() -> void:
@@ -344,7 +344,46 @@ func test_transition_counter_stall_keeps_the_ball_where_it_was_won() -> void:
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.STALL)
 	assert_int(resolution.next_state.possession).is_equal(HOME)
 	assert_str(resolution.next_state.ball_area.to_key()).is_equal("D-C")
-	_assert_segment_reset(resolution.next_state)
+	_assert_fixes_released(resolution.next_state)
+
+
+func test_after_a_transition_players_keep_their_positions_and_lose_their_fixes() -> void:
+	# a3（基本 M-L2）は A-L1 に固定されていた。攻守ターンが始まると固定は解けるが、基本エリアへ一気には戻らない
+	# （2026-10-24。1ターン1マス）。次のターン開始で、基本エリアへ1マスずつ戻る
+	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-C", ""]],
+			[["a1", "A-L2", ""], ["a3", "M-L2", "A-L1"]])
+	var next: MatchState = _resolve(state, _counter("M-C"), _counter_press()).next_state
+	assert_bool(next.away_players[1].is_fixed()).is_false()
+	assert_str(next.away_players[1].current_area.to_key()).is_equal("A-L1")
+	var start: LayoutPair = MatchRules.current_layouts(next).pair
+	assert_str(start.defender.current_area_of("a3").to_key()).is_equal("M-L2")
+
+
+func test_players_who_moved_during_the_turn_are_flagged() -> void:
+	# a1 がプレスで寄せた（相手から見て A-L2 → A-L1）。動いた選手だけ moved_in_turn が立ち、次のターン開始では動かない
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "A-L2", ""], ["a2", "D-C", ""]], "M-C")
+	var next: MatchState = _resolve(state, _pass_to_a_c(), _press_far()).next_state
+	assert_bool(next.away_players[0].moved_in_turn).is_true()
+	assert_bool(next.away_players[1].moved_in_turn).is_false()
+	assert_bool(next.home_players[0].moved_in_turn).is_false()
+
+
+func test_the_kickoff_after_a_goal_puts_everyone_on_the_base_area() -> void:
+	# 得点の後のキックオフだけは、全員が基本エリアに戻り、固定も解ける（試合の仕切り直し）。
+	# h2 は基本 D-C で M-C にいた。a2 は基本 D-L2 で D-L1 に固定されていた
+	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""], ["h2", "D-C", ""]],
+			[["a1", "A-L2", ""], ["a2", "D-L2", "D-L1"]], "A-C")
+	state.home_players[1].current_area = _area("M-C")
+	var resolution: TurnResolution = _resolve(state, _shot(), _press_far())
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.GOAL)
+	var next: MatchState = resolution.next_state
+	assert_str(next.home_players[1].current_area.to_key()).is_equal("D-C")
+	assert_str(next.away_players[1].current_area.to_key()).is_equal("D-L2")
+	assert_bool(next.away_players[1].is_fixed()).is_false()
+	# キックオフの保持者は、今と同じく最寄りの選手（距離の上限なし。仕切り直しの一部）
+	assert_str(next.away_players[0].current_area.to_key()).is_equal("M-C")
+	for player: PlayerState in next.home_players:
+		assert_bool(player.moved_in_turn).override_failure_message(player.player_id).is_false()
 
 
 func test_transition_counter_loss_starts_another_transition_for_the_loser() -> void:
@@ -422,9 +461,9 @@ func test_dribble_advance_keeps_the_carrier_on_the_target() -> void:
 	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_empty()
 
 
-func test_the_nearest_player_is_placed_on_the_ball_after_the_segment_reset() -> void:
-	# 保持 × リトリートで、奪取側が X（D-C）から攻守ターンを始める。リセットで全員が基本エリアに戻り、
-	# D-C には誰もいない。いちばん近い h1（M-C。距離1）を D-C に置いて固定する（h2 は M-L2。距離3）
+func test_the_nearest_player_within_one_area_is_placed_on_the_ball() -> void:
+	# 保持 × リトリートで、奪取側が X（D-C）から攻守ターンを始める。D-C には誰もいない。
+	# 1マス以内のいちばん近い h1（M-C）を D-C に置いて固定する（h2 は M-L2。2マス離れていて届かない）
 	var state: MatchState = _transition_state([["h1", "M-C", ""], ["h2", "M-L2", ""]],
 			[["a1", "A-C", ""], ["a3", "M-L2", "A-L1"]])
 	var resolution: TurnResolution = _resolve(state, _secure(), _retreat())
@@ -438,15 +477,46 @@ func test_the_nearest_player_is_placed_on_the_ball_after_the_segment_reset() -> 
 
 
 func test_players_at_the_same_distance_are_placed_in_layout_order() -> void:
-	# D-L2 と M-L1 は、どちらも D-C から距離2。配置の選手の順で先の選手を置く
+	# D-L1 と D-R1 は、どちらも D-C から距離1。配置の選手の順で先の選手を置く
 	for order: Array in [["h1", "h2"], ["h2", "h1"]]:
-		var areas: Dictionary = {"h1": "D-L2", "h2": "M-L1"}
+		var areas: Dictionary = {"h1": "D-L1", "h2": "D-R1"}
 		var spec: Array = [[order[0], areas[order[0]], ""], [order[1], areas[order[1]], ""]]
 		var state: MatchState = _transition_state(spec, [["a1", "A-C", ""], ["a3", "M-L2", "A-L1"]])
 		var resolution: TurnResolution = _resolve(state, _secure(), _retreat())
 		var placed: Array[String] = _moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)
 		assert_array(placed).override_failure_message(str(order)) \
 				.is_equal(["%s:%s>D-C" % [order[0], areas[order[0]]]])
+
+
+func test_no_one_is_placed_when_no_player_is_within_one_area_of_the_ball() -> void:
+	# 奪取側は M-L2 の h1 だけ。X（D-C）まで2マスあり、1ターンでは届かないので、誰も置かない
+	# （ボールのエリアに保持側がいないまま進む。2026-10-24。1ターン1マス）
+	var state: MatchState = _transition_state([["h1", "M-L2", ""]], [["a1", "A-C", ""], ["a3", "M-L2", "A-L1"]])
+	var resolution: TurnResolution = _resolve(state, _secure(), _retreat())
+	var next: MatchState = resolution.next_state
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_empty()
+	assert_bool(next.home_players[0].is_fixed()).is_false()
+	assert_int(MatchRules.current_layouts(next).pair.attacker.count_at(_area("D-C"))).is_equal(0)
+
+
+func test_a_player_two_areas_from_the_ball_at_the_turn_start_is_not_placed() -> void:
+	# 置ける選手は、ターン開始の位置からも判定時の位置からも、ボールのエリアが1マス以内（ターン開始から1マス以内に保つ）。
+	# 守備側 AWAY はマンツーマン（AWAY 自身の視点）:
+	# - lag は M-L2 にいて、ターン開始で h2（M-R1）へ1マス近づき M-L1。カバーの後の付け直しで、さらに M-C まで近づく
+	# - cov は D-R1 に固定されていて、M-R1 のカバーでその場に固定し直す（動かない）
+	# - m1 は h1（M-C）をマークしている
+	# M-R1 へのパスは読まれて（1対0）ロスト。AWAY が M-R1 で持つが、誰もいない。lag は判定時に M-C（M-R1 まで1マス）だが、
+	# ターン開始の M-L1 からは2マスなので置かない。どちらからも1マス以内の cov を置く（m1 も1マス以内だが、配置の順で cov が先）
+	var state: MatchState = _open_state(HOME, [["h1", "M-C", ""], ["h2", "M-L1", ""]],
+			[["lag", "M-L2", ""], ["cov", "A-R1", "D-R1"], ["m1", "D-C", ""]], "M-C")
+	state.away_players[2].current_area = _area("M-C")
+	state.away_setup = TeamSetup.new("4-3-3", TeamStyles.new(GameEnums.DefenseStyle.MAN, GameEnums.AttackStyle.COUNTER))
+	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "M-L1"),
+			_choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-L1"))
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.LOSS)
+	assert_str(resolution.record.pair_before.defender.current_area_of("lag").to_key()).is_equal("M-L1")
+	assert_str(resolution.record.pair_at_judgement.defender.current_area_of("lag").to_key()).is_equal("M-C")
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_equal(["cov:D-R1>M-R1"])
 
 
 func test_a_holder_is_placed_on_the_ball_at_the_start_of_a_transition() -> void:
@@ -599,7 +669,7 @@ func test_halftime_rejects_an_unknown_formation_or_the_wrong_stage() -> void:
 
 
 func test_style_change_kicks_off_for_the_conceding_side_with_the_new_styles() -> void:
-	# a2 がキックオフの M-C にいるので、保持者を置く固定は起きない（配置区間のリセットだけを見る）
+	# a2 がキックオフの M-C にいるので、保持者を置く固定は起きない（キックオフで固定が解けることだけを見る）
 	var state: MatchState = _open_state(HOME, [["h1", "A-C", ""], ["h3", "D-C", "D-L1"]],
 			[["a1", "A-L2", ""], ["a2", "M-C", ""]], "A-C")
 	var after_goal: MatchState = _resolve(state, _shot(), _press_far()).next_state
@@ -610,7 +680,7 @@ func test_style_change_kicks_off_for_the_conceding_side_with_the_new_styles() ->
 	assert_str(next.ball_area.to_key()).is_equal("M-C")
 	assert_int(next.away_setup.styles.defense).is_equal(GameEnums.DefenseStyle.MAN)
 	assert_int(next.turn_number).is_equal(2)
-	_assert_segment_reset(next)
+	_assert_fixes_released(next)
 
 
 func test_style_change_and_turns_are_rejected_in_the_wrong_stage() -> void:

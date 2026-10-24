@@ -21,6 +21,34 @@ func test_player_state_is_fixed_only_when_fixed_area_is_set() -> void:
 	assert_bool(PlayerState.new("p1", _area("D-C"), _area("M-C")).is_fixed()).is_true()
 
 
+func test_player_state_current_area_defaults_to_the_fixed_or_base_area() -> void:
+	# 位置を持ち越す（2026-10-24。1ターン1マス）。省略したら、固定先があれば固定先、なければ基本エリア
+	assert_str(PlayerState.new("p1", _area("D-C")).current_area.to_key()).is_equal("D-C")
+	assert_str(PlayerState.new("p1", _area("D-C"), _area("M-C")).current_area.to_key()).is_equal("M-C")
+	var moved := PlayerState.new("p1", _area("D-C"), null, _area("D-L1"))
+	assert_str(moved.current_area.to_key()).is_equal("D-L1")
+	assert_bool(moved.moved_in_turn).is_false()
+
+
+func test_player_state_duplicate_deep_copies_the_position_and_the_moved_flag() -> void:
+	var player := PlayerState.new("p1", _area("D-C"), null, _area("D-L1"))
+	player.moved_in_turn = true
+	var copy: PlayerState = player.duplicate_deep()
+	assert_str(copy.current_area.to_key()).is_equal("D-L1")
+	assert_bool(copy.moved_in_turn).is_true()
+	assert_object(copy.current_area).is_not_same(player.current_area)
+
+
+func test_from_players_puts_every_player_on_the_current_area() -> void:
+	var players: Array[PlayerState] = _players()
+	players[2].current_area = _area("M-L1")
+	var layout: TeamLayout = TeamLayout.from_players(players)
+	assert_str(layout.current_area_of("p1").to_key()).is_equal("D-C")
+	assert_str(layout.current_area_of("p3").to_key()).is_equal("M-L1")
+	# p4 は固定先 A-C にいる
+	assert_str(layout.current_area_of("p4").to_key()).is_equal("A-C")
+
+
 func test_at_base_puts_every_player_on_the_base_area() -> void:
 	var layout: TeamLayout = TeamLayout.at_base(_players())
 	assert_str(layout.current_area_of("p1").to_key()).is_equal("D-C")

@@ -91,7 +91,8 @@ enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }   # TurnChoice.actio
 enum CoverKind { NONE, DEFENDER } # 同数時のカバー判定の内訳（判定理由の表示に使う。GK はカバーに数えない）
 enum ReadKind { NONE, NEAR, EXACT } # 守備の読みの段階（アルゴリズム5。制限したエリアと比較エリアの近さ）
 enum MovementReason { SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE,
-        DRIBBLE_STOPPED, BALL_HOLDER }                          # 末尾の2つは保持者の動き（アルゴリズム5・7）
+        DRIBBLE_STOPPED, BALL_HOLDER, RETURN }                  # DRIBBLE_STOPPED・BALL_HOLDER は保持者の動き（アルゴリズム5・7）。
+                                                               # RETURN は方式の動きが無いまま基本エリアへ1マス戻る動き（アルゴリズム2）
 enum MatchResult { WIN, DRAW, LOSE }                           # 戦績の勝敗（利用者から見た値）
 enum Phase { ATTACK, NEG_TRANSITION, DEFENSE, POS_TRANSITION } # 振り返りの局面別集計（アルゴリズム10）
 enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りでの1ターンの数え方（アルゴリズム10）
@@ -112,7 +113,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `StyleDef` | `style_def.gd` | 方式 | 解説の固定文 |
 | `TeamStyles` | `team_styles.gd` | （試合の方式） | `defense: DefenseStyle`・`attack: AttackStyle` |
 | `TeamSetup` | `team_setup.gd` | （試合の陣形と方式） | `formation_id`・`styles: TeamStyles` |
-| `PlayerState` | `player_state.gd` | （選手単位の配置状態） | `player_id`・`base_area`・`fixed_area`（固定されていなければ `null`）・`is_fixed()` |
+| `PlayerState` | `player_state.gd` | （選手単位の配置状態） | `player_id`・`base_area`・`fixed_area`（固定されていなければ `null`）・`current_area`（今いるエリア。ターンをまたいで持ち越す）・`moved_in_turn`（前のターンの手などでターン開始の位置から動いたか）・`is_fixed()` |
 | `TeamLayout` | `team_layout.gd` | （チームの配置） | `players: Array[PlayerState]` と、各選手の現在エリア（下記） |
 | `LayoutPair` | `layout_pair.gd` | — | 判定中の両チームの `TeamLayout`。`attacker`・`defender`・`attacker_side: TeamSide`（`Movement.side` を埋めるため）・`defender_side()` |
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
@@ -121,7 +122,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持は比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`diff()`。評価値や推奨の印は持たない |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`read: ReadKind`（守備の読みの段階） |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣 `D-C`） |
-| `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリアと固定先）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
+| `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
 | `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
 | `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10） |
@@ -155,6 +156,8 @@ static func all() -> Array[PitchArea]            # 15エリア。D→M→A、各
 
 `TeamLayout` は、選手ごとの現在エリアを `base_area`・`fixed_area` とは別に持つ。アルゴリズム2の方式の動き
 （スライド・マーク・保持型の前進）で、固定されていない選手の現在エリアも基本エリアからずれるため。
+ターンの中の計算では `TeamLayout` の現在エリアが正で、`PlayerState.current_area` は試合の状態（`MatchState`）へ
+持ち越すための値（`TeamLayout.from_players` で配置を作り、`MatchRules` が判定後の配置から写し戻す。2026-10-24）。
 
 ```gdscript
 class_name TeamLayout extends RefCounted
@@ -164,6 +167,8 @@ var players: Array[PlayerState]
 func _init(players: Array[PlayerState], current_areas: Dictionary)   # 選手 ID → PitchArea
 ## 全員の現在エリアを基本エリアにした配置（固定の有無は見ない）
 static func at_base(players: Array[PlayerState]) -> TeamLayout
+## 各選手の current_area を現在エリアにした配置（試合の状態からターン開始の起点を作る）
+static func from_players(players: Array[PlayerState]) -> TeamLayout
 func current_area_of(player_id: String) -> PitchArea   # いない選手なら null
 func count_at(area: PitchArea) -> int
 ## 15エリアすべてのキー → 人数（0 のエリアも含める）
@@ -181,15 +186,15 @@ static func area_of(x: float, y: float) -> PitchArea
 static func derive(formation: FormationDef) -> TeamLayout
 
 class_name StyleLayoutCalculator extends RefCounted
-## アルゴリズム2の手順1。全選手を基本エリアに戻し、固定を解除する
-static func reset_segment(layout: TeamLayout) -> TeamLayout
-## アルゴリズム2の手順2〜4。ターン開始時の両チームの配置を出す。ball は attacker 視点
+## アルゴリズム2の手順1〜4。今いるエリアを起点に、方式の目標へ1マス近づいたターン開始時の両チームの配置を出す。
+## ball は attacker 視点
 static func compute(attacker: TeamLayout, attacker_styles: TeamStyles,
         defender: TeamLayout, defender_styles: TeamStyles,
         ball: PitchArea, attacker_side: GameEnums.TeamSide) -> LayoutStep
-## マンツーマンのマークを付け直す（ドリブル・プレス・カバーの後に呼ぶ）
-static func remark(pair: LayoutPair, defender_styles: TeamStyles) -> LayoutStep
-## アルゴリズム6のリトリート。守備側（喪失側）を基本配置に戻して固定を解除し、守備方式で動かす。ball は攻撃側（奪取側）の視点
+## マンツーマンのマークを付け直す（ドリブル・プレス・カバーの後に呼ぶ）。マーカーは start（ターン開始の守備側。
+## 省略したら pair の守備側）から1マス近づく
+static func remark(pair: LayoutPair, defender_styles: TeamStyles, start: TeamLayout = null) -> LayoutStep
+## アルゴリズム6のリトリート。守備側（喪失側）の固定を解除し、基本配置＋守備方式の目標へ1マス近づける。ball は攻撃側（奪取側）の視点
 static func retreat(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea) -> LayoutStep
 ## 試合の状態からターン開始時の配置（攻守ターンは compute、トランジションは起点の写し）。options_for と MatchRules が使う
 static func turn_start(state: MatchState) -> LayoutStep
@@ -198,20 +203,24 @@ class_name DefenseMover extends RefCounted
 ## アルゴリズム4。守備の手を適用し、動いた選手を固定する。target は attacker 視点
 static func apply(pair: LayoutPair, action: GameEnums.DefenseAction,
         target: PitchArea) -> LayoutStep
+## カバーで背後へ下がる選手を探す隣接エリア（横 → 背後。前方は除く）。MoveRules.defense_options も使う
+static func cover_neighbors(restricted: PitchArea) -> Array[PitchArea]
 ```
 
-`StyleLayoutCalculator` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
-- 固定されていない選手は、毎回基本エリアを起点に方式の動きを適用する（前のターンの方式の動きを持ち越さない）。
-  `compute` の `movements` は、起点（固定されていなければ基本エリア）から変わった選手だけを、攻撃側 → 守備側の順で返す
+`StyleLayoutCalculator` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18。2026-10-24 に1ターン1マスへ改めた）:
+- 方式の動きの目標は、基本エリア（固定されていれば固定先）を起点に出す。選手は今いるエリアから目標へ1マス近づく
+  （`PitchArea.step_toward`。ゾーン差・レーン差をそれぞれ1ずつ詰める）。`moved_in_turn` の選手はターン開始では動かない。
+  `compute` の `movements` は、今いるエリアから変わった選手だけを、攻撃側 → 守備側の順で返す
 - マンツーマンでどのマーカーをどの対象につけるか: マークする対象は優先順の上からマーカーの人数分。そのうち、対象と
-  同じエリアに起点があるマーカーはそのまま残す（`remark` でマーカーどうしが入れ替わり、矢印が交差しないようにするため）。
-  残りは優先順に、起点（`compute` は基本エリア、`remark` は現在エリア）とのゾーン差＋レーン差が最小のマーカーを割り当てる。
-  同じなら配置の選手の順。エリアごとの人数は割り当てによらない
+  同じエリアに今いるマーカーはそのまま残す（`remark` でマーカーどうしが入れ替わり、矢印が交差しないようにするため）。
+  残りは優先順に、今いるエリアとのゾーン差＋レーン差が最小のマーカーを割り当てる（基本エリアで選ぶと、遠いマーカーが
+  1マスずつ追い続けて追いつかないため）。同じなら配置の選手の順
 - 余ったマーカーの理由は `MARK`（カバー役も、マークの規則による動きとして扱う）
 - `remark` は `ZONE` では何も動かさない（ずれる基準はターン開始時のボール位置のため）
 
 `DefenseMover` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
-- `COVER` の「隣接エリア」は `PRESS` と同じ上下左右。同率の「横」は、中央寄りのレーンを先にし、同じなら守備側の左を先にする
+- `COVER` の「隣接エリア」は `PRESS` と同じ上下左右から前方を除いたもの（`cover_neighbors`。前方からは背後まで2ゾーンになるため。2026-10-24）。
+  同率の「横」は、中央寄りのレーンを先にし、同じなら守備側の左を先にする
 - 同じエリアに動かせる選手が複数いれば、固定されていない選手のうち配置の選手の順で先の選手
 - `COVER` で、隣接から選んだ選手がすでに背後にいる（`T_d` が空で、背後にだけ守備側がいる）ときは、その場で固定し、
   動き（`movements`）には含めない（位置が変わった選手だけを動きにする。`StyleLayoutCalculator` と同じ）
@@ -249,14 +258,16 @@ static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) 
 ## 読み（detail.read）は judge が read_of で入れる（トランジションは NONE）
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
-## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒント・決定前のプレビューで共有する
-static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice) -> LayoutStep
+## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒント・決定前のプレビューで共有する。
+## start はターン開始の配置（省略したら pair）。付け直しのマーカーをターン開始から1マス以内に保つ
+static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice,
+        start: LayoutPair = null) -> LayoutStep
 ## 手順2（守備の手の適用。寄せる・下がる1人と、マンツーマンの付け直し）。適用できなければ null。判定と決定前のプレビューで共有する
 static func apply_defense(pair: LayoutPair, defender_styles: TeamStyles, defense: TurnChoice) -> LayoutStep
 
 class_name TransitionJudge extends RefCounted
 ## アルゴリズム6。origin は直前のターン終了時点の配置（奪取側を attacker として持つ）
-## リトリートの基本配置は origin の各選手の base_area から作る（StyleLayoutCalculator.reset_segment）
+## リトリートは origin の各選手の今いるエリアから、基本配置＋守備方式の目標へ1マス近づける（StyleLayoutCalculator.retreat）
 static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: TeamStyles,
         ball: PitchArea, winner_choice: TurnChoice, loser_choice: TurnChoice) -> JudgeOutput
 ## カウンターのときの奪取側の配置（カウンター型の飛び出し）。MoveRules.pos_transition_options に渡す配置にも使う
@@ -335,17 +346,23 @@ static func finish(state: MatchState) -> MatchState
 `MatchRules` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
 - `current_layouts`・`resolve_turn`・`apply_style_change`・`MoveRules.options_for` は陣形データを使わない（選手単位の
   配置状態を `MatchState` が持つ）ため、`catalog` 引数を持たない
-- 得点のときは、その時点で失点側のキックオフ（`M-C`・配置区間のリセット）を済ませてから `STYLE_CHANGE` にする（選び直しの間も
+- 得点のときは、その時点で失点側のキックオフ（`M-C`・全員を基本エリアへ・固定を解く）を済ませてから `STYLE_CHANGE` にする（選び直しの間も
   ボール位置が保持側の視点になるように）。`apply_style_change` は方式を差し替えて `TURN` に戻すだけ
 - ハーフの最終ターンの判定が `LOSS`・`SAVE` でも、トランジションに入らずハーフを終える（`turn_kind` は攻守ターン、起点は `null`）
 - ハーフを終えた状態（`HALFTIME`・後半の終わり）の `turn_number` は ターン数＋1。`data-definition.md` §2.1 の範囲では
   `HALFTIME` の ターン数＋1 が含まれないため、保存の作業で範囲を見直す
-- （仕様の確認）攻守ターンの続き（`ADVANCE`・`STALL`）は固定を維持し、トランジションが終わって攻守ターンが始まる時だけ配置区間をリセットする（アルゴリズム5の手順7と「配置区間」の定義のとおり）
+- （仕様の確認）攻守ターンの続き（`ADVANCE`・`STALL`）は固定を維持し、トランジションが終わって攻守ターンが始まる時だけ固定を解く（位置は戻さない。2026-10-24。アルゴリズム5の手順7と「配置区間」の定義のとおり）
 - ボールの保持者（アルゴリズム7。2026-10-22）: `resolve_turn` はハーフの最終ターンの切り替えの後に、`create_match`・
   `apply_halftime` はキックオフの後に、次のターンの開始時の配置（`StyleLayoutCalculator.turn_start`）でボールのエリアに
   保持側がいなければ、いちばん近い選手を置いて固定する（トランジションは起点の配置も `TeamLayout.with_fixed` で変える）。
   置いた動き（`BALL_HOLDER`）と、膠着したドリブルの戻り（`DRIBBLE_STOPPED`）は、そのターンの記録の `movements` に足す。
   判定時の配置（`pair_at_judgement`）は変えない
+- 1ターン1マス（アルゴリズム2・7。2026-10-24）:
+  - `resolve_turn` は判定時の配置の現在エリアを `PlayerState.current_area` に写し戻し、各選手の `moved_in_turn` を
+    「ターン開始の位置から動いたか」で付け直す（得点はキックオフで全員を基本エリアに置くので付け直さない）
+  - 置ける保持者は、ターン開始の位置と今いるエリアのどちらからも、ボールのエリアが1マス以内の選手だけ。いなければ置かない。
+    キックオフ（`create_match`・`apply_halftime`・得点の後）は距離を問わない
+  - 膠着したドリブルの選手は、`current_area` もボールのエリア（ターン開始の位置）へ戻す
 - 中断データ（`data-definition.md` §2.1）は、トランジションの起点と判定時の配置を「選手単位の基本エリア・固定先」で持つ形に
   なっているが、現在エリアが無いと復元できない（ターン記録の判定前・判定時の配置も同じ）。ドメインでは `LayoutPair`（現在エリアを含む）で持つ。
   保存の作業で形式を見直す

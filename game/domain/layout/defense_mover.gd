@@ -24,7 +24,10 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction, target: Pit
 	if destination == null:
 		return null
 	if source == null:
-		source = _press_source(pair, restricted)
+		var candidates: Array[PitchArea] = _neighbors_by_priority(restricted)
+		if action == GameEnums.DefenseAction.COVER:
+			candidates = cover_neighbors(restricted)
+		source = _press_source(pair, candidates)
 	if source == null:
 		return null
 	var mover: PlayerState = _pick_player(pair.defender, source)
@@ -38,13 +41,24 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction, target: Pit
 	return LayoutStep.new(LayoutPair.new(pair.attacker.duplicate_deep(), defender, pair.attacker_side), movements)
 
 
-## T_d の上下左右の隣接エリアのうち、守備側が1人以上いて余り（守備側人数 − 攻撃側人数）が最大のエリア。
-## 同じ余りなら前方 → 横（中央寄りのレーンが先、同じなら守備側の左）→ 背後。最終ラインを最後まで崩さないため
-## （チャレンジ＆カバー原則 TP-03）。いなければ null。
-static func _press_source(pair: LayoutPair, restricted: PitchArea) -> PitchArea:
+## カバーで背後へ下がる選手を探す隣接エリア（守備側の視点）。前方を除いた横 → 背後。
+## 前方の選手は、T_d の背後まで2ゾーン下がることになり、1ターンに動ける1マスを超えるため（2026-10-24）。
+## 選べる手の条件（MoveRules.defense_options）も、この並びで確かめる。
+static func cover_neighbors(restricted: PitchArea) -> Array[PitchArea]:
+	var result: Array[PitchArea] = _neighbors_by_priority(restricted)
+	# 前方は並びの先頭（_neighbors_by_priority）
+	if restricted.forward() != null:
+		result.remove_at(0)
+	return result
+
+
+## candidates（優先順に並べた隣接エリア）のうち、守備側が1人以上いて余り（守備側人数 − 攻撃側人数）が最大のエリア。
+## 同じ余りなら並びの先。プレスの並びは前方 → 横（中央寄りのレーンが先、同じなら守備側の左）→ 背後で、
+## 最終ラインを最後まで崩さないため（チャレンジ＆カバー原則 TP-03）。いなければ null。
+static func _press_source(pair: LayoutPair, candidates: Array[PitchArea]) -> PitchArea:
 	var best: PitchArea = null
 	var best_surplus: int = 0
-	for area: PitchArea in _neighbors_by_priority(restricted):
+	for area: PitchArea in candidates:
 		var defenders: int = pair.defender.count_at(area)
 		if defenders < 1:
 			continue
