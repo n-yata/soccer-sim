@@ -200,3 +200,18 @@ func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press
 			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣ゴール前の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE)).is_empty()
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_empty()
+
+
+func test_target_rule_explains_the_through_pass() -> void:
+	# スルーパス（2026-10-25）は、出せる先と、人数に関係なく読みで決まることを一言で（MoveRules・OpenPlayJudge と同じ内容）
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
+			.is_equal("スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれたら奪われ、読まれなければ通る")
+
+
+func test_through_pass_hint_tag_says_it_depends_on_the_read() -> void:
+	# 人数を比べない手だが、スルーパスは通るかが読み次第であることを札で示す。人数の表記は出さない
+	var hint := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, PitchArea.from_key("A1-C"), false, 1, 2,
+			GameEnums.CoverKind.NONE)
+	assert_str(MatchTexts.hint_tag(hint)).is_equal("読み次第")
+	assert_str(MatchTexts.hint_counts(hint)).is_empty()
+	assert_str(MatchTexts.action_name(ATTACK, GameEnums.PlayType.THROUGH_PASS)).is_equal("スルーパス")

@@ -3,6 +3,38 @@
 extends GdUnitTestSuite
 
 
+## 攻撃側がスルーパスを出した開示（2026-10-25）。read は守備の読み。利用者が守備側なら、スルーパスは相手の手
+func _through_reveal(role: GameEnums.Phase, outcome: GameEnums.TurnOutcome, user_count: int, opponent_count: int,
+		read: GameEnums.ReadKind) -> RevealView:
+	var reveal: RevealView = _reveal(role, outcome, "A1-C", user_count, opponent_count)
+	reveal.read = read
+	var through := TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS, PitchArea.from_key("A1-C"))
+	var press := TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("A1-C"))
+	reveal.user_choice = through if role == GameEnums.Phase.ATTACK else press
+	reveal.opponent_choice = press if role == GameEnums.Phase.ATTACK else through
+	return reveal
+
+
+func test_through_pass_reason_blames_the_read_not_the_numbers() -> void:
+	# スルーパスは人数に関係なく読みで決まるので、人数の句を原因にしない
+	var unread: RevealView = _through_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, 1, 2,
+			GameEnums.ReadKind.NONE)
+	assert_str(JudgeReasonFormatter.format(unread)).is_equal("敵陣・中央で 1対2。読まれず前進")
+	var read: RevealView = _through_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, 2, 1,
+			GameEnums.ReadKind.EXACT)
+	assert_str(JudgeReasonFormatter.format(read)).is_equal("敵陣・中央で 2対1。読まれてロスト")
+	# 守備側から見た文。隣を読んでも、スルーパスは止まらない
+	var near: RevealView = _through_reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.ADVANCE, 1, 1,
+			GameEnums.ReadKind.NEAR)
+	assert_str(JudgeReasonFormatter.format(near)).is_equal("敵陣・中央で 1対1。隣を読んだが前進")
+	var exact: RevealView = _through_reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.LOSS, 1, 2,
+			GameEnums.ReadKind.EXACT)
+	assert_str(JudgeReasonFormatter.format(exact)).is_equal("敵陣・中央で 1対2。読み切ってロスト")
+	var missed: RevealView = _through_reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.ADVANCE, 3, 1,
+			GameEnums.ReadKind.NONE)
+	assert_str(JudgeReasonFormatter.format(missed)).is_equal("敵陣・中央で 3対1。読めず前進")
+
+
 func _reveal(role: GameEnums.Phase, outcome: GameEnums.TurnOutcome, area: String, user_count: int,
 		opponent_count: int, cover: GameEnums.CoverKind = GameEnums.CoverKind.NONE) -> RevealView:
 	var reveal := RevealView.new()

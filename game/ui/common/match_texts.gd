@@ -7,7 +7,7 @@ extends RefCounted
 const ZONE_NAMES: Array[String] = ["自陣ゴール前", "自陣", "中盤（自陣）", "中盤（敵陣）", "敵陣", "敵陣ゴール前"]
 const LANE_NAMES: Array[String] = ["左大外", "左HS", "中央", "右HS", "右大外"]
 const ACTION_NAMES: Dictionary = {
-	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ドリブル", "背後へのロングボール", "サイドチェンジ", "シュート"],
+	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ドリブル", "スルーパス", "背後へのロングボール", "サイドチェンジ", "シュート"],
 	GameEnums.ChoiceFamily.DEFENSE: ["プレス", "カバー"],
 	GameEnums.ChoiceFamily.NEG_TRANS: ["即時奪回", "リトリート"],
 	GameEnums.ChoiceFamily.POS_TRANS: ["カウンター", "保持"],
@@ -38,9 +38,12 @@ static func action_name(family: GameEnums.ChoiceFamily, action: int) -> String:
 	return (ACTION_NAMES[family] as Array)[action] as String
 
 
-## 運ぶ先を選ぶ間に添える一言（誰が動くか・どのエリアを選べるか）。条件は MoveRules.defense_options と同じ。
-## プレス・カバーだけ（違いが盤面から読みにくく、選べないエリアがある理由が分かりにくいため）。ほかの手は空。
+## 運ぶ先を選ぶ間に添える一言（誰が動くか・どのエリアを選べるか）。条件は MoveRules.defense_options・attack_options と同じ。
+## プレス・カバー（違いが盤面から読みにくく、選べないエリアがある理由が分かりにくいため）と、スルーパス（空いたエリアにも
+## 出せ、人数に関係なく読みで決まる、ほかの手と違う規則のため）。ほかの手は空。
 static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
+	if family == GameEnums.ChoiceFamily.ATTACK and action == GameEnums.PlayType.THROUGH_PASS:
+		return "スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれたら奪われ、読まれなければ通る"
 	if family != GameEnums.ChoiceFamily.DEFENSE:
 		return ""
 	if action == GameEnums.DefenseAction.PRESS:
@@ -118,8 +121,11 @@ static func attack_style_name(style: GameEnums.AttackStyle) -> String:
 
 
 ## ヒントの札（表示仕様「`+1`、`±0 カバーあり`」）。カバーは同数のときだけ添える（同数のときだけ判定に効くため）。
-## 人数を比べない手（リトリート・保持）は空。
+## 人数を比べない手（リトリート・保持）は空。スルーパスだけは人数の代わりに「読み次第」を出す。
 static func hint_tag(hint: ChoiceHint) -> String:
+	# スルーパスは人数を比べないが、通るかが読み次第であることを札で示す（作戦ボードの札の幅に収まる4文字。2026-10-25）
+	if hint.family == GameEnums.ChoiceFamily.ATTACK and hint.action == GameEnums.PlayType.THROUGH_PASS:
+		return "読み次第"
 	if not hint.is_compared:
 		return ""
 	var diff: int = hint.diff()

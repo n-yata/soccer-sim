@@ -19,6 +19,10 @@ var read_moves: int = 0
 var read_losses: int = 0
 var unread_moves: int = 0
 var unread_losses: int = 0
+## 攻守ターンの攻撃の手の数と、そのうちのスルーパスの数・ロストした数（2026-10-25。強すぎないかをシャビが判断する材料）
+var attack_moves: int = 0
+var through_passes: int = 0
+var through_losses: int = 0
 
 
 ## シードごとに match_count 試合を回して合計する（1つのシードの偶然で目標の内外が決まらないよう、複数のシードで測る）。
@@ -62,11 +66,22 @@ func unread_loss_rate() -> float:
 	return float(unread_losses) / unread_moves
 
 
+## 攻撃の手のうちスルーパスの割合と、スルーパスのうちロストした割合（どちらも 0〜1）
+## 0件なら 0（CPU がスルーパスを一度も選ばない設定でも、要約に nan を出さない）
+func through_pass_rate() -> float:
+	return 0.0 if attack_moves == 0 else float(through_passes) / attack_moves
+
+
+func through_pass_loss_rate() -> float:
+	return 0.0 if through_passes == 0 else float(through_losses) / through_passes
+
+
 func summary() -> String:
 	return ("goals=%.2f home=%.2f shots=%.2f possessions=%.1f avg=%.1f turnovers=%.1f read_loss=%.0f%%"
-			+ " unread_loss=%.0f%%") % [goals_per_match(), home_goals_per_match(), float(shots) / matches,
-			possessions_per_match(), average_possession_turns(), turnovers_per_match(), 100.0 * read_loss_rate(),
-			100.0 * unread_loss_rate()]
+			+ " unread_loss=%.0f%% through=%.0f%% through_loss=%.0f%%") % [goals_per_match(), home_goals_per_match(),
+			float(shots) / matches, possessions_per_match(), average_possession_turns(), turnovers_per_match(),
+			100.0 * read_loss_rate(), 100.0 * unread_loss_rate(), 100.0 * through_pass_rate(),
+			100.0 * through_pass_loss_rate()]
 
 
 func _play(rng: RandomNumberGenerator, home_cpu: CpuConfig, away_cpu: CpuConfig, catalog: ContentCatalog,
@@ -110,6 +125,10 @@ func _count(record: TurnRecord) -> void:
 	if record.turn_kind != GameEnums.TurnKind.OPEN_PLAY:
 		return
 	var attack: TurnChoice = record.home_choice if record.attacker == GameEnums.TeamSide.HOME else record.away_choice
+	attack_moves += 1
+	if attack.action == GameEnums.PlayType.THROUGH_PASS:
+		through_passes += 1
+		through_losses += 1 if record.outcome == GameEnums.TurnOutcome.LOSS else 0
 	if attack.action == GameEnums.PlayType.SHOT:
 		shots += 1
 		return

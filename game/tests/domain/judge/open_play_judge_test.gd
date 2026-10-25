@@ -1,5 +1,5 @@
 ## アルゴリズム5: 攻守ターンの判定（OpenPlayJudge）のテスト。
-## 判定例 JE-01〜06・JE-08 は functional-overview.md「判定例」から、それ以外の期待値はアルゴリズム5の規則から手で書いた。
+## 判定例 JE-01〜06・JE-08・JE-09 は functional-overview.md「判定例」から、それ以外の期待値はアルゴリズム5の規則から手で書いた。
 ## ボール位置・運ぶ先・比較エリアは攻撃側から見た座標、守備側の配置と動きは守備側から見た座標（component-design.md §1.2）。
 ## 盤面は6列（2026-10-25）。判定例は陣形の名前を使わず、場面の配置で示す。
 extends GdUnitTestSuite
@@ -184,6 +184,69 @@ func test_je06_shot_read_by_the_defense_is_saved() -> void:
 	# 隣の余りは前方 M1-C（d3）と背後 D1-C（d2）がどちらも +1。前方優先で d3 が戻る
 	assert_array(_moves(output)).is_equal(["d3:M1-C>D2-C:PRESS"])
 	assert_str(_summary(output)).is_equal("SAVE A1-C 2-2 NONE EXACT")
+
+
+# --- スルーパス（2026-10-25。読まれたら人数に関係なく奪われ、読まれなければ人数に関係なく通る） ---
+
+## JE-09: 攻撃側はボールの M2-C に a1、A1-L1 に a2。守備側（ゾーン）は運ぶ先 A1-C（守備側の視点で D2-C）に d1・d2、
+## 遠くの A2-L2（攻撃側の視点で D1-R2）に far
+func _je09() -> LayoutPair:
+	return LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-L1", ""]]),
+			_team([["d1", "D2-C", ""], ["d2", "D2-C", ""], ["far", "A2-L2", ""]]), HOME)
+
+
+func test_je09_through_pass_unread_gets_through_even_against_more_defenders() -> void:
+	var output: JudgeOutput = _judge(_je09(), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	# 守備は遠くへ寄せた（外れ）。a2 が A1-C へ走り込んで固定される。1対2 でも読まれていないので前進
+	assert_array(_moves(output)).is_equal(["far:A2-L2>A2-L1:PRESS", "a2:A1-L1>A1-C:THROUGH_RUN"])
+	assert_str(output.pair.attacker.players[1].fixed_area.to_key()).is_equal("A1-C")
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-2 NONE")
+
+
+func test_through_pass_read_next_door_still_gets_through() -> void:
+	# 隣の A1-R1（守備側の D2-L1）へプレス。D2-C の d1 が寄せて、運ぶ先は1対1。ほかの手なら隣の読みで奪われるが、スルーパスは前進
+	var output: JudgeOutput = _judge(_je09(), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "A1-R1"))
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-1 NONE NEAR")
+
+
+func test_through_pass_read_exactly_is_lost_even_with_more_attackers() -> void:
+	# 運ぶ先 A1-C に a2・a3 の2人（a2 が受け手。もういるので動かない）。守備は A1-C を読み、隣の D2-L1 の d1 が寄せて1人。
+	# 2対1 でも、読まれたのでロスト
+	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-C", ""], ["a3", "A1-C", ""]]),
+			_team([["d1", "D2-L1", ""]]), HOME)
+	var output: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "A1-C"))
+	assert_array(_moves(output)).is_equal(["d1:D2-L1>D2-C:PRESS"])
+	assert_str(output.pair.attacker.players[1].fixed_area.to_key()).is_equal("A1-C")
+	assert_str(_summary(output)).is_equal("LOSS A1-C 2-1 NONE EXACT")
+
+
+func test_through_pass_runner_is_the_nearest_teammate_outside_the_ball_area() -> void:
+	var target: PitchArea = _area("A1-C")
+	var ball: PitchArea = _area("M2-C")
+	# 運ぶ先にいる a3（0マス）が、1マスの a2 より先。ボールのエリアの a1 は、運ぶ先から1マスでも受け手にならない
+	var nearest: TeamLayout = _team([["a1", "M2-C", ""], ["a2", "A2-L1", ""], ["a3", "A1-C", ""]])
+	assert_str(OpenPlayJudge.through_pass_runner(nearest, ball, target).player_id).is_equal("a3")
+	# 同じ近さなら配置の選手の順で先
+	for order: Array in [["a2", "a3"], ["a3", "a2"]]:
+		var areas: Dictionary = {"a2": "A1-L1", "a3": "A1-R1"}
+		var layout: TeamLayout = _team([["a1", "M2-C", ""], [order[0], areas[order[0]], ""], [order[1], areas[order[1]], ""]])
+		assert_str(OpenPlayJudge.through_pass_runner(layout, ball, target).player_id).override_failure_message(str(order)) \
+				.is_equal(order[0] as String)
+	# 1マス以内にボールのエリアの選手しかいなければ、受け手はいない
+	assert_object(OpenPlayJudge.through_pass_runner(_team([["a1", "M2-C", ""], ["a2", "M2-C", ""]]), ball, target)).is_null()
+
+
+func test_through_pass_runner_is_followed_by_the_man_marker() -> void:
+	# 守備側はマンツーマン。m1 は a2（A1-L1 = 守備側の D2-R1）につく。a2 が A1-C へ走り込むと、m1 も D2-C へついていく
+	var pair: LayoutPair = _scene([["a1", "M2-C", ""], ["a2", "A1-L1", ""]],
+			[["m1", "D2-R1", ""], ["m2", "M1-C", ""], ["far", "A2-L2", ""]], MAN, "M2-C")
+	var output: JudgeOutput = _judge(pair, MAN, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_array(_moves(output)).contains(["a2:A1-L1>A1-C:THROUGH_RUN", "m1:D2-R1>D2-C:MARK"])
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-1 NONE")
 
 
 # --- 同数のカバー判定（エッジケース） ---

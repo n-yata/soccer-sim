@@ -4,8 +4,9 @@
 ## MatchState を作る作業（試合進行）で足す。運ぶ先は PitchArea.all() の順に並べる（結果を決定的にするため）。
 ##
 ## 手の条件の距離（2マス以内・レーン差3以上・1〜4列前など）はルールの定義そのもので、調整値ではない。そのため定数で持つ。
-## 6列の盤面での読み替え（2026-10-25）: ショートパスは2マス、ロングボールは自陣から敵陣の奥の2列、シュートは5・6列目、
-## カウンターは1〜4列前、カバーは守備側の1列目では選べない。
+## 6列の盤面での読み替え（2026-10-25）: ショートパスは2マス、ロングボールは自陣から敵陣の奥の2列、シュートはペナルティエリアの3マス（6列目の L1・C・R1）、
+## カウンターは1〜4列前、カバーは守備側の1列目では選べない。スルーパス（同日に追加）は1〜2列前・レーン差1以内で、受け手
+## （OpenPlayJudge.through_pass_runner）が走り込めるエリア。
 class_name MoveRules
 extends RefCounted
 
@@ -15,8 +16,14 @@ const _SHORT_PASS_REACH: int = 2
 const _SWITCH_MIN_LANE_GAP: int = 3
 ## LONG_BEHIND で運べる最大のレーン差
 const _LONG_BEHIND_MAX_LANE_GAP: int = 1
-## LONG_BEHIND の運ぶ先と SHOT を選べる列（敵陣の奥の2列。5・6列目）の先頭
+## THROUGH_PASS で運べる、ボール位置から前の列数（1〜この値）と最大のレーン差
+const _THROUGH_PASS_MAX_ROWS_AHEAD: int = 2
+const _THROUGH_PASS_MAX_LANE_GAP: int = 1
+## LONG_BEHIND の運ぶ先の列（敵陣の奥の2列。5・6列目）の先頭
 const _FINAL_ROWS_FIRST: GameEnums.Zone = GameEnums.Zone.A1
+## SHOT を選べるエリア（ペナルティエリア。6列目の中央とハーフスペースの3マス。2026-10-25）
+const _PENALTY_AREA_ZONE: GameEnums.Zone = GameEnums.Zone.A2
+const _PENALTY_AREA_LANES: Array[GameEnums.Lane] = [GameEnums.Lane.L1, GameEnums.Lane.C, GameEnums.Lane.R1]
 ## COUNTER で運べる、ボール位置から前の列数（1〜この値）
 const _COUNTER_MAX_ZONES_AHEAD: int = 4
 
@@ -49,12 +56,17 @@ static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions:
 		# ドリブルは周り8エリアのどこへでも（斜め・後ろも。2026-10-24）。味方の有無は問わない
 		if _is_neighbor8(ball, target):
 			options.add_target(family, GameEnums.PlayType.DRIBBLE, target)
+		# スルーパスは1〜2列前・レーン差1以内の、味方が走り込めるエリア（空いていてもよい。2026-10-25）
+		var rows_ahead: int = target.zone - ball.zone
+		if rows_ahead >= 1 and rows_ahead <= _THROUGH_PASS_MAX_ROWS_AHEAD and lane_gap <= _THROUGH_PASS_MAX_LANE_GAP \
+				and OpenPlayJudge.through_pass_runner(pair.attacker, ball, target) != null:
+			options.add_target(family, GameEnums.PlayType.THROUGH_PASS, target)
 		if has_teammate and ball.is_own_half() and target.zone >= _FINAL_ROWS_FIRST \
 				and lane_gap <= _LONG_BEHIND_MAX_LANE_GAP:
 			options.add_target(family, GameEnums.PlayType.LONG_BEHIND, target)
 		if has_teammate and target.zone == ball.zone and lane_gap >= _SWITCH_MIN_LANE_GAP:
 			options.add_target(family, GameEnums.PlayType.SWITCH, target)
-	if ball.zone >= _FINAL_ROWS_FIRST and ball.lane in [GameEnums.Lane.C, GameEnums.Lane.L1, GameEnums.Lane.R1]:
+	if ball.zone == _PENALTY_AREA_ZONE and ball.lane in _PENALTY_AREA_LANES:
 		options.allow(family, GameEnums.PlayType.SHOT)
 	return options
 

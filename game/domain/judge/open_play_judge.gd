@@ -33,7 +33,9 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
 	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
 	detail.read = read_of(defense.target, compare, ball)
-	return JudgeOutput.new(outcome_of(detail, attack.action == GameEnums.PlayType.SHOT), detail, step.pair, movements)
+	var outcome: GameEnums.TurnOutcome = through_pass_outcome(detail) \
+			if attack.action == GameEnums.PlayType.THROUGH_PASS else outcome_of(detail, attack.action == GameEnums.PlayType.SHOT)
+	return JudgeOutput.new(outcome, detail, step.pair, movements)
 
 
 ## 手順2。守備の手を適用する（DefenseMover）。マンツーマンでプレス・カバーに出たマーカーは固定され、残りのマーカーで
@@ -51,16 +53,20 @@ static func apply_defense(pair: LayoutPair, defender_styles: TeamStyles, defense
 	return LayoutStep.new(marked.pair, movements)
 
 
-## 手順3。攻撃の手を適用する。ドリブルだけが選手を動かし（運ぶ選手を運ぶ先に固定）、守備側がマンツーマンなら
-## マークを付け直す。ドリブル以外は配置の写しと空の動き。判定と、ヒント（MoveHints。相手が何もしない場合）で共有する。
+## 手順3。攻撃の手を適用する。ドリブル（運ぶ選手）とスルーパス（受け手）だけが選手を動かして運ぶ先に固定し、
+## 守備側がマンツーマンならマークを付け直す。ほかの手は配置の写しと空の動き。判定と、ヒント（MoveHints。相手が何もしない場合）で共有する。
 ## start はターン開始の配置（省略したら pair）。守備の手の後に呼ぶときに渡し、付け直しのマーカーをターン開始から
 ## 1マス以内に保つ（StyleLayoutCalculator.remark）。
 static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice,
 		start: LayoutPair = null) -> LayoutStep:
 	var movements: Array[Movement] = []
-	if attack.action != GameEnums.PlayType.DRIBBLE:
+	var step: LayoutStep
+	if attack.action == GameEnums.PlayType.DRIBBLE:
+		step = _dribble(pair, ball, attack.target)
+	elif attack.action == GameEnums.PlayType.THROUGH_PASS:
+		step = _run_in(pair, ball, attack.target)
+	else:
 		return LayoutStep.new(pair.duplicate_deep(), movements)
-	var step: LayoutStep = _dribble(pair, ball, attack.target)
 	movements.append_array(step.movements)
 	if defender_styles.defense == GameEnums.DefenseStyle.MAN:
 		step = StyleLayoutCalculator.remark(step.pair, defender_styles, (pair if start == null else start).defender)
@@ -70,7 +76,7 @@ static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: Pi
 
 ## ボールを持つ選手（ball にいる攻撃側の選手。固定された選手を優先し、同じなら配置の順で先）を
 ## to へ動かして固定する。ball に攻撃側がいなければ誰も動かさない（ボールだけが進み、人数で判定する）。
-## 攻撃側が固定されるのはドリブルだけなので、ball で固定されている選手は直前にボールを運んできた選手。
+## 攻撃側が固定されるのはドリブルとスルーパスの受け手だけなので、ball で固定されている選手は直前にボールを運んできたか受けた選手。
 ## その選手に運ばせ続ける（矢印・演出で運ぶ選手が入れ替わらず、固定される選手も無駄に増えない）。
 static func _dribble(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> LayoutStep:
 	var carrier: PlayerState = null
@@ -79,24 +85,54 @@ static func _dribble(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> Layout
 			continue
 		if carrier == null or (player.is_fixed() and not carrier.is_fixed()):
 			carrier = player
-	var no_movements: Array[Movement] = []
-	if carrier == null:
-		return LayoutStep.new(pair.duplicate_deep(), no_movements)
+	return _move_and_fix(pair, carrier, to, GameEnums.MovementReason.DRIBBLE)
+
+
+## スルーパスの受け手（through_pass_runner）を to へ走り込ませて固定する。受け手がいなければ誰も動かさない
+## （MoveRules が受け手のいる運ぶ先だけを選べるようにしているので、判定では起きない）。
+static func _run_in(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> LayoutStep:
+	return _move_and_fix(pair, through_pass_runner(pair.attacker, ball, to), to, GameEnums.MovementReason.THROUGH_RUN)
+
+
+## 攻撃側の mover を to へ動かして固定する（ドリブル・スルーパスの受け手）。mover が null なら誰も動かさない。
+## もう to にいれば、動きは返さず固定だけする。
+static func _move_and_fix(pair: LayoutPair, mover: PlayerState, to: PitchArea,
+		reason: GameEnums.MovementReason) -> LayoutStep:
+	var movements: Array[Movement] = []
+	if mover == null:
+		return LayoutStep.new(pair.duplicate_deep(), movements)
+	var from: PitchArea = pair.attacker.current_area_of(mover.player_id)
 	var players: Array[PlayerState] = []
 	var current: Dictionary = {}
 	for player: PlayerState in pair.attacker.players:
 		var copied: PlayerState = player.duplicate_deep()
 		current[copied.player_id] = pair.attacker.current_area_of(copied.player_id).duplicate_deep()
-		if copied.player_id == carrier.player_id:
+		if copied.player_id == mover.player_id:
 			copied.fixed_area = to.duplicate_deep()
 			current[copied.player_id] = to.duplicate_deep()
 		players.append(copied)
-	var movements: Array[Movement] = [
-		Movement.new(pair.attacker_side, carrier.player_id, ball.duplicate_deep(), to.duplicate_deep(),
-				GameEnums.MovementReason.DRIBBLE),
-	]
+	if not from.equals(to):
+		movements.append(Movement.new(pair.attacker_side, mover.player_id, from.duplicate_deep(), to.duplicate_deep(), reason))
 	var moved := LayoutPair.new(TeamLayout.new(players, current), pair.defender.duplicate_deep(), pair.attacker_side)
 	return LayoutStep.new(moved, movements)
+
+
+## スルーパスの受け手（運ぶ先へ走り込む選手。2026-10-25）。運ぶ先から1マス以内（運ぶ先を含む）にいる、ボールのエリア
+## 以外の攻撃側の選手のうち、いちばん近い選手（同じなら配置の選手の順で先）。いなければ null。
+## ボールのエリアの選手を除くのは、パスを出す側が自分のパスを受けないため。1マス以内に限るのは、1ターン1マスの範囲で
+## 走り込める選手だけが受けられるため。選べるか（MoveRules）と実際に動く選手（apply_attack）で同じ規則を使う。
+static func through_pass_runner(attacker: TeamLayout, ball: PitchArea, target: PitchArea) -> PlayerState:
+	var runner: PlayerState = null
+	var runner_steps: int = 0
+	for player: PlayerState in attacker.players:
+		var area: PitchArea = attacker.current_area_of(player.player_id)
+		if area.equals(ball):
+			continue
+		var steps: int = area.steps_to(target)
+		if steps <= 1 and (runner == null or steps < runner_steps):
+			runner = player
+			runner_steps = steps
+	return runner
 
 
 ## 守備の読みの段階。restricted は守備の手で制限したエリア、compare は比較エリア（運ぶ先。シュートはボールのエリア）。
@@ -128,6 +164,13 @@ static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> Ju
 		if behind != null and pair.defender.count_at(behind.mirrored()) > pair.attacker.count_at(behind):
 			cover = GameEnums.CoverKind.DEFENDER
 	return JudgeDetail.new(compare.duplicate_deep(), attackers, defenders, cover)
+
+
+## スルーパスの結果（2026-10-25。シャビの判断「読まれたら必ず奪われる」）。人数に関係なく、運ぶ先をぴったり読まれたら
+## ロスト、それ以外（隣の読み・外れ）は前進。カバー判定もしない。空いたスペースへ走り込ませるハイリスク・ハイリターンの手で、
+## 通るかどうかを人数ではなく読み合いだけで決める。
+static func through_pass_outcome(detail: JudgeDetail) -> GameEnums.TurnOutcome:
+	return GameEnums.TurnOutcome.LOSS if detail.read == GameEnums.ReadKind.EXACT else GameEnums.TurnOutcome.ADVANCE
 
 
 ## 手順5〜6の後半。内訳から結果を決める。トランジションのカウンター（アルゴリズム6）と共有する。

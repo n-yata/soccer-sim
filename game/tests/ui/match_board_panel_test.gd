@@ -297,6 +297,29 @@ func test_choosing_another_move_or_submitting_clears_the_preview() -> void:
 	assert_array(_panel.board().preview_movements()).is_empty()
 
 
+func test_through_pass_tags_are_never_muted_by_the_hidden_numbers() -> void:
+	# スルーパスの札はどれも「読み次第」。人数を比べない手なので、隠れた人数差が ±0 でも控えめな色にしない（色から人数差を漏らさない）
+	_start(true)
+	var even_through: int = 0
+	for hint: ChoiceHint in _controller.user_hints():
+		if hint.action == GameEnums.PlayType.THROUGH_PASS and hint.family == GameEnums.ChoiceFamily.ATTACK and hint.diff() == 0:
+			even_through += 1
+	assert_int(even_through).override_failure_message("人数差が ±0 のスルーパスの運ぶ先がある場面であること").is_greater(0)
+	_press(GameEnums.PlayType.THROUGH_PASS)
+	for key: String in _panel.board().selectable_areas():
+		assert_str(_panel.board().hint_of(key)).is_equal("読み次第")
+		assert_bool(_panel.board().is_hint_even(key)).override_failure_message(key).is_false()
+
+
+func test_through_pass_explains_its_rule() -> void:
+	# スルーパス（2026-10-25）を選ぶと、出せる先と判定の規則を説明に出す（スクロールは match_screens_test で画面の実寸で確かめる）
+	_start(true)
+	assert_bool(_controller.user_options().is_available(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
+			.override_failure_message("キックオフでスルーパスを選べる場面であること").is_true()
+	_press(GameEnums.PlayType.THROUGH_PASS)
+	assert_str(_panel.target_info_text()).is_equal(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS))
+
+
 func test_press_and_cover_explain_which_areas_can_be_chosen() -> void:
 	_start(false)
 	for action: int in [GameEnums.DefenseAction.PRESS, GameEnums.DefenseAction.COVER]:

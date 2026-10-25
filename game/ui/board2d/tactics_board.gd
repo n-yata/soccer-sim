@@ -32,9 +32,10 @@ const PIECE_CENTER_GAP: float = 6.0
 const PIECE_EDGE_MARGIN: float = 2.0
 ## 1チームで描く駒の上限。これを超えると、駒を (上限 - 1) つと「+N」の札にする
 const MAX_PIECES: int = 4
-## 盤面に描く動き（ドリブル・寄せ・カバー）。方式の動きと、保持者の動き（戻る・置かれる）は描かない
+## 盤面に描く動き（ドリブル・スルーパスの走り込み・寄せ・カバー）。方式の動きと、保持者の動き（戻る・置かれる）は描かない
 const DRAWN_REASONS: Array[GameEnums.MovementReason] = [
 	GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER, GameEnums.MovementReason.DRIBBLE,
+	GameEnums.MovementReason.THROUGH_RUN,
 ]
 const HINT_HEIGHT: float = 26.0
 ## ボールの位置（エリアの上側の中央。エリアの高さに対する割合。駒の段と札に重ならない位置）と半径
@@ -204,12 +205,12 @@ func _stop_shift() -> void:
 
 # --- 位置の計算 ---
 
-## 平面図での1エリアの大きさ（列 = レーン 5、行 = ゾーン 3）。
+## 平面図での1エリアの大きさ（横 = レーン 5、縦 = 列 6）。
 func cell_size() -> Vector2:
 	return size / Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)
 
 
-## エリアの平面図の矩形。列は左から L2〜R2、行は上から A・M・D（利用者は上へ攻める）。
+## エリアの平面図の矩形。レーンは左から L2〜R2、列は上から A2〜D1（利用者は上へ攻める）。
 func area_rect(key: String) -> Rect2:
 	var area: PitchArea = PitchArea.from_key(key)
 	if area == null:

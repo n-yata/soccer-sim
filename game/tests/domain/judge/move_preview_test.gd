@@ -156,8 +156,16 @@ func test_dribble_moves_only_the_carrier_and_leaves_out_the_opponent_remark() ->
 func test_passes_and_shots_move_nobody() -> void:
 	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
 	assert_array(_preview(state, HOME, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C"))).is_empty()
-	var shot_state: MatchState = _open_state([["h1", "A1-C", ""]], [["a1", "D2-C", ""]], "A1-C")
+	# シュートはペナルティエリア（A2-C）から（2026-10-25）
+	var shot_state: MatchState = _open_state([["h1", "A2-C", ""]], [["a1", "D1-C", ""]], "A2-C")
 	assert_array(_preview(shot_state, HOME, _choice(ATTACK, GameEnums.PlayType.SHOT))).is_empty()
+
+
+func test_through_pass_shows_the_runner_moving_into_the_target() -> void:
+	# スルーパス（2026-10-25）は受け手が走り込む。プレビューは判定と同じ受け手の動きを、自チームの分だけ見せる
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-L1", ""]], [["m1", "D2-R1", ""], ["far", "A2-L2", ""]],
+			"M2-C", MAN)
+	_assert_matches_judge(state, HOME, _choice(ATTACK, GameEnums.PlayType.THROUGH_PASS, "A1-C"), ["HOME h2 A1-L1>A1-C THROUGH_RUN"])
 
 
 # --- トランジション ---

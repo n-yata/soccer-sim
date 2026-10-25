@@ -98,11 +98,14 @@ func test_attack_hints_count_the_target_after_applying_only_the_attack() -> void
 		"DRIBBLE M1-L1 1-0 NONE", "DRIBBLE M1-C 1-0 NONE", "DRIBBLE M1-R1 1-0 NONE",
 		"DRIBBLE M2-L1 1-0 NONE", "DRIBBLE M2-R1 1-0 NONE",
 		"DRIBBLE A1-L1 1-0 NONE", "DRIBBLE A1-C 2-1 NONE", "DRIBBLE A1-R1 1-0 NONE",
+		# スルーパス: h2 が走り込める1〜2列前・レーン差1以内の6エリア。通るかは読みだけで決まるので、人数を比べない
+		"THROUGH_PASS A1-L1", "THROUGH_PASS A1-C", "THROUGH_PASS A1-R1",
+		"THROUGH_PASS A2-L1", "THROUGH_PASS A2-C", "THROUGH_PASS A2-R1",
 	])
 
 
 func test_shot_hint_compares_the_ball_area_without_a_cover_check() -> void:
-	var state: MatchState = _open_state([["h1", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "A1-C")
+	var state: MatchState = _open_state([["h1", "A2-C", ""]], [["a1", "D1-C", ""], ["a2", "A2-L2", ""]], "A2-C")
 	var shots: Array[String] = []
 	for hint: ChoiceHint in _hints(state, HOME):
 		if hint.action == GameEnums.PlayType.SHOT:

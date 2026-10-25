@@ -26,6 +26,8 @@ static func detail(reveal: RevealView) -> String:
 ## 隣なら同数では前進できない）。攻撃側が少なければ、読まれていなくても止まるので、原因は人数のまま。
 static func _cause(reveal: RevealView) -> String:
 	var is_attacker: bool = reveal.user_role == GameEnums.Phase.ATTACK
+	if _is_through_pass(reveal, is_attacker):
+		return _through_pass_cause(reveal, is_attacker)
 	var attackers: int = reveal.user_count if is_attacker else reveal.opponent_count
 	var defenders: int = reveal.opponent_count if is_attacker else reveal.user_count
 	var is_stopped: bool = reveal.outcome == GameEnums.TurnOutcome.LOSS or reveal.outcome == GameEnums.TurnOutcome.SAVE
@@ -48,6 +50,25 @@ static func _cause(reveal: RevealView) -> String:
 		return "同数で背後にカバーがいて"
 	# カバーが無いことも文に入れる（表示仕様「カバーの有無を必ず含める」）
 	return "同数でカバーがいなくて"
+
+
+## 攻撃側の手がスルーパスか（攻守ターンの攻撃側の選択で見る。トランジションには無い）。
+static func _is_through_pass(reveal: RevealView, is_attacker: bool) -> bool:
+	if reveal.turn_kind != GameEnums.TurnKind.OPEN_PLAY:
+		return false
+	var attack: TurnChoice = reveal.user_choice if is_attacker else reveal.opponent_choice
+	return attack != null and attack.family == GameEnums.ChoiceFamily.ATTACK \
+			and attack.action == GameEnums.PlayType.THROUGH_PASS
+
+
+## スルーパスは人数に関係なく読みで決まる（アルゴリズム5。2026-10-25）ので、原因は読みだけで言う。
+## ぴったり読まれたらロスト、隣の読みは止められず前進、外れは前進。
+static func _through_pass_cause(reveal: RevealView, is_attacker: bool) -> String:
+	if reveal.read == GameEnums.ReadKind.EXACT:
+		return "読まれて" if is_attacker else "読み切って"
+	if reveal.read == GameEnums.ReadKind.NEAR:
+		return "隣を読まれたが" if is_attacker else "隣を読んだが"
+	return "読まれず" if is_attacker else "読めず"
 
 
 ## 判定なし（リトリート×保持）。奪取側（ポジティブトランジション）から見るか、喪失側から見るかで主語が変わる。

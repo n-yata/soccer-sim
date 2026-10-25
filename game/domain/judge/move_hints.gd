@@ -9,7 +9,7 @@ extends RefCounted
 
 
 ## options の選べる手ごと（運ぶ先を持つ手は運ぶ先ごと）のヒント。並びは手の enum の順、運ぶ先は options の順。
-## 人数は side（その手を選ぶ側）から見た値。リトリート・保持は比べない（is_compared = false）。
+## 人数は side（その手を選ぶ側）から見た値。リトリート・保持・スルーパス（人数でなく読みで決まる）は比べない（is_compared = false）。
 ## state は MatchRules が作った試合中の状態であること（ボール位置があり、トランジションでは起点がある）を前提とする。
 static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions) -> Array[ChoiceHint]:
 	var hints: Array[ChoiceHint] = []
@@ -37,7 +37,9 @@ static func _add_attack_hints(hints: Array[ChoiceHint], state: MatchState, start
 			var pair: LayoutPair = OpenPlayJudge.apply_attack(start, defender_styles, state.ball_area, choice).pair
 			var compare: PitchArea = state.ball_area if is_shot else choice.target
 			var detail: JudgeDetail = OpenPlayJudge.detail_at(pair, compare, is_shot)
-			hints.append(ChoiceHint.new(family, action, choice.target, true,
+			# スルーパスは人数に関係なく、読みだけで通るかが決まる（アルゴリズム5）ので、人数を比べない手にする
+			var is_compared: bool = action != GameEnums.PlayType.THROUGH_PASS
+			hints.append(ChoiceHint.new(family, action, choice.target, is_compared,
 					detail.attacker_count, detail.defender_count, detail.cover))
 
 

@@ -9,6 +9,7 @@ const NEG_TRANS := GameEnums.ChoiceFamily.NEG_TRANS
 const POS_TRANS := GameEnums.ChoiceFamily.POS_TRANS
 const SHORT_PASS := GameEnums.PlayType.SHORT_PASS
 const DRIBBLE := GameEnums.PlayType.DRIBBLE
+const THROUGH_PASS := GameEnums.PlayType.THROUGH_PASS
 const LONG_BEHIND := GameEnums.PlayType.LONG_BEHIND
 const SWITCH := GameEnums.PlayType.SWITCH
 const SHOT := GameEnums.PlayType.SHOT
@@ -103,14 +104,39 @@ func test_switch_from_the_center_lane_is_unavailable() -> void:
 	assert_bool(options.is_available(ATTACK, SWITCH)).is_false()
 
 
-func test_shot_is_available_only_from_the_last_two_rows_center_or_half_spaces() -> void:
-	for key: String in ["A1-C", "A1-L1", "A1-R1", "A2-C", "A2-L1", "A2-R1"]:
+func test_shot_is_available_only_from_the_three_penalty_area_squares() -> void:
+	# ペナルティエリアは6列目の L1・C・R1 の3マス（2026-10-25）
+	for key: String in ["A2-L1", "A2-C", "A2-R1"]:
 		var options: MoveOptions = MoveRules.attack_options(_pair([key], []), _area(key))
 		assert_bool(options.is_available(ATTACK, SHOT)).override_failure_message(key).is_true()
-	# 大外、4列目（M2）より後ろからは打てない
-	for key: String in ["A1-L2", "A2-R2", "M2-C", "D1-C"]:
+	# 6列目の大外、5列目（ペナルティエリアのすぐ外）、それより後ろからは打てない
+	for key: String in ["A2-L2", "A2-R2", "A1-C", "A1-L1", "A1-R1", "M2-C", "D1-C"]:
 		var options: MoveOptions = MoveRules.attack_options(_pair([key], []), _area(key))
 		assert_bool(options.is_available(ATTACK, SHOT)).override_failure_message(key).is_false()
+
+
+func test_through_pass_goes_one_or_two_rows_ahead_within_one_lane_where_a_teammate_can_run_in() -> void:
+	# ボールは M2-C（p0）。走り込める味方は A1-L1 の p1 だけ。運ぶ先は1〜2列前・レーン差1以内で、p1 から1マス以内
+	# （A1-R1・A2-R1 は p1 から2マス。A1-L2・A2-L2 は p1 から1マスだが、ボールからレーン差2）。空いたエリアにも出せる
+	assert_array(_attack_targets(["M2-C", "A1-L1"], "M2-C", THROUGH_PASS)).is_equal(["A1-L1", "A1-C", "A2-L1", "A2-C"])
+
+
+func test_through_pass_does_not_reach_three_rows_ahead() -> void:
+	# ボールは M1-C。A2-C の p1 から1マス以内のうち、2列前の A1 だけ。3列前の A2-C そのものには出せない
+	assert_array(_attack_targets(["M1-C", "A2-C"], "M1-C", THROUGH_PASS)).is_equal(["A1-L1", "A1-C", "A1-R1"])
+
+
+func test_through_pass_never_goes_sideways_or_backwards() -> void:
+	# ボールは A1-C。後ろの M2-C と同じ列の A1-L1 に味方。A1-L1 の味方が走り込める前の列（A2-L1・A2-C）だけ
+	assert_array(_attack_targets(["A1-C", "M2-C", "A1-L1"], "A1-C", THROUGH_PASS)).is_equal(["A2-L1", "A2-C"])
+
+
+func test_through_pass_needs_a_runner_outside_the_ball_area() -> void:
+	# 味方がボールのエリアにしかいない（パスを出す側）。走り込む選手がいないので選べない
+	var options: MoveOptions = MoveRules.attack_options(_pair(["M2-C", "M2-C"], []), _area("M2-C"))
+	assert_bool(options.is_available(ATTACK, THROUGH_PASS)).is_false()
+	# 前に味方がいても、運ぶ先から2マス以上離れていれば走り込めない（M1-C から2列前の A1 に対して、A2-L2 は L1 の運ぶ先から1マス）
+	assert_array(_attack_targets(["M1-C", "M1-C", "A2-L2"], "M1-C", THROUGH_PASS)).is_equal(["A1-L1"])
 
 
 # --- 守備の手（運ぶ先は攻撃側の視点） ---
@@ -224,19 +250,19 @@ func test_options_for_transition_uses_the_counter_layout_for_the_winner() -> voi
 # --- is_allowed ---
 
 func test_is_allowed_accepts_listed_targets_and_targetless_moves() -> void:
-	var options: MoveOptions = MoveRules.attack_options(_pair(["A1-C", "A1-L1"], []), _area("A1-C"))
-	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHORT_PASS, _area("A1-L1")))).is_true()
+	var options: MoveOptions = MoveRules.attack_options(_pair(["A2-C", "A2-L1"], []), _area("A2-C"))
+	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHORT_PASS, _area("A2-L1")))).is_true()
 	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHOT))).is_true()
 
 
 func test_is_allowed_rejects_unlisted_targets_and_unavailable_moves() -> void:
-	var options: MoveOptions = MoveRules.attack_options(_pair(["A1-C", "A1-L1"], []), _area("A1-C"))
+	var options: MoveOptions = MoveRules.attack_options(_pair(["A2-C", "A2-L1"], []), _area("A2-C"))
 	# 味方のいないエリアへのパス
-	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHORT_PASS, _area("A1-R1")))).is_false()
+	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHORT_PASS, _area("A2-R1")))).is_false()
 	# 自陣の外からの背後へのロングボール
-	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, LONG_BEHIND, _area("A1-L1")))).is_false()
+	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, LONG_BEHIND, _area("A2-L1")))).is_false()
 	# 攻撃の局面で守備の手
-	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(DEFENSE, PRESS, _area("A1-L1")))).is_false()
+	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(DEFENSE, PRESS, _area("A2-L1")))).is_false()
 
 
 func test_is_allowed_checks_defense_targets_in_the_attacker_view() -> void:
@@ -267,6 +293,6 @@ func test_is_allowed_checks_transition_moves() -> void:
 
 
 func test_is_allowed_rejects_a_missing_or_unexpected_target() -> void:
-	var options: MoveOptions = MoveRules.attack_options(_pair(["A1-C", "A1-L1"], []), _area("A1-C"))
+	var options: MoveOptions = MoveRules.attack_options(_pair(["A2-C", "A2-L1"], []), _area("A2-C"))
 	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, DRIBBLE))).is_false()
-	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHOT, _area("A1-C")))).is_false()
+	assert_bool(MoveRules.is_allowed(options, TurnChoice.new(ATTACK, SHOT, _area("A2-C")))).is_false()

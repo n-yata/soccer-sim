@@ -157,6 +157,8 @@ func test_style_bonus_goes_to_the_moves_each_style_prefers() -> void:
 	# [手の種類, 手, 運ぶ先, カウンター型・マンツーマンでの加点, 保持型・ゾーンでの加点]
 	var cases: Array = [
 		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A1-C", 1.5, 0.0],
+		# スルーパスは背後を直線的に狙う手なので、カウンター型が好む（2026-10-25）
+		[ATTACK, GameEnums.PlayType.THROUGH_PASS, "A1-C", 1.5, 0.0],
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "A1-C", 1.5, 0.0],
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "M2-L1", 0.0, 0.0],
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "M1-C", 0.0, 0.0],
@@ -250,6 +252,7 @@ func test_situation_bonus_rewards_moving_forward_shooting_and_anticipating() -> 
 	var cases: Array = [
 		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C", "M2-C", 0.5],
 		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A1-L1", "M1-C", 1.0],
+		[ATTACK, GameEnums.PlayType.THROUGH_PASS, "A2-C", "M2-C", 1.0],
 		[ATTACK, GameEnums.PlayType.DRIBBLE, "M2-L1", "M2-C", 0.0],
 		# 後ろへ運ぶ手は負
 		[ATTACK, GameEnums.PlayType.SHORT_PASS, "M1-C", "M2-C", -0.5],
@@ -319,10 +322,10 @@ func test_forward_bonus_raises_the_forward_moves_probability() -> void:
 
 
 func test_shot_bonus_raises_the_shot_probability() -> void:
-	# h1 がボールの A1-C にいて、シュートを選べる場面
+	# h1 がボールの A2-C（ペナルティエリア）にいて、シュートを選べる場面
 	var state: MatchState = _scene()
-	state.ball_area = _area("A1-C")
-	state.home_players = _players([["h1", "A1-C"], ["h2", "A1-L1"]])
+	state.ball_area = _area("A2-C")
+	state.home_players = _players([["h1", "A2-C"], ["h2", "A2-L1"]])
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
 	var shot: int = -1
 	for index: int in range(hints.size()):
@@ -355,16 +358,16 @@ func test_choose_turn_is_reproducible_with_a_fixed_seed() -> void:
 
 
 func test_choose_turn_picks_better_moves_more_often_but_keeps_every_move() -> void:
-	# パス（±0）よりドリブル（+1）を多く選ぶ。どの手も1回以上は選ばれる（下限確率）
+	# パス（±0）より、ドリブル（+1）と、カウンター型が好むスルーパス（評価値0＋方式の癖）を多く選ぶ。どの手も1回以上は選ばれる（下限確率）
 	var state: MatchState = _scene()
 	var counts: Dictionary = {}
 	for seed_value: int in range(1000):
 		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value)))
 		counts[key] = (counts.get(key, 0) as int) + 1
 	var pass_key: String = "%d:%d:A1-C" % [ATTACK, GameEnums.PlayType.SHORT_PASS]
-	# 選べる手はパス1つとドリブル8つ（周り8エリア。2026-10-24）。どれも1回以上選ばれる
+	# 選べる手はパス1つ・ドリブル8つ（周り8エリア。2026-10-24）・スルーパス6つ（2026-10-25）。どれも1回以上選ばれる
 	assert_int(counts.size()).is_equal(MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME)).size())
-	assert_int(counts.size()).is_equal(9)
+	assert_int(counts.size()).is_equal(15)
 	for key: String in counts:
 		if key != pass_key:
 			assert_int(counts[key] as int).override_failure_message(key).is_greater(counts[pass_key] as int)

@@ -24,10 +24,10 @@ func _attack_options() -> MoveOptions:
 	return options
 
 
-func test_attack_shows_the_five_plays_and_disables_unavailable_ones() -> void:
+func test_attack_shows_the_six_plays_and_disables_unavailable_ones() -> void:
 	_panel.show_options(_attack_options(), GameEnums.TurnKind.OPEN_PLAY, true)
 	assert_int(_panel.family()).is_equal(ATTACK)
-	assert_int(_panel.button_count()).is_equal(5)
+	assert_int(_panel.button_count()).is_equal(6)
 	assert_bool(_panel.button_for(GameEnums.PlayType.SHORT_PASS).disabled).is_false()
 	assert_bool(_panel.button_for(GameEnums.PlayType.SHOT).disabled).is_false()
 	var long_ball: Button = _panel.button_for(GameEnums.PlayType.LONG_BEHIND)
@@ -35,6 +35,8 @@ func test_attack_shows_the_five_plays_and_disables_unavailable_ones() -> void:
 	# 色だけでなく文字でも示す（screen-design.md S-03「選択不可」）
 	assert_str(long_ball.text).is_equal("背後へのロングボール\n選択不可")
 	assert_str(_panel.button_for(GameEnums.PlayType.DRIBBLE).text).is_equal("ドリブル")
+	# スルーパス（2026-10-25）は運ぶ先が無いので選択不可。並びはドリブルの次
+	assert_str(_panel.button_for(GameEnums.PlayType.THROUGH_PASS).text).is_equal("スルーパス\n選択不可")
 
 
 func test_each_phase_shows_its_own_moves() -> void:

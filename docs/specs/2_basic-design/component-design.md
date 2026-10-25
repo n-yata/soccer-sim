@@ -72,11 +72,11 @@ class_name GameEnums extends RefCounted
 
 # functional-overview.md の区分値（値の一覧は同書が正本）
 enum Lane { L2, L1, C, R1, R2 }
-enum Zone { D, M, A }
+enum Zone { D1, D2, M1, M2, A1, A2 }                         # 列（自陣ゴール側から）。2026-10-25 に D・M・A の3つから6列にした
 enum DefenseStyle { ZONE, MAN }
 enum AttackStyle { POSSESSION, COUNTER }
 enum TurnKind { OPEN_PLAY, TRANSITION }
-enum PlayType { SHORT_PASS, DRIBBLE, LONG_BEHIND, SWITCH, SHOT }
+enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT }   # 並びは手のボタンの並び（THROUGH_PASS は 2026-10-25）
 enum DefenseAction { PRESS, COVER }
 enum NegTransAction { COUNTER_PRESS, RETREAT }
 enum PosTransAction { COUNTER, SECURE }
@@ -91,8 +91,9 @@ enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }   # TurnChoice.actio
 enum CoverKind { NONE, DEFENDER } # 同数時のカバー判定の内訳（判定理由の表示に使う。GK はカバーに数えない）
 enum ReadKind { NONE, NEAR, EXACT } # 守備の読みの段階（アルゴリズム5。制限したエリアと比較エリアの近さ）
 enum MovementReason { SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE,
-        DRIBBLE_STOPPED, BALL_HOLDER, RETURN }                  # DRIBBLE_STOPPED・BALL_HOLDER は保持者の動き（アルゴリズム5・7）。
-                                                               # RETURN は方式の動きが無いまま基本エリアへ1マス戻る動き（アルゴリズム2）
+        DRIBBLE_STOPPED, BALL_HOLDER, RETURN, THROUGH_RUN }     # DRIBBLE_STOPPED・BALL_HOLDER は保持者の動き（アルゴリズム5・7）。
+                                                               # RETURN は方式の動きが無いまま基本エリアへ1マス戻る動き（アルゴリズム2）。
+                                                               # THROUGH_RUN はスルーパスの受け手の走り込み（アルゴリズム5）
 enum MatchResult { WIN, DRAW, LOSE }                           # 戦績の勝敗（利用者から見た値）
 enum Phase { ATTACK, NEG_TRANSITION, DEFENSE, POS_TRANSITION } # 振り返りの局面別集計（アルゴリズム10）
 enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りでの1ターンの数え方（アルゴリズム10）
@@ -119,7 +120,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`）・`is_complete_for(family)`（判定に使える形か。攻守ターン・トランジションの判定で共有） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
-| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持は比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`diff()`。評価値や推奨の印は持たない |
+| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持・スルーパスは比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`diff()`。評価値や推奨の印は持たない |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`read: ReadKind`（守備の読みの段階） |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣ゴール前 `D1-C`。攻撃側の視点で `A2-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
@@ -262,7 +263,12 @@ static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) 
 ## 読み（detail.read）は judge が read_of で入れる（トランジションは NONE）
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
-## 手順3（攻撃の手の適用。ドリブルと付け直し）。判定とヒント・決定前のプレビューで共有する。
+## スルーパスの結果（ぴったり読まれたらロスト、それ以外は前進。人数・カバーによらない。2026-10-25）
+static func through_pass_outcome(detail: JudgeDetail) -> GameEnums.TurnOutcome
+## スルーパスの受け手（target から1マス以内・ball 以外のエリアの、いちばん近い攻撃側の選手。同じなら配置の順）。
+## いなければ null。MoveRules（選べるか）と apply_attack（動かす）で共有する
+static func through_pass_runner(attacker: TeamLayout, ball: PitchArea, target: PitchArea) -> PlayerState
+## 手順3（攻撃の手の適用。ドリブル・スルーパスの受け手の走り込みと付け直し）。判定とヒント・決定前のプレビューで共有する。
 ## start はターン開始の配置（省略したら pair）。付け直しのマーカーをターン開始から1マス以内に保つ
 static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: PitchArea, attack: TurnChoice,
         start: LayoutPair = null) -> LayoutStep
@@ -299,7 +305,7 @@ static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: T
 `OpenPlayJudge` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
 - マンツーマンの付け直し（`StyleLayoutCalculator.remark`）を行う時点は、`functional-overview.md` アルゴリズム5の手順2・3が正本
 - ドリブルする選手は、ボール位置にいる攻撃側の選手のうち、固定された選手を優先し、配置の順で先の選手。
-  攻撃側が固定されるのはドリブルだけなので、固定された選手は直前にボールを運んできた選手で、その選手に運ばせ続ける。
+  攻撃側が固定されるのはドリブルとスルーパスの受け手だけなので、固定された選手は直前にボールを運んできたか受けた選手で、その選手に運ばせ続ける。
   誰もいなければ誰も動かさず、ボールだけが進んだものとして人数で判定する
 - 動きは、守備の手 → 付け直し → ドリブル → 付け直し の順に並べる
 - 選べない手（手の種類の取り違え、運ぶ先の欠け、適用できない守備の手）とボール位置の欠けでは `null` を返す。
@@ -388,7 +394,7 @@ class_name CpuPlanner extends RefCounted
 ## 選べる手が無ければ null。陣形データを使わないため catalog 引数は持たない
 static func choose_turn(state: MatchState, side: GameEnums.TeamSide,
         cpu: CpuConfig, rng: RandomNumberGenerator) -> TurnChoice
-## 評価値。守備の手は脅威度（攻撃側 − 守備側）、リトリート・保持は 0、それ以外は 自分 − 相手
+## 評価値。守備の手は脅威度（攻撃側 − 守備側）、人数を比べない手（リトリート・保持・スルーパス）は 0、それ以外は 自分 − 相手
 static func score(hint: ChoiceHint) -> float
 ## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表はアルゴリズム8）
 static func style_bonus(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea, cpu: CpuConfig) -> float
@@ -926,7 +932,7 @@ func route_back() -> bool
 > **2026-10-22（決定前のプレビュー）**: 手とエリアを選ぶと、`MatchController.user_preview` の動きを `TacticsBoard.show_preview` で
 > 盤面に重ねる。移動先は自分の色の輪（中抜き）、動く選手の駒から輪へ点線の曲線の矢印。開示後の動き（実線）と線の種類で区別する。
 > プレビューは理由で絞らない（リトリート・カウンターの飛び出し・マークの付け直しも出す）。ボールから運ぶ先への矢印は、
-> ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバーでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
+> ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバー・スルーパスでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
 >
 > **2026-10-22（開示で駒を動かす）**: 開示では、`TacticsBoard.start_shift` で、判定前の配置（`RevealView` の判定前の選手）から
 > 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす。

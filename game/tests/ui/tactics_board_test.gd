@@ -149,7 +149,7 @@ func test_pieces_stay_inside_their_area_down_to_the_minimum_cell_size() -> void:
 		assert_float(first.y).override_failure_message(str(board_size)).is_less(third.y)
 
 
-func test_only_dribble_press_and_cover_are_drawn() -> void:
+func test_only_dribble_through_run_press_and_cover_are_drawn() -> void:
 	# 方式の動き（スライド・マーク・前進・リトリート）と、保持者の動き（戻る・置かれる）は描かない
 	var movements: Array[Movement] = []
 	for reason: int in GameEnums.MovementReason.values():
@@ -160,8 +160,22 @@ func test_only_dribble_press_and_cover_are_drawn() -> void:
 	var drawn: Array[int] = []
 	for movement: Movement in _board.drawn_movements():
 		drawn.append(movement.reason)
+	# スルーパスの受け手の走り込み（2026-10-25）も、ボールを運ぶ手の動きとして描く
 	assert_array(drawn).is_equal([GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER,
-			GameEnums.MovementReason.DRIBBLE])
+			GameEnums.MovementReason.DRIBBLE, GameEnums.MovementReason.THROUGH_RUN])
+
+
+func test_penalty_areas_match_the_three_shooting_squares_at_both_ends() -> void:
+	# シュートを打てるのはペナルティエリアの3マス（6列目の L1・C・R1）。白線をこの3マスにぴったり合わせる（2026-10-25）
+	# 幅は5レーンの2〜4本目（L1〜R1）、奥行きは6列の1列分。手で書いた値（ボード 726×600）
+	var top := Rect2(Vector2(145.2, 0), Vector2(435.6, 100))
+	var bottom := Rect2(Vector2(145.2, 500), Vector2(435.6, 100))
+	var areas: Array[Rect2] = BoardPainter.penalty_areas(_board)
+	assert_int(areas.size()).is_equal(2)
+	assert_vector(areas[0].position).is_equal_approx(top.position, Vector2(0.01, 0.01))
+	assert_vector(areas[0].size).is_equal_approx(top.size, Vector2(0.01, 0.01))
+	assert_vector(areas[1].position).is_equal_approx(bottom.position, Vector2(0.01, 0.01))
+	assert_vector(areas[1].size).is_equal_approx(bottom.size, Vector2(0.01, 0.01))
 
 
 func test_hints_are_drawn_only_on_selectable_areas_and_even_ones_are_muted() -> void:

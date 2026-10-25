@@ -14,7 +14,8 @@ enum Zone { D1, D2, M1, M2, A1, A2 }
 enum DefenseStyle { ZONE, MAN }
 enum AttackStyle { POSSESSION, COUNTER }
 enum TurnKind { OPEN_PLAY, TRANSITION }
-enum PlayType { SHORT_PASS, DRIBBLE, LONG_BEHIND, SWITCH, SHOT }
+## 攻撃の手。並びは手のボタンの並び（THROUGH_PASS は 2026-10-25 に足した。保存は enum の名前で持つので、位置を変えても読み方は変わらない）
+enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT }
 enum DefenseAction { PRESS, COVER }
 enum NegTransAction { COUNTER_PRESS, RETREAT }
 enum PosTransAction { COUNTER, SECURE }
@@ -35,10 +36,11 @@ enum CoverKind { NONE, DEFENDER }
 enum ReadKind { NONE, NEAR, EXACT }
 ## 選手が動いた理由。DRIBBLE_STOPPED は膠着したドリブルの選手がボールのエリアへ戻る動き、
 ## BALL_HOLDER はボールのエリアに保持側がいないとき、いちばん近い選手が置かれる動き、
-## RETURN は方式の動きの理由が無いまま、基本エリアへ1マス戻る動き（末尾に足し、既存の値の番号を変えない）
+## RETURN は方式の動きの理由が無いまま、基本エリアへ1マス戻る動き、THROUGH_RUN はスルーパスの受け手が運ぶ先へ走り込む動き
+## （末尾に足し、既存の値の番号を変えない）
 enum MovementReason {
 	SLIDE, MARK, POSSESSION_ADVANCE, COUNTER_BREAKOUT, RETREAT_RESET, PRESS, COVER, DRIBBLE, DRIBBLE_STOPPED, BALL_HOLDER,
-	RETURN,
+	RETURN, THROUGH_RUN,
 }
 ## 戦績の勝敗（利用者から見た値）
 enum MatchResult { WIN, DRAW, LOSE }

@@ -109,6 +109,24 @@ func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() 
 	assert_float(panel.get_global_rect().end.y).is_less_equal(720.0 - MatchScreen.VERTICAL_MARGIN + 0.5)
 
 
+func test_the_through_pass_rule_is_scrolled_into_view_on_the_match_screen() -> void:
+	# 試合画面の実寸（1280×720）で、6つの手のボタンの下にはみ出すスルーパスの説明が、見える所までスクロールされる
+	# （2026-10-25。パネル単体では入れ子の並べ直しの順が違い、遅らせて呼ぶだけの実装でも通ってしまうため、画面で確かめる）
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	await get_tree().process_frame
+	assert_bool(controller.user_options().is_available(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
+			.override_failure_message("キックオフでスルーパスを選べる場面であること").is_true()
+	var panel: MatchBoardPanel = screen.board_panel()
+	panel.choice_panel().button_for(GameEnums.PlayType.THROUGH_PASS).pressed.emit()
+	for _frame: int in range(4):
+		await get_tree().process_frame
+	var scroll: ScrollContainer = panel.find_child("SideScroll", true, false) as ScrollContainer
+	var info: Control = panel.find_child("TargetInfo", true, false) as Control
+	assert_bool(scroll.get_global_rect().encloses(info.get_global_rect())) \
+			.override_failure_message("%s が %s の外" % [info.get_global_rect(), scroll.get_global_rect()]).is_true()
+
+
 func test_reveal_shows_both_choices_and_the_score_only_after_the_result() -> void:
 	# 得点のターンで、開示の時点のスコアはまだ前のまま（得点を判定理由より先に見せない）。
 	# 得点が起きるシードで、試合の始めから画面で進める
@@ -118,7 +136,8 @@ func test_reveal_shows_both_choices_and_the_score_only_after_the_result() -> voi
 	screen.board_panel().reveal_started.connect(func(_reveal: RevealView) -> void:
 		scores_at_reveal.append(screen.score_bug().score_text()))
 	var goal_seen: bool = false
-	for turn: int in range(24):
+	# 得点までのターン数はシードと規則しだい（2026-10-25 にシュートをペナルティエリアに絞って延びた）。上限はシードを探す側と同じ
+	for turn: int in range(ScreenTestHelper.MAX_STEPS):
 		if controller.state().stage == GameEnums.MatchStage.HALFTIME:
 			# S-05 を経ずに後半へ（S-03 は state_changed を受けて次のターンを始める）
 			controller.submit_halftime(controller.snapshot().user_setup)

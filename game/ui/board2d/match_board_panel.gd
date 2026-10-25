@@ -43,6 +43,8 @@ var _user_setup_label: Label
 var _opponent_setup_label: Label
 var _choice_panel: ChoicePanel
 var _target_info: Label
+## 操作の列の中ほど（手のボタン・運ぶ先の説明・判定理由）を縦にスクロールする入れ物
+var _side_scroll: ScrollContainer
 var _judge_telop: VBoxContainer
 var _outcome_tag: Label
 var _reason_label: Label
@@ -123,6 +125,19 @@ func primary_summary() -> String:
 	return _button_summary.text
 
 
+## 攻撃の手は6つあり、運ぶ先の説明が手のボタンの下ではみ出すので、説明が見える所までスクロールする（2026-10-25）。
+## 折り返す説明の高さは、幅が決まってから次の並べ直しで決まるため、2フレーム待ってから位置を測る
+## （遅らせて呼ぶだけでは、試合画面の入れ子の並べ直しより先に走り、スクロールしなかった）。
+func _scroll_to_target_info() -> void:
+	for _frame: int in range(2):
+		if not is_inside_tree():
+			return
+		await get_tree().process_frame
+	# 待つ間に画面を離れたら（ツリーから外れたら）何もしない
+	if is_inside_tree() and is_instance_valid(_target_info) and _target_info.visible:
+		_side_scroll.ensure_control_visible(_target_info)
+
+
 func target_info_text() -> String:
 	return _target_info.text if _target_info.visible else ""
 
@@ -182,12 +197,15 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 		for hint: ChoiceHint in _hints_for(family, action):
 			if hint.target != null:
 				tags[hint.target.to_key()] = MatchTexts.hint_tag(hint)
-				if hint.diff() == 0:
+				# 控えめな色は人数を比べる札の ±0 だけ（スルーパスの「読み次第」の色から、隠れた人数差を漏らさない）
+				if hint.is_compared and hint.diff() == 0:
 					even_keys.append(hint.target.to_key())
 		_board.set_selectable(keys)
 		_board.set_hints(tags, even_keys)
 		_target_info.text = MatchTexts.target_rule(family, action)
 		_target_info.visible = not _target_info.text.is_empty()
+		if _target_info.visible:
+			_scroll_to_target_info()
 		_state = State.SELECT_TARGET
 		_set_primary(MatchTexts.action_name(family, action), LOCK_IN, false)
 		return
@@ -344,6 +362,7 @@ func _build_side_body(side: VBoxContainer) -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	side.add_child(scroll)
+	_side_scroll = scroll
 	var body := VBoxContainer.new()
 	body.name = "SideBody"
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL

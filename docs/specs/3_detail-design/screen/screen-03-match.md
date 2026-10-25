@@ -46,7 +46,7 @@ MatchScreen (Control)
 │       │       ├── SideScroll (ScrollContainer)   # 中身が入りきらないときだけ縦にスクロールする（screen-common.md §1.1）
 │       │       │   └── SideBody (VBoxContainer)   # 間隔 16px
 │       │       │       ├── SideTopSlot (VBoxContainer) # 画面ごとに足す表示の置き場。S-03 では空、S-08 は説明文の吹き出し
-│       │       │       ├── ChoicePanel           # board2d/choice_panel.tscn。手のボタン（高さ 96px、2列。シュートなど5つ目は列の幅いっぱい）
+│       │       │       ├── ChoicePanel           # board2d/choice_panel.tscn。手のボタン（高さ 96px、2列。攻撃の手は6つで2列×3段。奇数個の局面は最後の1つを列の幅いっぱい）
 │       │       │       ├── TargetInfo (Label)    # 選んだ運ぶ先の名前と、ヒントの札の文（ヒントが ON のとき）。地 surface
 │       │       │       └── JudgeTelop (VBoxContainer) # 判定理由の表示中だけ（ChoicePanel・TargetInfo の代わりに出す）
 │       │       │           ├── OutcomeTag (Label)     # 「● ADVANCE 前進」。地は成功した側の色（自分 水色・相手 オレンジ。判定なしは accent）
@@ -81,7 +81,7 @@ MatchScreen (Control)
 | 状態 | 意味 | 見えるもの | 押せるもの |
 |---|---|---|---|
 | `SELECT_ACTION` | 手を選んでいない | ボード・手のボタン | 手のボタン、メニュー |
-| `SELECT_TARGET` | 運ぶ先を持つ手を選び、エリアを選んでいない | ＋選べるエリアの点線の枠・ヒントの札（ON のとき）・プレス／カバーの選べる条件の一言 | 手のボタン（選び直し）、選べるエリア、メニュー |
+| `SELECT_TARGET` | 運ぶ先を持つ手を選び、エリアを選んでいない | ＋選べるエリアの点線の枠・ヒントの札（ON のとき）・プレス／カバー／スルーパスの選べる条件の一言（スルーパスは手のボタンの下にはみ出すので、見える所までスクロールする。2026-10-25） | 手のボタン（選び直し）、選べるエリア、メニュー |
 | `READY` | 手（と必要なエリア）を選び終えた | ＋選んだエリアの塗り・ボールから運ぶ先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・決定ボタンの要約 | 手のボタン、選べるエリア、「決定」、メニュー |
 | `SUBMITTING` | 「決定」を押し、結果を待っている | そのまま | なし（二重送信を防ぐ） |
 | `SHOW_RESULT` | 判定理由を表示している | 両者の選択の帯・ボード（駒とボールの動き・動きの矢印・比較エリアの人数の札）・判定理由のテロップ | 「次へ」、メニュー |
@@ -134,8 +134,9 @@ MatchScreen (Control)
 2. 運ぶ先を持つ手なら
    1. `_options` からその手の運ぶ先の一覧を取り、`TacticsBoard.set_selectable(一覧)`
    2. `_hints` からその手の分を取り出し、`TacticsBoard.set_hints({エリアのキー: 表示文})`。表示文は
-      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`NONE` なら空。例: `+1`、`±0 カバーあり`。`functional-overview.md`「表示仕様」のヒントの札）
-   3. プレス・カバーなら、選べる条件の一言（`MatchTexts.target_rule`。誰が動くか・どのエリアを選べるか）を `TargetInfo` に出す
+      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`NONE` なら空。例: `+1`、`±0 カバーあり`。スルーパスは `読み次第`。`functional-overview.md`「表示仕様」のヒントの札）
+   3. プレス・カバー・スルーパスなら、選べる条件の一言（`MatchTexts.target_rule`。誰が動くか・どのエリアを選べるか）を `TargetInfo` に出し、
+      2フレーム待ってから `TargetInfo` が見える所まで `SideScroll` をスクロールする（攻撃の手は6つで、説明が手のボタンの下にはみ出すため。2026-10-25）
    4. `_state = SELECT_TARGET`。「決定」は押せない
 3. 運ぶ先を持たない手なら、ボードの枠とヒントを消し、その手のヒントを `TargetInfo` に出す
    （例: 即時奪回 `周辺 2対4`）。決定前のプレビュー（`user_preview` → `show_preview`）を出す。

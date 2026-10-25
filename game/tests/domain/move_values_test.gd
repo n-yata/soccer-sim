@@ -70,7 +70,7 @@ func test_move_without_target_is_available_only_after_allow() -> void:
 func test_add_target_to_a_move_without_target_is_rejected_with_an_error() -> void:
 	var options := MoveOptions.new()
 	await assert_error(func() -> void: options.add_target(ATTACK, GameEnums.PlayType.SHOT, _area("A1-C"))) \
-			.is_push_error("MoveOptions: 運ぶ先を持たない手に運ぶ先を足そうとした: family=0 action=4")
+			.is_push_error("MoveOptions: 運ぶ先を持たない手に運ぶ先を足そうとした: family=0 action=5")
 	assert_bool(options.is_available(ATTACK, GameEnums.PlayType.SHOT)).is_false()
 
 

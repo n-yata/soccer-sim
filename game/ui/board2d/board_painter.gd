@@ -73,6 +73,16 @@ static func _draw_area_fill(board: TacticsBoard, key: String) -> void:
 			board.draw_dashed_line(quad[index], quad[(index + 1) % 4], accent, 3.0, 10.0)
 
 
+## 上下のペナルティエリアの平面図の矩形（上が相手のゴール側）。シュートを打てる3マス（6列目の L1・C・R1）に
+## ぴったり合わせる（2026-10-25。どこから打てるかを白線で読めるようにする）。
+static func penalty_areas(board: TacticsBoard) -> Array[Rect2]:
+	var areas: Array[Rect2] = [
+		board.area_rect("A2-L1").merge(board.area_rect("A2-R1")),
+		board.area_rect("D1-L1").merge(board.area_rect("D1-R1")),
+	]
+	return areas
+
+
 ## 白線（外枠・ハーフウェイライン・センターサークル・上下のペナルティエリアとゴール）と、エリアの点線。
 static func _draw_lines(board: TacticsBoard) -> void:
 	var size: Vector2 = board.size
@@ -84,9 +94,8 @@ static func _draw_lines(board: TacticsBoard) -> void:
 		var angle: float = TAU * step / 48.0
 		circle.append(board.to_screen(size / 2.0 + Vector2(cos(angle), sin(angle)) * size.x * 0.09))
 	board.draw_polyline(circle, line, 2.0)
-	var box := Vector2(size.x * 0.56, size.y * 0.13)
-	_outline(board, Rect2(Vector2((size.x - box.x) / 2.0, 0), box), line, 2.0)
-	_outline(board, Rect2(Vector2((size.x - box.x) / 2.0, size.y - box.y), box), line, 2.0)
+	for area: Rect2 in penalty_areas(board):
+		_outline(board, area, line, 2.0)
 	var goal := Vector2(size.x * 0.16, 8.0)
 	board.draw_colored_polygon(_quad(board, Rect2(Vector2((size.x - goal.x) / 2.0, 0), goal)), line)
 	board.draw_colored_polygon(_quad(board, Rect2(Vector2((size.x - goal.x) / 2.0, size.y - goal.y), goal)), line)
@@ -212,7 +221,7 @@ static func _draw_compare(board: TacticsBoard) -> void:
 	_draw_centered_text(board, tag_box.get_center(), tag, tag_size, _color(board, &"bg"))
 
 
-## 動きの矢印。ドリブル（ボール）は accent の太線、プレス・カバーはチームの色の実線。それ以外の動きは描かない。
+## 動きの矢印。ドリブル（ボール）は accent の太線、プレス・カバー・スルーパスの走り込み（受け手の動き。ボールは開示の動きで運ぶ先へ動く）はチームの色の実線。それ以外の動きは描かない。
 ## 同じエリアの間を両チームが動くと重なるので、チームごとに少しずらす。
 static func _draw_movements(board: TacticsBoard) -> void:
 	for movement: Movement in board.drawn_movements():

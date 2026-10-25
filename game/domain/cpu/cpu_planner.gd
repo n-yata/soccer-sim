@@ -70,7 +70,7 @@ static func _is_preferred(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea)
 	match hint.family:
 		GameEnums.ChoiceFamily.ATTACK:
 			match hint.action:
-				GameEnums.PlayType.LONG_BEHIND:
+				GameEnums.PlayType.LONG_BEHIND, GameEnums.PlayType.THROUGH_PASS:
 					return is_counter
 				GameEnums.PlayType.DRIBBLE:
 					return is_counter and hint.target != null and hint.target.zone > ball.zone
@@ -87,7 +87,7 @@ static func _is_preferred(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea)
 
 ## 手の評価値（相手が何もしないと仮定した、手を適用した後の比較エリアでの人数差。CPU から見た値）。
 ## 守備の手は制限するエリアの脅威度（攻撃側 − 守備側。脅威が大きいエリアほど守りに行く）、
-## リトリート・保持は 0、それ以外は 自分 − 相手。
+## 人数を比べない手（リトリート・保持・スルーパス）は 0、それ以外は 自分 − 相手。
 static func score(hint: ChoiceHint) -> float:
 	if not hint.is_compared:
 		return 0.0
