@@ -161,6 +161,13 @@ func test_passes_and_shots_move_nobody() -> void:
 	assert_array(_preview(shot_state, HOME, _choice(ATTACK, GameEnums.PlayType.SHOT))).is_empty()
 
 
+func test_an_offside_through_pass_shows_no_run() -> void:
+	# 相手の最終ラインは D2-C（攻撃側の視点で A1 = 4）。受け手 h2 は A2-L1（5）でオフサイドの位置。相手が何もしなければ
+	# 判定でプレーが止まり、h2 は走り込まないので、プレビューにも走り込みを出さない（2026-10-25）
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A2-L1", ""]], [["a1", "D2-C", ""]], "M2-C")
+	_assert_matches_judge(state, HOME, _choice(ATTACK, GameEnums.PlayType.THROUGH_PASS, "A1-C"), [])
+
+
 func test_through_pass_shows_the_runner_moving_into_the_target() -> void:
 	# スルーパス（2026-10-25）は受け手が走り込む。プレビューは判定と同じ受け手の動きを、自チームの分だけ見せる
 	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-L1", ""]], [["m1", "D2-R1", ""], ["far", "A2-L2", ""]],

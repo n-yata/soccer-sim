@@ -197,8 +197,7 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 		for hint: ChoiceHint in _hints_for(family, action):
 			if hint.target != null:
 				tags[hint.target.to_key()] = MatchTexts.hint_tag(hint)
-				# 控えめな色は人数を比べる札の ±0 だけ（スルーパスの「読み次第」の色から、隠れた人数差を漏らさない）
-				if hint.is_compared and hint.diff() == 0:
+				if MatchTexts.is_hint_muted(hint):
 					even_keys.append(hint.target.to_key())
 		_board.set_selectable(keys)
 		_board.set_hints(tags, even_keys)

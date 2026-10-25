@@ -84,6 +84,16 @@ func test_hints_convert_targets_and_keep_counts() -> void:
 	assert_str(hints[0].target.to_key()).is_equal("A1-L1")
 
 
+func test_hints_convert_keeps_the_offside_warning() -> void:
+	# オフサイドの注意（2026-10-25）も利用者の視点のヒントへ写す（落とすと画面に札が出ない）
+	var hint := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, _area("A1-C"), true, 1, 0, GameEnums.CoverKind.NONE)
+	hint.is_offside = true
+	var plain := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, _area("A1-L1"), true, 1, 0, GameEnums.CoverKind.NONE)
+	var converted: Array[ChoiceHint] = ViewConverter.hints_to_user([hint, plain] as Array[ChoiceHint], HOME)
+	assert_bool(converted[0].is_offside).is_true()
+	assert_bool(converted[1].is_offside).is_false()
+
+
 func test_movements_convert_by_the_side_that_moved() -> void:
 	var movements: Array[Movement] = [
 		Movement.new(HOME, "h", _area("D2-L2"), _area("M1-L2"), GameEnums.MovementReason.POSSESSION_ADVANCE),
@@ -116,6 +126,30 @@ func test_snapshot_shows_both_teams_from_the_user_view_with_numbers() -> void:
 	for key: String in snapshot.opponent_counts:
 		total += snapshot.opponent_counts[key] as int
 	assert_int(total).is_equal(10)
+
+
+func test_snapshot_shows_the_opponents_offside_line_only_while_the_user_attacks() -> void:
+	# 利用者が保持する攻守ターンだけ、相手の守備のライン（利用者の視点の列）を出す（2026-10-25）
+	var attacking: MatchState = _state(HOME)
+	# CPU の全員が CPU の視点の M1-C（利用者の視点で M2 = 3）にいる。ラインは 3
+	for player: PlayerState in attacking.away_players:
+		player.current_area = _area("M1-C")
+	assert_int(ViewConverter.snapshot(attacking, _catalog, [], -1, 15, false).offside_line_zone).is_equal(3)
+	# キックオフの配置そのままなら、CPU の最終ラインは CPU の自陣ゴール前（利用者の視点で A2 = 5）
+	assert_int(ViewConverter.snapshot(_state(HOME), _catalog, [], -1, 15, false).offside_line_zone).is_equal(5)
+	# CPU が保持しているとき（利用者が守備）と、トランジションでは出さない
+	assert_int(ViewConverter.snapshot(_state(AWAY), _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
+	var transition: MatchState = _state(HOME)
+	transition.turn_kind = GameEnums.TurnKind.TRANSITION
+	transition.transition_origin = MatchRules.current_layouts(_state(HOME)).pair
+	assert_int(ViewConverter.snapshot(transition, _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
+	# 方式の選び直し・試合終了の盤面にも出さない
+	var style_change: MatchState = _state(HOME)
+	style_change.stage = GameEnums.MatchStage.STYLE_CHANGE
+	assert_int(ViewConverter.snapshot(style_change, _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
+	var finished: MatchState = _state(HOME)
+	finished.status = GameEnums.MatchStatus.FINISHED
+	assert_int(ViewConverter.snapshot(finished, _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
 
 
 func test_snapshot_converts_the_ball_and_reports_possession_and_score() -> void:

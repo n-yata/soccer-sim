@@ -165,6 +165,25 @@ func test_only_dribble_through_run_press_and_cover_are_drawn() -> void:
 			GameEnums.MovementReason.DRIBBLE, GameEnums.MovementReason.THROUGH_RUN])
 
 
+func test_board_keeps_the_offside_line_of_the_snapshot() -> void:
+	# スナップショットのライン（利用者の視点の列）をそのまま持ち、-1 なら描かない（2026-10-25）
+	var snapshot := BoardSnapshot.new()
+	snapshot.offside_line_zone = 3
+	_board.show_snapshot(snapshot)
+	assert_int(_board.offside_line_zone()).is_equal(3)
+	# 線は、その列の上端（相手ゴール側の境界。平面図の y）に引く
+	assert_float(_board.offside_line_plan_y()).is_equal_approx(_board.area_rect("M2-C").position.y, 0.01)
+	assert_bool(_board.is_offside_line_drawn()).is_true()
+	# 最終ラインが敵陣ゴール前の列（5）なら、誰もオフサイドにならないので、ゴールラインに重なる線は描かない
+	snapshot.offside_line_zone = 5
+	_board.show_snapshot(snapshot)
+	assert_bool(_board.is_offside_line_drawn()).is_false()
+	snapshot.offside_line_zone = -1
+	_board.show_snapshot(snapshot)
+	assert_int(_board.offside_line_zone()).is_equal(-1)
+	assert_bool(_board.is_offside_line_drawn()).is_false()
+
+
 func test_penalty_areas_match_the_three_shooting_squares_at_both_ends() -> void:
 	# シュートを打てるのはペナルティエリアの3マス（6列目の L1・C・R1）。白線をこの3マスにぴったり合わせる（2026-10-25）
 	# 幅は5レーンの2〜4本目（L1〜R1）、奥行きは6列の1列分。手で書いた値（ボード 726×600）

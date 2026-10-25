@@ -104,6 +104,26 @@ func test_attack_hints_count_the_target_after_applying_only_the_attack() -> void
 	])
 
 
+func test_attack_hints_mark_the_targets_offside_on_the_current_line() -> void:
+	# 相手の最終ラインは a1 の M1-C（攻撃側の視点で M2 = 3）。A1-C の h2 へのパスと、h2 が走り込むスルーパスは、
+	# 今の配置のままならオフサイド。ドリブル・後ろへのパスは対象外（2026-10-25）
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""], ["h3", "M1-L1", ""]],
+			[["a1", "M1-C", ""]], "M2-C")
+	var offside: Array[String] = []
+	var onside_kinds: Dictionary = {}
+	for hint: ChoiceHint in _hints(state, HOME):
+		var name: String = GameEnums.PlayType.keys()[hint.action]
+		if hint.is_offside:
+			offside.append("%s %s" % [name, hint.target.to_key()])
+		else:
+			onside_kinds[name] = true
+	assert_array(offside).contains(["SHORT_PASS A1-C", "THROUGH_PASS A2-C"])
+	assert_bool(onside_kinds.has("DRIBBLE")).is_true()
+	assert_array(offside).not_contains(["SHORT_PASS M1-L1"])
+	for entry: String in offside:
+		assert_bool(entry.begins_with("SHORT_PASS") or entry.begins_with("THROUGH_PASS")).override_failure_message(entry).is_true()
+
+
 func test_shot_hint_compares_the_ball_area_without_a_cover_check() -> void:
 	var state: MatchState = _open_state([["h1", "A2-C", ""]], [["a1", "D1-C", ""], ["a2", "A2-L2", ""]], "A2-C")
 	var shots: Array[String] = []

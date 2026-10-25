@@ -15,6 +15,7 @@ static func paint(board: TacticsBoard) -> void:
 		_draw_area_fill(board, area.to_key())
 	_draw_lines(board)
 	_draw_lane_names(board)
+	_draw_offside_line(board)
 	_draw_movements(board)
 	_draw_intent(board)
 	_draw_preview_paths(board)
@@ -37,6 +38,15 @@ static func _font_size(board: TacticsBoard, name: StringName) -> int:
 static func _quad(board: TacticsBoard, plan: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([board.to_screen(plan.position), board.to_screen(Vector2(plan.end.x, plan.position.y)),
 			board.to_screen(plan.end), board.to_screen(Vector2(plan.position.x, plan.end.y))])
+
+
+## 相手のオフサイドライン（2026-10-25）。相手チームの色の太い点線を、ラインの列の上端に横いっぱいに引く。
+static func _draw_offside_line(board: TacticsBoard) -> void:
+	if not board.is_offside_line_drawn():
+		return
+	var y: float = board.offside_line_plan_y()
+	board.draw_dashed_line(board.to_screen(Vector2(0, y)), board.to_screen(Vector2(board.size.x, y)),
+			_color(board, &"opponent"), 4.0, 14.0)
 
 
 static func _outline(board: TacticsBoard, plan: Rect2, color: Color, width: float) -> void:

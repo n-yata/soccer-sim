@@ -134,7 +134,7 @@ MatchScreen (Control)
 2. 運ぶ先を持つ手なら
    1. `_options` からその手の運ぶ先の一覧を取り、`TacticsBoard.set_selectable(一覧)`
    2. `_hints` からその手の分を取り出し、`TacticsBoard.set_hints({エリアのキー: 表示文})`。表示文は
-      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`NONE` なら空。例: `+1`、`±0 カバーあり`。スルーパスは `読み次第`。`functional-overview.md`「表示仕様」のヒントの札）
+      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`NONE` なら空。例: `+1`、`±0 カバーあり`。スルーパスは `読み次第`。今の配置のままオフサイドになる運ぶ先は、ほかより先に `オフサイド`（2026-10-25）。`functional-overview.md`「表示仕様」のヒントの札）
    3. プレス・カバー・スルーパスなら、選べる条件の一言（`MatchTexts.target_rule`。誰が動くか・どのエリアを選べるか）を `TargetInfo` に出し、
       2フレーム待ってから `TargetInfo` が見える所まで `SideScroll` をスクロールする（攻撃の手は6つで、説明が手のボタンの下にはみ出すため。2026-10-25）
    4. `_state = SELECT_TARGET`。「決定」は押せない
@@ -172,7 +172,7 @@ MatchScreen (Control)
    配置へ全選手の駒とボールを動かす（方式でずれた選手も動き、チーム全体がボールに合わせて動くことが見える）。
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
-4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
+4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功・オフサイド（2026-10-25）、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
    空でなければ、該当する単純化の「実戦では」を `RealWorldNote` に出す（複数なら先頭の1件）
 5. `PrimaryButton` を「次のターンへ／NEXT」にする。`_state = SHOW_RESULT`
 

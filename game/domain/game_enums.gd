@@ -19,7 +19,8 @@ enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT }
 enum DefenseAction { PRESS, COVER }
 enum NegTransAction { COUNTER_PRESS, RETREAT }
 enum PosTransAction { COUNTER, SECURE }
-enum TurnOutcome { ADVANCE, STALL, LOSS, GOAL, SAVE, REGAIN, REGAIN_FAILED, NO_CONTEST }
+## OFFSIDE は前へのパスの受け手がオフサイドで、守備側のボールになる（2026-10-25。末尾に足し、既存の値の番号を変えない）
+enum TurnOutcome { ADVANCE, STALL, LOSS, GOAL, SAVE, REGAIN, REGAIN_FAILED, NO_CONTEST, OFFSIDE }
 enum MatchStatus { IN_PROGRESS, FINISHED }
 enum MatchStage { TURN, STYLE_CHANGE, HALFTIME }
 enum PrincipleStatus { UNVERIFIED, VERIFIED, NO_SOURCE }

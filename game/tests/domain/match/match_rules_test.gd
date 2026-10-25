@@ -97,6 +97,13 @@ func _holder_spec() -> Array:
 	return [["h1", "M2-C", ""], ["h2", "A1-C", ""], ["h3", "M1-C", "M1-L1"]]
 
 
+## 守備側の最終ラインの選手（2026-10-25 のオフサイドの導入）。自陣ゴール前の大外 D1-L2（攻撃側の視点で A2-R2）に固定して
+## 置き、方式の動き（スライド・マーク）に加わらず、オフサイドラインを A2（誰もオフサイドにならない）に保つ。
+## オフサイドを確かめない場面で、前へのパスがオフサイドにならないようにするため
+func _back() -> Array:
+	return ["back", "D1-L2", "D1-L2"]
+
+
 func _press_far() -> TurnChoice:
 	return _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M1-R1")
 
@@ -179,7 +186,7 @@ func test_create_match_with_an_unknown_formation_returns_null() -> void:
 
 
 func test_current_layouts_is_the_turn_start_layout_of_the_state() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-L1")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-L1")
 	var step: LayoutStep = MatchRules.current_layouts(state)
 	# 守備側（ゾーン）はボールの M2-L1（守備側から見て M1-R1）の側へ1レーンずれる（M2-L2 → M2-L1）
 	assert_str(step.pair.defender.current_area_of("a1").to_key()).is_equal("M2-L1")
@@ -189,7 +196,7 @@ func test_current_layouts_is_the_turn_start_layout_of_the_state() -> void:
 # --- 攻守ターンの結果の反映 ---
 
 func test_open_play_advance_moves_the_ball_and_keeps_fixes() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	var resolution: TurnResolution = _resolve(state, _pass_to_a_c(), _press_far())
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
@@ -238,7 +245,7 @@ func test_open_play_loss_hands_the_ball_over_and_starts_a_transition() -> void:
 
 
 func test_open_play_goal_scores_and_goes_to_the_style_change_with_the_conceding_side_to_kick_off() -> void:
-	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""]], "A2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""], _back()], "A2-C")
 	var resolution: TurnResolution = _resolve(state, _shot(), _press_far())
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.GOAL)
@@ -447,6 +454,35 @@ func _moves_of(record: TurnRecord, reason: GameEnums.MovementReason) -> Array[St
 	return result
 
 
+## オフサイドの場面（2026-10-25）: 保持側は共通の場面（h2 が A1-C、h3 は M1-L1 に固定）。相手の最終ラインは
+## a2 の M1-R2（攻撃側の視点で M2-L2 = 3）で、A1-C の h2 はラインより前。遠くへのプレスでは a1 が寄せるだけでラインは動かない
+func _offside_state() -> MatchState:
+	return _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], ["a2", "M1-R2", ""]], "M2-C")
+
+
+func test_an_offside_restarts_with_the_defender_in_open_play_and_releases_the_fixes() -> void:
+	var resolution: TurnResolution = _resolve(_offside_state(), _pass_to_a_c(), _press_far())
+	var next: MatchState = resolution.next_state
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.OFFSIDE)
+	# 守備側のボールで、受け手のいた A1-C（相手から見て D2-C）から再開する。トランジションには入らない
+	assert_int(next.possession).is_equal(AWAY)
+	assert_str(next.ball_area.to_key()).is_equal("D2-C")
+	assert_str(resolution.record.ball_after.to_key()).is_equal("A1-C")
+	assert_int(next.turn_kind).is_equal(OPEN_PLAY)
+	assert_object(next.transition_origin).is_null()
+	assert_int(next.stage).is_equal(GameEnums.MatchStage.TURN)
+	# プレーが止まるので、配置区間の始まりとして固定を解く（プレスで寄せた a1 も、前から固定されていた h3 も）
+	for player: PlayerState in next.home_players + next.away_players:
+		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
+
+
+func test_an_offside_on_the_last_turn_ends_the_half_like_a_lost_ball() -> void:
+	# 最終ターンのオフサイドは、ボールを失った扱いでアディショナルタイムに入らずハーフを終える
+	var next: MatchState = _resolve(_offside_state(), _pass_to_a_c(), _press_far(), 1, 5).next_state
+	assert_int(next.stage).is_equal(GameEnums.MatchStage.HALFTIME)
+	assert_bool(MatchRules.is_additional_time(next, _rules(1, 5))).is_false()
+
+
 ## スルーパスの場面（2026-10-25）: h1 がボールの M2-C、h2 が A1-L1。相手の a1 は遠く、a2 は D2-L1（攻撃側の視点で A1-R1）
 func _through_state() -> MatchState:
 	return _open_state(HOME, [["h1", "M2-C", ""], ["h2", "A1-L1", ""]], [["a1", "M2-L2", ""], ["a2", "D2-L1", ""]], "M2-C")
@@ -518,7 +554,7 @@ func test_dribble_stall_keeps_the_carriers_previous_fix() -> void:
 
 
 func test_dribble_advance_keeps_the_carrier_on_the_target() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	var resolution: TurnResolution = _resolve(state, _dribble("M2-L1"), _press_far())
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
@@ -530,7 +566,7 @@ func test_dribble_advance_keeps_the_carrier_on_the_target() -> void:
 
 func test_a_dribble_diagonally_backwards_advances_into_an_empty_area() -> void:
 	# 2026-10-24 の8方向のドリブル。M2-C から斜め後ろの M1-L1（相手なし）へ運ぶと、運んだ先で 1対0 → 前進（ボールが M1-L1 へ）
-	var state: MatchState = _open_state(HOME, [["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "M2-L2", ""], _back()], "M2-C")
 	var resolution: TurnResolution = _resolve(state, _dribble("M1-L1"), _press_far())
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
 	assert_str(resolution.record.judge.compare_area.to_key()).is_equal("M1-L1")
@@ -627,7 +663,7 @@ func test_a_holder_is_placed_on_the_ball_at_the_start_of_a_transition() -> void:
 
 
 func test_no_one_is_placed_when_a_holder_is_already_on_the_ball() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	var resolution: TurnResolution = _resolve(state, _pass_to_a_c(), _press_far())
 	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.BALL_HOLDER)).is_empty()
 	assert_bool(resolution.next_state.home_players[1].is_fixed()).is_false()
@@ -636,7 +672,7 @@ func test_no_one_is_placed_when_a_holder_is_already_on_the_ball() -> void:
 # --- ターン記録 ---
 
 func test_turn_record_keeps_what_happened_in_the_turn() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-L1")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-L1")
 	# M2-L1 のボールで守備側はスライドする（方式の動き）。h1 は M2-C で、ボールの M2-L1 には h4 がいる
 	state.home_players.append(PlayerState.new("h4", _area("M2-L1")))
 	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "M2-C"),
@@ -667,7 +703,7 @@ func test_turn_record_keeps_what_happened_in_the_turn() -> void:
 # --- ハーフ・試合終了 ---
 
 func test_last_turn_of_the_first_half_goes_to_halftime() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	state.turn_number = 2
 	var next: MatchState = _resolve(state, _pass_to_a_c(), _press_far(), 2).next_state
 	assert_int(next.stage).is_equal(GameEnums.MatchStage.HALFTIME)
@@ -704,7 +740,7 @@ func test_save_on_the_last_turn_of_the_first_half_goes_to_halftime() -> void:
 
 
 func test_goal_on_the_last_turn_of_the_first_half_skips_the_style_change() -> void:
-	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""]], "A2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""], _back()], "A2-C")
 	state.turn_number = 2
 	var resolution: TurnResolution = _resolve(state, _shot(), _press_far(), 2)
 	var next: MatchState = resolution.next_state
@@ -716,7 +752,7 @@ func test_goal_on_the_last_turn_of_the_first_half_skips_the_style_change() -> vo
 
 
 func test_goal_on_the_last_turn_of_the_second_half_ends_play_without_a_style_change() -> void:
-	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""]], "A2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""], _back()], "A2-C")
 	state.half = 2
 	state.turn_number = 2
 	var next: MatchState = _resolve(state, _shot(), _press_far(), 2).next_state
@@ -733,7 +769,7 @@ func test_goal_on_the_last_turn_of_the_second_half_ends_play_without_a_style_cha
 ## 1ハーフ1ターンの最終ターンを、攻撃が続く結果（ADVANCE）で終える。ボールはペナルティエリアの A2-C の h2
 ## （M2-C の h1 から2マス先へのパス。シュートはペナルティエリアからだけ打てるため。2026-10-25）
 func _advance_on_the_last_turn(additional: int, half: int = 1) -> MatchState:
-	var state: MatchState = _open_state(HOME, [["h1", "M2-C", ""], ["h2", "A2-C", ""]], [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "M2-C", ""], ["h2", "A2-C", ""]], [["a1", "M2-L2", ""], _back()], "M2-C")
 	state.half = half
 	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A2-C"),
 			_press_far(), 1, additional)
@@ -765,7 +801,7 @@ func test_an_attack_going_on_at_the_end_of_the_half_continues_into_additional_ti
 
 
 func test_a_regular_turn_is_not_additional_time() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	assert_bool(MatchRules.is_additional_time(state, _rules(1, 5))).is_false()
 	var next: MatchState = _resolve(state, _pass_to_a_c(), _press_far(), 2, 5).next_state
 	assert_bool(MatchRules.is_additional_time(next, _rules(2, 5))).is_false()
@@ -854,7 +890,7 @@ func test_additional_time_lasts_at_most_the_configured_number_of_turns() -> void
 
 func test_halftime_kicks_off_the_second_half_from_the_other_side_of_the_first_half() -> void:
 	# 前半のキックオフは AWAY。前半最後に HOME が得点しても、後半のキックオフは失点側の AWAY ではなく HOME
-	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""]], "A2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""], _back()], "A2-C")
 	state.first_half_kickoff = AWAY
 	state.turn_number = 2
 	var halftime: MatchState = _resolve(state, _shot(), _press_far(), 2).next_state
@@ -874,7 +910,7 @@ func test_halftime_kicks_off_the_second_half_from_the_other_side_of_the_first_ha
 
 
 func test_halftime_rejects_an_unknown_formation_or_the_wrong_stage() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	assert_object(MatchRules.apply_halftime(state, TeamSetup.new("4-4-2", _styles()),
 			TeamSetup.new("4-3-3", _styles()), _catalog)).is_null()
 	state.stage = GameEnums.MatchStage.HALFTIME
@@ -898,14 +934,14 @@ func test_style_change_kicks_off_for_the_conceding_side_with_the_new_styles() ->
 
 
 func test_style_change_and_turns_are_rejected_in_the_wrong_stage() -> void:
-	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""]], "A2-C")
+	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""], _back()], "A2-C")
 	assert_object(MatchRules.apply_style_change(state, _styles(), _styles())).is_null()
 	var after_goal: MatchState = _resolve(state, _shot(), _press_far()).next_state
 	assert_object(_resolve(after_goal, _shot(), _press_far())).is_null()
 
 
 func test_finish_marks_the_match_finished_and_stops_turns() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	var finished: MatchState = MatchRules.finish(state)
 	assert_int(finished.status).is_equal(GameEnums.MatchStatus.FINISHED)
 	assert_int(state.status).is_equal(GameEnums.MatchStatus.IN_PROGRESS)
@@ -915,7 +951,7 @@ func test_finish_marks_the_match_finished_and_stops_turns() -> void:
 # --- 選択不可の手 ---
 
 func test_unavailable_choices_are_rejected() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	# 味方のいない M2-L1 へのパス
 	assert_object(_resolve(state, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "M2-L1"), _press_far())).is_null()
 	# 手の種類の取り違え（攻撃側が守備の手）
@@ -989,8 +1025,35 @@ func test_swapping_home_and_away_mirrors_the_result() -> void:
 			.is_equal(TeamLayout.at_base(as_home.next_state.away_players).counts())
 
 
+func test_swapping_home_and_away_mirrors_an_offside() -> void:
+	# AWAY が攻撃してもオフサイドの判定と再開は同じ（2026-10-25）。ボールは受け手のいたエリアから、守備側の視点で再開する
+	var spec_other: Array = [["a1", "M2-L2", ""], ["a2", "M1-R2", ""]]
+	var as_home: TurnResolution = _resolve(_open_state(HOME, _holder_spec(), spec_other, "M2-C"), _pass_to_a_c(), _press_far())
+	var as_away: TurnResolution = _resolve(_open_state(AWAY, _holder_spec(), spec_other, "M2-C"), _pass_to_a_c(), _press_far())
+	assert_int(as_home.record.outcome).is_equal(GameEnums.TurnOutcome.OFFSIDE)
+	assert_int(as_away.record.outcome).is_equal(GameEnums.TurnOutcome.OFFSIDE)
+	assert_int(as_away.next_state.possession).is_equal(HOME)
+	assert_str(as_away.next_state.ball_area.to_key()).is_equal(as_home.next_state.ball_area.to_key())
+	assert_int(as_away.next_state.turn_kind).is_equal(OPEN_PLAY)
+
+
+func test_an_offside_in_additional_time_ends_the_half() -> void:
+	# アディショナルタイムの攻撃でオフサイドになれば、ボールを失った扱いでハーフを終える（2026-10-25）
+	var at: MatchState = _advance_on_the_last_turn(5)
+	assert_bool(MatchRules.is_additional_time(at, _rules(1, 5))).is_true()
+	# 場面を置き直す: ボールは M2-C の h1、A1-C に h3。相手は a1 だけで、相手の M1-R2（攻撃側の視点で M2 = 3）にいる。
+	# ラインは M2 で、A1-C の h3 へのパスはオフサイド（ボールもラインと同じ M2 なので、ボールの列はラインを動かさない）
+	at.ball_area = _area("M2-C")
+	at.home_players.append(PlayerState.new("h3", _area("A1-C")))
+	at.away_players = _players([["a1", "M1-R2", ""]])
+	var resolution: TurnResolution = _resolve(at, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C"), _any_defense(at), 1, 5)
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.OFFSIDE)
+	assert_int(resolution.next_state.stage).is_equal(GameEnums.MatchStage.HALFTIME)
+	assert_bool(MatchRules.is_additional_time(resolution.next_state, _rules(1, 5))).is_false()
+
+
 func test_resolve_turn_does_not_modify_its_input() -> void:
-	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""]], "M2-C")
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
 	var next: MatchState = _resolve(state, _pass_to_a_c(), _press_far()).next_state
 	assert_object(next).is_not_same(state)
 	assert_int(state.turn_number).is_equal(1)

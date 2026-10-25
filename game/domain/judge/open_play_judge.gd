@@ -26,6 +26,13 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	if step == null:
 		return null
 	movements.append_array(step.movements)
+	# 手順2.5: オフサイド（2026-10-25）。守備の手を適用した後のラインで、人数・読みより先に見る。
+	# オフサイドならプレーが止まるので、攻撃の手（スルーパスの走り込み・ドリブル）は適用しない
+	if OffsideRule.is_offside(step.pair, ball, attack):
+		var spot: PitchArea = OffsideRule.receiver_area(step.pair, ball, attack)
+		# 3つ目の引数（is_shot）はカバー判定をしないために真にする（オフサイドはシュートではないが、カバーは結果に関わらない）
+		var offside: JudgeDetail = detail_at(step.pair, spot, true)
+		return JudgeOutput.new(GameEnums.TurnOutcome.OFFSIDE, offside, step.pair, movements)
 	# 手順3: 攻撃の手
 	step = apply_attack(step.pair, defender_styles, ball, attack, pair)
 	movements.append_array(step.movements)

@@ -321,6 +321,25 @@ func test_forward_bonus_raises_the_forward_moves_probability() -> void:
 	assert_float(_sum(biased)).is_equal_approx(1.0, 0.000001)
 
 
+func test_offside_penalty_lowers_the_probability_of_an_offside_pass() -> void:
+	# 相手の最終ラインは M1-C（攻撃側の視点で M2）。A1-C の h2 へのパスは今の配置のままならオフサイド（2026-10-25）
+	var state: MatchState = _scene()
+	state.away_players = _players([["a1", "M1-C"], ["a2", "A2-L2"]])
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
+	var offside: int = -1
+	for index: int in range(hints.size()):
+		if hints[index].is_offside and hints[index].action == GameEnums.PlayType.SHORT_PASS:
+			offside = index
+	assert_int(offside).is_not_equal(-1)
+	var none := _cpu()
+	none.offside_penalty = 0.0
+	var penalized := _cpu()
+	penalized.offside_penalty = 3.0
+	var plain: Array[float] = CpuPlanner.turn_probabilities(state, HOME, none)
+	var avoided: Array[float] = CpuPlanner.turn_probabilities(state, HOME, penalized)
+	assert_float(avoided[offside]).is_less(plain[offside])
+
+
 func test_shot_bonus_raises_the_shot_probability() -> void:
 	# h1 がボールの A2-C（ペナルティエリア）にいて、シュートを選べる場面
 	var state: MatchState = _scene()

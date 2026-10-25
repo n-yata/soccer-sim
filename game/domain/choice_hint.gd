@@ -15,6 +15,8 @@ var own_count: int
 var opponent_count: int
 ## 同数のときのカバーの内訳（攻撃側から見た判定の値）
 var cover: GameEnums.CoverKind
+## 今の配置（守備の手の前）のままだと、受け手がオフサイドになる攻撃の手か（2026-10-25）。守備の手でラインが動くので、確定ではない
+var is_offside: bool = false
 
 
 func _init(p_family: GameEnums.ChoiceFamily, p_action: int, p_target: PitchArea, p_is_compared: bool,
@@ -36,4 +38,6 @@ func diff() -> int:
 ## 運ぶ先の PitchArea まで写す。
 func duplicate_deep() -> ChoiceHint:
 	var copied_target: PitchArea = null if target == null else target.duplicate_deep()
-	return ChoiceHint.new(family, action, copied_target, is_compared, own_count, opponent_count, cover)
+	var copied := ChoiceHint.new(family, action, copied_target, is_compared, own_count, opponent_count, cover)
+	copied.is_offside = is_offside
+	return copied

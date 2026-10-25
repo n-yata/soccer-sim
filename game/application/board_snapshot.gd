@@ -26,3 +26,6 @@ var user_setup: TeamSetup
 var opponent_setup: TeamSetup
 ## 直前の判定で動いた選手（利用者の視点）。矢印の表示に使う
 var movements: Array[Movement] = []
+## 相手のオフサイドライン（利用者の視点の列。OffsideRule.line_row。2026-10-25）。利用者が保持する攻守ターンだけ出し、
+## それ以外は -1（描かない）。ターン開始の配置で出すので、守備の手でラインは動きうる
+var offside_line_zone: int = -1

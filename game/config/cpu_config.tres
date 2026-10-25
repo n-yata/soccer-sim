@@ -10,3 +10,4 @@ style_bonus = 1.0
 forward_bonus = 0.75
 shot_bonus = 1.5
 anticipation_bonus = 1.0
+offside_penalty = 3.0

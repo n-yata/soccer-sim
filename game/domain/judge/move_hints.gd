@@ -39,8 +39,11 @@ static func _add_attack_hints(hints: Array[ChoiceHint], state: MatchState, start
 			var detail: JudgeDetail = OpenPlayJudge.detail_at(pair, compare, is_shot)
 			# スルーパスは人数に関係なく、読みだけで通るかが決まる（アルゴリズム5）ので、人数を比べない手にする
 			var is_compared: bool = action != GameEnums.PlayType.THROUGH_PASS
-			hints.append(ChoiceHint.new(family, action, choice.target, is_compared,
-					detail.attacker_count, detail.defender_count, detail.cover))
+			var hint := ChoiceHint.new(family, action, choice.target, is_compared,
+					detail.attacker_count, detail.defender_count, detail.cover)
+			# 今の配置（守備の手の前）のラインで、受け手がオフサイドになるか（2026-10-25）
+			hint.is_offside = OffsideRule.is_offside(start, state.ball_area, choice)
+			hints.append(hint)
 
 
 ## 守備の手: 制限するエリアの、守備の手を適用する前の人数とカバー（脅威度の材料）。

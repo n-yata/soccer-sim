@@ -71,6 +71,7 @@ func test_outcome_labels_pair_the_code_and_the_japanese_name() -> void:
 		GameEnums.TurnOutcome.REGAIN: "REGAIN 奪回成功",
 		GameEnums.TurnOutcome.REGAIN_FAILED: "REGAIN_FAILED 奪回失敗",
 		GameEnums.TurnOutcome.NO_CONTEST: "NO_CONTEST 判定なし",
+		GameEnums.TurnOutcome.OFFSIDE: "OFFSIDE オフサイド",
 	}
 	assert_int(expected.size()).is_equal(GameEnums.TurnOutcome.size())
 	for outcome: int in expected:
@@ -128,6 +129,9 @@ func test_turn_winner_is_the_side_whose_action_succeeded() -> void:
 		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.STALL, you],
 		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.LOSS, you],
 		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.SAVE, you],
+		# オフサイド（2026-10-25）は守備側の成功（ラインを上げて取った、または受け手が前にいた）
+		[GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.OFFSIDE, cpu],
+		[GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.OFFSIDE, you],
 		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.ADVANCE, you],
 		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.REGAIN_FAILED, you],
 		[GameEnums.Phase.POS_TRANSITION, GameEnums.TurnOutcome.REGAIN, cpu],
@@ -206,6 +210,33 @@ func test_target_rule_explains_the_through_pass() -> void:
 	# スルーパス（2026-10-25）は、出せる先と、人数に関係なく読みで決まることを一言で（MoveRules・OpenPlayJudge と同じ内容）
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
 			.is_equal("スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれたら奪われ、読まれなければ通る")
+
+
+func test_offside_hint_tag_warns_before_anything_else() -> void:
+	# 今の配置のままオフサイドになる運ぶ先は、人数差やスルーパスの「読み次第」より先に注意を出す（2026-10-25）
+	var pass_hint := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("A1-C"), true, 2, 0,
+			GameEnums.CoverKind.NONE)
+	pass_hint.is_offside = true
+	assert_str(MatchTexts.hint_tag(pass_hint)).is_equal("オフサイド")
+	var through := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, PitchArea.from_key("A1-C"), false, 1, 0,
+			GameEnums.CoverKind.NONE)
+	through.is_offside = true
+	assert_str(MatchTexts.hint_tag(through)).is_equal("オフサイド")
+
+
+func test_only_compared_even_hints_are_muted() -> void:
+	# 控えめな色は、人数を比べる札の ±0 だけ。スルーパスの「読み次第」とオフサイドの注意は、隠れた人数差が ±0 でも目立たせる
+	var even := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("A1-C"), true, 1, 1,
+			GameEnums.CoverKind.NONE)
+	assert_bool(MatchTexts.is_hint_muted(even)).is_true()
+	var ahead := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("A1-C"), true, 2, 1,
+			GameEnums.CoverKind.NONE)
+	assert_bool(MatchTexts.is_hint_muted(ahead)).is_false()
+	var through := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, PitchArea.from_key("A1-C"), false, 1, 1,
+			GameEnums.CoverKind.NONE)
+	assert_bool(MatchTexts.is_hint_muted(through)).is_false()
+	even.is_offside = true
+	assert_bool(MatchTexts.is_hint_muted(even)).is_false()
 
 
 func test_through_pass_hint_tag_says_it_depends_on_the_read() -> void:

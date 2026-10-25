@@ -45,6 +45,8 @@ const BALL_RADIUS: float = 11.0
 var _user_players: Array[Dictionary] = []
 var _opponent_players: Array[Dictionary] = []
 var _ball_area: String = ""
+## 相手のオフサイドライン（利用者の視点の列。-1 なら描かない。BoardSnapshot.offside_line_zone）
+var _offside_line_zone: int = -1
 var _selectable: Array[String] = []
 var _selected: String = ""
 var _hints: Dictionary = {}
@@ -75,6 +77,7 @@ func show_snapshot(snapshot: BoardSnapshot) -> void:
 	_user_players = snapshot.user_players.duplicate()
 	_opponent_players = snapshot.opponent_players.duplicate()
 	_ball_area = snapshot.ball_area
+	_offside_line_zone = snapshot.offside_line_zone
 	queue_redraw()
 
 
@@ -261,6 +264,21 @@ func visible_piece_count(key: String, is_user: bool) -> int:
 func overflow_tag(key: String, is_user: bool) -> String:
 	var count: int = (pieces_in(key)["user" if is_user else "opponent"] as Array).size()
 	return "" if count <= MAX_PIECES else "+%d" % (count - visible_piece_count(key, is_user))
+
+
+func offside_line_zone() -> int:
+	return _offside_line_zone
+
+
+## オフサイドラインを描くか。ラインが敵陣ゴール前の列（いちばん前）なら誰もオフサイドにならず、線がゴールラインに重なる
+## だけなので描かない。
+func is_offside_line_drawn() -> bool:
+	return _offside_line_zone >= 0 and _offside_line_zone < PitchArea.ZONE_COUNT - 1
+
+
+## オフサイドラインを引く平面図の y。ラインの列の上端（相手ゴール側の境界。これより前の列の受け手がオフサイド）。
+func offside_line_plan_y() -> float:
+	return (PitchArea.ZONE_COUNT - 1 - _offside_line_zone) * cell_size().y
 
 
 func ball_area() -> String:

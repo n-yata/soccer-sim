@@ -1,5 +1,5 @@
 ## アルゴリズム5: 攻守ターンの判定（OpenPlayJudge）のテスト。
-## 判定例 JE-01〜06・JE-08・JE-09 は functional-overview.md「判定例」から、それ以外の期待値はアルゴリズム5の規則から手で書いた。
+## 判定例 JE-01〜06・JE-08〜10 は functional-overview.md「判定例」から、それ以外の期待値はアルゴリズム5の規則から手で書いた。
 ## ボール位置・運ぶ先・比較エリアは攻撃側から見た座標、守備側の配置と動きは守備側から見た座標（component-design.md §1.2）。
 ## 盤面は6列（2026-10-25）。判定例は陣形の名前を使わず、場面の配置で示す。
 extends GdUnitTestSuite
@@ -247,6 +247,56 @@ func test_through_pass_runner_is_followed_by_the_man_marker() -> void:
 			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
 	assert_array(_moves(output)).contains(["a2:A1-L1>A1-C:THROUGH_RUN", "m1:D2-R1>D2-C:MARK"])
 	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-1 NONE")
+
+
+# --- オフサイド（2026-10-25。守備の手を適用した後のラインで、人数・読みより先に判定する） ---
+
+## JE-10: 攻撃側はボールの M2-C に a1、A1-C に a2。守備側（ゾーン）は最終ラインの d1 が D2-L1（攻撃側の視点で A1-R1）、
+## d2 が M1-C（M2-C）、遠くの A2-L2（D1-R2）に far。ラインは A1（4）で、A1-C の a2 はラインと同じ列でオンサイド
+func _je10() -> LayoutPair:
+	return LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-C", ""]]),
+			_team([["d1", "D2-L1", ""], ["d2", "M1-C", ""], ["far", "A2-L2", ""]]), HOME)
+
+
+func test_je10_the_last_defender_stepping_up_catches_the_receiver_offside() -> void:
+	# M2-R1（守備側の M1-L1）へのプレスで、余りの大きい最終ラインの d1 が前へ出る。ラインが M2（3）へ上がり、
+	# A1-C の a2 はラインより前でオフサイド。人数（1対0）に関係なく、守備側のボールになる
+	var output: JudgeOutput = _judge(_je10(), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "M2-R1"))
+	assert_array(_moves(output)).is_equal(["d1:D2-L1>M1-L1:PRESS"])
+	assert_str(_summary(output)).is_equal("OFFSIDE A1-C 1-0 NONE")
+
+
+func test_je10_without_the_step_up_the_level_receiver_is_onside() -> void:
+	# 遠くへのプレス（外れ）ではラインが A1 のまま。a2 はラインと同じ列でオンサイドで、ふつうに人数で判定する
+	var output: JudgeOutput = _judge(_je10(), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-0 NONE")
+
+
+func test_a_cover_dropping_behind_the_line_keeps_the_receiver_onside() -> void:
+	# 守備側の最終ラインは M1（攻撃側の視点で M2 = 3）で、A1-C の a2 はオフサイドの位置。
+	# M2-L1（守備側の M1-R1）のカバーで d2 が背後の D2-R1（A1-L1 = 4）へ下がると、ラインが下がって a2 はオンサイド
+	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-C", ""]]),
+			_team([["d1", "M1-C", ""], ["d2", "M1-R1", ""], ["far", "A2-L2", ""]]), HOME)
+	var covered: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.COVER, "M2-L1"))
+	assert_array(_moves(covered)).is_equal(["d2:M1-R1>D2-R1:COVER"])
+	assert_str(_summary(covered)).is_equal("ADVANCE A1-C 1-0 NONE")
+	var pressed: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_str(_summary(pressed)).is_equal("OFFSIDE A1-C 1-0 NONE")
+
+
+func test_an_offside_through_pass_stops_play_before_the_run_and_the_read() -> void:
+	# 受け手 a2 は A2-L1（5）から A1-C へ走り込むが、ラインは A1（守備側の D2-C = 4）で、走り込む前の位置でオフサイド。
+	# 守備がぴったり読んでいても（ロストではなく）オフサイド。プレーが止まるので、a2 は走り込まない
+	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A2-L1", ""]]),
+			_team([["d1", "D2-C", ""], ["d2", "D2-L1", ""]]), HOME)
+	var output: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "A1-C"))
+	assert_array(_moves(output)).is_equal(["d2:D2-L1>D2-C:PRESS"])
+	assert_str(_summary(output)).is_equal("OFFSIDE A2-L1 1-0 NONE")
 
 
 # --- 同数のカバー判定（エッジケース） ---

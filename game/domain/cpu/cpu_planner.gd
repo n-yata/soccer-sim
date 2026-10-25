@@ -30,8 +30,10 @@ static func _probabilities_of(hints: Array[ChoiceHint], state: MatchState, side:
 	var styles: TeamStyles = state.setup_of(side).styles
 	var scores: Array[float] = []
 	for hint: ChoiceHint in hints:
+		# 今の配置のままオフサイドになる手は、ボールを失う手として減点する（2026-10-25）
+		var offside: float = cpu.offside_penalty if hint.is_offside else 0.0
 		scores.append(score(hint) + style_bonus(hint, styles, state.ball_area, cpu)
-				+ situation_bonus(hint, state.ball_area, cpu))
+				+ situation_bonus(hint, state.ball_area, cpu) - offside)
 	return probabilities(scores, cpu)
 
 

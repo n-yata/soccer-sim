@@ -59,7 +59,7 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 				state.ball_area, holder_choice, other_choice)
 	if output == null:
 		return null
-	var ball_after: PitchArea = _ball_after(state, output.outcome, holder_choice)
+	var ball_after: PitchArea = _ball_after(state, output, holder_choice)
 	var next: MatchState = state.duplicate_deep()
 	_apply_outcome(next, state.turn_kind, output, ball_after)
 	var record: TurnRecord = _record(state, start, output, home_choice, away_choice, ball_after)
@@ -143,10 +143,10 @@ static func _is_half_over(turn_number: int, last: TurnRecord, rules: MatchRuleCo
 	return last == null or _ends_attack(last.outcome)
 
 
-## 攻撃が終わる結果: シュートした（GOAL・SAVE）か、ボールを失った（LOSS・REGAIN）。
+## 攻撃が終わる結果: シュートした（GOAL・SAVE）か、ボールを失った（LOSS・REGAIN・OFFSIDE）。
 static func _ends_attack(outcome: GameEnums.TurnOutcome) -> bool:
 	return outcome in [GameEnums.TurnOutcome.GOAL, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.LOSS,
-			GameEnums.TurnOutcome.REGAIN]
+			GameEnums.TurnOutcome.REGAIN, GameEnums.TurnOutcome.OFFSIDE]
 
 
 static func _last_record(state: MatchState) -> TurnRecord:
@@ -172,13 +172,16 @@ static func _kickoff(state: MatchState, side: GameEnums.TeamSide) -> void:
 
 ## 判定直後にボールがあるエリア（攻撃側の視点）。SAVE は守備側の自陣ゴール前 D1-C（攻撃側の視点で A2-C。
 ## ゴールキーパーのキャッチ）、
-## GOAL はシュートしたエリア、保持したまま動かない結果は判定前の位置。
-static func _ball_after(state: MatchState, outcome: GameEnums.TurnOutcome, holder_choice: TurnChoice) -> PitchArea:
-	match outcome:
+## GOAL はシュートしたエリア、OFFSIDE は受け手のいたエリア（判定の比較エリア。守備側のフリーキックの位置）、
+## 保持したまま動かない結果は判定前の位置。
+static func _ball_after(state: MatchState, output: JudgeOutput, holder_choice: TurnChoice) -> PitchArea:
+	match output.outcome:
 		GameEnums.TurnOutcome.ADVANCE, GameEnums.TurnOutcome.LOSS:
 			return holder_choice.target.duplicate_deep()
 		GameEnums.TurnOutcome.SAVE:
 			return PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.A2)
+		GameEnums.TurnOutcome.OFFSIDE:
+			return output.detail.compare_area.duplicate_deep()
 	# STALL・GOAL（攻守ターン）、REGAIN・REGAIN_FAILED・NO_CONTEST・カウンターの STALL（トランジションの X）
 	return state.ball_area.duplicate_deep()
 
@@ -198,7 +201,8 @@ static func _apply_outcome(next: MatchState, kind: GameEnums.TurnKind, output: J
 		_kickoff(next, MatchState.other(holder))
 		next.stage = GameEnums.MatchStage.STYLE_CHANGE
 		return
-	var hands_over: bool = outcome in [GameEnums.TurnOutcome.LOSS, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.REGAIN]
+	var hands_over: bool = outcome in [GameEnums.TurnOutcome.LOSS, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.REGAIN,
+			GameEnums.TurnOutcome.OFFSIDE]
 	var to_transition: bool = outcome == GameEnums.TurnOutcome.LOSS or outcome == GameEnums.TurnOutcome.SAVE
 	if hands_over:
 		next.possession = MatchState.other(holder)
@@ -214,8 +218,9 @@ static func _apply_outcome(next: MatchState, kind: GameEnums.TurnKind, output: J
 	next.turn_kind = GameEnums.TurnKind.OPEN_PLAY
 	next.transition_origin = null
 	# トランジションが終わって攻守ターンが始まる時は、固定を解く（攻守ターンからの続きは固定を維持）。
-	# 位置は戻さない。次のターン開始から、方式の目標へ1マスずつ近づく（2026-10-24。1ターン1マス）
-	if kind == GameEnums.TurnKind.TRANSITION:
+	# 位置は戻さない。次のターン開始から、方式の目標へ1マスずつ近づく（2026-10-24。1ターン1マス）。
+	# オフサイドもプレーが止まって守備側の攻撃から始まるので、配置区間の始まりとして固定を解く（2026-10-25）
+	if kind == GameEnums.TurnKind.TRANSITION or outcome == GameEnums.TurnOutcome.OFFSIDE:
 		MatchPositions.release_fixes(next)
 
 

@@ -12,7 +12,7 @@ var shots: int = 0
 ## 得点後のキックオフ・ハーフタイムで渡った分も含む
 var possessions: int = 0
 var possession_turns: int = 0
-## プレー中の入れ替わり（判定でボールが相手に渡った回数: ロスト・シュート阻止・奪回成功）。キックオフで渡った分は含まない
+## プレー中の入れ替わり（判定でボールが相手に渡った回数: ロスト・シュート阻止・奪回成功・オフサイド）。キックオフで渡った分は含まない
 var turnovers: int = 0
 ## 攻守ターンのシュート以外の手で、守備が運ぶ先を読んだか（JudgeDetail.read がぴったり・隣）ごとの回数と、そのうちロストした回数
 var read_moves: int = 0
@@ -23,6 +23,8 @@ var unread_losses: int = 0
 var attack_moves: int = 0
 var through_passes: int = 0
 var through_losses: int = 0
+## オフサイドの回数（2026-10-25。プレー中の入れ替わりにも数える）
+var offsides: int = 0
 
 
 ## シードごとに match_count 試合を回して合計する（1つのシードの偶然で目標の内外が決まらないよう、複数のシードで測る）。
@@ -78,10 +80,10 @@ func through_pass_loss_rate() -> float:
 
 func summary() -> String:
 	return ("goals=%.2f home=%.2f shots=%.2f possessions=%.1f avg=%.1f turnovers=%.1f read_loss=%.0f%%"
-			+ " unread_loss=%.0f%% through=%.0f%% through_loss=%.0f%%") % [goals_per_match(), home_goals_per_match(),
-			float(shots) / matches, possessions_per_match(), average_possession_turns(), turnovers_per_match(),
-			100.0 * read_loss_rate(), 100.0 * unread_loss_rate(), 100.0 * through_pass_rate(),
-			100.0 * through_pass_loss_rate()]
+			+ " unread_loss=%.0f%% through=%.0f%% through_loss=%.0f%% offsides=%.2f") % [goals_per_match(),
+			home_goals_per_match(), float(shots) / matches, possessions_per_match(), average_possession_turns(),
+			turnovers_per_match(), 100.0 * read_loss_rate(), 100.0 * unread_loss_rate(), 100.0 * through_pass_rate(),
+			100.0 * through_pass_loss_rate(), float(offsides) / matches]
 
 
 func _play(rng: RandomNumberGenerator, home_cpu: CpuConfig, away_cpu: CpuConfig, catalog: ContentCatalog,
@@ -120,8 +122,13 @@ func _play(rng: RandomNumberGenerator, home_cpu: CpuConfig, away_cpu: CpuConfig,
 
 
 func _count(record: TurnRecord) -> void:
-	if record.outcome in [GameEnums.TurnOutcome.LOSS, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.REGAIN]:
+	if record.outcome in [GameEnums.TurnOutcome.LOSS, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.REGAIN,
+			GameEnums.TurnOutcome.OFFSIDE]:
 		turnovers += 1
+	if record.outcome == GameEnums.TurnOutcome.OFFSIDE:
+		offsides += 1
+		# オフサイドは読み・人数で決まらないので、読みとスルーパスの集計（ロスト率）には入れない
+		return
 	if record.turn_kind != GameEnums.TurnKind.OPEN_PLAY:
 		return
 	var attack: TurnChoice = record.home_choice if record.attacker == GameEnums.TeamSide.HOME else record.away_choice

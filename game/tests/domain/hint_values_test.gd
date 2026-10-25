@@ -32,3 +32,14 @@ func test_cpu_config_defaults_match_the_external_settings_table() -> void:
 	assert_float(cpu.temperature).is_equal(0.5)
 	assert_float(cpu.floor_probability).is_equal(0.05)
 	assert_float(cpu.style_bonus).is_equal(1.0)
+	assert_float(cpu.offside_penalty).is_equal(3.0)
+
+
+func test_duplicate_deep_keeps_the_offside_warning() -> void:
+	# オフサイドの注意（2026-10-25）も写す（写し漏れで札が出ないことを防ぐ）
+	var hint := ChoiceHint.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHORT_PASS,
+			PitchArea.from_key("A1-C"), true, 1, 0, GameEnums.CoverKind.NONE)
+	hint.is_offside = true
+	assert_bool(hint.duplicate_deep().is_offside).is_true()
+	hint.is_offside = false
+	assert_bool(hint.duplicate_deep().is_offside).is_false()

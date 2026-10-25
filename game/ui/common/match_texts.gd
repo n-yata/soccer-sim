@@ -15,7 +15,7 @@ const ACTION_NAMES: Dictionary = {
 ## 判定で手が成功した側（利用者から見た値）。NONE は奪い合いの無い結果（NO_CONTEST）
 enum TurnWinner { USER, OPPONENT, NONE }
 
-const OUTCOME_WORDS: Array[String] = ["前進", "膠着", "ロスト", "得点", "シュート阻止", "奪回成功", "奪回失敗", "判定なし"]
+const OUTCOME_WORDS: Array[String] = ["前進", "膠着", "ロスト", "得点", "シュート阻止", "奪回成功", "奪回失敗", "判定なし", "オフサイド"]
 const DEFENSE_STYLE_NAMES: Array[String] = ["ゾーン", "マンツーマン"]
 const ATTACK_STYLE_NAMES: Array[String] = ["保持型", "カウンター型"]
 ## 人数差の符号。マイナスは数学の記号（U+2212）で、ハイフンより読みやすい
@@ -80,7 +80,7 @@ static func outcome_label(outcome: GameEnums.TurnOutcome) -> String:
 
 ## 判定でどちらの手が成功したか（結果の札の色分けに使う。2026-10-24）。
 ## 保持側（攻守ターンの攻撃側・トランジションの奪った側）の成功は前進・得点・奪い返しの失敗、相手側の成功は膠着・
-## ロスト・シュート阻止・奪回成功。奪い合いの無い判定なし（保持 × リトリート）はどちらでもない。
+## ロスト・シュート阻止・奪回成功・オフサイド。奪い合いの無い判定なし（保持 × リトリート）はどちらでもない。
 static func turn_winner(reveal: RevealView) -> TurnWinner:
 	if reveal.outcome == GameEnums.TurnOutcome.NO_CONTEST:
 		return TurnWinner.NONE
@@ -123,6 +123,9 @@ static func attack_style_name(style: GameEnums.AttackStyle) -> String:
 ## ヒントの札（表示仕様「`+1`、`±0 カバーあり`」）。カバーは同数のときだけ添える（同数のときだけ判定に効くため）。
 ## 人数を比べない手（リトリート・保持）は空。スルーパスだけは人数の代わりに「読み次第」を出す。
 static func hint_tag(hint: ChoiceHint) -> String:
+	# 今の配置のままオフサイドになる運ぶ先は、ほかの札より先に注意を出す（作戦ボードの札の幅に収まる5文字。2026-10-25）
+	if hint.is_offside:
+		return "オフサイド"
 	# スルーパスは人数を比べないが、通るかが読み次第であることを札で示す（作戦ボードの札の幅に収まる4文字。2026-10-25）
 	if hint.family == GameEnums.ChoiceFamily.ATTACK and hint.action == GameEnums.PlayType.THROUGH_PASS:
 		return "読み次第"
@@ -135,6 +138,12 @@ static func hint_tag(hint: ChoiceHint) -> String:
 		return "%s%d" % [MINUS_SIGN, -diff]
 	var cover: String = cover_short(hint.cover)
 	return "±0" if cover.is_empty() else "±0 %s" % cover
+
+
+## ヒントの札を控えめな色にするか。人数を比べる札の ±0 だけ（スルーパスの「読み次第」とオフサイドの注意は、
+## 隠れた人数差が ±0 でも目立たせる。色から人数差を漏らさず、注意を埋もれさせないため。2026-10-25）。
+static func is_hint_muted(hint: ChoiceHint) -> bool:
+	return hint.is_compared and hint.diff() == 0 and not hint.is_offside
 
 
 ## 「1対0」（自分 対 相手）。人数を比べない手は空。

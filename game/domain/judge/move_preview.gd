@@ -30,7 +30,9 @@ static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: T
 		var start: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
 		var step: LayoutStep = null
 		if side == state.possession:
-			if choice.is_complete_for(GameEnums.ChoiceFamily.ATTACK):
+			# 相手が何もしなくてもオフサイドになる手は、判定でプレーが止まり誰も動かないので、動きを出さない（2026-10-25）
+			if choice.is_complete_for(GameEnums.ChoiceFamily.ATTACK) \
+					and not OffsideRule.is_offside(start, state.ball_area, choice):
 				step = OpenPlayJudge.apply_attack(start, other_styles, state.ball_area, choice)
 		elif choice.is_complete_for(GameEnums.ChoiceFamily.DEFENSE):
 			step = OpenPlayJudge.apply_defense(start, other_styles, choice)

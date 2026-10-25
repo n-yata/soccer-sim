@@ -35,6 +35,15 @@ func test_through_pass_reason_blames_the_read_not_the_numbers() -> void:
 	assert_str(JudgeReasonFormatter.format(missed)).is_equal("敵陣・中央で 3対1。読めず前進")
 
 
+func test_offside_reason_names_where_the_receiver_was() -> void:
+	# オフサイド（2026-10-25）は人数や読みではなく、受け手がラインより前にいたことが理由。どちらの側から見ても文の形は同じ
+	# （エリア名は利用者の視点。利用者が守備側なら、相手の受け手はふつう利用者の自陣にいる）
+	var attacker: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.OFFSIDE, "A1-C", 1, 0)
+	assert_str(JudgeReasonFormatter.format(attacker)).is_equal("敵陣・中央でオフサイド。受け手がラインより前にいた")
+	var defender: RevealView = _reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.OFFSIDE, "D2-C", 0, 1)
+	assert_str(JudgeReasonFormatter.format(defender)).is_equal("自陣・中央でオフサイド。受け手がラインより前にいた")
+
+
 func _reveal(role: GameEnums.Phase, outcome: GameEnums.TurnOutcome, area: String, user_count: int,
 		opponent_count: int, cover: GameEnums.CoverKind = GameEnums.CoverKind.NONE) -> RevealView:
 	var reveal := RevealView.new()

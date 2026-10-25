@@ -45,8 +45,10 @@ static func options_to_user(options: MoveOptions, attacker: GameEnums.TeamSide) 
 static func hints_to_user(hints: Array[ChoiceHint], attacker: GameEnums.TeamSide) -> Array[ChoiceHint]:
 	var converted: Array[ChoiceHint] = []
 	for hint: ChoiceHint in hints:
-		converted.append(ChoiceHint.new(hint.family, hint.action, to_user(hint.target, attacker),
-				hint.is_compared, hint.own_count, hint.opponent_count, hint.cover))
+		var copied := ChoiceHint.new(hint.family, hint.action, to_user(hint.target, attacker),
+				hint.is_compared, hint.own_count, hint.opponent_count, hint.cover)
+		copied.is_offside = hint.is_offside
+		converted.append(copied)
 	return converted
 
 
@@ -84,6 +86,11 @@ static func snapshot(state: MatchState, catalog: ContentCatalog, last_movements:
 	view.user_setup = state.home_setup.duplicate_deep()
 	view.opponent_setup = state.away_setup.duplicate_deep()
 	view.movements = movements_to_user(last_movements)
+	# 利用者が攻撃側なので、攻撃側の視点の列がそのまま利用者の視点の列
+	# 手を選ぶ場面（試合中の TURN）だけ。方式の選び直し・ハーフタイム・試合終了の盤面には出さない
+	if view.user_has_ball and state.turn_kind == GameEnums.TurnKind.OPEN_PLAY \
+			and state.stage == GameEnums.MatchStage.TURN and state.status == GameEnums.MatchStatus.IN_PROGRESS:
+		view.offside_line_zone = OffsideRule.line_row(pair.defender, state.ball_area)
 	return view
 
 

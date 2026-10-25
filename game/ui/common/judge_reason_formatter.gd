@@ -8,6 +8,9 @@ extends RefCounted
 static func format(reveal: RevealView) -> String:
 	if not reveal.has_detail:
 		return _no_contest(reveal)
+	# オフサイド（2026-10-25）は人数・読みに関係なく決まるので、人数を出さず、受け手のいたエリアと理由だけを言う
+	if reveal.outcome == GameEnums.TurnOutcome.OFFSIDE:
+		return "%sでオフサイド。受け手がラインより前にいた" % MatchTexts.area_name(reveal.compare_area)
 	return "%sで %d対%d。%s%s" % [MatchTexts.area_name(reveal.compare_area), reveal.user_count,
 			reveal.opponent_count, _cause(reveal), MatchTexts.outcome_word(reveal.outcome)]
 
