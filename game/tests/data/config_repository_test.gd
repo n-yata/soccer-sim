@@ -36,9 +36,9 @@ func test_bundled_settings_match_the_initial_values() -> void:
 	assert_int(repository.match_rules().max_additional_turns).is_equal(5)
 	assert_float(repository.cpu().temperature).is_equal(0.5)
 	assert_float(repository.cpu().floor_probability).is_equal(0.05)
-	assert_float(repository.cpu().forward_bonus).is_equal(1.5)
+	assert_float(repository.cpu().forward_bonus).is_equal(0.75)
 	assert_float(repository.cpu().shot_bonus).is_equal(1.5)
-	assert_float(repository.cpu().anticipation_bonus).is_equal(2.0)
+	assert_float(repository.cpu().anticipation_bonus).is_equal(1.0)
 	assert_float(repository.cpu().style_bonus).is_equal(1.0)
 
 

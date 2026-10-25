@@ -121,7 +121,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
 | `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持は比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`diff()`。評価値や推奨の印は持たない |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`read: ReadKind`（守備の読みの段階） |
-| `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣 `D-C`） |
+| `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣ゴール前 `D1-C`。攻撃側の視点で `A2-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
 | `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
@@ -138,20 +138,22 @@ class_name PitchArea extends RefCounted
 var lane: GameEnums.Lane
 var zone: GameEnums.Zone
 
-## 相手チームから見た同じ場所（L2↔R2, L1↔R1, D↔A）
+## 相手チームから見た同じ場所（L2↔R2, L1↔R1, D1↔A2, D2↔A1, M1↔M2）
 func mirrored() -> PitchArea
-## 前（相手ゴール側）へ1ゾーン。盤外なら null
+## 前（相手ゴール側）へ1列。盤外なら null
 func forward() -> PitchArea
 func backward() -> PitchArea
+## 自陣（1〜3列目。OWN_HALF_ZONES）か
+func is_own_half() -> bool
 ## 上下左右の隣接（盤内のみ）
 func neighbors4() -> Array[PitchArea]
 ## 斜めを含む隣接8エリア（盤内のみ）
 func neighbors8() -> Array[PitchArea]
 func equals(other: PitchArea) -> bool
-## "M-L1" 形式。保存データと判定例の表記に合わせる
+## "M2-L1" 形式（列-レーン）。保存データと判定例の表記に合わせる
 func to_key() -> String
 static func from_key(key: String) -> PitchArea   # 不正な文字列なら null
-static func all() -> Array[PitchArea]            # 15エリア。D→M→A、各ゾーン内は L2→R2 の順
+static func all() -> Array[PitchArea]            # 30エリア。D1→A2、各列の中は L2→R2 の順
 ```
 
 `TeamLayout` は、選手ごとの現在エリアを `base_area`・`fixed_area` とは別に持つ。アルゴリズム2の方式の動き
@@ -171,7 +173,7 @@ static func at_base(players: Array[PlayerState]) -> TeamLayout
 static func from_players(players: Array[PlayerState]) -> TeamLayout
 func current_area_of(player_id: String) -> PitchArea   # いない選手なら null
 func count_at(area: PitchArea) -> int
-## 15エリアすべてのキー → 人数（0 のエリアも含める）
+## 30エリアすべてのキー → 人数（0 のエリアも含める）
 func counts() -> Dictionary
 func duplicate_deep() -> TeamLayout
 ```
@@ -182,8 +184,10 @@ func duplicate_deep() -> TeamLayout
 class_name BaseLayoutDeriver extends RefCounted
 ## アルゴリズム1。座標からエリアを決める
 static func area_of(x: float, y: float) -> PitchArea
-## GK を除く10人の基本エリアを持つ配置（固定なし）。座標のエリアで重なるゾーンは1マス1人に散らす（2026-10-24）
+## GK を除く10人の基本エリアを持つ配置（固定なし）。座標のエリアで重なる列は1マス1人に散らす（2026-10-24）
 static func derive(formation: FormationDef) -> TeamLayout
+## アルゴリズム7。キックオフの位置（選手 ID → エリア）。基本エリアの列を半分にした自陣の列に置き、重なれば散らす（2026-10-25）
+static func kickoff_areas(players: Array[PlayerState]) -> Dictionary
 
 class_name StyleLayoutCalculator extends RefCounted
 ## アルゴリズム2の手順1〜4。今いるエリアを起点に、方式の目標へ1マス近づいたターン開始時の両チームの配置を出す。
@@ -209,17 +213,17 @@ static func cover_neighbors(restricted: PitchArea) -> Array[PitchArea]
 
 `StyleLayoutCalculator` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18。2026-10-24 に1ターン1マスへ改めた）:
 - 方式の動きの目標は、基本エリア（固定されていれば固定先）を起点に出す。選手は今いるエリアから目標へ1マス近づく
-  （`PitchArea.step_toward`。ゾーン差・レーン差をそれぞれ1ずつ詰める）。`moved_in_turn` の選手はターン開始では動かない。
+  （`PitchArea.step_toward`。列差・レーン差をそれぞれ1ずつ詰める）。`moved_in_turn` の選手はターン開始では動かない。
   `compute` の `movements` は、今いるエリアから変わった選手だけを、攻撃側 → 守備側の順で返す
 - マンツーマンでどのマーカーをどの対象につけるか: マークする対象は優先順の上からマーカーの人数分。そのうち、対象と
   同じエリアに今いるマーカーはそのまま残す（`remark` でマーカーどうしが入れ替わり、矢印が交差しないようにするため）。
-  残りは優先順に、今いるエリアとのゾーン差＋レーン差が最小のマーカーを割り当てる（基本エリアで選ぶと、遠いマーカーが
+  残りは優先順に、今いるエリアとの列差＋レーン差が最小のマーカーを割り当てる（基本エリアで選ぶと、遠いマーカーが
   1マスずつ追い続けて追いつかないため）。同じなら配置の選手の順
 - 余ったマーカーの理由は `MARK`（カバー役も、マークの規則による動きとして扱う）
 - `remark` は `ZONE` では何も動かさない（ずれる基準はターン開始時のボール位置のため）
 
 `DefenseMover` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
-- `COVER` の「隣接エリア」は `PRESS` と同じ上下左右から前方を除いたもの（`cover_neighbors`。前方からは背後まで2ゾーンになるため。2026-10-24）。
+- `COVER` の「隣接エリア」は `PRESS` と同じ上下左右から前方を除いたもの（`cover_neighbors`。前方からは背後まで2列になるため。2026-10-24）。
   同率の「横」は、中央寄りのレーンを先にし、同じなら守備側の左を先にする
 - 同じエリアに動かせる選手が複数いれば、固定されていない選手のうち配置の選手の順で先の選手
 - `COVER` で、隣接から選んだ選手がすでに背後にいる（`T_d` が空で、背後にだけ守備側がいる）ときは、その場で固定し、
@@ -242,7 +246,7 @@ static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOpti
 static func is_allowed(options: MoveOptions, choice: TurnChoice) -> bool
 ## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
 static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
-## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 15 エリアのすべてが候補
+## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 30 エリアのすべてが候補
 static func defense_options(pair: LayoutPair) -> MoveOptions
 static func neg_transition_options() -> MoveOptions
 ## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）
@@ -349,7 +353,7 @@ static func finish(state: MatchState) -> MatchState
 `MatchRules` の決めごと（仕様に無い点を実装で決めたもの。2026-10-18）:
 - `current_layouts`・`resolve_turn`・`apply_style_change`・`MoveRules.options_for` は陣形データを使わない（選手単位の
   配置状態を `MatchState` が持つ）ため、`catalog` 引数を持たない
-- 得点のときは、その時点で失点側のキックオフ（`M-C`・全員を基本エリアへ・固定を解く）を済ませてから `STYLE_CHANGE` にする（選び直しの間も
+- 得点のときは、その時点で失点側のキックオフ（キックオフ側の `M1-C`・全員をキックオフの位置へ・固定を解く。`MatchPositions.place_for_kickoff`）を済ませてから `STYLE_CHANGE` にする（選び直しの間も
   ボール位置が保持側の視点になるように）。`apply_style_change` は方式を差し替えて `TURN` に戻すだけ
 - ハーフの最終ターンの判定が `LOSS`・`SAVE` でも、トランジションに入らずハーフを終える（`turn_kind` は攻守ターン、起点は `null`）
 - アディショナルタイム（アルゴリズム7。2026-10-24）: ハーフを終えたかは、次のターンの番号と直前のターンの記録（`turn_records` の最後）から
@@ -388,7 +392,7 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide,
 static func score(hint: ChoiceHint) -> float
 ## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表はアルゴリズム8）
 static func style_bonus(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea, cpu: CpuConfig) -> float
-## 局面の加点。攻撃の手・カウンターは forward_bonus × 前へ進むゾーン数、シュートは shot_bonus、守備の手は anticipation_bonus × ボールより前のゾーン数、ほかは 0（アルゴリズム8）
+## 局面の加点。攻撃の手・カウンターは forward_bonus × 前へ進む列数、シュートは shot_bonus、守備の手は anticipation_bonus × ボールより前の列数、ほかは 0（アルゴリズム8）
 static func situation_bonus(hint: ChoiceHint, ball: PitchArea, cpu: CpuConfig) -> float
 ## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。score + style_bonus + situation_bonus を probabilities に通す（choose_turn と同じ計算）
 static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]
@@ -653,7 +657,7 @@ func mark_tutorial_completed() -> bool
 | フィールド | 内容 |
 |---|---|
 | `user_players` / `opponent_players` | 選手ごとの現在の位置（各要素は `player_id`・`number`（背番号）・`area`（利用者の視点のエリアのキー））。現在の配置（`MatchRules.current_layouts`）から `MatchController` が作る。駒の表示に使う（作戦ボードは番号を描かない。背番号は、3D 演出（2026-10-23 にやめた）の表示用に持っていたもの） |
-| `user_counts` / `opponent_counts` | 15エリアの人数（`PitchArea` のキー → 人数）。`user_players` / `opponent_players` をエリアごとに数えた値と一致する |
+| `user_counts` / `opponent_counts` | 30エリアの人数（`PitchArea` のキー → 人数）。`user_players` / `opponent_players` をエリアごとに数えた値と一致する |
 | `ball_area` | ボール位置 |
 | `user_has_ball` | 利用者がボールを持っているか |
 | `last_goal_by` | 直前の得点の側（`HOME`／`AWAY`。まだ得点が無ければ空）。方式の選び直しの「〜が得点しました」に使う |
@@ -771,7 +775,7 @@ func append(record: MatchRecord) -> bool   # 同じ match_id があれば書か�
   積み重ねたデータではないため
 
 **JSON の共通の形**: 最上位に形式のバージョンを持たせる（`architecture-overview.md`「保存データの形式の
-バージョン」）。キーは snake_case、区分値は enum の名前、エリアは `"M-L1"` 形式、日時は端末のローカル時刻の
+バージョン」）。キーは snake_case、区分値は enum の名前、エリアは `"M2-L1"` 形式（列-レーン）、日時は端末のローカル時刻の
 ISO 8601（タイムゾーンなし）で書く。
 
 ```json
@@ -785,7 +789,7 @@ ISO 8601（タイムゾーンなし）で書く。
     "turn_number": 5,
     "turn_kind": "OPEN_PLAY",
     "possession": "HOME",
-    "ball_area": "M-L1",
+    "ball_area": "M2-L1",
     "first_half_kickoff": "AWAY",
     "score": { "HOME": 0, "AWAY": 1 },
     "setups": {
@@ -793,8 +797,8 @@ ISO 8601（タイムゾーンなし）で書く。
       "AWAY": { "formation_id": "4-4-2", "defense": "MAN", "attack": "COUNTER" }
     },
     "players": {
-      "HOME": [ { "player_id": "433-LB", "base_area": "D-L2", "fixed_area": null } ],
-      "AWAY": [ { "player_id": "442-ST1", "base_area": "A-C", "fixed_area": "M-C" } ]
+      "HOME": [ { "player_id": "433-LB", "base_area": "D2-L2", "fixed_area": null } ],
+      "AWAY": [ { "player_id": "442-ST1", "base_area": "A2-L1", "fixed_area": "M2-C" } ]
     },
     "transition_origin": null,
     "started_at": "2026-10-17T19:30:12",
@@ -902,7 +906,7 @@ func route_back() -> bool
 
 | `class_name` | 役割 |
 |---|---|
-| `TacticsBoard` | 15エリアの盤面。`BoardSnapshot` を受けて描く。ピッチを縦に置いて斜めから見せ（半3D）、利用者の攻撃方向を画面の上にする（2026-10-23 に横向き・右から変えた） |
+| `TacticsBoard` | 30エリアの盤面（5レーン×6列）。`BoardSnapshot` を受けて描く。ピッチを縦に置いて斜めから見せ（半3D）、利用者の攻撃方向を画面の上にする（2026-10-23 に横向き・右から変えた） |
 | `AreaCell` | 1エリア。両チームの人数（駒）・ボール・選択可否・ヒントを表示し、タップ／クリックを受ける |
 | `MoveArrowLayer` | `movements` を移動元から移動先への矢印で描く。理由（`MovementReason`）ごとに線種を変える |
 | `ChoicePanel` | 局面に応じた手のボタン。`MoveOptions` で選べない手を選択不可にする |
@@ -935,7 +939,7 @@ func route_back() -> bool
 >
 > **2026-10-23（縦向きの盤面）**: ピッチを縦に置き、斜めから見た半3Dで描く（利用者は上へ攻める。上が敵陣、左が左大外）。
 > 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
-> `BoardProjection`（`board_projection.gd`）の写し方（平面図 ⇔ 画面。奥 = 上を狭く・縦を詰める）を通す。
+> `BoardProjection`（`board_projection.gd`）の写し方（平面図 ⇔ 画面。奥 = 上を狭く。6列では縦は詰めない（`NEAR_WEIGHT` 1.0。2026-10-25））を通す。
 > 駒はチェスのような立体の駒（自分は丸い頭、相手はとがった頭）で、1チーム 2列×2段に並べ、奥から手前の順に描く
 > （`standing_order()`。描画とテストで共有）。押せる範囲は、画面でいちばん小さい奥の行でも 48dp 以上（`MIN_CELL`）。
 
@@ -961,7 +965,7 @@ func route_back() -> bool
 | `SettingsPanel` | 設定の中身（設定画面と、試合中のメニューから重ねて開く設定で共用） |
 | `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
 | `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
-| `MatchTexts` | 試合の画面の文言（エリア名「中盤・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
+| `MatchTexts` | 試合の画面の文言（エリア名「中盤（敵陣）・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
 | `StylePicker` | 守備方式・攻撃方式の2択を2組並べる部品（方式の選び直し・ハーフタイム） |
 | `MatchScreenLayout` | 試合の合間の画面（方式の選び直し・ハーフタイム・試合結果）の骨組み（上部バー・本体・操作の列と主ボタン）を組む（static） |
 

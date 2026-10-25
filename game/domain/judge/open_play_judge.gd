@@ -100,7 +100,7 @@ static func _dribble(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> Layout
 
 
 ## 守備の読みの段階。restricted は守備の手で制限したエリア、compare は比較エリア（運ぶ先。シュートはボールのエリア）。
-## どちらも攻撃側の視点。隣は同じゾーンでレーンが1つ隣だけ（ゾーンが違うエリアは、背後のカバーとして判定に効く）。
+## どちらも攻撃側の視点。隣は同じ列でレーンが1つ隣だけ（列が違うエリアは、背後のカバーとして判定に効く）。
 ## ボールのエリアへの寄せは、持っている選手への寄せで、運ぶ先の読みではないので隣に数えない
 ## （数えると、ボールへのプレスだけで横への同数のパスがすべて奪われ、カバーのいない外側へ通す JE-02 が成り立たない）。
 static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) -> GameEnums.ReadKind:
@@ -114,7 +114,7 @@ static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) 
 
 
 ## 手順5〜6の前半。比較エリアの人数と、同数のときのカバーの内訳（シュートはカバー判定をしない）。
-## カバーは、背後のエリアで守備側が攻撃側より多いときだけ。背後が盤外（敵陣）ならカバーなし（GK はカバーに数えない。
+## カバーは、背後のエリアで守備側が攻撃側より多いときだけ。背後が盤外（比較エリアが敵陣ゴール前の A2）ならカバーなし（GK はカバーに数えない。
 ## 敵陣の同数を GK が止めると、ほとんどの攻撃が敵陣で膠着して点が入らなかったため。2026-10-24）。
 ## 読み（read）は NONE で返す。攻守ターンの判定（judge）だけが入れる。
 ## compare は攻撃側の視点。トランジションのカウンター（アルゴリズム6）と共有する。
@@ -123,7 +123,7 @@ static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> Ju
 	var defenders: int = pair.defender.count_at(compare.mirrored())
 	var cover: GameEnums.CoverKind = GameEnums.CoverKind.NONE
 	if not is_shot and attackers == defenders:
-		# 背後 = 守備側ゴール方向へ1ゾーン = 攻撃側から見て1ゾーン前
+		# 背後 = 守備側ゴール方向へ1列 = 攻撃側から見て1列前
 		var behind: PitchArea = compare.forward()
 		if behind != null and pair.defender.count_at(behind.mirrored()) > pair.attacker.count_at(behind):
 			cover = GameEnums.CoverKind.DEFENDER

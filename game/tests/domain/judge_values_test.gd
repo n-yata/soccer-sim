@@ -7,22 +7,22 @@ func _area(key: String) -> PitchArea:
 
 
 func _pair() -> LayoutPair:
-	var players: Array[PlayerState] = [PlayerState.new("p1", _area("M-C"))]
+	var players: Array[PlayerState] = [PlayerState.new("p1", _area("M1-C"))]
 	return LayoutPair.new(TeamLayout.at_base(players), TeamLayout.at_base(players), GameEnums.TeamSide.HOME)
 
 
 func _detail() -> JudgeDetail:
-	return JudgeDetail.new(_area("A-L2"), 1, 1, GameEnums.CoverKind.DEFENDER, GameEnums.ReadKind.NEAR)
+	return JudgeDetail.new(_area("A1-L2"), 1, 1, GameEnums.CoverKind.DEFENDER, GameEnums.ReadKind.NEAR)
 
 
 func _movement() -> Movement:
-	return Movement.new(GameEnums.TeamSide.HOME, "p1", _area("M-C"), _area("A-C"), GameEnums.MovementReason.DRIBBLE)
+	return Movement.new(GameEnums.TeamSide.HOME, "p1", _area("M1-C"), _area("A1-C"), GameEnums.MovementReason.DRIBBLE)
 
 
 func test_judge_detail_keeps_values_and_copies_the_area() -> void:
 	var detail: JudgeDetail = _detail()
 	var copy: JudgeDetail = detail.duplicate_deep()
-	assert_str(copy.compare_area.to_key()).is_equal("A-L2")
+	assert_str(copy.compare_area.to_key()).is_equal("A1-L2")
 	assert_int(copy.attacker_count).is_equal(1)
 	assert_int(copy.defender_count).is_equal(1)
 	assert_int(copy.cover).is_equal(GameEnums.CoverKind.DEFENDER)
@@ -44,7 +44,7 @@ func test_judge_output_duplicate_deep_does_not_share_parts() -> void:
 	var copy: JudgeOutput = output.duplicate_deep()
 	copy.detail.attacker_count = 9
 	copy.movements[0].player_id = "changed"
-	copy.pair.attacker.players[0].fixed_area = _area("A-C")
+	copy.pair.attacker.players[0].fixed_area = _area("A1-C")
 	assert_int(output.detail.attacker_count).is_equal(1)
 	assert_str(output.movements[0].player_id).is_equal("p1")
 	assert_bool(output.pair.attacker.players[0].is_fixed()).is_false()

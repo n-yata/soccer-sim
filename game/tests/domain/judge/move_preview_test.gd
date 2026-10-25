@@ -2,6 +2,7 @@
 ## 期待値はアルゴリズム4〜6の規則から手で書き、あわせて、判定（OpenPlayJudge.judge・TransitionJudge.judge）で
 ## 相手が選手を動かさない手を選んだときの自チームの動きと一致することを確かめる。
 ## 運ぶ先は判定時の攻撃側（奪取側）の視点、選手のエリアと動きは各チーム自身の視点（component-design.md §1.2）。
+## 盤面は6列（2026-10-25）。
 extends GdUnitTestSuite
 
 const HOME := GameEnums.TeamSide.HOME
@@ -47,9 +48,9 @@ func _open_state(home_spec: Array, away_spec: Array, ball_key: String, away_defe
 	return state
 
 
-## HOME が奪取側のトランジション。ボールは HOME から見て D-C
+## HOME が奪取側のトランジション。ボールは HOME から見て D2-C
 func _transition_state(home_spec: Array, away_spec: Array, away_defense: GameEnums.DefenseStyle = ZONE) -> MatchState:
-	var state: MatchState = _open_state(home_spec, away_spec, "D-C", away_defense)
+	var state: MatchState = _open_state(home_spec, away_spec, "D2-C", away_defense)
 	state.turn_kind = GameEnums.TurnKind.TRANSITION
 	state.transition_origin = LayoutPair.new(_layout_of(state.home_players), _layout_of(state.away_players), HOME)
 	return state
@@ -115,77 +116,77 @@ func _assert_matches_judge(state: MatchState, side: GameEnums.TeamSide, choice: 
 # --- 守備の手 ---
 
 func test_press_moves_the_neighbor_into_the_restricted_area() -> void:
-	# 制限する M-C（AWAY から見ても M-C）の隣で、守備側がいるのは a1 の D-C だけ
-	var state: MatchState = _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]], [["a1", "D-C", ""], ["a2", "A-L2", ""]], "M-C")
-	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M-C"), ["AWAY a1 D-C>M-C PRESS"])
+	# 制限する M2-C（AWAY から見て M1-C）の隣で、守備側がいるのは a1 の D2-C だけ
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
+	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M2-C"), ["AWAY a1 D2-C>M1-C PRESS"])
 
 
 func test_cover_drops_the_player_behind_the_restricted_area() -> void:
-	# 制限する M-C にいる a1 が、背後（AWAY から見て D-C）へ下がる
-	var state: MatchState = _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]], [["a1", "M-C", ""], ["a2", "A-L2", ""]], "M-C")
-	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-C"), ["AWAY a1 M-C>D-C COVER"])
+	# 制限する M2-C（AWAY から見て M1-C）にいる a1 が、背後（AWAY から見て D2-C）へ下がる
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "M1-C", ""], ["a2", "A2-L2", ""]], "M2-C")
+	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "M2-C"), ["AWAY a1 M1-C>D2-C COVER"])
 
 
 func test_man_marking_press_includes_the_remark() -> void:
-	# マンツーマン。ターン開始で m1 は h2（AWAY から見て D-C）、m2 は h1（M-C）につく。
-	# A-L1（AWAY から見て D-R1）へのプレスで隣の D-C の m1 が寄せ、空いた h2 のマークに m2 が付け直す
-	var state: MatchState = _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]],
-			[["m1", "D-C", ""], ["m2", "M-L1", ""], ["far", "A-L2", ""]], "M-C", MAN)
-	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "A-L1"),
-			["AWAY m1 D-C>D-R1 PRESS", "AWAY m2 M-C>D-C MARK"])
+	# マンツーマン。ターン開始で m1 は h2（AWAY から見て D2-C）、m2 は h1（M1-C）につく。
+	# A1-L1（AWAY から見て D2-R1）へのプレスで隣の D2-C の m1 が寄せ、空いた h2 のマークに m2 が付け直す
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]],
+			[["m1", "D2-C", ""], ["m2", "M1-L1", ""], ["far", "A2-L2", ""]], "M2-C", MAN)
+	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "A1-L1"),
+			["AWAY m1 D2-C>D2-R1 PRESS", "AWAY m2 M1-C>D2-C MARK"])
 
 
 func test_man_marking_cover_includes_the_remark() -> void:
-	# マンツーマン。ターン開始で m1 は h2（AWAY から見て D-C）に残り、m2 は h1（M-C）へ付き、余った m3 は D-C へ1マス（D-R1）近づく。
-	# M-C のカバーで m2 が背後の D-C へ下がり、空いた h1 のマークに、D-R1 の m3 が付け直す（斜めに1マス）
-	var state: MatchState = _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]],
-			[["m1", "D-C", ""], ["m2", "M-L1", ""], ["m3", "M-R2", ""]], "M-C", MAN)
-	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "M-C"),
-			["AWAY m2 M-C>D-C COVER", "AWAY m3 D-R1>M-C MARK"])
+	# マンツーマン。ターン開始で m1 は h2（AWAY から見て D2-C）に残り、m2 は h1（M1-C）へ付き、余った m3 は D2-C へ1マス
+	# （D2-R1）近づく。M2-C のカバーで m2 が背後の D2-C へ下がり、空いた h1 のマークに、D2-R1 の m3 が付け直す（斜めに1マス）
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]],
+			[["m1", "D2-C", ""], ["m2", "M1-L1", ""], ["m3", "M1-R2", ""]], "M2-C", MAN)
+	_assert_matches_judge(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "M2-C"),
+			["AWAY m2 M1-C>D2-C COVER", "AWAY m3 D2-R1>M1-C MARK"])
 
 
 # --- 攻撃の手 ---
 
 func test_dribble_moves_only_the_carrier_and_leaves_out_the_opponent_remark() -> void:
 	# 相手はマンツーマン。判定では m1 がドリブルについていくが、プレビューは自チームの動きだけ
-	var state: MatchState = _open_state([["h1", "M-C", ""]], [["m1", "M-L1", ""], ["far", "A-L2", ""]], "M-C", MAN)
-	_assert_matches_judge(state, HOME, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "A-C"), ["HOME h1 M-C>A-C DRIBBLE"])
+	var state: MatchState = _open_state([["h1", "M2-C", ""]], [["m1", "M1-L1", ""], ["far", "A2-L2", ""]], "M2-C", MAN)
+	_assert_matches_judge(state, HOME, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "A1-C"), ["HOME h1 M2-C>A1-C DRIBBLE"])
 
 
 func test_passes_and_shots_move_nobody() -> void:
-	var state: MatchState = _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]], [["a1", "D-C", ""], ["a2", "A-L2", ""]], "M-C")
-	assert_array(_preview(state, HOME, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C"))).is_empty()
-	var shot_state: MatchState = _open_state([["h1", "A-C", ""]], [["a1", "D-C", ""]], "A-C")
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
+	assert_array(_preview(state, HOME, _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C"))).is_empty()
+	var shot_state: MatchState = _open_state([["h1", "A1-C", ""]], [["a1", "D2-C", ""]], "A1-C")
 	assert_array(_preview(shot_state, HOME, _choice(ATTACK, GameEnums.PlayType.SHOT))).is_empty()
 
 
 # --- トランジション ---
 
 func test_counter_breaks_out_the_wide_player() -> void:
-	# 奪取側 HOME（カウンター型）の h2 が大外 M-L2 から A-L2 へ飛び出す
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "A-C", ""], ["a2", "M-C", ""]])
-	_assert_matches_judge(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-L2"),
-			["HOME h2 M-L2>A-L2 COUNTER_BREAKOUT"])
+	# 奪取側 HOME（カウンター型）の h2 が大外 M1-L2 から M2-L2 へ飛び出す
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-L2", ""]], [["a1", "A1-C", ""], ["a2", "M2-C", ""]])
+	_assert_matches_judge(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "M2-L2"),
+			["HOME h2 M1-L2>M2-L2 COUNTER_BREAKOUT"])
 
 
 func test_retreat_returns_the_fixed_player_to_the_base_area() -> void:
-	# 喪失側 AWAY の a1 は M-C に固定されていた（基本エリアは D-C）。リトリートで基本エリアへ戻る
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "D-C", "M-C"], ["a2", "M-C", ""]])
-	_assert_matches_judge(state, AWAY, _choice(NEG_TRANS, GameEnums.NegTransAction.RETREAT), ["AWAY a1 M-C>D-C RETREAT_RESET"])
+	# 喪失側 AWAY の a1 は M2-C に固定されていた（基本エリアは M1-C）。リトリートで基本エリアへ戻る
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-L2", ""]], [["a1", "M1-C", "M2-C"], ["a2", "M2-C", ""]])
+	_assert_matches_judge(state, AWAY, _choice(NEG_TRANS, GameEnums.NegTransAction.RETREAT), ["AWAY a1 M2-C>M1-C RETREAT_RESET"])
 
 
 func test_man_marking_retreat_resets_and_marks_in_one_movement_each() -> void:
-	# 喪失側 AWAY はマンツーマン。自陣・中盤にいる奪取側は h2（AWAY から見て M-R2）だけ。
-	# 今いる位置で近い a1（M-C。距離2）がつき、1マスの M-R1 まで近づく。余った a2 は D-C へ（M-L1 から斜めに1マス）。
+	# 喪失側 AWAY はマンツーマン。AWAY の1〜4列目にいる奪取側は h2（AWAY から見て M2-R2）だけ。
+	# 今いる位置で近い a1（M2-C。距離2）がつき、1マスの M2-R1 まで近づく。余った a2 は D2-C へ（M2-L1 から1マスの M1-C まで）。
 	# 動きは直前の位置からの1本ずつ（2026-10-24。1ターン1マス）
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]],
-			[["a1", "D-C", "M-C"], ["a2", "M-L1", ""]], MAN)
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-L2", ""]],
+			[["a1", "M1-C", "M2-C"], ["a2", "M2-L1", ""]], MAN)
 	_assert_matches_judge(state, AWAY, _choice(NEG_TRANS, GameEnums.NegTransAction.RETREAT),
-			["AWAY a1 M-C>M-R1 RETREAT_RESET", "AWAY a2 M-L1>D-C RETREAT_RESET"])
+			["AWAY a1 M2-C>M2-R1 RETREAT_RESET", "AWAY a2 M2-L1>M1-C RETREAT_RESET"])
 
 
 func test_secure_and_counter_press_move_nobody() -> void:
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "D-C", "M-C"], ["a2", "M-C", ""]])
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-L2", ""]], [["a1", "M1-C", "M2-C"], ["a2", "M2-C", ""]])
 	assert_array(_preview(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.SECURE))).is_empty()
 	assert_array(_preview(state, AWAY, _choice(NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS))).is_empty()
 
@@ -193,20 +194,20 @@ func test_secure_and_counter_press_move_nobody() -> void:
 # --- 入力 ---
 
 func test_preview_does_not_modify_the_state() -> void:
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "D-C", "M-C"], ["a2", "M-C", ""]])
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-L2", ""]], [["a1", "M1-C", "M2-C"], ["a2", "M2-C", ""]])
 	MovePreview.own_movements(state, AWAY, _choice(NEG_TRANS, GameEnums.NegTransAction.RETREAT))
-	MovePreview.own_movements(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-L2"))
-	assert_str(state.away_players[0].fixed_area.to_key()).is_equal("M-C")
-	assert_str(state.transition_origin.defender.current_area_of("a1").to_key()).is_equal("M-C")
-	assert_str(state.transition_origin.attacker.current_area_of("h2").to_key()).is_equal("M-L2")
-	var open: MatchState = _open_state([["h1", "M-C", ""]], [["a1", "D-C", ""]], "M-C")
-	MovePreview.own_movements(open, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M-C"))
-	MovePreview.own_movements(open, HOME, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "A-C"))
+	MovePreview.own_movements(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "M2-L2"))
+	assert_str(state.away_players[0].fixed_area.to_key()).is_equal("M2-C")
+	assert_str(state.transition_origin.defender.current_area_of("a1").to_key()).is_equal("M2-C")
+	assert_str(state.transition_origin.attacker.current_area_of("h2").to_key()).is_equal("M1-L2")
+	var open: MatchState = _open_state([["h1", "M2-C", ""]], [["a1", "D2-C", ""]], "M2-C")
+	MovePreview.own_movements(open, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M2-C"))
+	MovePreview.own_movements(open, HOME, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "A1-C"))
 	assert_object(open.away_players[0].fixed_area).is_null()
 	assert_object(open.home_players[0].fixed_area).is_null()
 
 
 func test_an_inapplicable_defense_returns_no_movements() -> void:
-	# A-C（AWAY から見て D-C）のカバーは背後が盤外で適用できない
-	var state: MatchState = _open_state([["h1", "M-C", ""]], [["a1", "D-C", ""]], "M-C")
-	assert_array(_preview(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "A-C"))).is_empty()
+	# A2-C（AWAY から見て D1-C。ゴール前の1列目）のカバーは背後が盤外で適用できない
+	var state: MatchState = _open_state([["h1", "M2-C", ""]], [["a1", "D1-C", ""]], "M2-C")
+	assert_array(_preview(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "A2-C"))).is_empty()

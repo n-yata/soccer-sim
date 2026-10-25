@@ -18,7 +18,7 @@
 | 列 | 意味 |
 |---|---|
 | キー | JSON のキー（snake_case）。入れ子は `.` でつなぐ。配列の要素は `[]` |
-| 型 | `string`・`int`・`float`・`bool`・`object`・`array`、区分値は `enum<型名>`（値は名前の文字列）、エリアは `area`（`"M-L1"` の形）、日時は `datetime`（端末のローカル時刻の ISO 8601、タイムゾーンなし。例 `2026-10-17T19:30:12`） |
+| 型 | `string`・`int`・`float`・`bool`・`object`・`array`、区分値は `enum<型名>`（値は名前の文字列）、エリアは `area`（`"M2-L1"` の形。列-レーン。列は `D1`・`D2`・`M1`・`M2`・`A1`・`A2`。2026-10-25 に `"M-L1"` の形から変えた）、日時は `datetime`（端末のローカル時刻の ISO 8601、タイムゾーンなし。例 `2026-10-17T19:30:12`） |
 | 必須 | ○＝必須、△＝条件付き（条件は備考）、－＝任意。`null` を許すものは型に `|null` |
 | 範囲・制約 | 値の範囲。これを外れたら「破損」（保存データ）または検証の誤り（静的データ） |
 
@@ -195,7 +195,7 @@
 | `questions[].goal_id` | `string` | ○ | `LG-1`〜`LG-4` | 学習目標ID |
 | `questions[].is_playtest_set` | `bool` | ○ | 各学習目標につき `true` がちょうど2件 | KPI の測定に使う8問（要件定義書 §1.5） |
 | `questions[].scene` | `object` | ○ | — | 場面 |
-| `questions[].scene.counts` | `object` | ○ | 15エリアのキー → `[自分, 相手]`。各チームの合計が10 | 利用者の視点 |
+| `questions[].scene.counts` | `object` | ○ | 30エリアのキー → `[自分, 相手]`。各チームの合計が10 | 利用者の視点 |
 | `questions[].scene.ball` | `area` | ○ | — | — |
 | `questions[].scene.user_styles` / `.opponent_styles` | `object` | ○ | `{defense, attack}` | — |
 | `questions[].text` | `string` | ○ | 1〜200文字 | 問題文 |

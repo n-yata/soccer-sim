@@ -26,8 +26,8 @@ QuizScreen (Control)
 │   └── GoalCard × 4                        # Button。「LG-1 位置的・数的優位を見つける」＋「2問中 2問正解」／「未回答」
 └── QuestionView (HBoxContainer)            # 問題の表示（screen-common.md §1.1 の本体と操作の列）
     ├── ScenePane (VBoxContainer)           # 本体
-    │   ├── ScenePitch                      # MiniPitch（両チームの人数・ボール。5列×3行、上が敵陣。1マスの大きさはこの画面の作業で決める）
-    │   └── SceneInfo (Label)               # 「自分: ゾーン　相手: 保持型　ボール: 中盤・左HS」
+    │   ├── ScenePitch                      # MiniPitch（両チームの人数・ボール。横5レーン×縦6列、上が敵陣。1マスの大きさはこの画面の作業で決める）
+    │   └── SceneInfo (Label)               # 「自分: ゾーン　相手: 保持型　ボール: 中盤（敵陣）・左HS」
     └── SideColumn (VBoxContainer)          # 操作の列。入りきらないときは ActionButton を下端に固定したまま、その上を縦にスクロール
         ├── QuestionText (Label)            # 問題文。32px Bold
         ├── Choices (VBoxContainer)

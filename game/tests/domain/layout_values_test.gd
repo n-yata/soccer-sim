@@ -8,14 +8,14 @@ func _area(key: String) -> PitchArea:
 
 func _layout() -> TeamLayout:
 	var players: Array[PlayerState] = [
-		PlayerState.new("p1", _area("D-C")),
-		PlayerState.new("p2", _area("M-L2"), _area("M-L1")),
+		PlayerState.new("p1", _area("D1-C")),
+		PlayerState.new("p2", _area("M1-L2"), _area("M1-L1")),
 	]
 	return TeamLayout.at_base(players)
 
 
 func _movement() -> Movement:
-	return Movement.new(GameEnums.TeamSide.AWAY, "p2", _area("M-L2"), _area("A-L2"),
+	return Movement.new(GameEnums.TeamSide.AWAY, "p2", _area("M1-L2"), _area("A1-L2"),
 			GameEnums.MovementReason.POSSESSION_ADVANCE)
 
 
@@ -38,12 +38,12 @@ func test_layout_pair_defender_side_is_the_other_team() -> void:
 func test_layout_pair_duplicate_deep_does_not_share_layouts() -> void:
 	var pair := LayoutPair.new(_layout(), _layout(), GameEnums.TeamSide.HOME)
 	var copy: LayoutPair = pair.duplicate_deep()
-	copy.attacker.players[0].fixed_area = _area("A-C")
+	copy.attacker.players[0].fixed_area = _area("A1-C")
 	copy.attacker_side = GameEnums.TeamSide.AWAY
 	assert_bool(pair.attacker.players[0].is_fixed()).is_false()
 	assert_int(pair.attacker_side).is_equal(GameEnums.TeamSide.HOME)
 	assert_object(copy.defender).is_not_same(pair.defender)
-	assert_str(copy.defender.current_area_of("p2").to_key()).is_equal("M-L2")
+	assert_str(copy.defender.current_area_of("p2").to_key()).is_equal("M1-L2")
 
 
 func test_movement_keeps_its_values_and_copies_areas() -> void:
@@ -51,8 +51,8 @@ func test_movement_keeps_its_values_and_copies_areas() -> void:
 	var copy: Movement = movement.duplicate_deep()
 	assert_int(copy.side).is_equal(GameEnums.TeamSide.AWAY)
 	assert_str(copy.player_id).is_equal("p2")
-	assert_str(copy.from.to_key()).is_equal("M-L2")
-	assert_str(copy.to.to_key()).is_equal("A-L2")
+	assert_str(copy.from.to_key()).is_equal("M1-L2")
+	assert_str(copy.to.to_key()).is_equal("A1-L2")
 	assert_int(copy.reason).is_equal(GameEnums.MovementReason.POSSESSION_ADVANCE)
 	assert_object(copy.from).is_not_same(movement.from)
 	assert_object(copy.to).is_not_same(movement.to)
@@ -71,7 +71,7 @@ func test_layout_step_duplicate_deep_does_not_share_pair_or_movements() -> void:
 	var copy: LayoutStep = step.duplicate_deep()
 	copy.movements[0].player_id = "changed"
 	copy.movements.append(_movement())
-	copy.pair.defender.players[0].fixed_area = _area("D-L1")
+	copy.pair.defender.players[0].fixed_area = _area("D1-L1")
 	assert_str(step.movements[0].player_id).is_equal("p2")
 	assert_int(step.movements.size()).is_equal(1)
 	assert_bool(step.pair.defender.players[0].is_fixed()).is_false()

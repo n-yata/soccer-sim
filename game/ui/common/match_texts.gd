@@ -1,10 +1,10 @@
 ## 試合の画面（S-03〜S-06）の文言を1か所に集める。エリアは利用者の視点のキー（BoardSnapshot・RevealView の値）。
-## 用語の正本は glossary.md（ゾーン: 自陣・中盤・敵陣、レーン: 左大外・左ハーフスペース・中央…、HS = ハーフスペース）と
+## 用語の正本は glossary.md（列: 自陣ゴール前・自陣・中盤（自陣）・中盤（敵陣）・敵陣・敵陣ゴール前、レーン: 左大外・左ハーフスペース・中央…、HS = ハーフスペース）と
 ## functional-overview.md の区分値（ターン結果の日本語名）。
 class_name MatchTexts
 extends RefCounted
 
-const ZONE_NAMES: Array[String] = ["自陣", "中盤", "敵陣"]
+const ZONE_NAMES: Array[String] = ["自陣ゴール前", "自陣", "中盤（自陣）", "中盤（敵陣）", "敵陣", "敵陣ゴール前"]
 const LANE_NAMES: Array[String] = ["左大外", "左HS", "中央", "右HS", "右大外"]
 const ACTION_NAMES: Dictionary = {
 	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ドリブル", "背後へのロングボール", "サイドチェンジ", "シュート"],
@@ -22,7 +22,7 @@ const ATTACK_STYLE_NAMES: Array[String] = ["保持型", "カウンター型"]
 const MINUS_SIGN: String = "−"
 
 
-## "M-L1" → 「中盤・左HS」。読めないキーはそのまま返す。
+## "M2-L1" → 「中盤（敵陣）・左HS」。読めないキーはそのまま返す。
 static func area_name(key: String) -> String:
 	var area: PitchArea = PitchArea.from_key(key)
 	if area == null:
@@ -47,10 +47,10 @@ static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
 		return "プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる"
 	if action != GameEnums.DefenseAction.COVER:
 		return ""
-	return "カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）"
+	return "カバー: 味方1人が、選んだエリアの背後へ下がる。自陣ゴール前の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）"
 
 
-## 「ショートパス → 中盤・中央」。運ぶ先を持たない手は手の名前だけ。
+## 「ショートパス → 中盤（敵陣）・中央」。運ぶ先を持たない手は手の名前だけ。
 static func choice_summary(choice: TurnChoice) -> String:
 	var name: String = action_name(choice.family, choice.action)
 	if choice.target == null:

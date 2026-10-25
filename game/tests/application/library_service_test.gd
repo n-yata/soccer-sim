@@ -20,16 +20,19 @@ func test_formations_returns_a_copy_of_the_list() -> void:
 
 
 func test_base_counts_of_4_4_2_match_the_algorithm_1_table() -> void:
-	# functional-overview.md アルゴリズム1の表の 4-4-2（列は L2 / L1 / C / R1 / R2）
-	# 2026-10-24 から、重なりを1マス1人に散らした値
+	# functional-overview.md アルゴリズム1の表の 4-4-2（レーンは L2 / L1 / C / R1 / R2）
+	# 6列（2026-10-25）。陣形の座標をそのまま6列に当て、重なりを1マス1人に散らした値。空き列は0人
 	var expected: Dictionary = {
-		"A": [0, 1, 0, 1, 0],
-		"M": [1, 1, 0, 1, 1],
-		"D": [1, 1, 0, 1, 1],
+		"A2": [0, 1, 0, 1, 0],
+		"A1": [0, 0, 0, 0, 0],
+		"M2": [1, 1, 0, 1, 1],
+		"M1": [0, 0, 0, 0, 0],
+		"D2": [1, 1, 0, 1, 1],
+		"D1": [0, 0, 0, 0, 0],
 	}
 	var lanes: Array[String] = ["L2", "L1", "C", "R1", "R2"]
 	var counts: Dictionary = _library().base_counts("4-4-2")
-	assert_int(counts.size()).is_equal(15)
+	assert_int(counts.size()).is_equal(30)
 	for zone: String in expected:
 		var row: Array = expected[zone]
 		for i: int in lanes.size():

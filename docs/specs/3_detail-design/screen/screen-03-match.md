@@ -22,7 +22,7 @@
 
 ```
 MatchScreen (Control)
-├── Layout (VBoxContainer)                    # 外周の余白 24px（screen-common.md §1.1）
+├── Layout (VBoxContainer)                    # 外周の余白 左右 24px・上下 12px（screen-common.md §1.1。2026-10-25）
 │   ├── TopBar (HBoxContainer)                # 高さ 96px
 │   │   ├── MenuButton (Button)               # 「≡」。96×96px
 │   │   ├── ScoreBug (HBoxContainer)          # 中継風のスコア表示（common/score_bug.tscn）
@@ -33,11 +33,11 @@ MatchScreen (Control)
 │   │   ├── PossessionLabel (Label)           # 「● 自分のボール」／「◆ CPU のボール」。地は保持側のチームの色。開示中も隠さず、判定後の保持に替える（2026-10-24）
 │   │   ├── PhaseTag (Label)                  # 「ATTACK 攻撃」。地 accent、文字 bg。開示中は隠し、RevealBanner に替える
 │   │   └── RevealBanner (VBoxContainer)      # 両者の選択の帯（2段）。開示から次のターンまで表示（それ以外は非表示）。各段 24px、ELLIPSIS
-│   │       ├── UserChoiceLabel (Label)       # 「YOU ショートパス → 中盤・中央」。地 #0E3A55
-│   │       └── OpponentChoiceLabel (Label)   # 「CPU プレス → 中盤・左HS」。地 #4A2611
-│   └── BoardPanel                            # MatchBoardPanel（board2d/match_board_panel.tscn）。高さ 576px。S-08 と共用
+│   │       ├── UserChoiceLabel (Label)       # 「YOU ショートパス → 中盤（敵陣）・中央」。地 #0E3A55
+│   │       └── OpponentChoiceLabel (Label)   # 「CPU プレス → 中盤（自陣）・左HS」。地 #4A2611
+│   └── BoardPanel                            # MatchBoardPanel（board2d/match_board_panel.tscn）。高さ 600px（2026-10-25 に6列で 576px から変更）。S-08 と共用
 │       ├── Columns (HBoxContainer)           # 間隔 24px
-│       │   ├── BoardArea (Control)           # 本体。残りの幅いっぱい（16:9 で 728×576px、1エリア 約 242×115px）
+│       │   ├── BoardArea (Control)           # 本体。残りの幅いっぱい（16:9 で 728×600px。5レーン×6列で、平面図の1エリア 約 145×100px）
 │       │   │   └── TacticsBoard              # board2d/tactics_board.tscn。ピッチ・駒・札・矢印
 │       │   └── SideColumn (VBoxContainer)    # 操作の列。幅 480〜640px（screen-common.md §1.1）、間隔 16px
 │       │       ├── SetupCard (VBoxContainer)      # 上端に固定。両チームの陣形・方式を常に表示（FR-16・21）。2段、各 24px、ELLIPSIS
@@ -51,10 +51,10 @@ MatchScreen (Control)
 │       │       │       └── JudgeTelop (VBoxContainer) # 判定理由の表示中だけ（ChoicePanel・TargetInfo の代わりに出す）
 │       │       │           ├── OutcomeTag (Label)     # 「● ADVANCE 前進」。地は成功した側の色（自分 水色・相手 オレンジ。判定なしは accent）
 │       │       │           ├── ReasonLabel (Label)    # JudgeReasonFormatter の文。地 telop_bg
-│       │       │           ├── JudgeDetail (Label)    # 判定の内訳「比較エリア 中盤・中央／● 自分 1 対 0 相手 ◆／カバー なし」。NO_CONTEST では隠す
+│       │       │           ├── JudgeDetail (Label)    # 判定の内訳「比較エリア 中盤（敵陣）・中央／● 自分 1 対 0 相手 ◆／カバー なし」。NO_CONTEST では隠す
 │       │       │           └── RealWorldNote (Label)  # 「実戦では: …」。該当するときだけ。文字 caution
 │       │       ├── PrimaryButton (Button)    # 列の下端に固定。高さ 112px、列の幅いっぱい。show_next が偽なら判定理由の表示中は隠す
-│       │       │   ├── ButtonSummary (Label) # 「ショートパス → 中盤・中央」／「次のターンへ」
+│       │       │   ├── ButtonSummary (Label) # 「ショートパス → 中盤（敵陣）・中央」／「次のターンへ」
 │       │       │   └── ButtonAction (Label)  # 「LOCK IN」／「NEXT」
 │       │       └── SideBottomSlot (VBoxContainer) # 画面ごとに足すボタンの置き場。S-03 では空、S-08 は「次へ」
 │       （3D 演出の ReplayLayer は 2026-10-23 にやめた。開示は TacticsBoard の上で駒とボールを動かす）
@@ -65,7 +65,7 @@ MatchScreen (Control)
 ```
 
 - **画面の向き**: 横向きだけ（要件定義書 §6.1）。端末の横の長さの違い（16:9〜21:9）は、操作の列の幅（上限 640px）と
-  `BoardArea` の幅で吸収する（横に長い端末ほどピッチが横に伸びる。高さは 576px で一定。screen-common.md §1.1）
+  `BoardArea` の幅で吸収する（横に長い端末ほどピッチが横に伸びる。高さは 600px で一定。screen-common.md §1.1）
 - **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から次のターン開始時の位置へ駒とボールを動かして見せる。
   盤面は縦向きのピッチを斜めから見せ、利用者の攻撃方向は上（2026-10-23 に、3D 演出の表示場所 `ReplayLayer` から置き換えた）
 - **盤面と操作の列の部品**: `BoardPanel`（`MatchBoardPanel`）の中身は S-08 と共用する。画面ごとの違いは
@@ -105,7 +105,7 @@ MatchScreen (Control)
 | `_options` | `MoveOptions` | このターンの選べる手（`user_options()` の結果） |
 | `_hints` | `Array[ChoiceHint]` | ヒント。設定が OFF なら空 |
 | `_selected_family` / `_selected_action` | `GameEnums.ChoiceFamily` / `int` | 選んだ手 |
-| `_selected_target` | `String` | 選んだエリアのキー（`"M-C"` など）。未選択・不要なら空文字 |
+| `_selected_target` | `String` | 選んだエリアのキー（`"M2-C"` など）。未選択・不要なら空文字 |
 | `_reveal` | `RevealView` | 直前の開示の値（`SHOW_RESULT` で使う） |
 | `_snapshot` | `BoardSnapshot` | `turn_resolved` で受けた判定後の盤面（次のターン開始時の配置） |
 
@@ -149,7 +149,7 @@ MatchScreen (Control)
    ボールから運ぶ先への矢印を描く。守備の手では描かない（選ぶのは相手が来ると読んだエリアで、ボールはそこへ動かない）。
    `MatchController.user_preview(手)` の動きを `TacticsBoard.show_preview` で重ねる（決定前のプレビュー。自分の選手だけ。
    相手の駒は動かさない）。
-   決定ボタンの要約を「ショートパス → 中盤・中央」の形にする。`TargetInfo` に運ぶ先の名前と、そのエリアのヒントの札の文（ヒントが ON のとき。例「中盤・中央　+1　1対0」）を出す
+   決定ボタンの要約を「ショートパス → 中盤（敵陣）・中央」の形にする。`TargetInfo` に運ぶ先の名前と、そのエリアのヒントの札の文（ヒントが ON のとき。例「中盤（敵陣）・中央　+1　1対0」）を出す
 3. `_state = READY`、「決定」を押せるようにする
 
 ### 「決定」を押す

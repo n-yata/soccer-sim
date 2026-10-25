@@ -1,12 +1,13 @@
-## 15エリアの人数を小さく描く表示専用の部品（screen-common.md §5）。作戦ボードと同じ向きで、
-## 列 = レーン（L2〜R2 を左から）、行 = ゾーン（A・M・D を上から）、攻撃方向が上（2026-10-23 に縦向きへ揃えた）。
+## 30エリアの人数を小さく描く表示専用の部品（screen-common.md §5）。作戦ボードと同じ向きで、
+## 横 = レーン（L2〜R2 を左から）、縦 = 列（A2〜D1 を上から）、攻撃方向が上（2026-10-23 に縦向きへ揃えた）。
 ## 小さい表示なので、作戦ボードの遠近と立体の駒は付けない（真上から見た平面）。
 ## 今は1チームの人数だけを描く。2チームの表示（two_teams）と動きの矢印は、使う画面の作業で足す。
 class_name MiniPitch
 extends Control
 
-## 1チームの陣形カード用の1マス（screen-common.md §5。人数の数字 24px が入る大きさ）
-const CELL_SIZE: Vector2 = Vector2(44, 60)
+## 1チームの陣形カード用の1マス（screen-common.md §5。人数の数字 24px が入る大きさ）。
+## 6列にしたとき、陣形カードの大きさ（220×180）を変えないよう、縦を 60 から 30 にした（2026-10-25）
+const CELL_SIZE: Vector2 = Vector2(44, 30)
 const THEME_TYPE: StringName = &"MiniPitch"
 
 var _counts: Dictionary = {}
@@ -17,7 +18,7 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## エリアのマスの位置と大きさ（この部品の左上が原点）。列 = レーン（左が L2）、行 = ゾーン（上が A）。
+## エリアのマスの位置と大きさ（この部品の左上が原点）。横 = レーン（左が L2）、縦 = 列（上が A2）。
 static func cell_rect(area: PitchArea, cell_size: Vector2) -> Rect2:
 	return Rect2(Vector2(area.lane * cell_size.x, (PitchArea.ZONE_COUNT - 1 - area.zone) * cell_size.y), cell_size)
 
@@ -49,11 +50,11 @@ func _draw() -> void:
 			var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 			var baseline: Vector2 = cell.get_center() + Vector2(-text_size.x / 2.0, font.get_ascent(font_size) / 2.0 - 2.0)
 			draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, font_color)
-	# 外枠だけを白線で描く。ハーフウェイラインは中盤の行の真ん中を通り、人数の数字と重なって読みにくいため描かない
+	# 外枠だけを白線で描く。ハーフウェイライン（M1 と M2 の境）は列の境界の点線で足り、小さい表示を簡素に保つため白線では描かない
 	draw_rect(board, get_theme_color("pitch_line", THEME_TYPE), false, 2.0)
 
 
-## 15エリアの境界を点線で描く（screen-common.md §3 の zone_line）。外枠は白線で別に描く。
+## 30エリアの境界を点線で描く（screen-common.md §3 の zone_line）。外枠は白線で別に描く。
 func _draw_zone_lines(board: Rect2, color: Color) -> void:
 	for lane_index: int in range(1, PitchArea.LANE_COUNT):
 		var x: float = lane_index * CELL_SIZE.x

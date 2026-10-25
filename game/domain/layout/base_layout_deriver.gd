@@ -1,4 +1,4 @@
-## アルゴリズム1: 基本配置の導出（functional-overview.md。component-design.md §2.3）。
+## アルゴリズム1: 基本配置の導出（functional-overview.md。component-design.md §2.3）と、キックオフの位置（アルゴリズム7）。
 ##
 ## 境界の数値はルールの定義そのもので、調整値ではない。そのため Resource に出さず定数で持つ
 ## （調整値の一覧の正本は functional-overview.md「設定値として外部化する値」で、ここには含まれない）。
@@ -10,10 +10,8 @@ const CENTER_X: float = 50.0
 const CENTER_MAX_DISTANCE: float = 15.0
 ## d がこれ以上なら大外（ちょうども大外）。間はハーフスペース
 const WIDE_MIN_DISTANCE: float = 30.0
-## y がこれ未満なら D（ちょうどは M）
-const DEFENSE_ZONE_END_Y: float = 100.0 / 3.0
-## y がこれ未満なら M（ちょうどは A）
-const MIDDLE_ZONE_END_Y: float = 200.0 / 3.0
+## 座標の y の全長（0〜100）。これを列の数で等分する
+const PITCH_LENGTH: float = 100.0
 ## 重なった選手を散らすときの、各レーン（L2・L1・C・R1・R2）の中心の x。ピッチの幅を5等分した中心
 const SPREAD_LANE_CENTERS: Array[float] = [10.0, 30.0, 50.0, 70.0, 90.0]
 ## 散らし方の比較で、浮動小数の誤差を同じとみなす幅
@@ -26,30 +24,55 @@ static func area_of(x: float, y: float) -> PitchArea:
 
 
 ## GK を除く選手の基本エリアを持つ配置。固定は無く、現在エリアは基本エリアと同じ。
-## 座標のエリアで同じエリアに2人以上いるゾーンは、そのゾーンの選手を1マス1人に散らす（_spread_lanes）。
+## 座標のエリアで同じエリアに2人以上いる列は、その列の選手を1マス1人に散らす（_spread_lanes）。
 static func derive(formation: FormationDef) -> TeamLayout:
 	var slots: Array[PlayerSlotDef] = []
 	for slot: PlayerSlotDef in formation.players:
 		if not slot.is_goalkeeper():
 			slots.append(slot)
+	var xs: Array[float] = []
 	var areas: Array[PitchArea] = []
 	for slot: PlayerSlotDef in slots:
+		xs.append(slot.x)
 		areas.append(area_of(slot.x, slot.y))
-	for zone: GameEnums.Zone in [GameEnums.Zone.D, GameEnums.Zone.M, GameEnums.Zone.A]:
-		_spread_zone(slots, areas, zone)
+	_spread_rows(xs, areas)
 	var players: Array[PlayerState] = []
 	for index: int in range(slots.size()):
 		players.append(PlayerState.new(slots[index].id, areas[index]))
 	return TeamLayout.at_base(players)
 
 
-## zone の選手が同じレーンに重なっていれば、左右の並び順（x。同じ x は陣形データの順）のまま、1マス1人のレーンへ
-## 置き直す（2026-10-24）。レーンより人数が多いゾーンは1マス1人にできないので、そのままにする。
-static func _spread_zone(slots: Array[PlayerSlotDef], areas: Array[PitchArea], zone: GameEnums.Zone) -> void:
+## キックオフの位置（選手 ID → エリア。2026-10-25）。陣形を自陣（1〜3列目）に縮めて置く。
+## 列は、基本エリアの列番号を2で割って切り捨てたもの（D1・D2→D1、M1・M2→D2、A1・A2→M1）。座標の y を半分にした
+## 列と一致する（列 r の y は [r·h, (r+1)·h) で、その半分は列 floor(r/2) に入る。h = 100/6。y = 100 ちょうどだけは、列6を5に丸めた分の例外で半分が M2 に入るが、陣形データには無い）ので、座標を持ち回らずに
+## 基本エリアから決める。同じ列に重なれば、基本エリアのレーンの中心を座標の代わりにして散らす（同じなら配置の順）。
+static func kickoff_areas(players: Array[PlayerState]) -> Dictionary:
+	var xs: Array[float] = []
+	var areas: Array[PitchArea] = []
+	for player: PlayerState in players:
+		xs.append(SPREAD_LANE_CENTERS[player.base_area.lane])
+		@warning_ignore("integer_division")
+		areas.append(PitchArea.new(player.base_area.lane, (player.base_area.zone / 2) as GameEnums.Zone))
+	_spread_rows(xs, areas)
+	var result: Dictionary = {}
+	for index: int in range(players.size()):
+		result[players[index].player_id] = areas[index]
+	return result
+
+
+## 列ごとに _spread_zone をかける。xs は各選手の左右の位置（座標の x か、その代わりの値）。areas を書き換える。
+static func _spread_rows(xs: Array[float], areas: Array[PitchArea]) -> void:
+	for zone_index: int in range(PitchArea.ZONE_COUNT):
+		_spread_zone(xs, areas, zone_index as GameEnums.Zone)
+
+
+## zone の選手が同じレーンに重なっていれば、左右の並び順（x。同じ x は並びの順）のまま、1マス1人のレーンへ
+## 置き直す（2026-10-24）。レーンより人数が多い列は1マス1人にできないので、そのままにする。
+static func _spread_zone(xs: Array[float], areas: Array[PitchArea], zone: GameEnums.Zone) -> void:
 	var indices: Array[int] = []
 	var lanes_used: Dictionary = {}
 	var overlaps: bool = false
-	for index: int in range(slots.size()):
+	for index: int in range(areas.size()):
 		if areas[index].zone != zone:
 			continue
 		indices.append(index)
@@ -58,11 +81,11 @@ static func _spread_zone(slots: Array[PlayerSlotDef], areas: Array[PitchArea], z
 	if not overlaps or indices.size() > SPREAD_LANE_CENTERS.size():
 		return
 	indices.sort_custom(func(a: int, b: int) -> bool:
-		return slots[a].x < slots[b].x or (slots[a].x == slots[b].x and a < b))
-	var xs: Array[float] = []
+		return xs[a] < xs[b] or (xs[a] == xs[b] and a < b))
+	var sorted_xs: Array[float] = []
 	for index: int in indices:
-		xs.append(slots[index].x)
-	var lanes: Array[int] = _spread_lanes(xs)
+		sorted_xs.append(xs[index])
+	var lanes: Array[int] = _spread_lanes(sorted_xs)
 	# 置き方を比べられなかった（座標が NaN。読み込みが弾くので通常は起きない）ときは、座標のエリアのままにする
 	if lanes.size() != indices.size():
 		return
@@ -119,9 +142,8 @@ static func _lane_of(x: float) -> GameEnums.Lane:
 	return GameEnums.Lane.L2 if is_left else GameEnums.Lane.R2
 
 
+## y を列の数で等分した列。境界ちょうどは前の列（y = 50 は M2）。y = 100 は最後の列。
+## 掛けてから割る（y × 6 / 100）のは、100/6 の端数で境界ちょうどの値が手前の列に落ちないようにするため。
 static func _zone_of(y: float) -> GameEnums.Zone:
-	if y < DEFENSE_ZONE_END_Y:
-		return GameEnums.Zone.D
-	if y < MIDDLE_ZONE_END_Y:
-		return GameEnums.Zone.M
-	return GameEnums.Zone.A
+	var index: int = int(floor(y * PitchArea.ZONE_COUNT / PITCH_LENGTH))
+	return clampi(index, 0, PitchArea.ZONE_COUNT - 1) as GameEnums.Zone

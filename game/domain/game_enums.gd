@@ -8,7 +8,9 @@ extends RefCounted
 
 # functional-overview.md の区分値
 enum Lane { L2, L1, C, R1, R2 }
-enum Zone { D, M, A }
+## 列（自陣のゴール側から）。D1 自陣ゴール前・D2 自陣・M1 中盤（自陣）・M2 中盤（敵陣）・A1 敵陣・A2 敵陣ゴール前。
+## ハーフウェーラインは M1 と M2 の境（2026-10-25 に3列から6列にした）
+enum Zone { D1, D2, M1, M2, A1, A2 }
 enum DefenseStyle { ZONE, MAN }
 enum AttackStyle { POSSESSION, COUNTER }
 enum TurnKind { OPEN_PLAY, TRANSITION }
@@ -29,7 +31,7 @@ enum ChoiceFamily { ATTACK, DEFENSE, NEG_TRANS, POS_TRANS }
 ## GK はカバーに数えない（2026-10-24 に GOALKEEPER・OUT_OF_GK_REACH を外した。functional-overview.md アルゴリズム5）
 enum CoverKind { NONE, DEFENDER }
 ## 守備の読みの段階（functional-overview.md アルゴリズム5）。守備の手で制限したエリアが比較エリアと同じなら EXACT、
-## 同じゾーンでレーンが1つ隣なら NEAR、それ以外は NONE。トランジション・ヒントでは NONE
+## 同じ列でレーンが1つ隣なら NEAR、それ以外は NONE。トランジション・ヒントでは NONE
 enum ReadKind { NONE, NEAR, EXACT }
 ## 選手が動いた理由。DRIBBLE_STOPPED は膠着したドリブルの選手がボールのエリアへ戻る動き、
 ## BALL_HOLDER はボールのエリアに保持側がいないとき、いちばん近い選手が置かれる動き、

@@ -1,6 +1,7 @@
 ## アルゴリズム5: 攻守ターンの判定（OpenPlayJudge）のテスト。
 ## 判定例 JE-01〜06・JE-08 は functional-overview.md「判定例」から、それ以外の期待値はアルゴリズム5の規則から手で書いた。
 ## ボール位置・運ぶ先・比較エリアは攻撃側から見た座標、守備側の配置と動きは守備側から見た座標（component-design.md §1.2）。
+## 盤面は6列（2026-10-25）。判定例は陣形の名前を使わず、場面の配置で示す。
 extends GdUnitTestSuite
 
 const ZONE := GameEnums.DefenseStyle.ZONE
@@ -8,17 +9,6 @@ const MAN := GameEnums.DefenseStyle.MAN
 const COUNTER := GameEnums.AttackStyle.COUNTER
 const HOME := GameEnums.TeamSide.HOME
 const AWAY := GameEnums.TeamSide.AWAY
-const ADVANCE := GameEnums.TurnOutcome.ADVANCE
-const STALL := GameEnums.TurnOutcome.STALL
-const LOSS := GameEnums.TurnOutcome.LOSS
-const GOAL := GameEnums.TurnOutcome.GOAL
-const SAVE := GameEnums.TurnOutcome.SAVE
-
-var _catalog: ContentCatalog
-
-
-func before() -> void:
-	_catalog = ContentRepository.new().load_catalog()
 
 
 func _area(key: String) -> PitchArea:
@@ -38,33 +28,39 @@ func _defense(action: GameEnums.DefenseAction, target_key: String) -> TurnChoice
 	return TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, action, _area(target_key))
 
 
-## 判定例の場面: 陣形の座標のエリアをそのまま使った配置（JudgeExampleLayouts）に、アルゴリズム2を適用した配置
-## （どちらもカウンター型）
-func _scene(attacker_id: String, defender_id: String, defense: GameEnums.DefenseStyle, ball_key: String,
+## spec は [選手 ID, エリア, 固定先（無ければ ""）]。現在エリアは固定先、無ければエリア
+func _team(spec: Array) -> TeamLayout:
+	var players: Array[PlayerState] = []
+	var current: Dictionary = {}
+	for row: Array in spec:
+		var fixed_key: String = row[2] as String
+		var fixed: PitchArea = null if fixed_key == "" else _area(fixed_key)
+		var player := PlayerState.new(row[0] as String, _area(row[1] as String), fixed)
+		players.append(player)
+		current[player.player_id] = fixed if fixed != null else player.base_area
+	return TeamLayout.new(players, current)
+
+
+## 判定例の場面: attacker_spec・defender_spec の配置（基本エリアに立つ）に、同じボール位置で方式の動きが落ち着くまで
+## ターン開始（アルゴリズム2）を繰り返した配置。攻撃側はカウンター型・ゾーン
+func _scene(attacker_spec: Array, defender_spec: Array, defense: GameEnums.DefenseStyle, ball_key: String,
 		attacker_side: GameEnums.TeamSide = HOME) -> LayoutPair:
-	# 判定例の配置は、方式の動きが落ち着いた後（1ターン1マスなので、同じボール位置で誰も動かなくなるまでターン開始を繰り返す）
-	var pair := LayoutPair.new(JudgeExampleLayouts.at_coordinates(_catalog.formation(attacker_id)),
-			JudgeExampleLayouts.at_coordinates(_catalog.formation(defender_id)), attacker_side)
-	for _turn: int in range(5):
+	var pair := LayoutPair.new(_team(attacker_spec), _team(defender_spec), attacker_side)
+	for _turn: int in range(6):
 		var step: LayoutStep = StyleLayoutCalculator.compute(pair.attacker, _styles(ZONE), pair.defender,
 				_styles(defense), _area(ball_key), attacker_side)
 		pair = step.pair
 		if step.movements.is_empty():
 			return pair
-	fail("方式の動きが5ターンで落ち着かない")
+	fail("方式の動きが6ターンで落ち着かない")
 	return pair
 
 
-## 守備側の人数を攻撃側の視点の行で表す（判定例の書き方。"A l2 l1 c r1 r2 / M ... / D ..."）
-func _defender_rows(pair: LayoutPair) -> String:
-	var rows: Array[String] = []
-	for zone: GameEnums.Zone in [GameEnums.Zone.A, GameEnums.Zone.M, GameEnums.Zone.D]:
-		var counts: Array[String] = []
-		for lane: GameEnums.Lane in [GameEnums.Lane.L2, GameEnums.Lane.L1, GameEnums.Lane.C,
-				GameEnums.Lane.R1, GameEnums.Lane.R2]:
-			counts.append(str(pair.defender.count_at(PitchArea.new(lane, zone).mirrored())))
-		rows.append("%s %s" % [["D", "M", "A"][zone], " ".join(counts)])
-	return " / ".join(rows)
+func _areas_of(layout: TeamLayout) -> Dictionary:
+	var result: Dictionary = {}
+	for player: PlayerState in layout.players:
+		result[player.player_id] = layout.current_area_of(player.player_id).to_key()
+	return result
 
 
 ## "選手 ID:移動元>移動先:理由"（座標は動いた選手のチーム自身から見た値）
@@ -84,105 +80,110 @@ func _summary(output: JudgeOutput) -> String:
 			"" if output.detail.read == GameEnums.ReadKind.NONE else " " + GameEnums.ReadKind.keys()[output.detail.read]]
 
 
-## spec は [選手 ID, エリア, 固定先（無ければ ""）]。現在エリアは固定先、無ければエリア
-func _team(spec: Array) -> TeamLayout:
-	var players: Array[PlayerState] = []
-	var current: Dictionary = {}
-	for row: Array in spec:
-		var fixed_key: String = row[2] as String
-		var fixed: PitchArea = null if fixed_key == "" else _area(fixed_key)
-		var player := PlayerState.new(row[0] as String, _area(row[1] as String), fixed)
-		players.append(player)
-		current[player.player_id] = fixed if fixed != null else player.base_area
-	return TeamLayout.new(players, current)
-
-
 func _judge(pair: LayoutPair, defense_style: GameEnums.DefenseStyle, ball_key: String,
 		attack: TurnChoice, defense: TurnChoice) -> JudgeOutput:
 	return OpenPlayJudge.judge(pair, _styles(ZONE), _styles(defense_style), _area(ball_key), attack, defense)
 
 
+# --- 判定例の場面 ---
+
+## JE-01: 攻撃側はボールの M2-L1 に a1、中央の M2-C に a2。守備側（ゾーン。守備側の視点）は中央 M1-C に d1、
+## 右の大外 M1-R2 に d2、2列目の中央 D2-C に d3
+func _je01() -> LayoutPair:
+	return _scene([["a1", "M2-L1", ""], ["a2", "M2-C", ""]],
+			[["d1", "M1-C", ""], ["d2", "M1-R2", ""], ["d3", "D2-C", ""]], ZONE, "M2-L1")
+
+
+## JE-02・JE-03: 攻撃側はボールの M2-C に a1、左のハーフスペース M2-L1 に a2、敵陣の A1-C に a3。
+## 守備側（マンツーマン）は M1-C に m1、M1-R1 に m2、D2-C に m3、D2-L1 に m4、D2-R1 に m5
+func _je02(attacker_side: GameEnums.TeamSide = HOME) -> LayoutPair:
+	return _scene([["a1", "M2-C", ""], ["a2", "M2-L1", ""], ["a3", "A1-C", ""]],
+			[["m1", "M1-C", ""], ["m2", "M1-R1", ""], ["m3", "D2-C", ""], ["m4", "D2-L1", ""], ["m5", "D2-R1", ""]],
+			MAN, "M2-C", attacker_side)
+
+
+## JE-04: 攻撃側はボールの A1-C に a1、敵陣ゴール前の A2-C に a2・a3。守備側（ゾーン）はゴール前の D1-C に d1・d2、
+## 左の大外 D2-L2 に d3
+func _je04() -> LayoutPair:
+	return _scene([["a1", "A1-C", ""], ["a2", "A2-C", ""], ["a3", "A2-C", ""]],
+			[["d1", "D1-C", ""], ["d2", "D1-C", ""], ["d3", "D2-L2", ""]], ZONE, "A1-C")
+
+
+## JE-05・JE-06: 攻撃側はボールの A1-C に a1・a2。守備側（ゾーン）は D2-C（攻撃側の視点で A1-C）に d1、
+## ゴール前の D1-C に d2、その前の M1-C に d3
+func _je05() -> LayoutPair:
+	return _scene([["a1", "A1-C", ""], ["a2", "A1-C", ""]],
+			[["d1", "D2-C", ""], ["d2", "D1-C", ""], ["d3", "M1-C", ""]], ZONE, "A1-C")
+
+
 # --- 判定例 ---
 
 func test_je01_pass_into_the_center_left_open_by_the_zone_slide() -> void:
-	var pair: LayoutPair = _scene("4-3-3", "4-4-2", ZONE, "M-L1")
-	assert_str(_defender_rows(pair)).is_equal("A 1 2 0 1 0 / M 1 2 0 1 0 / D 0 2 0 0 0")
-	var output: JudgeOutput = _judge(pair, ZONE, "M-L1",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-C"), _defense(GameEnums.DefenseAction.PRESS, "M-L1"))
-	# 同率（+2）は前方優先で、攻撃側の視点の D-L1（守備側の A-R1。守備側の FW）が寄せる
-	assert_int(output.movements.size()).is_equal(1)
-	assert_str(output.movements[0].from.mirrored().to_key()).is_equal("D-L1")
-	assert_str(output.movements[0].to.mirrored().to_key()).is_equal("M-L1")
-	# 寄せた M-L1 はボールのエリア（持っている選手への寄せ）なので、隣の M-C への読みにはならない
-	assert_str(_summary(output)).is_equal("ADVANCE M-C 1-0 NONE")
+	var pair: LayoutPair = _je01()
+	# ボールは守備側から見て右のハーフスペース（M1-R1）。全員が右へ1レーンずれ（大外の d2 はそのまま）、中央の M1-C が空く
+	assert_dict(_areas_of(pair.defender)).is_equal({"d1": "M1-R1", "d2": "M1-R2", "d3": "D2-R1"})
+	var output: JudgeOutput = _judge(pair, ZONE, "M2-L1",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-C"), _defense(GameEnums.DefenseAction.PRESS, "M2-L1"))
+	# ボールのエリア（守備側の M1-R1）へのプレス。横の d2（+1）と背後の d3（+1）が同率で、横を先に（d2 が寄せる）
+	assert_array(_moves(output)).is_equal(["d2:M1-R2>M1-R1:PRESS"])
+	# 寄せた M2-L1 はボールのエリア（持っている選手への寄せ）なので、隣の M2-C への読みにはならない
+	assert_str(_summary(output)).is_equal("ADVANCE M2-C 1-0 NONE")
 
 
 func test_je02_man_marking_without_cover_behind_the_wide_pass() -> void:
-	var pair: LayoutPair = _scene("4-3-3", "4-4-2", MAN, "M-C")
-	assert_str(_defender_rows(pair)).is_equal("A 1 0 3 0 1 / M 0 1 1 1 0 / D 0 0 2 0 0")
-	var output: JudgeOutput = _judge(pair, MAN, "M-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-L1"), _defense(GameEnums.DefenseAction.PRESS, "M-C"))
-	# 余り +2 の攻撃側の視点の A-C（守備側の D-C）から1人が寄せて固定。付け直した後、A-C は2人
-	assert_str(output.movements[0].from.to_key()).is_equal("D-C")
-	assert_str(output.movements[0].to.to_key()).is_equal("M-C")
-	assert_int(output.movements[0].reason).is_equal(GameEnums.MovementReason.PRESS)
-	assert_int(output.pair.defender.count_at(_area("A-C").mirrored())).is_equal(2)
-	# 背後の A-L1 は守備0・攻撃0でカバーなし
-	assert_str(_summary(output)).is_equal("ADVANCE M-L1 1-1 NONE")
+	var pair: LayoutPair = _je02()
+	# マーク: m1 が a1（M1-C）、m2 が a2（M1-R1）、m3 が a3（D2-C）。余りの m4・m5 は D2-C
+	assert_dict(_areas_of(pair.defender)).is_equal(
+			{"m1": "M1-C", "m2": "M1-R1", "m3": "D2-C", "m4": "D2-C", "m5": "D2-C"})
+	var output: JudgeOutput = _judge(pair, MAN, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-L1"), _defense(GameEnums.DefenseAction.PRESS, "M2-C"))
+	# 余り +2 の背後 D2-C（守備側の視点）から m3 が寄せて固定。付け直しでは誰も動かず、D2-C は2人
+	assert_array(_moves(output)).is_equal(["m3:D2-C>M1-C:PRESS"])
+	assert_int(output.pair.defender.count_at(_area("D2-C"))).is_equal(2)
+	# 背後の A1-L1 は守備0・攻撃0でカバーなし。M2-C へのプレスはボールのエリアへの寄せなので、隣の読みにも数えない
+	assert_str(_summary(output)).is_equal("ADVANCE M2-L1 1-1 NONE")
 
 
 func test_je02_variant_pass_into_the_covered_center_is_lost() -> void:
-	var pair: LayoutPair = _scene("4-3-3", "4-4-2", MAN, "M-C")
-	var output: JudgeOutput = _judge(pair, MAN, "M-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "A-C"), _defense(GameEnums.DefenseAction.PRESS, "M-C"))
-	assert_str(_summary(output)).is_equal("LOSS A-C 1-2 NONE")
+	var output: JudgeOutput = _judge(_je02(), MAN, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "M2-C"))
+	assert_str(_summary(output)).is_equal("LOSS A1-C 1-2 NONE")
 
 
 func test_je03_reading_the_pass_wins_the_ball_at_level_numbers() -> void:
-	var pair: LayoutPair = _scene("4-3-3", "4-4-2", MAN, "M-C")
-	var output: JudgeOutput = _judge(pair, MAN, "M-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-L1"), _defense(GameEnums.DefenseAction.COVER, "M-L1"))
-	# M-L1 のマーカー（守備側の M-R1）が背後の A-L1（守備側の D-R1）へ下がり、余りの1人が M-L1 の相手につく
-	assert_str(output.movements[0].from.to_key()).is_equal("M-R1")
-	assert_str(output.movements[0].to.to_key()).is_equal("D-R1")
-	assert_int(output.movements[0].reason).is_equal(GameEnums.MovementReason.COVER)
-	assert_int(output.pair.defender.count_at(_area("A-C").mirrored())).is_equal(2)
+	var output: JudgeOutput = _judge(_je02(), MAN, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-L1"), _defense(GameEnums.DefenseAction.COVER, "M2-L1"))
+	# M2-L1 のマーカー m2（守備側の M1-R1）が背後の D2-R1 へ下がって固定。付け直しで、余りの m4 が M1-R1 の相手につく
+	assert_array(_moves(output)).is_equal(["m2:M1-R1>D2-R1:COVER", "m4:D2-C>M1-R1:MARK"])
 	# 制限したエリアにパスが来た（読みを当てた）。同数なので、攻撃側は2人以上多くないと通らずロスト
-	assert_str(_summary(output)).is_equal("LOSS M-L1 1-1 DEFENDER EXACT")
+	assert_str(_summary(output)).is_equal("LOSS M2-L1 1-1 DEFENDER EXACT")
 
 
-func test_je04_level_numbers_in_the_final_third_center_advance_without_a_keeper_cover() -> void:
-	var pair: LayoutPair = _scene("4-4-2", "4-4-2", ZONE, "M-C")
-	assert_str(_defender_rows(pair)).is_equal("A 1 0 2 0 1 / M 1 0 2 0 1 / D 0 0 2 0 0")
-	var output: JudgeOutput = _judge(pair, ZONE, "M-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "A-C"), _defense(GameEnums.DefenseAction.COVER, "M-R2"))
-	# M-R2 の1人（守備側の M-L2）が背後の A-R2（守備側の D-L2）へ
-	assert_array(_moves(output)).has_size(1)
-	assert_str(output.movements[0].from.to_key()).is_equal("M-L2")
-	assert_str(output.movements[0].to.to_key()).is_equal("D-L2")
+func test_je04_level_numbers_in_the_last_row_center_advance_without_a_keeper_cover() -> void:
+	var pair: LayoutPair = _je04()
+	var output: JudgeOutput = _judge(pair, ZONE, "A1-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "A2-C"), _defense(GameEnums.DefenseAction.COVER, "A1-R2"))
+	# A1-R2 の1人（守備側の D2-L2）が背後の D1-L2 へ。A2-C には影響しない
+	assert_array(_moves(output)).is_equal(["d3:D2-L2>D1-L2:COVER"])
 	# 背後は盤外で、GK はカバーに数えない（2026-10-24）。読まれていない同数で前進
-	assert_str(_summary(output)).is_equal("ADVANCE A-C 2-2 NONE")
+	assert_str(_summary(output)).is_equal("ADVANCE A2-C 2-2 NONE")
 
 
-func test_je05_shot_with_a_numerical_advantage_scores() -> void:
-	var pair: LayoutPair = _scene("4-4-2", "3-5-2", ZONE, "A-C")
-	assert_str(_defender_rows(pair)).is_equal("A 0 1 1 1 0 / M 1 0 3 0 1 / D 0 0 2 0 0")
-	var output: JudgeOutput = _judge(pair, ZONE, "A-C",
-			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "M-C"))
-	# 隣接で守備者がいるのは攻撃側の視点の A-C（-1）と D-C（0）。D-C（守備側の A-C）の FW が寄せる
-	assert_str(output.movements[0].from.to_key()).is_equal("A-C")
-	assert_str(output.movements[0].to.to_key()).is_equal("M-C")
-	assert_str(_summary(output)).is_equal("GOAL A-C 2-1 NONE")
+func test_je05_shot_after_a_misread_press_scores() -> void:
+	var output: JudgeOutput = _judge(_je05(), ZONE, "A1-C",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "M2-C"))
+	# 読み違いのプレス（攻撃側の視点の M2-C = 守備側の M1-C）。M1-C の隣で守備者がいるのは背後の D2-C の d1 だけ（余り −1）で、
+	# d1 がシュートのエリアを離れる
+	assert_array(_moves(output)).is_equal(["d1:D2-C>M1-C:PRESS"])
+	assert_str(_summary(output)).is_equal("GOAL A1-C 2-0 NONE")
 
 
 func test_je06_shot_read_by_the_defense_is_saved() -> void:
-	var pair: LayoutPair = _scene("4-4-2", "3-5-2", ZONE, "A-C")
-	var output: JudgeOutput = _judge(pair, ZONE, "A-C",
-			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A-C"))
-	# 隣接の余りはどれも +1。前方優先で M-C（守備側の M-C）の MF が戻る
-	assert_str(output.movements[0].from.to_key()).is_equal("M-C")
-	assert_str(output.movements[0].to.to_key()).is_equal("D-C")
-	assert_str(_summary(output)).is_equal("SAVE A-C 2-2 NONE EXACT")
+	var output: JudgeOutput = _judge(_je05(), ZONE, "A1-C",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A1-C"))
+	# 隣の余りは前方 M1-C（d3）と背後 D1-C（d2）がどちらも +1。前方優先で d3 が戻る
+	assert_array(_moves(output)).is_equal(["d3:M1-C>D2-C:PRESS"])
+	assert_str(_summary(output)).is_equal("SAVE A1-C 2-2 NONE EXACT")
 
 
 # --- 同数のカバー判定（エッジケース） ---
@@ -190,106 +191,106 @@ func test_je06_shot_read_by_the_defense_is_saved() -> void:
 ## 攻撃側は ball と target に1人ずつ、守備側は target（攻撃側の視点）に1人と、遠くでプレスに出る1人
 func _level_at(target_key: String, ball_key: String) -> JudgeOutput:
 	var attacker: TeamLayout = _team([["a1", ball_key, ""], ["a2", target_key, ""]])
-	var defender: TeamLayout = _team([["d1", _area(target_key).mirrored().to_key(), ""], ["far", "A-L2", ""]])
-	# 攻撃側の視点の D-R1（守備側の A-L1）へのプレス。隣接の A-L2 の far だけが動く
+	var defender: TeamLayout = _team([["d1", _area(target_key).mirrored().to_key(), ""], ["far", "A2-L2", ""]])
+	# 攻撃側の視点の D1-R1（守備側の A2-L1）へのプレス。隣の A2-L2 の far だけが動く
 	return _judge(LayoutPair.new(attacker, defender, HOME), ZONE, ball_key,
-			_attack(GameEnums.PlayType.SHORT_PASS, target_key), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
+			_attack(GameEnums.PlayType.SHORT_PASS, target_key), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
 
 
-func test_level_numbers_in_the_final_third_advance_on_every_lane() -> void:
-	# 敵陣の背後は盤外。GK はカバーに数えないので、読まれていない同数はどのレーンでも前進
-	assert_str(_summary(_level_at("A-L2", "A-L1"))).is_equal("ADVANCE A-L2 1-1 NONE")
-	assert_str(_summary(_level_at("A-R2", "A-R1"))).is_equal("ADVANCE A-R2 1-1 NONE")
-	assert_str(_summary(_level_at("A-C", "A-L1"))).is_equal("ADVANCE A-C 1-1 NONE")
-	assert_str(_summary(_level_at("A-L1", "A-C"))).is_equal("ADVANCE A-L1 1-1 NONE")
-	assert_str(_summary(_level_at("A-R1", "A-C"))).is_equal("ADVANCE A-R1 1-1 NONE")
+func test_level_numbers_in_the_last_row_advance_on_every_lane() -> void:
+	# 敵陣ゴール前の背後は盤外。GK はカバーに数えないので、読まれていない同数はどのレーンでも前進
+	assert_str(_summary(_level_at("A2-L2", "A2-L1"))).is_equal("ADVANCE A2-L2 1-1 NONE")
+	assert_str(_summary(_level_at("A2-R2", "A2-R1"))).is_equal("ADVANCE A2-R2 1-1 NONE")
+	assert_str(_summary(_level_at("A2-C", "A2-L1"))).is_equal("ADVANCE A2-C 1-1 NONE")
+	assert_str(_summary(_level_at("A2-L1", "A2-C"))).is_equal("ADVANCE A2-L1 1-1 NONE")
+	assert_str(_summary(_level_at("A2-R1", "A2-C"))).is_equal("ADVANCE A2-R1 1-1 NONE")
 
 
 func test_level_numbers_behind_are_not_a_cover() -> void:
-	# 比較エリア M-C は1対1。背後の A-C は攻撃1・守備1で、上回らないのでカバーなし
-	var attacker: TeamLayout = _team([["a1", "M-L1", ""], ["a2", "M-C", ""], ["a3", "A-C", ""]])
-	var defender: TeamLayout = _team([["d1", "M-C", ""], ["d2", "D-C", ""], ["far", "A-L2", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M-L1",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-C"), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_str(_summary(output)).is_equal("ADVANCE M-C 1-1 NONE")
+	# 比較エリア M2-C は1対1。背後の A1-C は攻撃1・守備1で、上回らないのでカバーなし
+	var attacker: TeamLayout = _team([["a1", "M2-L1", ""], ["a2", "M2-C", ""], ["a3", "A1-C", ""]])
+	var defender: TeamLayout = _team([["d1", "M1-C", ""], ["d2", "D2-C", ""], ["far", "A2-L2", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M2-L1",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_str(_summary(output)).is_equal("ADVANCE M2-C 1-1 NONE")
 
 
 func test_more_defenders_behind_make_a_cover() -> void:
-	var attacker: TeamLayout = _team([["a1", "M-L1", ""], ["a2", "M-C", ""], ["a3", "A-C", ""]])
+	var attacker: TeamLayout = _team([["a1", "M2-L1", ""], ["a2", "M2-C", ""], ["a3", "A1-C", ""]])
 	var defender: TeamLayout = _team([
-		["d1", "M-C", ""], ["d2", "D-C", ""], ["d3", "D-C", ""], ["far", "A-L2", ""],
+		["d1", "M1-C", ""], ["d2", "D2-C", ""], ["d3", "D2-C", ""], ["far", "A2-L2", ""],
 	])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M-L1",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-C"), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_str(_summary(output)).is_equal("STALL M-C 1-1 DEFENDER")
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M2-L1",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_str(_summary(output)).is_equal("STALL M2-C 1-1 DEFENDER")
 
 
 func test_shot_with_level_numbers_scores_when_the_defense_did_not_read_it() -> void:
-	# 守備はボールのエリア（A-L1）ではなく D-R1 を制限した。同数のシュートは、読まれていなければ得点（カバー判定はしない）
-	var attacker: TeamLayout = _team([["a1", "A-L1", ""]])
-	var defender: TeamLayout = _team([["d1", "D-R1", ""], ["far", "A-L2", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A-L1",
-			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_str(_summary(output)).is_equal("GOAL A-L1 1-1 NONE")
+	# 守備はボールのエリア（A2-L1）ではなく D1-R1 を制限した。同数のシュートは、読まれていなければ得点（カバー判定はしない）
+	var attacker: TeamLayout = _team([["a1", "A2-L1", ""]])
+	var defender: TeamLayout = _team([["d1", "D1-R1", ""], ["far", "A2-L2", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A2-L1",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_str(_summary(output)).is_equal("GOAL A2-L1 1-1 NONE")
 
 
 # --- ドリブル ---
 
 func test_dribble_keeps_the_player_who_carried_the_ball_here() -> void:
-	# ボールの M-C に、前のドリブルで M-C に固定された a1（基本は D-C）と、固定されていない a2。a1 が運び続ける
-	var attacker: TeamLayout = _team([["a2", "M-C", ""], ["a1", "D-C", "M-C"]])
-	var defender: TeamLayout = _team([["far", "A-L2", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "A-C"), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_array(_moves(output)).is_equal(["far:A-L2>A-L1:PRESS", "a1:M-C>A-C:DRIBBLE"])
+	# ボールの M2-C に、前のドリブルで M2-C に固定された a1（基本は M1-C）と、固定されていない a2。a1 が運び続ける
+	var attacker: TeamLayout = _team([["a2", "M2-C", ""], ["a1", "M1-C", "M2-C"]])
+	var defender: TeamLayout = _team([["far", "A2-L2", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_array(_moves(output)).is_equal(["far:A2-L2>A2-L1:PRESS", "a1:M2-C>A1-C:DRIBBLE"])
 	assert_int(output.movements[1].side).is_equal(HOME)
-	# 固定先が A-C に更新され、a2 は固定されないまま M-C に残る
-	assert_str(output.pair.attacker.players[1].fixed_area.to_key()).is_equal("A-C")
+	# 固定先が A1-C に更新され、a2 は固定されないまま M2-C に残る
+	assert_str(output.pair.attacker.players[1].fixed_area.to_key()).is_equal("A1-C")
 	assert_bool(output.pair.attacker.players[0].is_fixed()).is_false()
-	assert_str(output.pair.attacker.current_area_of("a2").to_key()).is_equal("M-C")
-	# A-C は攻撃1・守備0
-	assert_str(_summary(output)).is_equal("ADVANCE A-C 1-0 NONE")
+	assert_str(output.pair.attacker.current_area_of("a2").to_key()).is_equal("M2-C")
+	# A1-C は攻撃1・守備0
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-0 NONE")
 
 
 func test_dribble_among_unfixed_players_takes_the_first_in_layout_order() -> void:
-	var attacker: TeamLayout = _team([["a1", "M-C", ""], ["a2", "M-C", ""]])
-	var defender: TeamLayout = _team([["far", "A-L2", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "M-L1"), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_array(_moves(output)).is_equal(["far:A-L2>A-L1:PRESS", "a1:M-C>M-L1:DRIBBLE"])
-	assert_str(output.pair.attacker.players[0].fixed_area.to_key()).is_equal("M-L1")
+	var attacker: TeamLayout = _team([["a1", "M2-C", ""], ["a2", "M2-C", ""]])
+	var defender: TeamLayout = _team([["far", "A2-L2", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "M2-L1"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_array(_moves(output)).is_equal(["far:A2-L2>A2-L1:PRESS", "a1:M2-C>M2-L1:DRIBBLE"])
+	assert_str(output.pair.attacker.players[0].fixed_area.to_key()).is_equal("M2-L1")
 	assert_bool(output.pair.attacker.players[1].is_fixed()).is_false()
 
 
 func test_man_marker_follows_the_dribbler() -> void:
-	# a1 は守備側から見て M-C。マーカー m1 がつく。far は基本エリアが A なのでマーカーにならない
-	var attacker: TeamLayout = _team([["a1", "M-C", ""]])
-	var defender: TeamLayout = _team([["m1", "M-L1", ""], ["far", "A-L2", ""]])
+	# a1 は守備側から見て M1-C。マーカー m1 がつく。far は基本エリアが6列目なのでマーカーにならない
+	var attacker: TeamLayout = _team([["a1", "M2-C", ""]])
+	var defender: TeamLayout = _team([["m1", "M1-L1", ""], ["far", "A2-L2", ""]])
 	var start: LayoutStep = StyleLayoutCalculator.compute(attacker, _styles(ZONE), defender, _styles(MAN),
-			_area("M-C"), HOME)
-	assert_str(start.pair.defender.current_area_of("m1").to_key()).is_equal("M-C")
-	var output: JudgeOutput = _judge(start.pair, MAN, "M-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "A-C"), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_array(_moves(output)).is_equal(["far:A-L2>A-L1:PRESS", "a1:M-C>A-C:DRIBBLE", "m1:M-C>D-C:MARK"])
-	assert_str(_summary(output)).is_equal("ADVANCE A-C 1-1 NONE")
+			_area("M2-C"), HOME)
+	assert_str(start.pair.defender.current_area_of("m1").to_key()).is_equal("M1-C")
+	var output: JudgeOutput = _judge(start.pair, MAN, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_array(_moves(output)).is_equal(["far:A2-L2>A2-L1:PRESS", "a1:M2-C>A1-C:DRIBBLE", "m1:M1-C>D2-C:MARK"])
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-1 NONE")
 
 
 func test_dribble_without_a_player_on_the_ball_moves_nobody() -> void:
-	var attacker: TeamLayout = _team([["a1", "D-C", ""]])
-	var defender: TeamLayout = _team([["far", "A-L2", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "A-C"), _defense(GameEnums.DefenseAction.PRESS, "D-R1"))
-	assert_array(_moves(output)).is_equal(["far:A-L2>A-L1:PRESS"])
-	assert_str(_summary(output)).is_equal("ADVANCE A-C 0-0 NONE")
+	var attacker: TeamLayout = _team([["a1", "M1-C", ""]])
+	var defender: TeamLayout = _team([["far", "A2-L2", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_array(_moves(output)).is_equal(["far:A2-L2>A2-L1:PRESS"])
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 0-0 NONE")
 
 
 # --- 対称性・不正な入力・不変の性質 ---
 
 func test_swapping_the_attacking_team_only_swaps_the_movement_sides() -> void:
-	var as_home: JudgeOutput = _judge(_scene("4-3-3", "4-4-2", MAN, "M-C", HOME), MAN, "M-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-L1"), _defense(GameEnums.DefenseAction.COVER, "M-L1"))
-	var as_away: JudgeOutput = _judge(_scene("4-3-3", "4-4-2", MAN, "M-C", AWAY), MAN, "M-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-L1"), _defense(GameEnums.DefenseAction.COVER, "M-L1"))
+	var as_home: JudgeOutput = _judge(_je02(HOME), MAN, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-L1"), _defense(GameEnums.DefenseAction.COVER, "M2-L1"))
+	var as_away: JudgeOutput = _judge(_je02(AWAY), MAN, "M2-C",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-L1"), _defense(GameEnums.DefenseAction.COVER, "M2-L1"))
 	assert_str(_summary(as_away)).is_equal(_summary(as_home))
 	assert_array(_moves(as_away)).is_equal(_moves(as_home))
 	assert_dict(as_away.pair.defender.counts()).is_equal(as_home.pair.defender.counts())
@@ -301,26 +302,26 @@ func test_swapping_the_attacking_team_only_swaps_the_movement_sides() -> void:
 
 
 func test_unavailable_or_mismatched_choices_return_null() -> void:
-	var pair: LayoutPair = _scene("4-4-2", "4-4-2", ZONE, "M-C")
-	var pass_choice: TurnChoice = _attack(GameEnums.PlayType.SHORT_PASS, "A-C")
-	var press_choice: TurnChoice = _defense(GameEnums.DefenseAction.PRESS, "M-C")
-	# 守備側の D ゾーン（攻撃側の視点の A-C）へのカバーは、背後が無く適用できない
-	assert_object(_judge(pair, ZONE, "M-C", pass_choice, _defense(GameEnums.DefenseAction.COVER, "A-C"))).is_null()
+	var pair: LayoutPair = _je04()
+	var pass_choice: TurnChoice = _attack(GameEnums.PlayType.SHORT_PASS, "A2-C")
+	var press_choice: TurnChoice = _defense(GameEnums.DefenseAction.PRESS, "A2-C")
+	# 守備側の1列目（攻撃側の視点の A2-C）へのカバーは、背後が無く適用できない
+	assert_object(_judge(pair, ZONE, "A1-C", pass_choice, _defense(GameEnums.DefenseAction.COVER, "A2-C"))).is_null()
 	# 手の種類の取り違え
-	assert_object(_judge(pair, ZONE, "M-C", press_choice, press_choice)).is_null()
-	assert_object(_judge(pair, ZONE, "M-C", pass_choice, pass_choice)).is_null()
+	assert_object(_judge(pair, ZONE, "A1-C", press_choice, press_choice)).is_null()
+	assert_object(_judge(pair, ZONE, "A1-C", pass_choice, pass_choice)).is_null()
 	# 運ぶ先が要る手で運ぶ先が無い
-	assert_object(_judge(pair, ZONE, "M-C", _attack(GameEnums.PlayType.SHORT_PASS), press_choice)).is_null()
+	assert_object(_judge(pair, ZONE, "A1-C", _attack(GameEnums.PlayType.SHORT_PASS), press_choice)).is_null()
 	# ボール位置が無い
 	assert_object(OpenPlayJudge.judge(pair, _styles(ZONE), _styles(ZONE), null, pass_choice, press_choice)).is_null()
 
 
 func test_judge_does_not_modify_its_inputs() -> void:
-	var pair: LayoutPair = _scene("4-3-3", "4-4-2", MAN, "M-C")
+	var pair: LayoutPair = _je02()
 	var before_defender: Dictionary = pair.defender.counts()
 	var before_attacker: Dictionary = pair.attacker.counts()
-	var output: JudgeOutput = _judge(pair, MAN, "M-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "M-L1"), _defense(GameEnums.DefenseAction.COVER, "M-L1"))
+	var output: JudgeOutput = _judge(pair, MAN, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "M2-L1"), _defense(GameEnums.DefenseAction.COVER, "M2-L1"))
 	assert_object(output.pair).is_not_same(pair)
 	assert_object(output.pair.attacker).is_not_same(pair.attacker)
 	assert_object(output.pair.defender).is_not_same(pair.defender)
@@ -335,10 +336,10 @@ func test_judge_does_not_modify_its_inputs() -> void:
 func test_apply_defense_gives_the_defense_part_of_the_judgement() -> void:
 	# マンツーマン。プレスで寄せた後のマークの付け直しまでが守備の手の動き。シュートは選手を動かさないので、
 	# 判定の動きは守備の手の動きと同じになる
-	var pair: LayoutPair = _scene("4-3-3", "4-4-2", MAN, "M-C")
-	var press_choice: TurnChoice = _defense(GameEnums.DefenseAction.PRESS, "M-L1")
+	var pair: LayoutPair = _je02()
+	var press_choice: TurnChoice = _defense(GameEnums.DefenseAction.PRESS, "M2-L1")
 	var step: LayoutStep = OpenPlayJudge.apply_defense(pair, _styles(MAN), press_choice)
-	var output: JudgeOutput = _judge(pair, MAN, "M-C", _attack(GameEnums.PlayType.SHOT), press_choice)
+	var output: JudgeOutput = _judge(pair, MAN, "M2-C", _attack(GameEnums.PlayType.SHOT), press_choice)
 	assert_int(step.movements.size()).is_equal(output.movements.size())
 	assert_int(step.movements[0].reason).is_equal(GameEnums.MovementReason.PRESS)
 	for index: int in range(step.movements.size()):
@@ -349,123 +350,122 @@ func test_apply_defense_gives_the_defense_part_of_the_judgement() -> void:
 
 
 func test_apply_defense_returns_null_for_an_inapplicable_move() -> void:
-	var pair: LayoutPair = _scene("4-4-2", "4-4-2", ZONE, "M-C")
-	assert_object(OpenPlayJudge.apply_defense(pair, _styles(ZONE), _defense(GameEnums.DefenseAction.COVER, "A-C"))).is_null()
+	assert_object(OpenPlayJudge.apply_defense(_je04(), _styles(ZONE), _defense(GameEnums.DefenseAction.COVER, "A2-C"))).is_null()
 
 
 func test_apply_defense_of_a_zone_press_moves_the_neighbor_in() -> void:
-	# 手で書いた場面: 攻撃側 h1 が M-C、守備側（ゾーン）の a1 が守備側から見て D-C。M-C へのプレスで a1 が寄せる
-	var h1 := PlayerState.new("h1", _area("M-C"), null)
-	var a1 := PlayerState.new("a1", _area("D-C"), null)
-	var pair := LayoutPair.new(TeamLayout.new([h1], {"h1": _area("M-C")}), TeamLayout.new([a1], {"a1": _area("D-C")}), HOME)
-	var step: LayoutStep = OpenPlayJudge.apply_defense(pair, _styles(ZONE), _defense(GameEnums.DefenseAction.PRESS, "M-C"))
+	# 手で書いた場面: 攻撃側 h1 が M2-C、守備側（ゾーン）の a1 が守備側から見て D2-C。M2-C へのプレスで a1 が M1-C へ寄せる
+	var h1 := PlayerState.new("h1", _area("M2-C"), null)
+	var a1 := PlayerState.new("a1", _area("D2-C"), null)
+	var pair := LayoutPair.new(TeamLayout.new([h1], {"h1": _area("M2-C")}), TeamLayout.new([a1], {"a1": _area("D2-C")}), HOME)
+	var step: LayoutStep = OpenPlayJudge.apply_defense(pair, _styles(ZONE), _defense(GameEnums.DefenseAction.PRESS, "M2-C"))
 	assert_int(step.movements.size()).is_equal(1)
 	assert_str("%s %s>%s" % [step.movements[0].player_id, step.movements[0].from.to_key(), step.movements[0].to.to_key()]) \
-			.is_equal("a1 D-C>M-C")
+			.is_equal("a1 D2-C>M1-C")
 	assert_int(step.movements[0].reason).is_equal(GameEnums.MovementReason.PRESS)
-	assert_str(step.pair.defender.current_area_of("a1").to_key()).is_equal("M-C")
+	assert_str(step.pair.defender.current_area_of("a1").to_key()).is_equal("M1-C")
 
 
 # --- 読みを当てた守備（2026-10-24） ---
 
-## 攻撃側はボールの M-L1 に a1、運ぶ先の M-C に extra 人。守備側は M-C（攻撃側の視点）の隣 M-R1 に near が1人。
-## defense_key へプレスする（M-C なら near が寄せて M-C は extra 対 1）
+## 攻撃側はボールの M2-L1 に a1、運ぶ先の M2-C に extra 人。守備側は M2-C（攻撃側の視点）の隣 M2-R1 に near が1人。
+## defense_key へプレスする（M2-C なら near が寄せて M2-C は extra 対 1）
 func _read_scene(extra: int, defense_key: String) -> JudgeOutput:
-	var attacker_spec: Array = [["a1", "M-L1", ""]]
+	var attacker_spec: Array = [["a1", "M2-L1", ""]]
 	for index: int in range(extra):
-		attacker_spec.append(["m%d" % index, "M-C", ""])
-	var defender: TeamLayout = _team([["near", _area("M-R1").mirrored().to_key(), ""], ["far", "A-L2", ""]])
-	return _judge(LayoutPair.new(_team(attacker_spec), defender, HOME), ZONE, "M-L1",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-C"), _defense(GameEnums.DefenseAction.PRESS, defense_key))
+		attacker_spec.append(["m%d" % index, "M2-C", ""])
+	var defender: TeamLayout = _team([["near", _area("M2-R1").mirrored().to_key(), ""], ["far", "A2-L2", ""]])
+	return _judge(LayoutPair.new(_team(attacker_spec), defender, HOME), ZONE, "M2-L1",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-C"), _defense(GameEnums.DefenseAction.PRESS, defense_key))
 
 
 func test_a_read_pass_needs_two_more_attackers_to_get_through() -> void:
 	# 読まれた（制限したエリアに来た）パスは、攻撃側が2人以上多くないと通らない
-	assert_str(_summary(_read_scene(2, "M-C"))).is_equal("LOSS M-C 2-1 NONE EXACT")
-	assert_str(_summary(_read_scene(3, "M-C"))).is_equal("ADVANCE M-C 3-1 NONE EXACT")
+	assert_str(_summary(_read_scene(2, "M2-C"))).is_equal("LOSS M2-C 2-1 NONE EXACT")
+	assert_str(_summary(_read_scene(3, "M2-C"))).is_equal("ADVANCE M2-C 3-1 NONE EXACT")
 
 
 func test_an_unread_pass_with_one_more_attacker_gets_through() -> void:
-	# 守備が別のエリア（D-R1）を制限した。1人多ければ前進
-	var output: JudgeOutput = _read_scene(1, "D-R1")
-	assert_str(_summary(output)).is_equal("ADVANCE M-C 1-0 NONE")
+	# 守備が別のエリア（D1-R1）を制限した。1人多ければ前進
+	var output: JudgeOutput = _read_scene(1, "D1-R1")
+	assert_str(_summary(output)).is_equal("ADVANCE M2-C 1-0 NONE")
 	assert_int(output.detail.read).is_equal(GameEnums.ReadKind.NONE)
 
 
 func test_a_level_shot_read_by_the_defense_is_saved() -> void:
-	# シュートで、守備がボールのエリア（A-L1）へプレスした（読みを当てた）。隣の near が寄せて 2対2。同数なら阻止
-	var attacker: TeamLayout = _team([["a1", "A-L1", ""], ["a2", "A-L1", ""]])
-	var defender: TeamLayout = _team([["d1", "D-R1", ""], ["near", "D-C", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A-L1",
-			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A-L1"))
-	assert_str(_summary(output)).is_equal("SAVE A-L1 2-2 NONE EXACT")
+	# シュートで、守備がボールのエリア（A2-L1）へプレスした（読みを当てた）。隣の near が寄せて 2対2。同数なら阻止
+	var attacker: TeamLayout = _team([["a1", "A2-L1", ""], ["a2", "A2-L1", ""]])
+	var defender: TeamLayout = _team([["d1", "D1-R1", ""], ["near", "D1-C", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A2-L1",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A2-L1"))
+	assert_str(_summary(output)).is_equal("SAVE A2-L1 2-2 NONE EXACT")
 
 
 func test_a_read_shot_with_one_more_attacker_still_scores() -> void:
 	# シュートは、読まれても1人多ければ得点（シュート以外の手と違い、+2 は要らない）
-	var attacker: TeamLayout = _team([["a1", "A-L1", ""], ["a2", "A-L1", ""], ["a3", "A-L1", ""]])
-	var defender: TeamLayout = _team([["d1", "D-R1", ""], ["near", "D-C", ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A-L1",
-			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A-L1"))
-	assert_str(_summary(output)).is_equal("GOAL A-L1 3-2 NONE EXACT")
+	var attacker: TeamLayout = _team([["a1", "A2-L1", ""], ["a2", "A2-L1", ""], ["a3", "A2-L1", ""]])
+	var defender: TeamLayout = _team([["d1", "D1-R1", ""], ["near", "D1-C", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A2-L1",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A2-L1"))
+	assert_str(_summary(output)).is_equal("GOAL A2-L1 3-2 NONE EXACT")
 
 
 # --- 読みの段階（2026-10-24。隣の読み） ---
 
 func test_read_kind_follows_the_distance_between_the_restricted_and_compared_areas() -> void:
-	# [制限したエリア, 比較エリア, ボール, 段階]。隣は同じゾーンでレーンが1つ隣だけ。
+	# [制限したエリア, 比較エリア, ボール, 段階]。隣は同じ列でレーンが1つ隣だけ。
 	# ボールのエリアへの寄せは、持っている選手への寄せで、運ぶ先の読みではない（ぴったり＝シュートだけ）
 	var cases: Array = [
-		["M-C", "M-C", "D-C", GameEnums.ReadKind.EXACT],
-		["M-R1", "M-C", "D-C", GameEnums.ReadKind.NEAR],
-		["M-L1", "M-C", "D-C", GameEnums.ReadKind.NEAR],
-		["A-L2", "A-L1", "M-C", GameEnums.ReadKind.NEAR],
-		["M-R2", "M-C", "D-C", GameEnums.ReadKind.NONE],
-		["A-C", "M-C", "D-C", GameEnums.ReadKind.NONE],
-		["D-L1", "M-C", "D-C", GameEnums.ReadKind.NONE],
-		["M-L1", "M-C", "M-L1", GameEnums.ReadKind.NONE],
-		["A-C", "A-C", "A-C", GameEnums.ReadKind.EXACT],
+		["M2-C", "M2-C", "M1-C", GameEnums.ReadKind.EXACT],
+		["M2-R1", "M2-C", "M1-C", GameEnums.ReadKind.NEAR],
+		["M2-L1", "M2-C", "M1-C", GameEnums.ReadKind.NEAR],
+		["A1-L2", "A1-L1", "M2-C", GameEnums.ReadKind.NEAR],
+		["M2-R2", "M2-C", "M1-C", GameEnums.ReadKind.NONE],
+		["A1-C", "M2-C", "M1-C", GameEnums.ReadKind.NONE],
+		["M1-L1", "M2-C", "M1-C", GameEnums.ReadKind.NONE],
+		["M2-L1", "M2-C", "M2-L1", GameEnums.ReadKind.NONE],
+		["A1-C", "A1-C", "A1-C", GameEnums.ReadKind.EXACT],
 	]
 	for case: Array in cases:
 		assert_int(OpenPlayJudge.read_of(_area(case[0] as String), _area(case[1] as String), _area(case[2] as String))) \
 				.override_failure_message(str(case)).is_equal(case[3] as int)
 
 
-## 攻撃側はボールの M-L1 に a1、運ぶ先の M-C に extra 人。守備側は M-C（攻撃側の視点）に d1 が1人と、
+## 攻撃側はボールの M2-L1 に a1、運ぶ先の M2-C に extra 人。守備側は M2-C（攻撃側の視点）に d1 が1人と、
 ## presser_key（攻撃側の視点）に寄せ役が1人。defense_key へプレスする
 func _near_scene(extra: int, presser_key: String, defense_key: String) -> JudgeOutput:
-	var attacker_spec: Array = [["a1", "M-L1", ""]]
+	var attacker_spec: Array = [["a1", "M2-L1", ""]]
 	for index: int in range(extra):
-		attacker_spec.append(["m%d" % index, "M-C", ""])
-	var defender: TeamLayout = _team([["d1", _area("M-C").mirrored().to_key(), ""],
+		attacker_spec.append(["m%d" % index, "M2-C", ""])
+	var defender: TeamLayout = _team([["d1", _area("M2-C").mirrored().to_key(), ""],
 			["presser", _area(presser_key).mirrored().to_key(), ""]])
-	return _judge(LayoutPair.new(_team(attacker_spec), defender, HOME), ZONE, "M-L1",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M-C"), _defense(GameEnums.DefenseAction.PRESS, defense_key))
+	return _judge(LayoutPair.new(_team(attacker_spec), defender, HOME), ZONE, "M2-L1",
+			_attack(GameEnums.PlayType.SHORT_PASS, "M2-C"), _defense(GameEnums.DefenseAction.PRESS, defense_key))
 
 
 func test_je08_pass_read_next_door_is_won_at_level_numbers() -> void:
-	# 隣の M-R1 へ寄せた。M-C は 1対1 で、背後にカバーはいない。外れなら前進だが、隣を読まれていればロスト
-	assert_str(_summary(_near_scene(1, "M-R2", "M-R1"))).is_equal("LOSS M-C 1-1 NONE NEAR")
+	# 隣の M2-R1 へ寄せた。M2-C は 1対1 で、背後にカバーはいない。外れなら前進だが、隣を読まれていればロスト
+	assert_str(_summary(_near_scene(1, "M2-R2", "M2-R1"))).is_equal("LOSS M2-C 1-1 NONE NEAR")
 
 
 func test_je08_pass_read_next_door_gets_through_with_one_more_attacker() -> void:
-	assert_str(_summary(_near_scene(2, "M-R2", "M-R1"))).is_equal("ADVANCE M-C 2-1 NONE NEAR")
+	assert_str(_summary(_near_scene(2, "M2-R2", "M2-R1"))).is_equal("ADVANCE M2-C 2-1 NONE NEAR")
 
 
 func test_je08_press_two_lanes_away_is_not_a_read() -> void:
-	# 2つ離れた M-R2 へ寄せた。外れなので、カバーのいない同数は前進
-	assert_str(_summary(_near_scene(1, "A-R2", "M-R2"))).is_equal("ADVANCE M-C 1-1 NONE")
+	# 2つ離れた M2-R2 へ寄せた。外れなので、カバーのいない同数は前進
+	assert_str(_summary(_near_scene(1, "A1-R2", "M2-R2"))).is_equal("ADVANCE M2-C 1-1 NONE")
 
 
 func test_a_press_on_the_area_behind_is_a_cover_not_a_read() -> void:
-	# ゾーンが違う A-C（M-C の背後）へ寄せた。隣の読みではなく、背後のカバーとして同数を膠着にする
-	assert_str(_summary(_near_scene(1, "A-R1", "A-C"))).is_equal("STALL M-C 1-1 DEFENDER")
+	# 列が違う A1-C（M2-C の背後）へ寄せた。隣の読みではなく、背後のカバーとして同数を膠着にする
+	assert_str(_summary(_near_scene(1, "A1-R1", "A1-C"))).is_equal("STALL M2-C 1-1 DEFENDER")
 
 
 func test_a_near_read_does_not_stop_a_level_shot() -> void:
-	# シュートは、ぴったり読まれた同数だけ阻止。隣の A-R1 へ寄せても、同数のシュートは決まる
-	var attacker: TeamLayout = _team([["a1", "A-C", ""]])
-	var defender: TeamLayout = _team([["d1", "D-C", ""], ["presser", _area("A-R2").mirrored().to_key(), ""]])
-	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A-C",
-			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A-R1"))
-	assert_str(_summary(output)).is_equal("GOAL A-C 1-1 NONE NEAR")
+	# シュートは、ぴったり読まれた同数だけ阻止。隣の A2-R1 へ寄せても、同数のシュートは決まる
+	var attacker: TeamLayout = _team([["a1", "A2-C", ""]])
+	var defender: TeamLayout = _team([["d1", "D1-C", ""], ["presser", _area("A2-R2").mirrored().to_key(), ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A2-C",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.PRESS, "A2-R1"))
+	assert_str(_summary(output)).is_equal("GOAL A2-C 1-1 NONE NEAR")

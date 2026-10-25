@@ -1,6 +1,6 @@
 ## 利用者の視点への変換（ViewConverter）と、画面に渡す値（BoardSnapshot・RevealView）のテスト。
 ## 利用者 = HOME、CPU = AWAY（component-design.md §1.3）。視点の規則は §1.2。
-## 期待値は「AWAY の視点のエリアは、HOME の視点では鏡像（L2↔R2, L1↔R1, D↔A）」から手で書いた。
+## 期待値は「AWAY の視点のエリアは、HOME の視点では鏡像（L2↔R2, L1↔R1, D1↔A2・D2↔A1・M1↔M2）」から手で書いた。
 extends GdUnitTestSuite
 
 const HOME := GameEnums.TeamSide.HOME
@@ -40,19 +40,19 @@ func _player(players: Array[Dictionary], player_id: String) -> Dictionary:
 # --- エリアと選択 ---
 
 func test_to_user_keeps_home_areas_and_mirrors_away_areas() -> void:
-	assert_str(ViewConverter.to_user(_area("D-L2"), HOME).to_key()).is_equal("D-L2")
-	assert_str(ViewConverter.to_user(_area("D-L2"), AWAY).to_key()).is_equal("A-R2")
-	assert_str(ViewConverter.to_user(_area("M-L1"), AWAY).to_key()).is_equal("M-R1")
+	assert_str(ViewConverter.to_user(_area("D2-L2"), HOME).to_key()).is_equal("D2-L2")
+	assert_str(ViewConverter.to_user(_area("D2-L2"), AWAY).to_key()).is_equal("A1-R2")
+	assert_str(ViewConverter.to_user(_area("M1-L1"), AWAY).to_key()).is_equal("M2-R1")
 
 
 func test_choice_targets_convert_by_the_holder_and_round_trip() -> void:
-	# CPU（AWAY）が保持: 攻撃側の視点は AWAY の視点。利用者が選んだ M-L1 は、攻撃側の視点では M-R1
-	var user_choice := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M-L1"))
+	# CPU（AWAY）が保持: 攻撃側の視点は AWAY の視点。利用者が選んだ M1-L1 は、攻撃側の視点では M2-R1
+	var user_choice := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M1-L1"))
 	var domain_choice: TurnChoice = ViewConverter.choice_to_domain(user_choice, AWAY)
-	assert_str(domain_choice.target.to_key()).is_equal("M-R1")
-	assert_str(ViewConverter.choice_to_user(domain_choice, AWAY).target.to_key()).is_equal("M-L1")
+	assert_str(domain_choice.target.to_key()).is_equal("M2-R1")
+	assert_str(ViewConverter.choice_to_user(domain_choice, AWAY).target.to_key()).is_equal("M1-L1")
 	# 利用者（HOME）が保持なら変えない
-	assert_str(ViewConverter.choice_to_domain(user_choice, HOME).target.to_key()).is_equal("M-L1")
+	assert_str(ViewConverter.choice_to_domain(user_choice, HOME).target.to_key()).is_equal("M1-L1")
 	# 運ぶ先を持たない手はそのまま
 	var retreat := TurnChoice.new(NEG_TRANS, GameEnums.NegTransAction.RETREAT)
 	assert_object(ViewConverter.choice_to_domain(retreat, AWAY).target).is_null()
@@ -60,38 +60,38 @@ func test_choice_targets_convert_by_the_holder_and_round_trip() -> void:
 
 func test_options_convert_targets_and_keep_targetless_moves() -> void:
 	var options := MoveOptions.new()
-	options.add_target(DEFENSE, GameEnums.DefenseAction.PRESS, _area("A-L1"))
-	options.add_target(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M-C"))
+	options.add_target(DEFENSE, GameEnums.DefenseAction.PRESS, _area("A1-L1"))
+	options.add_target(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M1-C"))
 	options.allow(NEG_TRANS, GameEnums.NegTransAction.RETREAT)
 	var converted: MoveOptions = ViewConverter.options_to_user(options, AWAY)
 	var keys: Array[String] = []
 	for area: PitchArea in converted.targets(DEFENSE, GameEnums.DefenseAction.PRESS):
 		keys.append(area.to_key())
-	assert_array(keys).is_equal(["D-R1", "M-C"])
+	assert_array(keys).is_equal(["D2-R1", "M2-C"])
 	assert_bool(converted.is_available(NEG_TRANS, GameEnums.NegTransAction.RETREAT)).is_true()
 	assert_bool(converted.is_available(ATTACK, GameEnums.PlayType.SHOT)).is_false()
 
 
 func test_hints_convert_targets_and_keep_counts() -> void:
-	var hints: Array[ChoiceHint] = [ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.COVER, _area("A-L1"),
+	var hints: Array[ChoiceHint] = [ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.COVER, _area("A1-L1"),
 			true, 1, 2, GameEnums.CoverKind.DEFENDER)]
 	var converted: Array[ChoiceHint] = ViewConverter.hints_to_user(hints, AWAY)
-	assert_str(converted[0].target.to_key()).is_equal("D-R1")
+	assert_str(converted[0].target.to_key()).is_equal("D2-R1")
 	assert_int(converted[0].own_count).is_equal(1)
 	assert_int(converted[0].opponent_count).is_equal(2)
 	assert_int(converted[0].cover).is_equal(GameEnums.CoverKind.DEFENDER)
 	# 入力は書き換えない
-	assert_str(hints[0].target.to_key()).is_equal("A-L1")
+	assert_str(hints[0].target.to_key()).is_equal("A1-L1")
 
 
 func test_movements_convert_by_the_side_that_moved() -> void:
 	var movements: Array[Movement] = [
-		Movement.new(HOME, "h", _area("D-L2"), _area("M-L2"), GameEnums.MovementReason.POSSESSION_ADVANCE),
-		Movement.new(AWAY, "a", _area("D-L2"), _area("D-L1"), GameEnums.MovementReason.SLIDE),
+		Movement.new(HOME, "h", _area("D2-L2"), _area("M1-L2"), GameEnums.MovementReason.POSSESSION_ADVANCE),
+		Movement.new(AWAY, "a", _area("D2-L2"), _area("D2-L1"), GameEnums.MovementReason.SLIDE),
 	]
 	var converted: Array[Movement] = ViewConverter.movements_to_user(movements)
-	assert_str("%s>%s" % [converted[0].from.to_key(), converted[0].to.to_key()]).is_equal("D-L2>M-L2")
-	assert_str("%s>%s" % [converted[1].from.to_key(), converted[1].to.to_key()]).is_equal("A-R2>A-R1")
+	assert_str("%s>%s" % [converted[0].from.to_key(), converted[0].to.to_key()]).is_equal("D2-L2>M1-L2")
+	assert_str("%s>%s" % [converted[1].from.to_key(), converted[1].to.to_key()]).is_equal("A1-R2>A1-R1")
 
 
 # --- BoardSnapshot ---
@@ -99,18 +99,19 @@ func test_movements_convert_by_the_side_that_moved() -> void:
 func test_snapshot_shows_both_teams_from_the_user_view_with_numbers() -> void:
 	var state: MatchState = _state(AWAY)
 	var snapshot: BoardSnapshot = ViewConverter.snapshot(state, _catalog, [], -1, 15, false)
-	# 利用者の 4-4-2 の左SB（3番）は D-L2。CPU の 4-3-3 の左WG（11番）は CPU の視点で A-L2 → 利用者の視点で D-R2
-	assert_dict(_player(snapshot.user_players, "4-4-2-lb")).is_equal({"player_id": "4-4-2-lb", "number": 3, "area": "D-L2"})
-	assert_dict(_player(snapshot.opponent_players, "4-3-3-lw")).is_equal({"player_id": "4-3-3-lw", "number": 11, "area": "D-R2"})
+	# キックオフの配置（アルゴリズム7。列を半分に縮める）。利用者の 4-4-2 の左SB（3番）は D2 → D1-L2。
+	# CPU の 4-3-3 の左WG（11番）は CPU の視点で A2-L2 → M1-L2 → 利用者の視点で M2-R2
+	assert_dict(_player(snapshot.user_players, "4-4-2-lb")).is_equal({"player_id": "4-4-2-lb", "number": 3, "area": "D1-L2"})
+	assert_dict(_player(snapshot.opponent_players, "4-3-3-lw")).is_equal({"player_id": "4-3-3-lw", "number": 11, "area": "M2-R2"})
 	assert_int(snapshot.user_players.size()).is_equal(10)
 	assert_int(snapshot.opponent_players.size()).is_equal(10)
-	# 人数は駒の位置を数えた値と一致する。CPU の 4-3-3 の前線（A: L2・C・R2）は、利用者の視点で D の R2・C・L2
-	assert_int(snapshot.opponent_counts["D-R2"] as int).is_equal(1)
-	assert_int(snapshot.opponent_counts["D-C"] as int).is_equal(1)
-	# 利用者の 4-4-2 のセンターバック2人は、中央の左右（D-L1・D-R1）に散らしてある（アルゴリズム1。2026-10-24）
-	assert_int(snapshot.user_counts["D-C"] as int).is_equal(0)
-	assert_int(snapshot.user_counts["D-L1"] as int).is_equal(1)
-	assert_int(snapshot.user_counts["D-R1"] as int).is_equal(1)
+	# 人数は駒の位置を数えた値と一致する。CPU の 4-3-3 の前線（M1: L2・C・R2）は、利用者の視点で M2 の R2・C・L2
+	assert_int(snapshot.opponent_counts["M2-R2"] as int).is_equal(1)
+	assert_int(snapshot.opponent_counts["M2-C"] as int).is_equal(1)
+	# 利用者の 4-4-2 のセンターバック2人は、キックオフでも中央の左右（D1-L1・D1-R1）に散らしてある
+	assert_int(snapshot.user_counts["D1-C"] as int).is_equal(0)
+	assert_int(snapshot.user_counts["D1-L1"] as int).is_equal(1)
+	assert_int(snapshot.user_counts["D1-R1"] as int).is_equal(1)
 	var total: int = 0
 	for key: String in snapshot.opponent_counts:
 		total += snapshot.opponent_counts[key] as int
@@ -119,13 +120,13 @@ func test_snapshot_shows_both_teams_from_the_user_view_with_numbers() -> void:
 
 func test_snapshot_converts_the_ball_and_reports_possession_and_score() -> void:
 	var state: MatchState = _state(AWAY)
-	# CPU（AWAY）が保持し、CPU の視点で D-C にボール → 利用者の視点で A-C
-	state.ball_area = _area("D-C")
+	# CPU（AWAY）が保持し、CPU の視点で D2-C にボール → 利用者の視点で A1-C
+	state.ball_area = _area("D2-C")
 	state.home_score = 2
 	state.away_score = 1
 	state.turn_number = 5
 	var snapshot: BoardSnapshot = ViewConverter.snapshot(state, _catalog, [], AWAY, 15, false)
-	assert_str(snapshot.ball_area).is_equal("A-C")
+	assert_str(snapshot.ball_area).is_equal("A1-C")
 	assert_bool(snapshot.user_has_ball).is_false()
 	assert_int(snapshot.score_user).is_equal(2)
 	assert_int(snapshot.score_opponent).is_equal(1)
@@ -140,9 +141,9 @@ func test_snapshot_converts_the_ball_and_reports_possession_and_score() -> void:
 
 
 func test_snapshot_converts_the_last_movements() -> void:
-	var movements: Array[Movement] = [Movement.new(AWAY, "4-3-3-lw", _area("A-L2"), _area("A-L1"), GameEnums.MovementReason.PRESS)]
+	var movements: Array[Movement] = [Movement.new(AWAY, "4-3-3-lw", _area("A2-L2"), _area("A2-L1"), GameEnums.MovementReason.PRESS)]
 	var snapshot: BoardSnapshot = ViewConverter.snapshot(_state(HOME), _catalog, movements, -1, 15, true)
-	assert_str("%s>%s" % [snapshot.movements[0].from.to_key(), snapshot.movements[0].to.to_key()]).is_equal("D-R2>D-R1")
+	assert_str("%s>%s" % [snapshot.movements[0].from.to_key(), snapshot.movements[0].to.to_key()]).is_equal("D1-R2>D1-R1")
 	assert_bool(snapshot.user_has_ball).is_true()
 	# ハーフを終えたかは、呼び出し側が渡した値をそのまま持つ
 	assert_bool(snapshot.is_half_over).is_true()
@@ -208,9 +209,9 @@ func test_reveal_shows_the_user_as_attacker_without_mirroring() -> void:
 func test_reveal_players_are_in_the_user_view_with_numbers() -> void:
 	var record: TurnRecord = _away_attack_record()
 	var reveal: RevealView = ViewConverter.reveal(record, _catalog)
-	# 判定前の CPU の左WG（11番）は利用者の視点で D-R2。利用者の左SB（3番）は D-L2
-	assert_dict(_player(reveal.opponent_players_before, "4-3-3-lw")).is_equal({"player_id": "4-3-3-lw", "number": 11, "area": "D-R2"})
-	assert_dict(_player(reveal.user_players_before, "4-4-2-lb")).is_equal({"player_id": "4-4-2-lb", "number": 3, "area": "D-L2"})
+	# 判定前の CPU の左WG（11番）は利用者の視点で M2-R2（キックオフの配置）。利用者の左SB（3番）は D1-L2
+	assert_dict(_player(reveal.opponent_players_before, "4-3-3-lw")).is_equal({"player_id": "4-3-3-lw", "number": 11, "area": "M2-R2"})
+	assert_dict(_player(reveal.user_players_before, "4-4-2-lb")).is_equal({"player_id": "4-4-2-lb", "number": 3, "area": "D1-L2"})
 	assert_int(reveal.user_players_at_judgement.size()).is_equal(10)
 	assert_int(reveal.movements.size()).is_equal(record.movements.size())
 

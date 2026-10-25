@@ -15,7 +15,7 @@ var away_setup: TeamSetup
 var home_choice: TurnChoice
 var away_choice: TurnChoice
 var ball_before: PitchArea
-## 判定直後にボールがあるエリア（攻撃側の視点）。GOAL はシュートしたエリア、SAVE は守備側の自陣 D-C
+## 判定直後にボールがあるエリア（攻撃側の視点）。GOAL はシュートしたエリア、SAVE は守備側の D1-C（攻撃側の視点で A2-C）
 var ball_after: PitchArea
 ## ターン開始時の配置（攻守ターンはアルゴリズム2を適用した後、トランジションは起点）
 var pair_before: LayoutPair

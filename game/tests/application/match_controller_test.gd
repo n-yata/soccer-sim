@@ -140,7 +140,8 @@ func test_start_match_creates_the_match_with_the_cpu_setup_and_emits_the_state()
 	assert_str(snapshot.user_setup.formation_id).is_equal("4-4-2")
 	assert_str(snapshot.opponent_setup.formation_id).is_equal("4-3-3")
 	assert_str(controller.opponent_setup().formation_id).is_equal("4-3-3")
-	assert_str(snapshot.ball_area).is_equal("M-C")
+	# キックオフのボールはキックオフ側の M1-C（利用者の視点では、CPU のキックオフなら M2-C）
+	assert_str(snapshot.ball_area).is_equal("M1-C" if snapshot.user_has_ball else "M2-C")
 	# 試合 ID は YYYYMMDD-HHMMSS-NNNN（data-definition.md §2.1）
 	var pattern := RegEx.create_from_string("^\\d{8}-\\d{6}-\\d{4}$")
 	assert_object(pattern.search(controller.state().match_id)).is_not_null()
@@ -230,12 +231,12 @@ func test_user_preview_of_a_press_ends_in_the_chosen_area_in_the_user_view() -> 
 
 func test_user_preview_is_empty_before_the_match_for_an_unavailable_choice_and_during_the_reveal() -> void:
 	var controller: MatchController = _controller(_seed_for_kickoff(AWAY))
-	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("M-C"))
+	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("M1-C"))
 	await assert_error(func() -> void: controller.user_preview(press)) \
 			.is_push_error("MatchController: 試合が始まる前に user_preview は呼べない")
 	controller.start_match(_user_setup())
 	# 守備のときに攻撃の手は選べない
-	var dribble := TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M-L1"))
+	var dribble := TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M1-L1"))
 	await assert_error(func() -> void: controller.user_preview(dribble)) \
 			.is_push_error("MatchController: 選べない手のプレビューは出せない")
 	assert_array(controller.user_preview(dribble)).is_empty()
@@ -310,12 +311,13 @@ func test_invalid_cpu_choice_is_replaced_by_the_first_selectable_move() -> void:
 	await assert_error(func() -> void: controller.submit_turn(choice)) \
 			.is_push_error("MatchController: CPU の手が選べないため、選べる手の先頭に置き換える")
 	# CPU（4-3-3・ゾーン）はキックオフで守備側。選べる手の先頭は手の enum の順で PRESS、運ぶ先は
-	# PitchArea.all() の順で最初に選べるエリア。攻撃側から見た D-L2 は守備側の視点で A-R2 で、その上下左右
-	# （A-R1・M-R2）に選手がいないので選べない。D-L1（守備側の視点で A-R1）は隣の A-R2 に RW がいるので選べる
+	# PitchArea.all() の順で最初に選べるエリア。CPU はキックオフの配置で自陣（1〜3列目）にいるので、攻撃側から見た
+	# D1・D2 の列（守備側の視点で A2・A1）は上下左右に選手がおらず選べない。M1-L2（守備側の視点で M2-R2）は、
+	# 下の M1-R2 に RW がいるので選べる
 	var record: TurnRecord = controller.state().turn_records[0]
 	assert_int(record.away_choice.family).is_equal(DEFENSE)
 	assert_int(record.away_choice.action).is_equal(GameEnums.DefenseAction.PRESS)
-	assert_str(record.away_choice.target.to_key()).is_equal("D-L1")
+	assert_str(record.away_choice.target.to_key()).is_equal("M1-L2")
 
 
 func test_snapshot_after_a_turn_has_the_movements_of_that_turn() -> void:
@@ -352,7 +354,7 @@ func test_continue_in_the_middle_of_a_half_emits_the_state() -> void:
 	var controller: MatchController = _controller(_seed_for_kickoff(HOME))
 	controller.start_match(_user_setup())
 	controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
-	# キックオフ（M-C）の1ターン目はシュートを選べないので得点は無く、前半の途中のまま
+	# キックオフ（M1-C）の1ターン目はシュートを選べないので得点は無く、前半の途中のまま
 	assert_int(controller.state().stage).is_equal(GameEnums.MatchStage.TURN)
 	var monitor := monitor_signals(controller, false)
 	controller.continue_after_reveal()

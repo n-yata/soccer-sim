@@ -18,8 +18,8 @@ func before_test() -> void:
 
 func _attack_options() -> MoveOptions:
 	var options := MoveOptions.new()
-	options.add_target(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M-L1"))
-	options.add_target(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("A-C"))
+	options.add_target(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M2-L1"))
+	options.add_target(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("A1-C"))
 	options.allow(ATTACK, GameEnums.PlayType.SHOT)
 	return options
 
@@ -39,7 +39,7 @@ func test_attack_shows_the_five_plays_and_disables_unavailable_ones() -> void:
 
 func test_each_phase_shows_its_own_moves() -> void:
 	var options := MoveOptions.new()
-	options.add_target(DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("D-C"))
+	options.add_target(DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("D2-C"))
 	_panel.show_options(options, GameEnums.TurnKind.OPEN_PLAY, false)
 	assert_int(_panel.family()).is_equal(DEFENSE)
 	assert_int(_panel.button_count()).is_equal(2)

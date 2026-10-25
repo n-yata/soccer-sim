@@ -6,7 +6,7 @@ extends RefCounted
 ## 選手ごとの現在の位置。各要素は {"player_id": String, "number": int, "area": String（エリアのキー）}
 var user_players: Array[Dictionary] = []
 var opponent_players: Array[Dictionary] = []
-## 15エリアの人数（エリアのキー → 人数）。user_players / opponent_players をエリアごとに数えた値
+## 30エリアの人数（エリアのキー → 人数）。user_players / opponent_players をエリアごとに数えた値
 var user_counts: Dictionary = {}
 var opponent_counts: Dictionary = {}
 ## ボール位置（エリアのキー）

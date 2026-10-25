@@ -1,6 +1,6 @@
 ## ヒント（FR-19）・CPU の評価値の材料（MoveHints）のテスト。
 ## 期待値は functional-overview.md アルゴリズム3〜6・8の規則から手で書いた。運ぶ先は判定時の攻撃側の視点、
-## 選手のエリアは各チーム自身の視点（component-design.md §1.2）。
+## 選手のエリアは各チーム自身の視点（component-design.md §1.2）。盤面は6列（2026-10-25）。
 extends GdUnitTestSuite
 
 const HOME := GameEnums.TeamSide.HOME
@@ -46,9 +46,9 @@ func _open_state(home_spec: Array, away_spec: Array, ball_key: String, away_defe
 	return state
 
 
-## HOME が奪取側のトランジション。ボールは HOME から見て D-C
+## HOME が奪取側のトランジション。ボールは HOME から見て D2-C
 func _transition_state(home_spec: Array, away_spec: Array) -> MatchState:
-	var state: MatchState = _open_state(home_spec, away_spec, "D-C")
+	var state: MatchState = _open_state(home_spec, away_spec, "D2-C")
 	state.turn_kind = GameEnums.TurnKind.TRANSITION
 	state.transition_origin = LayoutPair.new(_layout_of(state.home_players), _layout_of(state.away_players), HOME)
 	return state
@@ -76,26 +76,33 @@ func _describe_all(hints: Array[ChoiceHint]) -> Array[String]:
 	return result
 
 
-## 攻守ターンの共通の場面: h1 がボールの M-C、h2 が A-C。相手の a1 は自陣 D-C（HOME から見て A-C）、a2 は A-L2
+## 攻守ターンの共通の場面: h1 がボールの M2-C、h2 が A1-C。相手の a1 は自陣の D2-C（HOME から見て A1-C）、
+## a2 は遠くの A2-L2（HOME から見て D1-R2）
 func _scene() -> MatchState:
-	return _open_state([["h1", "M-C", ""], ["h2", "A-C", ""]], [["a1", "D-C", ""], ["a2", "A-L2", ""]], "M-C")
+	return _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
+
+
+## トランジションの共通の場面: 奪取側 HOME（カウンター型）は h1 がボールの D2-C、大外の h2 が M1-L2。
+## 喪失側 AWAY は a1 が A1-C（HOME から見て D2-C）、a2 が M2-C（HOME から見て M1-C）
+func _transition_scene() -> MatchState:
+	return _transition_state([["h1", "D2-C", ""], ["h2", "M1-L2", ""]], [["a1", "A1-C", ""], ["a2", "M2-C", ""]])
 
 
 # --- 攻撃の手 ---
 
 func test_attack_hints_count_the_target_after_applying_only_the_attack() -> void:
 	assert_array(_describe_all(_hints(_scene(), HOME))).is_equal([
-		# パス: A-C は1対1。背後は盤外で、GK はカバーに数えないのでカバーなし
-		"SHORT_PASS A-C 1-1 NONE",
-		# ドリブル: h1 が運ぶ先へ動いた後の人数（A-C は h1 と h2 で2対1）。周り8エリアへ運べる（2026-10-24）
-		"DRIBBLE D-L1 1-0 NONE", "DRIBBLE D-C 1-0 NONE", "DRIBBLE D-R1 1-0 NONE",
-		"DRIBBLE M-L1 1-0 NONE", "DRIBBLE M-R1 1-0 NONE",
-		"DRIBBLE A-L1 1-0 NONE", "DRIBBLE A-C 2-1 NONE", "DRIBBLE A-R1 1-0 NONE",
+		# パス: 2マス以内で味方がいるのは A1-C だけ。1対1で、背後の A2-C も0対0なのでカバーなし
+		"SHORT_PASS A1-C 1-1 NONE",
+		# ドリブル: h1 が運ぶ先へ動いた後の人数（A1-C は h1 と h2 で2対1）。周り8エリアへ運べる
+		"DRIBBLE M1-L1 1-0 NONE", "DRIBBLE M1-C 1-0 NONE", "DRIBBLE M1-R1 1-0 NONE",
+		"DRIBBLE M2-L1 1-0 NONE", "DRIBBLE M2-R1 1-0 NONE",
+		"DRIBBLE A1-L1 1-0 NONE", "DRIBBLE A1-C 2-1 NONE", "DRIBBLE A1-R1 1-0 NONE",
 	])
 
 
 func test_shot_hint_compares_the_ball_area_without_a_cover_check() -> void:
-	var state: MatchState = _open_state([["h1", "A-C", ""]], [["a1", "D-C", ""], ["a2", "A-L2", ""]], "A-C")
+	var state: MatchState = _open_state([["h1", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "A1-C")
 	var shots: Array[String] = []
 	for hint: ChoiceHint in _hints(state, HOME):
 		if hint.action == GameEnums.PlayType.SHOT:
@@ -104,52 +111,50 @@ func test_shot_hint_compares_the_ball_area_without_a_cover_check() -> void:
 
 
 func test_dribble_hint_lets_the_man_marker_follow() -> void:
-	# 相手はマンツーマン。m1 は h1 につく（AWAY から見て M-C）。far は基本エリアが A なのでマーカーにならない
-	var state: MatchState = _open_state([["h1", "M-C", ""]], [["m1", "M-L1", ""], ["far", "A-L2", ""]], "M-C", MAN)
+	# 相手はマンツーマン。m1 は h1 につく（AWAY から見て M1-C）。far は基本エリアが6列目なのでマーカーにならない
+	var state: MatchState = _open_state([["h1", "M2-C", ""]], [["m1", "M1-L1", ""], ["far", "A2-L2", ""]], "M2-C", MAN)
 	var hints: Array[String] = _describe_all(_hints(state, HOME))
-	# A-C へのドリブルにマーカーがついていき、1対1。背後は盤外でカバーなし
-	assert_array(hints).contains(["DRIBBLE A-C 1-1 NONE"])
-	assert_array(hints).not_contains(["DRIBBLE A-C 1-0 NONE"])
+	# A1-C へのドリブルにマーカーがついていき、1対1。背後の A2-C は0対0でカバーなし
+	assert_array(hints).contains(["DRIBBLE A1-C 1-1 NONE"])
+	assert_array(hints).not_contains(["DRIBBLE A1-C 1-0 NONE"])
 
 
 # --- 守備の手 ---
 
 func test_defense_hints_count_the_restricted_area_before_applying_the_move() -> void:
 	var hints: Array[String] = _describe_all(_hints(_scene(), AWAY))
-	# M-C: 守備側（AWAY）0・攻撃側1。守備側から見て 0-1
-	assert_array(hints).contains(["PRESS M-C 0-1 NONE"])
-	# A-L1（AWAY から見て D-R1）は0対0。背後は盤外でカバーなし
-	assert_array(hints).contains(["PRESS A-L1 0-0 NONE"])
-	# A-C は守備側1・攻撃側1（隣接に守備側がいないのでプレスは選べず、カバーだけ）
-	assert_array(hints).not_contains(["PRESS A-C 1-1 NONE"])
+	# M2-C: 守備側（AWAY）0・攻撃側1。守備側から見て 0-1
+	assert_array(hints).contains(["PRESS M2-C 0-1 NONE"])
+	# A1-L1（AWAY から見て D2-R1）は0対0。背後（攻撃側の視点の A2-L1）も0対0でカバーなし
+	assert_array(hints).contains(["PRESS A1-L1 0-0 NONE"])
+	# A1-C は守備側1・攻撃側1（隣に守備側がいないのでプレスは選べず、カバーだけ）
+	assert_array(hints).not_contains(["PRESS A1-C 1-1 NONE"])
 
 
 # --- トランジション ---
 
 func test_counter_hint_uses_the_layout_after_the_breakout() -> void:
-	# 奪取側 HOME（カウンター型）の h2 は M-L2 から A-L2 へ飛び出す。喪失側の a1 は自陣の大外（HOME から見て A-L2）にいない
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "A-C", ""], ["a2", "M-C", ""]])
-	assert_array(_describe_all(_hints(state, HOME))).is_equal(["COUNTER A-L2 1-0 NONE", "SECURE -"])
+	# 奪取側 HOME（カウンター型）の h2 は M1-L2 から M2-L2 へ飛び出す。喪失側は HOME から見て M2-L2（自陣の M1-R2）にいない
+	assert_array(_describe_all(_hints(_transition_scene(), HOME))).is_equal(["COUNTER M2-L2 1-0 NONE", "SECURE -"])
 
 
 func test_counter_press_hint_totals_around_the_ball_and_retreat_is_not_compared() -> void:
-	# X は HOME から見て D-C（AWAY から見て A-C）。周りに AWAY は a1（A-C）と a2（M-C）の2人、HOME は h1 の1人
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "A-C", ""], ["a2", "M-C", ""]])
-	assert_array(_describe_all(_hints(state, AWAY))).is_equal(["COUNTER_PRESS - 2-1 NONE", "RETREAT -"])
+	# X は HOME から見て D2-C（AWAY から見て A1-C）。周りに AWAY は a1（A1-C）と a2（M2-C）の2人、HOME は h1 の1人
+	assert_array(_describe_all(_hints(_transition_scene(), AWAY))).is_equal(["COUNTER_PRESS - 2-1 NONE", "RETREAT -"])
 
 
 # --- 判定との一致・選べる手との一致 ---
 
 func test_attack_hint_matches_the_judgement_when_the_defense_does_not_touch_the_target() -> void:
 	var state: MatchState = _scene()
-	var dribble := TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, _area("A-C"))
-	# 攻撃側の視点の D-R1 へのプレス（AWAY の A-L2 の a2 が A-L1 へ）は A-C に関わらない
-	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("D-R1"))
+	var dribble := TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, _area("A1-C"))
+	# 攻撃側の視点の D1-R1 へのプレス（AWAY の A2-L2 の a2 が A2-L1 へ）は A1-C に関わらない
+	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("D1-R1"))
 	var output: JudgeOutput = OpenPlayJudge.judge(StyleLayoutCalculator.turn_start(state).pair,
 			state.home_setup.styles, state.away_setup.styles, state.ball_area, dribble, press)
 	var hint: ChoiceHint = null
 	for candidate: ChoiceHint in _hints(state, HOME):
-		if candidate.action == GameEnums.PlayType.DRIBBLE and candidate.target.equals(_area("A-C")):
+		if candidate.action == GameEnums.PlayType.DRIBBLE and candidate.target.equals(_area("A1-C")):
 			hint = candidate
 	assert_int(hint.own_count).is_equal(output.detail.attacker_count)
 	assert_int(hint.opponent_count).is_equal(output.detail.defender_count)
@@ -157,10 +162,10 @@ func test_attack_hint_matches_the_judgement_when_the_defense_does_not_touch_the_
 
 
 func test_counter_hint_matches_the_judgement_against_counter_press() -> void:
-	var state: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]], [["a1", "A-C", ""], ["a2", "M-C", ""]])
+	var state: MatchState = _transition_scene()
 	var output: JudgeOutput = TransitionJudge.judge(state.transition_origin, state.home_setup.styles,
 			state.away_setup.styles, state.ball_area,
-			TurnChoice.new(POS_TRANS, GameEnums.PosTransAction.COUNTER, _area("A-L2")),
+			TurnChoice.new(POS_TRANS, GameEnums.PosTransAction.COUNTER, _area("M2-L2")),
 			TurnChoice.new(NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS))
 	var hint: ChoiceHint = _hints(state, HOME)[0]
 	assert_int(hint.own_count).is_equal(output.detail.attacker_count)
@@ -170,11 +175,9 @@ func test_counter_hint_matches_the_judgement_against_counter_press() -> void:
 
 func test_hints_cover_exactly_the_selectable_moves() -> void:
 	# 攻守ターンとトランジションの両方で、両チームのヒントが選べる手（運ぶ先を持つ手は運ぶ先ごと）と1対1になる
-	var transition: MatchState = _transition_state([["h1", "D-C", ""], ["h2", "M-L2", ""]],
-			[["a1", "A-C", ""], ["a2", "M-C", ""]])
 	var action_counts: Array[int] = [GameEnums.PlayType.size(), GameEnums.DefenseAction.size(),
 			GameEnums.NegTransAction.size(), GameEnums.PosTransAction.size()]
-	for state: MatchState in [_scene(), transition]:
+	for state: MatchState in [_scene(), _transition_scene()]:
 		for side: GameEnums.TeamSide in [HOME, AWAY]:
 			var options: MoveOptions = MoveRules.options_for(state, side)
 			var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, options)
@@ -193,9 +196,9 @@ func test_hints_cover_exactly_the_selectable_moves() -> void:
 
 
 func test_evaluate_does_not_modify_the_state() -> void:
-	var state: MatchState = _open_state([["h1", "M-C", ""]], [["m1", "M-L1", ""], ["far", "A-L2", ""]], "M-C", MAN)
+	var state: MatchState = _open_state([["h1", "M2-C", ""]], [["m1", "M1-L1", ""], ["far", "A2-L2", ""]], "M2-C", MAN)
 	_hints(state, HOME)
 	_hints(state, AWAY)
 	for player: PlayerState in state.home_players + state.away_players:
 		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
-	assert_str(state.ball_area.to_key()).is_equal("M-C")
+	assert_str(state.ball_area.to_key()).is_equal("M2-C")

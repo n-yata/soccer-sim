@@ -66,7 +66,7 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 	if state.turn_kind == GameEnums.TurnKind.OPEN_PLAY and holder_choice.action == GameEnums.PlayType.DRIBBLE \
 			and output.outcome == GameEnums.TurnOutcome.STALL:
 		record.movements.append_array(MatchPositions.stop_dribble(next, state, output))
-	# 得点はキックオフで全員を基本エリアに置いた（仕切り直し）ので、ターン開始からの動きは数えない
+	# 得点はキックオフで全員を自陣に縮めた陣形に置いた（仕切り直し）ので、ターン開始からの動きは数えない
 	if output.outcome != GameEnums.TurnOutcome.GOAL:
 		MatchPositions.mark_moved(next, start.pair)
 	next.turn_number += 1
@@ -160,24 +160,25 @@ static func finish(state: MatchState) -> MatchState:
 	return next
 
 
-## キックオフ: ボールは M-C、side の保持で攻守ターンから始める。全員を基本エリアに置き、固定を解く
-## （試合の仕切り直しなので、1ターン1マスの例外。2026-10-24）。
+## キックオフ: ボールはキックオフ側の M1-C（自陣側のセンターサークル）、side の保持で攻守ターンから始める。
+## 全員を自陣に縮めた陣形（MatchPositions.place_for_kickoff）に置き、固定を解く（試合の仕切り直しなので、1ターン1マスの例外）。
 static func _kickoff(state: MatchState, side: GameEnums.TeamSide) -> void:
 	state.possession = side
-	state.ball_area = PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.M)
+	state.ball_area = PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.M1)
 	state.turn_kind = GameEnums.TurnKind.OPEN_PLAY
 	state.transition_origin = null
-	MatchPositions.reset_to_base(state)
+	MatchPositions.place_for_kickoff(state)
 
 
-## 判定直後にボールがあるエリア（攻撃側の視点）。SAVE は守備側の自陣 D-C（攻撃側の視点で A-C）、
+## 判定直後にボールがあるエリア（攻撃側の視点）。SAVE は守備側の自陣ゴール前 D1-C（攻撃側の視点で A2-C。
+## ゴールキーパーのキャッチ）、
 ## GOAL はシュートしたエリア、保持したまま動かない結果は判定前の位置。
 static func _ball_after(state: MatchState, outcome: GameEnums.TurnOutcome, holder_choice: TurnChoice) -> PitchArea:
 	match outcome:
 		GameEnums.TurnOutcome.ADVANCE, GameEnums.TurnOutcome.LOSS:
 			return holder_choice.target.duplicate_deep()
 		GameEnums.TurnOutcome.SAVE:
-			return PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.A)
+			return PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.A2)
 	# STALL・GOAL（攻守ターン）、REGAIN・REGAIN_FAILED・NO_CONTEST・カウンターの STALL（トランジションの X）
 	return state.ball_area.duplicate_deep()
 
@@ -192,7 +193,7 @@ static func _apply_outcome(next: MatchState, kind: GameEnums.TurnKind, output: J
 			next.home_score += 1
 		else:
 			next.away_score += 1
-		# 失点側のキックオフをこの時点で済ませる（選び直しの間も、ボール位置が保持側の視点の M-C になるように）。
+		# 失点側のキックオフをこの時点で済ませる（選び直しの間も、ボール位置が保持側の視点の M1-C になるように）。
 		# ハーフの最終ターンなら、下の resolve_turn でハーフタイム・試合終了に切り替わる
 		_kickoff(next, MatchState.other(holder))
 		next.stage = GameEnums.MatchStage.STYLE_CHANGE

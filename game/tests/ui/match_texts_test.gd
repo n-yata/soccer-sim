@@ -8,18 +8,19 @@ const POS := GameEnums.ChoiceFamily.POS_TRANS
 
 
 func test_area_names_use_zone_and_lane_from_the_user_view() -> void:
-	assert_str(MatchTexts.area_name("M-C")).is_equal("中盤・中央")
-	assert_str(MatchTexts.area_name("M-L1")).is_equal("中盤・左HS")
-	assert_str(MatchTexts.area_name("D-L2")).is_equal("自陣・左大外")
-	assert_str(MatchTexts.area_name("A-R1")).is_equal("敵陣・右HS")
-	assert_str(MatchTexts.area_name("A-R2")).is_equal("敵陣・右大外")
+	assert_str(MatchTexts.area_name("M1-C")).is_equal("中盤（自陣）・中央")
+	assert_str(MatchTexts.area_name("M2-L1")).is_equal("中盤（敵陣）・左HS")
+	assert_str(MatchTexts.area_name("D2-L2")).is_equal("自陣・左大外")
+	assert_str(MatchTexts.area_name("A1-R1")).is_equal("敵陣・右HS")
+	assert_str(MatchTexts.area_name("A2-R2")).is_equal("敵陣ゴール前・右大外")
+	assert_str(MatchTexts.area_name("D1-C")).is_equal("自陣ゴール前・中央")
 
 
-func test_area_names_are_unique_over_the_fifteen_areas() -> void:
+func test_area_names_are_unique_over_the_thirty_areas() -> void:
 	var names: Dictionary = {}
 	for area: PitchArea in PitchArea.all():
 		names[MatchTexts.area_name(area.to_key())] = true
-	assert_int(names.size()).is_equal(15)
+	assert_int(names.size()).is_equal(30)
 
 
 func test_an_unknown_area_key_is_shown_as_is() -> void:
@@ -47,8 +48,8 @@ func test_action_names_cover_every_family() -> void:
 
 
 func test_choice_summary_has_the_target_only_when_the_move_has_one() -> void:
-	var pass_choice := TurnChoice.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M-C"))
-	assert_str(MatchTexts.choice_summary(pass_choice)).is_equal("ショートパス → 中盤・中央")
+	var pass_choice := TurnChoice.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M1-C"))
+	assert_str(MatchTexts.choice_summary(pass_choice)).is_equal("ショートパス → 中盤（自陣）・中央")
 	var shot := TurnChoice.new(ATTACK, GameEnums.PlayType.SHOT)
 	assert_str(MatchTexts.choice_summary(shot)).is_equal("シュート")
 
@@ -84,7 +85,7 @@ func test_setup_text_names_the_formation_and_both_styles() -> void:
 
 
 func test_hint_tag_shows_the_difference_and_the_cover_only_when_even() -> void:
-	var hint := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M-C"), true, 2, 1,
+	var hint := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M2-C"), true, 2, 1,
 			GameEnums.CoverKind.NONE)
 	assert_str(MatchTexts.hint_tag(hint)).is_equal("+1")
 	hint.own_count = 1
@@ -196,6 +197,6 @@ func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS)) \
 			.is_equal("プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.COVER)) \
-			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）")
+			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣ゴール前の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE)).is_empty()
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_empty()

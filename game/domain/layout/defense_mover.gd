@@ -42,7 +42,7 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction, target: Pit
 
 
 ## カバーで背後へ下がる選手を探す隣接エリア（守備側の視点）。前方を除いた横 → 背後。
-## 前方の選手は、T_d の背後まで2ゾーン下がることになり、1ターンに動ける1マスを超えるため（2026-10-24）。
+## 前方の選手は、T_d の背後まで2列下がることになり、1ターンに動ける1マスを超えるため（2026-10-24）。
 ## 選べる手の条件（MoveRules.defense_options）も、この並びで確かめる。
 static func cover_neighbors(restricted: PitchArea) -> Array[PitchArea]:
 	var result: Array[PitchArea] = _neighbors_by_priority(restricted)

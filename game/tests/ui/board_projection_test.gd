@@ -1,5 +1,5 @@
 ## BoardProjection（作戦ボードの遠近の写し方。平面図 ⇔ 画面）のテスト。
-## 平面図は縦向きのピッチを真上から見た図（上が敵陣）。画面は奥（上）ほど狭く・縦を詰めて描く。
+## 平面図は縦向きのピッチを真上から見た図（上が敵陣）。画面は奥（上）ほど狭く描く（縦は詰めない）。
 extends GdUnitTestSuite
 
 const SIZE: Vector2 = Vector2(726, 575)
@@ -30,14 +30,18 @@ func test_the_near_edge_fills_the_width_and_the_far_edge_is_narrower() -> void:
 	assert_float(BoardProjection.scale_at(SIZE.y, SIZE)).is_equal_approx(1.0, 0.001)
 
 
-func test_far_rows_are_squeezed_more_than_near_rows() -> void:
-	# 平面図で同じ高さの3行が、画面では奥ほど低くなる
-	var row: float = SIZE.y / 3.0
-	var heights: Array[float] = []
-	for index: int in range(3):
-		heights.append(_screen(Vector2(0, row * (index + 1))).y - _screen(Vector2(0, row * index)).y)
-	assert_float(heights[0]).is_less(heights[1])
-	assert_float(heights[1]).is_less(heights[2])
+func test_rows_keep_the_same_height_and_far_rows_are_narrower() -> void:
+	# 6列の盤面では縦を詰めない（奥の行も押せる高さを保つ。2026-10-25）。遠近は横の縮みで見せる
+	var row: float = SIZE.y / 6.0
+	var expected_height: float = (SIZE.y - SIZE.y * BoardProjection.TOP_MARGIN_RATE) / 6.0
+	var widths: Array[float] = []
+	for index: int in range(6):
+		var top: Vector2 = _screen(Vector2(0, row * index))
+		var bottom: Vector2 = _screen(Vector2(0, row * (index + 1)))
+		assert_float(bottom.y - top.y).override_failure_message("row %d" % index).is_equal_approx(expected_height, 0.01)
+		widths.append(_screen(Vector2(SIZE.x, row * index)).x - top.x)
+	for index: int in range(5):
+		assert_float(widths[index]).is_less(widths[index + 1])
 
 
 func test_vertical_lines_of_the_plan_stay_straight() -> void:

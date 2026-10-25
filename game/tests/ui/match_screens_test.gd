@@ -104,9 +104,9 @@ func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() 
 	assert_float(board.size.x).is_greater_equal(TacticsBoard.MIN_CELL.x * PitchArea.LANE_COUNT)
 	assert_float(board.cell_size().x).is_greater_equal(TacticsBoard.MIN_CELL.x)
 	assert_float(board.cell_size().y).is_greater_equal(TacticsBoard.MIN_CELL.y)
-	# 盤面はパネルの中に収まり、パネルは画面の外周の余白（24px）の内側に収まる
+	# 盤面はパネルの中に収まり、パネルは画面の上下の外周の余白（12px）の内側に収まる
 	assert_float(panel.size.y).is_greater_equal(board.size.y)
-	assert_float(panel.get_global_rect().end.y).is_less_equal(720.0 - 24.0 + 0.5)
+	assert_float(panel.get_global_rect().end.y).is_less_equal(720.0 - MatchScreen.VERTICAL_MARGIN + 0.5)
 
 
 func test_reveal_shows_both_choices_and_the_score_only_after_the_result() -> void:
@@ -169,7 +169,7 @@ func test_a_move_without_a_target_is_ready_at_once() -> void:
 func test_next_starts_the_next_turn_in_the_middle_of_a_half() -> void:
 	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
-	# キックオフ（中盤・中央）の1ターン目はシュートを選べず、得点もハーフの終わりも無い
+	# キックオフ（中盤（自陣）・中央）の1ターン目はシュートを選べず、得点もハーフの終わりも無い
 	_play_turn(screen)
 	assert_int(controller.state().stage).is_equal(GameEnums.MatchStage.TURN)
 	screen.board_panel().primary_button().pressed.emit()

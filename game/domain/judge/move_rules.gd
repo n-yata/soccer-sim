@@ -3,16 +3,22 @@
 ## 局面の値（配置・ボール位置）を受け取る下位の関数を持つ。MatchState から呼ぶ入口 options_for は、
 ## MatchState を作る作業（試合進行）で足す。運ぶ先は PitchArea.all() の順に並べる（結果を決定的にするため）。
 ##
-## 手の条件の距離（隣接・レーン差3以上・1〜2ゾーン前）はルールの定義そのもので、調整値ではない。そのため定数で持つ。
+## 手の条件の距離（2マス以内・レーン差3以上・1〜4列前など）はルールの定義そのもので、調整値ではない。そのため定数で持つ。
+## 6列の盤面での読み替え（2026-10-25）: ショートパスは2マス、ロングボールは自陣から敵陣の奥の2列、シュートは5・6列目、
+## カウンターは1〜4列前、カバーは守備側の1列目では選べない。
 class_name MoveRules
 extends RefCounted
 
+## SHORT_PASS で届く距離（レーン差・列差がどちらもこの値以内。斜めを含む）
+const _SHORT_PASS_REACH: int = 2
 ## SWITCH で運べる最小のレーン差
 const _SWITCH_MIN_LANE_GAP: int = 3
 ## LONG_BEHIND で運べる最大のレーン差
 const _LONG_BEHIND_MAX_LANE_GAP: int = 1
-## COUNTER で運べる、ボール位置から前のゾーン数（1〜この値）
-const _COUNTER_MAX_ZONES_AHEAD: int = 2
+## LONG_BEHIND の運ぶ先と SHOT を選べる列（敵陣の奥の2列。5・6列目）の先頭
+const _FINAL_ROWS_FIRST: GameEnums.Zone = GameEnums.Zone.A1
+## COUNTER で運べる、ボール位置から前の列数（1〜この値）
+const _COUNTER_MAX_ZONES_AHEAD: int = 4
 
 
 ## side が今のターンで選べる手（局面に応じて下位の関数を呼ぶ）。運ぶ先は判定時の攻撃側（トランジションは奪取側）の視点。
@@ -37,17 +43,18 @@ static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions:
 	for target: PitchArea in PitchArea.all():
 		var has_teammate: bool = pair.attacker.count_at(target) >= 1
 		var lane_gap: int = absi(target.lane - ball.lane)
-		if has_teammate and _is_neighbor8(ball, target):
+		var reach: int = ball.steps_to(target)
+		if has_teammate and reach >= 1 and reach <= _SHORT_PASS_REACH:
 			options.add_target(family, GameEnums.PlayType.SHORT_PASS, target)
 		# ドリブルは周り8エリアのどこへでも（斜め・後ろも。2026-10-24）。味方の有無は問わない
 		if _is_neighbor8(ball, target):
 			options.add_target(family, GameEnums.PlayType.DRIBBLE, target)
-		if has_teammate and ball.zone == GameEnums.Zone.D and target.zone == GameEnums.Zone.A \
+		if has_teammate and ball.is_own_half() and target.zone >= _FINAL_ROWS_FIRST \
 				and lane_gap <= _LONG_BEHIND_MAX_LANE_GAP:
 			options.add_target(family, GameEnums.PlayType.LONG_BEHIND, target)
 		if has_teammate and target.zone == ball.zone and lane_gap >= _SWITCH_MIN_LANE_GAP:
 			options.add_target(family, GameEnums.PlayType.SWITCH, target)
-	if ball.zone == GameEnums.Zone.A and ball.lane in [GameEnums.Lane.C, GameEnums.Lane.L1, GameEnums.Lane.R1]:
+	if ball.zone >= _FINAL_ROWS_FIRST and ball.lane in [GameEnums.Lane.C, GameEnums.Lane.L1, GameEnums.Lane.R1]:
 		options.allow(family, GameEnums.PlayType.SHOT)
 	return options
 
@@ -65,7 +72,8 @@ static func defense_options(pair: LayoutPair) -> MoveOptions:
 		# カバーで下がる選手は、T_d の背後まで1マスで届く選手（T_d・横・背後。前方は除く。DefenseMover.cover_neighbors）
 		var can_cover: bool = pair.defender.count_at(restricted) >= 1 \
 				or _has_player_in(pair.defender, DefenseMover.cover_neighbors(restricted))
-		if restricted.zone != GameEnums.Zone.D and can_cover:
+		# 守備側の1列目（ゴール前）は背後が無いので、カバーを選べない
+		if restricted.zone != GameEnums.Zone.D1 and can_cover:
 			options.add_target(family, GameEnums.DefenseAction.COVER, target)
 	return options
 
@@ -78,7 +86,7 @@ static func neg_transition_options() -> MoveOptions:
 	return options
 
 
-## 奪った側の手。SECURE は常に選べる。COUNTER の運ぶ先は、ball から1〜2ゾーン前（レーン不問）で味方がいるエリア。
+## 奪った側の手。SECURE は常に選べる。COUNTER の運ぶ先は、ball から1〜4列前（レーン不問。2026-10-25 に1〜2ゾーン前を6列で読み替えた）で味方がいるエリア。
 ## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）。ball と winner は奪った側から見た座標。
 static func pos_transition_options(winner: TeamLayout, ball: PitchArea) -> MoveOptions:
 	var options := MoveOptions.new()

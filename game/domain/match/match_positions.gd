@@ -1,6 +1,6 @@
 ## 選手の位置の持ち越し（1ターン1マス。functional-overview.md アルゴリズム2・7。2026-10-24）。
 ## MatchRules から呼ばれ、ターンをまたぐ選手の位置（current_area）・固定先・moved_in_turn を扱う。
-## - キックオフでの基本エリアへのリセットと、固定の解除
+## - キックオフでの、自陣に縮めた陣形への置き直しと、固定の解除
 ## - 判定時の配置から試合の状態への写し戻し
 ## - ターン開始から動いたかの印
 ## - 膠着したドリブルの戻し
@@ -10,12 +10,16 @@ class_name MatchPositions
 extends RefCounted
 
 
-## 全員を基本エリアに置き、固定を解く（キックオフ。試合の仕切り直しなので、1ターン1マスの例外）。
-static func reset_to_base(state: MatchState) -> void:
+## キックオフ: 両チームとも全員を、陣形を自陣に縮めた位置（BaseLayoutDeriver.kickoff_areas）に置き、固定を解く
+## （試合の仕切り直しなので、1ターン1マスの例外。2026-10-25）。全員に moved_in_turn を立て、キックオフのターン開始では
+## 誰も動かさない（縮めた陣形を盤面に見せる）。次のターン開始から、方式の動きで基本エリアへ1マスずつ上がる。
+static func place_for_kickoff(state: MatchState) -> void:
 	release_fixes(state)
-	for player: PlayerState in state.home_players + state.away_players:
-		player.current_area = player.base_area.duplicate_deep()
-		player.moved_in_turn = false
+	for players: Array[PlayerState] in [state.home_players, state.away_players]:
+		var kickoff: Dictionary = BaseLayoutDeriver.kickoff_areas(players)
+		for player: PlayerState in players:
+			player.current_area = (kickoff[player.player_id] as PitchArea).duplicate_deep()
+			player.moved_in_turn = true
 
 
 ## 全員の固定を解く（位置は変えない）。キックオフと、トランジションが終わって攻守ターンが始まる時に呼ぶ。
@@ -68,7 +72,7 @@ static func stop_dribble(next: MatchState, state: MatchState, output: JudgeOutpu
 
 
 ## 次のターンの開始時の配置で、ボールのエリアに保持側の選手がいなければ、いちばん近い選手を1人置いて固定する。
-## 近さは今いるエリア（判定時の位置）からのゾーン差＋レーン差で、同じなら配置の選手の順で先の選手
+## 近さは今いるエリア（判定時の位置）からの列差＋レーン差で、同じなら配置の選手の順で先の選手
 ## （アルゴリズム2のマーカーの選び方と同じ）。
 ## start はそのターンの開始時の配置。置ける選手は、ターン開始の位置と今いるエリアのどちらからも、ボールのエリアが
 ## 1マス以内の選手だけ（ターン開始から次のターン開始までを1マス以内に保つ。2026-10-24）。いなければ誰も置かない

@@ -1,5 +1,5 @@
 ## 判定理由の文（component-design.md §5。形式の正本は functional-overview.md「表示仕様」の判定理由）。
-## 「中盤・中央で 1対0。こちらが数的優位で前進」の形で、比較エリア・人数（自分 対 相手）・カバーの有無を必ず含める。
+## 「中盤（敵陣）・中央で 1対0。こちらが数的優位で前進」の形で、比較エリア・人数（自分 対 相手）・カバーの有無を必ず含める。
 ## 原因の句は人数の大小・カバーの有無・守備の読みから作る基本の文。解説（アルゴリズム9）の作業で言い回しを差し替える。
 class_name JudgeReasonFormatter
 extends RefCounted
@@ -12,7 +12,7 @@ static func format(reveal: RevealView) -> String:
 			reveal.opponent_count, _cause(reveal), MatchTexts.outcome_word(reveal.outcome)]
 
 
-## 判定の内訳「比較エリア 中盤・中央／● 自分 1 対 0 相手 ◆／カバー なし」。判定が無ければ空。
+## 判定の内訳「比較エリア 中盤（敵陣）・中央／● 自分 1 対 0 相手 ◆／カバー なし」。判定が無ければ空。
 static func detail(reveal: RevealView) -> String:
 	if not reveal.has_detail:
 		return ""

@@ -50,7 +50,7 @@ func count_at(area: PitchArea) -> int:
 	return count
 
 
-## 15エリアすべてのキー → 人数。人数が 0 のエリアも含める。
+## 30エリアすべてのキー → 人数。人数が 0 のエリアも含める。
 func counts() -> Dictionary:
 	var result: Dictionary = {}
 	for area: PitchArea in PitchArea.all():

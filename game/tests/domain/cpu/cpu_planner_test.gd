@@ -40,23 +40,23 @@ func _players(spec: Array) -> Array[PlayerState]:
 	return players
 
 
-## HOME が保持する攻守ターン（move_hints_test.gd と同じ場面）: h1 がボールの M-C、h2 が A-C。
-## 相手の a1 は自陣 D-C、a2 は A-L2。HOME のヒントはパス A-C が ±0、ドリブル3つが +1
+## HOME が保持する攻守ターン（move_hints_test.gd と同じ場面）: h1 がボールの M2-C、h2 が A1-C。
+## 相手の a1 は自陣 D2-C、a2 は A2-L2。HOME のヒントはパス A1-C が ±0、ドリブル8つが +1
 func _scene() -> MatchState:
 	var state := MatchState.new()
 	state.possession = HOME
-	state.ball_area = _area("M-C")
+	state.ball_area = _area("M2-C")
 	state.home_setup = TeamSetup.new("x", TeamStyles.new(ZONE, GameEnums.AttackStyle.COUNTER))
 	state.away_setup = TeamSetup.new("y", TeamStyles.new(ZONE, GameEnums.AttackStyle.COUNTER))
-	state.home_players = _players([["h1", "M-C"], ["h2", "A-C"]])
-	state.away_players = _players([["a1", "D-C"], ["a2", "A-L2"]])
+	state.home_players = _players([["h1", "M2-C"], ["h2", "A1-C"]])
+	state.away_players = _players([["a1", "D2-C"], ["a2", "A2-L2"]])
 	return state
 
 
 func _transition_scene() -> MatchState:
 	var state: MatchState = _scene()
 	state.turn_kind = GameEnums.TurnKind.TRANSITION
-	state.ball_area = _area("D-C")
+	state.ball_area = _area("M1-C")
 	state.transition_origin = LayoutPair.new(TeamLayout.at_base(state.home_players),
 			TeamLayout.at_base(state.away_players), HOME)
 	return state
@@ -132,11 +132,11 @@ func test_no_scores_give_no_probabilities() -> void:
 func test_scores_follow_the_move_kind() -> void:
 	var cover := GameEnums.CoverKind.NONE
 	# 攻撃・カウンター・即時奪回は 自分 − 相手
-	assert_float(CpuPlanner.score(ChoiceHint.new(ATTACK, GameEnums.PlayType.DRIBBLE, _area("A-C"), true, 2, 1, cover))).is_equal(1.0)
-	assert_float(CpuPlanner.score(ChoiceHint.new(POS_TRANS, GameEnums.PosTransAction.COUNTER, _area("A-C"), true, 1, 3, cover))).is_equal(-2.0)
+	assert_float(CpuPlanner.score(ChoiceHint.new(ATTACK, GameEnums.PlayType.DRIBBLE, _area("A1-C"), true, 2, 1, cover))).is_equal(1.0)
+	assert_float(CpuPlanner.score(ChoiceHint.new(POS_TRANS, GameEnums.PosTransAction.COUNTER, _area("A1-C"), true, 1, 3, cover))).is_equal(-2.0)
 	assert_float(CpuPlanner.score(ChoiceHint.new(NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, null, true, 2, 1, cover))).is_equal(1.0)
 	# 守備は脅威度（攻撃側 − 守備側）。守備側から見た 0対1 は脅威 +1
-	assert_float(CpuPlanner.score(ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M-C"), true, 0, 1, cover))).is_equal(1.0)
+	assert_float(CpuPlanner.score(ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("M2-C"), true, 0, 1, cover))).is_equal(1.0)
 	# 比べない手は 0
 	assert_float(CpuPlanner.score(ChoiceHint.new(POS_TRANS, GameEnums.PosTransAction.SECURE, null, false, 0, 0, cover))).is_equal(0.0)
 
@@ -151,25 +151,25 @@ func _bonus_cpu(bonus: float) -> CpuConfig:
 
 func test_style_bonus_goes_to_the_moves_each_style_prefers() -> void:
 	var cpu: CpuConfig = _bonus_cpu(1.5)
-	var ball: PitchArea = _area("M-C")
+	var ball: PitchArea = _area("M2-C")
 	var counter_man := TeamStyles.new(GameEnums.DefenseStyle.MAN, GameEnums.AttackStyle.COUNTER)
 	var possession_zone := TeamStyles.new(ZONE, GameEnums.AttackStyle.POSSESSION)
 	# [手の種類, 手, 運ぶ先, カウンター型・マンツーマンでの加点, 保持型・ゾーンでの加点]
 	var cases: Array = [
-		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A-C", 1.5, 0.0],
-		[ATTACK, GameEnums.PlayType.DRIBBLE, "A-C", 1.5, 0.0],
-		[ATTACK, GameEnums.PlayType.DRIBBLE, "M-L1", 0.0, 0.0],
-		[ATTACK, GameEnums.PlayType.DRIBBLE, "D-C", 0.0, 0.0],
-		# 斜め前は前（ゾーンが前）へのドリブルとして加点、斜め後ろは加点しない（2026-10-24 の8方向のドリブル）
-		[ATTACK, GameEnums.PlayType.DRIBBLE, "A-L1", 1.5, 0.0],
-		[ATTACK, GameEnums.PlayType.DRIBBLE, "D-R1", 0.0, 0.0],
-		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C", 0.0, 1.5],
-		[ATTACK, GameEnums.PlayType.SWITCH, "M-L2", 0.0, 1.5],
+		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A1-C", 1.5, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "A1-C", 1.5, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "M2-L1", 0.0, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "M1-C", 0.0, 0.0],
+		# 斜め前は前（列が前）へのドリブルとして加点、斜め後ろは加点しない（2026-10-24 の8方向のドリブル）
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "A1-L1", 1.5, 0.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "M1-R1", 0.0, 0.0],
+		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C", 0.0, 1.5],
+		[ATTACK, GameEnums.PlayType.SWITCH, "M2-L2", 0.0, 1.5],
 		[ATTACK, GameEnums.PlayType.SHOT, "", 0.0, 0.0],
-		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-C", 1.5, 0.0],
+		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A1-C", 1.5, 0.0],
 		[POS_TRANS, GameEnums.PosTransAction.SECURE, "", 0.0, 1.5],
-		[DEFENSE, GameEnums.DefenseAction.PRESS, "M-C", 1.5, 0.0],
-		[DEFENSE, GameEnums.DefenseAction.COVER, "M-C", 0.0, 1.5],
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "M2-C", 1.5, 0.0],
+		[DEFENSE, GameEnums.DefenseAction.COVER, "M2-C", 0.0, 1.5],
 		[NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, "", 1.5, 0.0],
 		[NEG_TRANS, GameEnums.NegTransAction.RETREAT, "", 0.0, 1.5],
 	]
@@ -206,11 +206,11 @@ func test_zero_style_bonus_keeps_the_probabilities_of_the_scores_alone() -> void
 
 
 func test_style_bonus_raises_the_preferred_moves_probability() -> void:
-	# カウンター型の HOME: 前（A-C）へのドリブルは好む手、横（M-L1）へのドリブルは好む手でない。評価値はどちらも +1
+	# カウンター型の HOME: 前（A1-C）へのドリブルは好む手、横（M2-L1）へのドリブルは好む手でない。評価値はどちらも +1
 	var state: MatchState = _scene()
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
-	var forward: int = _dribble_index(hints, "A-C")
-	var side: int = _dribble_index(hints, "M-L1")
+	var forward: int = _dribble_index(hints, "A1-C")
+	var side: int = _dribble_index(hints, "M2-L1")
 	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0))
 	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(2.0))
 	assert_float(none[forward]).is_equal_approx(none[side], 0.000001)
@@ -224,8 +224,8 @@ func test_style_bonus_raises_the_preferred_moves_probability() -> void:
 func test_choose_turn_follows_the_style_bonus() -> void:
 	# 加点が大きいと、カウンター型は前へのドリブルを、横へのドリブルより多く選ぶ
 	var state: MatchState = _scene()
-	var forward_key: String = "%d:%d:A-C" % [ATTACK, GameEnums.PlayType.DRIBBLE]
-	var side_key: String = "%d:%d:M-L1" % [ATTACK, GameEnums.PlayType.DRIBBLE]
+	var forward_key: String = "%d:%d:A1-C" % [ATTACK, GameEnums.PlayType.DRIBBLE]
+	var side_key: String = "%d:%d:M2-L1" % [ATTACK, GameEnums.PlayType.DRIBBLE]
 	var counts: Dictionary = {}
 	for seed_value: int in range(500):
 		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _bonus_cpu(3.0), _rng(seed_value)))
@@ -248,20 +248,20 @@ func test_situation_bonus_rewards_moving_forward_shooting_and_anticipating() -> 
 	var cpu: CpuConfig = _goal_cpu(0.5, 2.0, 0.75)
 	# [手の種類, 手, 運ぶ先, ボール位置, 加点]
 	var cases: Array = [
-		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A-C", "M-C", 0.5],
-		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A-L1", "D-C", 1.0],
-		[ATTACK, GameEnums.PlayType.DRIBBLE, "M-L1", "M-C", 0.0],
+		[ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C", "M2-C", 0.5],
+		[ATTACK, GameEnums.PlayType.LONG_BEHIND, "A1-L1", "M1-C", 1.0],
+		[ATTACK, GameEnums.PlayType.DRIBBLE, "M2-L1", "M2-C", 0.0],
 		# 後ろへ運ぶ手は負
-		[ATTACK, GameEnums.PlayType.SHORT_PASS, "D-C", "M-C", -0.5],
-		[ATTACK, GameEnums.PlayType.SWITCH, "M-R2", "M-L2", 0.0],
-		[ATTACK, GameEnums.PlayType.SHOT, "", "A-C", 2.0],
-		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A-C", "D-C", 1.0],
-		[POS_TRANS, GameEnums.PosTransAction.SECURE, "", "D-C", 0.0],
+		[ATTACK, GameEnums.PlayType.SHORT_PASS, "M1-C", "M2-C", -0.5],
+		[ATTACK, GameEnums.PlayType.SWITCH, "M2-R2", "M2-L2", 0.0],
+		[ATTACK, GameEnums.PlayType.SHOT, "", "A1-C", 2.0],
+		[POS_TRANS, GameEnums.PosTransAction.COUNTER, "A1-C", "M1-C", 1.0],
+		[POS_TRANS, GameEnums.PosTransAction.SECURE, "", "M1-C", 0.0],
 		# 守備の手は先読みの加点。制限するエリアがボールより前（攻撃側の視点）ほど大きく、後ろは負
-		[DEFENSE, GameEnums.DefenseAction.PRESS, "A-C", "D-C", 1.5],
-		[DEFENSE, GameEnums.DefenseAction.COVER, "M-L1", "M-C", 0.0],
-		[DEFENSE, GameEnums.DefenseAction.PRESS, "D-C", "M-C", -0.75],
-		[NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, "", "M-C", 0.0],
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "A1-C", "M1-C", 1.5],
+		[DEFENSE, GameEnums.DefenseAction.COVER, "M2-L1", "M2-C", 0.0],
+		[DEFENSE, GameEnums.DefenseAction.PRESS, "M1-C", "M2-C", -0.75],
+		[NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS, "", "M2-C", 0.0],
 	]
 	for case: Array in cases:
 		var target_key: String = case[2] as String
@@ -274,15 +274,15 @@ func test_situation_bonus_rewards_moving_forward_shooting_and_anticipating() -> 
 func test_zero_situation_bonus_adds_nothing() -> void:
 	var cpu: CpuConfig = _goal_cpu(0.0, 0.0)
 	var shot := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHOT, null, true, 1, 1, GameEnums.CoverKind.NONE)
-	var forward_pass := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, _area("A-C"), true, 1, 1, GameEnums.CoverKind.NONE)
-	assert_float(CpuPlanner.situation_bonus(shot, _area("A-C"), cpu)).is_equal(0.0)
-	assert_float(CpuPlanner.situation_bonus(forward_pass, _area("D-C"), cpu)).is_equal(0.0)
-	var press := ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("A-C"), true, 1, 1, GameEnums.CoverKind.NONE)
-	assert_float(CpuPlanner.situation_bonus(press, _area("D-C"), cpu)).is_equal(0.0)
+	var forward_pass := ChoiceHint.new(ATTACK, GameEnums.PlayType.SHORT_PASS, _area("A1-C"), true, 1, 1, GameEnums.CoverKind.NONE)
+	assert_float(CpuPlanner.situation_bonus(shot, _area("A1-C"), cpu)).is_equal(0.0)
+	assert_float(CpuPlanner.situation_bonus(forward_pass, _area("M1-C"), cpu)).is_equal(0.0)
+	var press := ChoiceHint.new(DEFENSE, GameEnums.DefenseAction.PRESS, _area("A1-C"), true, 1, 1, GameEnums.CoverKind.NONE)
+	assert_float(CpuPlanner.situation_bonus(press, _area("M1-C"), cpu)).is_equal(0.0)
 
 
 func test_anticipation_bonus_raises_the_press_ahead_of_the_ball() -> void:
-	# AWAY が守備。HOME のボールは M-C。先読みの加点で、ボールより前（A ゾーン）を制限する手が選ばれやすくなる
+	# AWAY が守備。HOME のボールは M2-C。先読みの加点で、ボールより前の列を制限する手が選ばれやすくなる
 	var state: MatchState = _scene()
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, AWAY, MoveRules.options_for(state, AWAY))
 	var ahead: int = -1
@@ -291,9 +291,9 @@ func test_anticipation_bonus_raises_the_press_ahead_of_the_ball() -> void:
 		var target: PitchArea = hints[index].target
 		if hints[index].family != DEFENSE or target == null:
 			continue
-		if target.zone == GameEnums.Zone.A:
+		if target.zone > state.ball_area.zone:
 			ahead = index
-		elif target.zone == GameEnums.Zone.D:
+		elif target.zone < state.ball_area.zone:
 			behind = index
 	assert_int(ahead).is_not_equal(-1)
 	assert_int(behind).is_not_equal(-1)
@@ -304,11 +304,11 @@ func test_anticipation_bonus_raises_the_press_ahead_of_the_ball() -> void:
 
 
 func test_forward_bonus_raises_the_forward_moves_probability() -> void:
-	# 前（A-C）へのドリブルと横（M-L1）へのドリブルは、評価値がどちらも +1。前へ運ぶ加点で前の手が選ばれやすくなる
+	# 前（A1-C）へのドリブルと横（M2-L1）へのドリブルは、評価値がどちらも +1。前へ運ぶ加点で前の手が選ばれやすくなる
 	var state: MatchState = _scene()
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
-	var forward: int = _dribble_index(hints, "A-C")
-	var side: int = _dribble_index(hints, "M-L1")
+	var forward: int = _dribble_index(hints, "A1-C")
+	var side: int = _dribble_index(hints, "M2-L1")
 	assert_int(forward).is_not_equal(-1)
 	assert_int(side).is_not_equal(-1)
 	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0))
@@ -319,10 +319,10 @@ func test_forward_bonus_raises_the_forward_moves_probability() -> void:
 
 
 func test_shot_bonus_raises_the_shot_probability() -> void:
-	# h1 がボールの A-C にいて、シュートを選べる場面
+	# h1 がボールの A1-C にいて、シュートを選べる場面
 	var state: MatchState = _scene()
-	state.ball_area = _area("A-C")
-	state.home_players = _players([["h1", "A-C"], ["h2", "A-L1"]])
+	state.ball_area = _area("A1-C")
+	state.home_players = _players([["h1", "A1-C"], ["h2", "A1-L1"]])
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
 	var shot: int = -1
 	for index: int in range(hints.size()):
@@ -361,7 +361,7 @@ func test_choose_turn_picks_better_moves_more_often_but_keeps_every_move() -> vo
 	for seed_value: int in range(1000):
 		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value)))
 		counts[key] = (counts.get(key, 0) as int) + 1
-	var pass_key: String = "%d:%d:A-C" % [ATTACK, GameEnums.PlayType.SHORT_PASS]
+	var pass_key: String = "%d:%d:A1-C" % [ATTACK, GameEnums.PlayType.SHORT_PASS]
 	# 選べる手はパス1つとドリブル8つ（周り8エリア。2026-10-24）。どれも1回以上選ばれる
 	assert_int(counts.size()).is_equal(MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME)).size())
 	assert_int(counts.size()).is_equal(9)
@@ -374,7 +374,7 @@ func test_choose_turn_does_not_modify_the_state() -> void:
 	var state: MatchState = _scene()
 	CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(3))
 	CpuPlanner.choose_turn(state, AWAY, _cpu(), _rng(3))
-	assert_str(state.ball_area.to_key()).is_equal("M-C")
+	assert_str(state.ball_area.to_key()).is_equal("M2-C")
 	for player: PlayerState in state.home_players + state.away_players:
 		assert_bool(player.is_fixed()).override_failure_message(player.player_id).is_false()
 

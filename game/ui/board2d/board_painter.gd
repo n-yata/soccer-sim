@@ -106,7 +106,7 @@ static func _draw_lane_names(board: TacticsBoard) -> void:
 	var font_size: int = _font_size(board, &"lane_size")
 	var color: Color = _color(board, &"lane_text")
 	for lane: int in GameEnums.Lane.values():
-		var rect: Rect2 = board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D).to_key())
+		var rect: Rect2 = board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D1).to_key())
 		var at: Vector2 = board.to_screen(rect.position + Vector2(10.0, 8.0))
 		board.draw_string(font, at + Vector2(0, font.get_ascent(font_size)), MatchTexts.lane_name(lane as GameEnums.Lane),
 				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)

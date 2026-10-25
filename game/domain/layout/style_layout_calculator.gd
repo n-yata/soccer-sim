@@ -8,10 +8,12 @@
 class_name StyleLayoutCalculator
 extends RefCounted
 
-## マンツーマンで余ったマーカーの置き場所（守備側から見た D-C。カバー役）
+## マンツーマンで余ったマーカーの置き場所（守備側から見た D2-C。カバー役）
 const _SPARE_MARKER_LANE: GameEnums.Lane = GameEnums.Lane.C
-const _SPARE_MARKER_ZONE: GameEnums.Zone = GameEnums.Zone.D
-## マークの対象の優先順（同じゾーンの中）。C → ハーフスペース → 大外、同じ順位なら守備側から見て左が先
+const _SPARE_MARKER_ZONE: GameEnums.Zone = GameEnums.Zone.D2
+## マンツーマンでマークする列の最後（守備側から見て1〜4列目。3列のころの D・M を6列で読み替えた。2026-10-25）
+const _MARK_LAST_ZONE: GameEnums.Zone = GameEnums.Zone.M2
+## マークの対象の優先順（同じ列の中。列は自陣のゴールに近いほうが先）。C → ハーフスペース → 大外、同じ順位なら守備側から見て左が先
 const _MARK_LANE_PRIORITY: Array[GameEnums.Lane] = [
 	GameEnums.Lane.C, GameEnums.Lane.L1, GameEnums.Lane.R1, GameEnums.Lane.L2, GameEnums.Lane.R2,
 ]
@@ -154,7 +156,7 @@ static func _stepped(layout: TeamLayout, now: Dictionary, targets: Dictionary, i
 	return result
 
 
-## POSSESSION: 固定されていない大外（L2/R2）の選手の目標が1ゾーン前。A の選手はそのまま。
+## POSSESSION: 固定されていない大外（L2/R2）の選手の目標が1列前。最後の列（A2）の選手はそのまま。
 static func _advance_wide_players(layout: TeamLayout, areas: Dictionary, reasons: Dictionary) -> void:
 	for player: PlayerState in layout.players:
 		if player.is_fixed():
@@ -184,10 +186,10 @@ static func _slide(layout: TeamLayout, areas: Dictionary, reasons: Dictionary, b
 			reasons[player.player_id] = GameEnums.MovementReason.SLIDE
 
 
-## MAN: 守備側の D・M にいる攻撃側の選手に、マーカーを1人ずつつける（目標を対象と同じエリアにする）。
-## マーカーは固定されていない、基本エリアが D・M の選手。優先順の上からマーカーの人数分の対象をマークする。
-## 対象のエリアに既にいるマーカーを先に残し、残りは優先順に、今いるエリアがいちばん近い（ゾーン差＋レーン差が最小。
-## 同じなら配置の選手の順）マーカーを割り当てる。余ったマーカーの目標は D-C。
+## MAN: 守備側の1〜4列目にいる攻撃側の選手に、マーカーを1人ずつつける（目標を対象と同じエリアにする）。
+## マーカーは固定されていない、基本エリアが1〜4列目の選手。優先順の上からマーカーの人数分の対象をマークする。
+## 対象のエリアに既にいるマーカーを先に残し、残りは優先順に、今いるエリアがいちばん近い（列差＋レーン差が最小。
+## 同じなら配置の選手の順）マーカーを割り当てる。余ったマーカーの目標は D2-C。
 ## 近さを今いるエリア（positions）で測るのは、1ターン1マスで追いかけるので、基本エリアで選ぶと
 ## 遠いマーカーが走り続けて追いつかないため。attacker_areas は攻撃側から見た座標。
 static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
@@ -195,7 +197,7 @@ static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
 	var targets: Array[PitchArea] = []
 	for player: PlayerState in attacker_players:
 		var seen: PitchArea = (attacker_areas[player.player_id] as PitchArea).mirrored()
-		if seen.zone != GameEnums.Zone.A:
+		if seen.zone <= _MARK_LAST_ZONE:
 			targets.append(seen)
 	# sort_custom は安定でないため、同じ順位の対象は元の並び（攻撃側の選手の順）を添字で比べる
 	var order: Array[int] = []
@@ -207,7 +209,7 @@ static func _mark(defender: TeamLayout, areas: Dictionary, reasons: Dictionary,
 		return rank_a < rank_b or (rank_a == rank_b and a < b))
 	var markers: Array[PlayerState] = []
 	for player: PlayerState in defender.players:
-		if not player.is_fixed() and player.base_area.zone != GameEnums.Zone.A:
+		if not player.is_fixed() and player.base_area.zone <= _MARK_LAST_ZONE:
 			markers.append(player)
 	# マークする対象は優先順の上からマーカーの人数分。誰をつけるかは、その後で決める
 	order.resize(mini(order.size(), markers.size()))

@@ -44,7 +44,7 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
 
 
 ## カウンターのときの奪取側の配置。カウンター型なら、固定されていない選手のうち、直前の配置で大外（L2/R2）に
-## いる選手が1ゾーン前へ出る（前が盤外なら残る）。保持型は直前の配置のまま。飛び出しは方式の動きなので固定しない
+## いる選手が1列前へ出る（前が盤外なら残る）。保持型は直前の配置のまま。飛び出しは方式の動きなので固定しない
 ## （アルゴリズム2の手順2と同じく、固定された選手は方式の動きの対象外）。
 ## MoveRules.pos_transition_options に渡す配置を作るのにも使う。
 static func counter_layout(winner: TeamLayout, winner_styles: TeamStyles) -> TeamLayout:

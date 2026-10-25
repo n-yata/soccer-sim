@@ -27,8 +27,8 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 |---|---|---|
 | ヘッダー | 高さ 96px。幅は画面いっぱい | 試合中の画面では、中継風のスコア表示（`ScoreBug`）・どちらのボールか（S-03。2026-10-24）・局面のタグを兼ねる。両チームの陣形・方式は操作の列の上端に置く（S-03） |
 | 操作の列（右） | 幅 480px（16:9）。横に長い端末では広げ、上限 640px | 選択肢・解説・主ボタン。主ボタンは列の下端に置く。中身が入りきらない画面は列の中を縦にスクロールする |
-| 本体（左） | 残りの幅（16:9 で 728px、21:9 で 968px）。高さ 576px | 作戦ボード・ミニピッチ・一覧など。作戦ボードは本体いっぱいに広げ、縦横比は固定しない（ピッチの白線はボードの大きさに合わせて描く） |
-| 余白 | 外周と、本体と操作の列の間に 24px | — |
+| 本体（左） | 残りの幅（16:9 で 728px、21:9 で 968px）。高さ 576px（S-03・S-08 は上下の外周の余白を 12px にして 600px。2026-10-25。6列の作戦ボードの1エリアが NFR-19 を満たすため） | 作戦ボード・ミニピッチ・一覧など。作戦ボードは本体いっぱいに広げ、縦横比は固定しない（ピッチの白線はボードの大きさに合わせて描く） |
+| 余白 | 外周と、本体と操作の列の間に 24px。S-03 と S-08（同じ作戦ボードを使う）は外周の上下を 12px にする（左右は 24px のまま） | — |
 
 - 端末の切り欠きは横向きでは左右に来るため、`DisplayServer.get_display_safe_area()` で安全な範囲を求め、左右の余白に足す（`MainShell` が画面のルートの余白として設定する。各画面は意識しない）。左右には同じ余白（大きい方）を当てる。横向きのまま 180° 回すと切り欠きは反対側へ移るが、ビューポートの大きさが変わらず、余白を当て直すきっかけが無いため
 - 本体と操作の列を持たない画面（S-10・S-12 など）も、ヘッダーの高さと外周の余白は同じにする
@@ -39,7 +39,7 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | 用途 | 最小の大きさ | 根拠 |
 |---|---|---|
 | ボタン・選択肢など、押せるものすべて | 高さ 96px（48dp）以上、幅 96px 以上 | NFR-19 |
-| 作戦ボードの1エリア | 画面でいちばん小さい奥の行（敵陣）でも、幅・高さ 96px（48dp）以上（NFR-19）。平面図（縦向きのピッチを真上から見た図）の1エリアで幅 136px・高さ 140px 以上（`TacticsBoard.MIN_CELL`。奥では幅が 0.72 倍、高さが約 0.73 倍になる）。駒の間隔と大きさは、セルの幅に合わせて縮め、1チーム 2列×2段がエリアの半分に収まるようにする。基準の 16:9 で、平面図の1エリアは約 145×192px。横に長い端末ほど幅が広がる（2026-10-23 に縦向きの盤面へ変えた） | `screen-design.md`「共通の部品と操作」 |
+| 作戦ボードの1エリア | 画面でいちばん小さい奥の行（敵陣）でも、幅・高さ 96px（48dp）以上（NFR-19）。平面図（縦向きのピッチを真上から見た図）の1エリアで幅 136px・高さ 100px 以上（`TacticsBoard.MIN_CELL`。奥では幅が 0.72 倍になる。縦は詰めず、上の余白（ボードの高さの 4%）の分だけ各行が 0.96 倍になる）。駒の間隔と大きさは、セルの幅に合わせて縮め、1チーム 2列×2段がエリアの半分に収まるようにする。基準の 16:9 で、作戦ボードは約 726×600px、平面図の1エリアは約 145×100px、画面の1エリアは奥の行で約 105×96px。横に長い端末ほど幅が広がる（2026-10-23 に縦向きの盤面へ変えた。2026-10-25 に6列にし、奥の行の高さを保つため縦を詰めるのをやめた） | `screen-design.md`「共通の部品と操作」 |
 | 画面の外周の余白 | 24px。これに端末の切り欠き（カメラの穴など）の分を足す（§1.1） | `screen-design.md`「画面の向きと基本の配置」 |
 
 ## 2. フォント・文字
@@ -96,7 +96,7 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
 | `pitch_stripe` | `#18623A` | 自分 3.7 ／ 相手 3.2 | 芝目の明るい側 |
 | `pitch_halfspace` | `#134E2D` | 自分 4.9 ／ 相手 4.2 | ハーフスペースのレーン |
 | `pitch_line` | `#F8FAFC`（不透明度 80%） | — | 白線 |
-| `zone_line` | `#F8FAFC`（不透明度 25%、点線） | — | 15エリアの境界 |
+| `zone_line` | `#F8FAFC`（不透明度 25%、点線） | — | 30エリアの境界 |
 | `tag_muted_bg` | `#0B111C`（不透明度 70%） | — | 差が ±0 のヒントの札の地。文字は `text`（差がある札は `accent` の地に `bg` の文字） |
 | `ball_area_fill` | `#FFFFFF`（不透明度 10%） | — | ボールのあるエリアの薄い塗り |
 | `lane_text` | `#CBD5E1` | 5.4（`pitch`） | レーン名 |
@@ -159,9 +159,9 @@ Android のタッチと PC のマウスで同じ処理が動くように、入�
 
 | 部品（`class_name`） | 外から渡す値 | 出すシグナル | 備考 |
 |---|---|---|---|
-| `TacticsBoard` | `show_snapshot(snapshot: BoardSnapshot)`、`set_selectable(areas: Array[String])`、`set_hints(hints: Dictionary, even_keys: Array[String] = [])`、`show_intent(from_area: String, to_area: String)`、`show_movements(movements: Array[Movement])`、`show_preview(movements: Array[Movement])`（決定前のプレビュー。自分の選手の動き）、`start_shift(user_before: Array[Dictionary], opponent_before: Array[Dictionary], ball_before: String, duration_sec: float)`（開示で、判定前の配置からいまの盤面へ、位置が変わった全選手の駒と、ボール（判定前のエリアが違うときだけ）を一緒に動かす。動いている間は駒を選手ごとに描き「+N」の札は出さない。そのため5人以上いるエリアでは、動いている間だけ4人目以降の駒が最後の位置で重なる（既知の制約）。エリアが同じでも、列の位置が変わった駒は動かす。次の `show_snapshot`・`clear_overlays` で止まる）、`show_compare(area: String, user_count: int, opponent_count: int)`、`show_tally(tally: Dictionary)`（振り返りの集計の札。駒は出さない）、`clear_overlays()` | `area_pressed(area_key: String)` | ピッチを縦に置いて斜めから見せ（半3D）、利用者の攻撃方向は常に上（上から A・M・D のゾーン、左から L2・L1・C・R1・R2 のレーン。2026-10-23 に横向き・右から変えた）。位置は平面図の座標で持ち、`BoardProjection` の写し方（奥 = 上を狭く・縦を詰める。奥の縮み 0.72）で画面に描く。押した点は逆の写し方で平面図へ戻してエリアを引く（`area_at`。平面図の点は `plan_area_at`）。描き方: ①ピッチ（`pitch` 系の色・白線・センターサークル・上下のペナルティエリアとゴール）②ボールのあるエリアの薄い塗り（`ball_area_fill`）・選んだエリアの塗り・選べるエリアの点線の枠 ③15エリアの点線とレーン名（自陣（手前の行）の各エリアの左上に 16px）④矢印（ボール＝`accent` 太線、寄せ・カバー＝`opponent` か `you` の実線。方式の動きと保持者の動きは描かない）、選んだ手の矢印（ボールを運ぶ手だけ）、決定前のプレビューの点線の曲線の矢印（`you`・3px。理由で絞らない） ⑤立っているもの（`standing_order()` の順に、奥から手前へ。手前の駒が奥の駒に重なる）: 駒（`BoardSnapshot.user_players` / `opponent_players` から、番号なしで描く。チェスのような立体の駒で、自分はポーンのような丸い頭・相手はビショップのようなとがった頭。影・台座・胴・首の輪・頭で描き、奥ほど小さい。自分はエリアの左半分、相手は右半分に、2列×2段。各チーム5人以上いるときは、駒を3つと「+N」の札（`tag_muted_bg` の地）にする）、決定前のプレビューの駒（移動先に自分の駒を半透明で立てる。移動先のエリアの自分の駒の並びの続きに置き、最後の位置で止める。自分の駒が5人以上いるエリアへの移動では「+N」の札に重なる。まれで判定に影響しないため、既知の制約とする）、ボール（エリアの上側の中央に、少し浮かせて地面に影を落とす） ⑥ヒントの札（選べるエリアの下端の中央に 18px。差がある札は `accent`、±0 の札は `tag_muted_bg`。駒と矢印の上に描いて字を隠さない）⑦比較エリアの光と人数の札。角の優劣記号と凡例は描かない。`set_hints(hints: Dictionary, even_keys: Array[String])` の `even_keys` が ±0 の札のキー。エリアを押せる範囲は、画面に写したエリア全体（奥の行でも 96px 以上） |
+| `TacticsBoard` | `show_snapshot(snapshot: BoardSnapshot)`、`set_selectable(areas: Array[String])`、`set_hints(hints: Dictionary, even_keys: Array[String] = [])`、`show_intent(from_area: String, to_area: String)`、`show_movements(movements: Array[Movement])`、`show_preview(movements: Array[Movement])`（決定前のプレビュー。自分の選手の動き）、`start_shift(user_before: Array[Dictionary], opponent_before: Array[Dictionary], ball_before: String, duration_sec: float)`（開示で、判定前の配置からいまの盤面へ、位置が変わった全選手の駒と、ボール（判定前のエリアが違うときだけ）を一緒に動かす。動いている間は駒を選手ごとに描き「+N」の札は出さない。そのため5人以上いるエリアでは、動いている間だけ4人目以降の駒が最後の位置で重なる（既知の制約）。エリアが同じでも、列の位置が変わった駒は動かす。次の `show_snapshot`・`clear_overlays` で止まる）、`show_compare(area: String, user_count: int, opponent_count: int)`、`show_tally(tally: Dictionary)`（振り返りの集計の札。駒は出さない）、`clear_overlays()` | `area_pressed(area_key: String)` | ピッチを縦に置いて斜めから見せ（半3D）、利用者の攻撃方向は常に上（上から A2〜D1 の6列、左から L2・L1・C・R1・R2 のレーン。2026-10-23 に横向き・右から変えた。2026-10-25 に6列にした）。位置は平面図の座標で持ち、`BoardProjection` の写し方（奥 = 上を狭く。奥の縮み 0.72。6列の奥の行も押せる高さを保つため縦は詰めない）で画面に描く。押した点は逆の写し方で平面図へ戻してエリアを引く（`area_at`。平面図の点は `plan_area_at`）。描き方: ①ピッチ（`pitch` 系の色・白線・センターサークル・上下のペナルティエリアとゴール）②ボールのあるエリアの薄い塗り（`ball_area_fill`）・選んだエリアの塗り・選べるエリアの点線の枠 ③30エリアの点線とレーン名（いちばん手前の行（自陣ゴール前 D1）の各エリアの左上に 16px）④矢印（ボール＝`accent` 太線、寄せ・カバー＝`opponent` か `you` の実線。方式の動きと保持者の動きは描かない）、選んだ手の矢印（ボールを運ぶ手だけ）、決定前のプレビューの点線の曲線の矢印（`you`・3px。理由で絞らない） ⑤立っているもの（`standing_order()` の順に、奥から手前へ。手前の駒が奥の駒に重なる）: 駒（`BoardSnapshot.user_players` / `opponent_players` から、番号なしで描く。チェスのような立体の駒で、自分はポーンのような丸い頭・相手はビショップのようなとがった頭。影・台座・胴・首の輪・頭で描き、奥ほど小さい。自分はエリアの左半分、相手は右半分に、2列×2段。各チーム5人以上いるときは、駒を3つと「+N」の札（`tag_muted_bg` の地）にする）、決定前のプレビューの駒（移動先に自分の駒を半透明で立てる。移動先のエリアの自分の駒の並びの続きに置き、最後の位置で止める。自分の駒が5人以上いるエリアへの移動では「+N」の札に重なる。まれで判定に影響しないため、既知の制約とする）、ボール（エリアの上側の中央に、少し浮かせて地面に影を落とす） ⑥ヒントの札（選べるエリアの下端の中央に 18px。差がある札は `accent`、±0 の札は `tag_muted_bg`。駒と矢印の上に描いて字を隠さない）⑦比較エリアの光と人数の札。角の優劣記号と凡例は描かない。`set_hints(hints: Dictionary, even_keys: Array[String])` の `even_keys` が ±0 の札のキー。エリアを押せる範囲は、画面に写したエリア全体（奥の行でも 96px 以上） |
 | `ChoicePanel` | `show_options(options: MoveOptions, turn_kind: GameEnums.TurnKind, user_has_ball: bool)`、`select_action(family, action)` | `action_selected(family: GameEnums.ChoiceFamily, action: int)` | 運ぶ先が1つもない手は選択不可（`screen-design.md` S-03） |
-| `MiniPitch` | `show_counts(counts: Dictionary, two_teams: bool)`、`show_movements(movements: Array[Movement])`（S-07 の振り返りの各ターン。矢印をマスの中心から中心へ描く） | — | 作戦ボードと同じ向き（5列×3行、攻撃方向が上。上が敵陣・左が左大外。2026-10-23 に縦向きへ揃えた）。遠近と立体の駒は付けない（真上から見た平面）。2チームを出すマスの大きさは、使う画面の作業で決める（数字 `1−0` が 24px で入る大きさ）。1チームの人数だけを出す陣形カードでは 横 44px・縦 60px。画面ごとに大きくしてよい（S-09）。押せない表示専用 |
+| `MiniPitch` | `show_counts(counts: Dictionary, two_teams: bool)`、`show_movements(movements: Array[Movement])`（S-07 の振り返りの各ターン。矢印をマスの中心から中心へ描く） | — | 作戦ボードと同じ向き（横5レーン×縦6列、攻撃方向が上。上が敵陣・左が左大外。2026-10-23 に縦向きへ揃えた）。遠近と立体の駒は付けない（真上から見た平面）。2チームを出すマスの大きさは、使う画面の作業で決める（数字 `1−0` が 24px で入る大きさ）。1チームの人数だけを出す陣形カードでは 横 44px・縦 30px（2026-10-25 に6列で 60px から変更。カードの 220×180 を保つため）。画面ごとに大きくしてよい（S-09）。押せない表示専用 |
 | `NotesView` | `show_notes(notes: Array[MatchupNote], simplifications: Array[SimplificationDef])` | — | 単純化 ID があれば「実戦では」を添える |
 | `ConfirmDialog` | `ask(message: String, ok_label: String, cancel_label: String)` | `answered(ok: bool)` | 画面の上に重ねる。1つの画面で同時に1つだけ |
 | `MatchMenu` | `open(has_unsaved_progress: bool)` | `settings_requested`、`suspend_requested`、`closed` | 試合中の画面（S-03〜S-05）のメニュー。本書で追加（`component-design.md` §5.5 に反映） |

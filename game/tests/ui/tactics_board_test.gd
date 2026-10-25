@@ -1,7 +1,7 @@
 ## TacticsBoard（作戦ボード。screen-common.md §5）のテスト。盤面の値は本物の試合（固定シード）から取る。
 extends GdUnitTestSuite
 
-const BOARD_SIZE: Vector2 = Vector2(726, 575)
+const BOARD_SIZE: Vector2 = Vector2(726, 600)
 
 var _board: TacticsBoard
 var _pressed: Array[String] = []
@@ -55,15 +55,15 @@ func _click(key: String, release_key: String = "") -> void:
 
 
 func test_areas_are_laid_out_with_the_user_attacking_upward() -> void:
-	# 平面図: 列は左から左大外〜右大外、行は上から敵陣・中盤・自陣
-	var cell := Vector2(BOARD_SIZE.x / 5.0, BOARD_SIZE.y / 3.0)
-	assert_vector(_board.area_rect("A-L2").position).is_equal_approx(Vector2.ZERO, Vector2(0.01, 0.01))
-	assert_vector(_board.area_rect("D-R2").end).is_equal_approx(BOARD_SIZE, Vector2(0.01, 0.01))
-	assert_vector(_board.area_rect("M-C").position).is_equal_approx(Vector2(cell.x * 2, cell.y), Vector2(0.01, 0.01))
+	# 平面図: 列は左から左大外〜右大外、行は上から敵陣ゴール前（A2）〜自陣ゴール前（D1）の6行
+	var cell := Vector2(BOARD_SIZE.x / 5.0, BOARD_SIZE.y / 6.0)
+	assert_vector(_board.area_rect("A2-L2").position).is_equal_approx(Vector2.ZERO, Vector2(0.01, 0.01))
+	assert_vector(_board.area_rect("D1-R2").end).is_equal_approx(BOARD_SIZE, Vector2(0.01, 0.01))
+	assert_vector(_board.area_rect("A1-C").position).is_equal_approx(Vector2(cell.x * 2, cell.y), Vector2(0.01, 0.01))
 	# 画面でも、敵陣は自陣より上、左大外は右大外より左
-	assert_float(_board.screen_center("A-C").y).is_less(_board.screen_center("M-C").y)
-	assert_float(_board.screen_center("M-C").y).is_less(_board.screen_center("D-C").y)
-	assert_float(_board.screen_center("M-L2").x).is_less(_board.screen_center("M-R2").x)
+	assert_float(_board.screen_center("A2-C").y).is_less(_board.screen_center("A1-C").y)
+	assert_float(_board.screen_center("A1-C").y).is_less(_board.screen_center("D1-C").y)
+	assert_float(_board.screen_center("A1-L2").x).is_less(_board.screen_center("A1-R2").x)
 
 
 func test_pressing_the_middle_of_an_area_on_screen_selects_that_area() -> void:
@@ -83,7 +83,7 @@ func test_far_row_areas_are_large_enough_to_press_down_to_the_minimum_size() -> 
 	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)]:
 		_board.size = board_size
 		for lane: int in GameEnums.Lane.values():
-			var rect: Rect2 = _board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.A).to_key())
+			var rect: Rect2 = _board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.A2).to_key())
 			var top_left: Vector2 = BoardProjection.to_screen(rect.position, board_size)
 			var top_right: Vector2 = BoardProjection.to_screen(Vector2(rect.end.x, rect.position.y), board_size)
 			var bottom_left: Vector2 = BoardProjection.to_screen(Vector2(rect.position.x, rect.end.y), board_size)
@@ -127,12 +127,12 @@ func test_pieces_stay_inside_their_area_down_to_the_minimum_cell_size() -> void:
 	# （自分は左半分・相手は右半分。隣のエリアへはみ出すと人数を読み違える）
 	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)]:
 		_board.size = board_size
-		var rect: Rect2 = _board.area_rect("M-C")
+		var rect: Rect2 = _board.area_rect("A1-C")
 		var radius: float = _board.piece_radius()
 		assert_float(radius).override_failure_message(str(board_size)).is_greater(0.0)
 		for index: int in range(TacticsBoard.MAX_PIECES):
-			var user_center: Vector2 = _board.piece_center("M-C", true, index)
-			var opponent_center: Vector2 = _board.piece_center("M-C", false, index)
+			var user_center: Vector2 = _board.piece_center("A1-C", true, index)
+			var opponent_center: Vector2 = _board.piece_center("A1-C", false, index)
 			var label: String = "%s index %d" % [board_size, index]
 			assert_float(user_center.x - radius).override_failure_message(label).is_greater_equal(rect.position.x)
 			assert_float(user_center.x + radius).override_failure_message(label).is_less(rect.get_center().x)
@@ -141,9 +141,9 @@ func test_pieces_stay_inside_their_area_down_to_the_minimum_cell_size() -> void:
 			assert_bool(rect.has_point(user_center)).override_failure_message(label).is_true()
 			assert_bool(rect.has_point(opponent_center)).override_failure_message(label).is_true()
 		# 同じ段の2つは横に重ならず、段は奥（0・1）が手前（2・3）より上
-		var first: Vector2 = _board.piece_center("M-C", true, 0)
-		var second: Vector2 = _board.piece_center("M-C", true, 1)
-		var third: Vector2 = _board.piece_center("M-C", true, 2)
+		var first: Vector2 = _board.piece_center("A1-C", true, 0)
+		var second: Vector2 = _board.piece_center("A1-C", true, 1)
+		var third: Vector2 = _board.piece_center("A1-C", true, 2)
 		assert_float(absf(first.x - second.x)).override_failure_message(str(board_size)).is_greater_equal(radius * 2.0)
 		assert_float(first.y).is_equal_approx(second.y, 0.001)
 		assert_float(first.y).override_failure_message(str(board_size)).is_less(third.y)
@@ -153,8 +153,8 @@ func test_only_dribble_press_and_cover_are_drawn() -> void:
 	# 方式の動き（スライド・マーク・前進・リトリート）と、保持者の動き（戻る・置かれる）は描かない
 	var movements: Array[Movement] = []
 	for reason: int in GameEnums.MovementReason.values():
-		movements.append(Movement.new(GameEnums.TeamSide.HOME, "p%d" % reason, PitchArea.from_key("D-C"),
-				PitchArea.from_key("M-C"), reason as GameEnums.MovementReason))
+		movements.append(Movement.new(GameEnums.TeamSide.HOME, "p%d" % reason, PitchArea.from_key("D1-C"),
+				PitchArea.from_key("A1-C"), reason as GameEnums.MovementReason))
 	_board.show_movements(movements)
 	assert_int(_board.movement_count()).is_equal(GameEnums.MovementReason.size())
 	var drawn: Array[int] = []
@@ -165,57 +165,57 @@ func test_only_dribble_press_and_cover_are_drawn() -> void:
 
 
 func test_hints_are_drawn_only_on_selectable_areas_and_even_ones_are_muted() -> void:
-	_board.set_selectable(["M-L1", "A-C"])
-	var even: Array[String] = ["A-C"]
-	_board.set_hints({"M-L1": "+1", "A-C": "±0 カバーあり", "D-C": "−1"}, even)
-	assert_array(_board.drawn_hint_keys()).is_equal(["M-L1", "A-C"])
-	assert_bool(_board.is_hint_even("A-C")).is_true()
-	assert_bool(_board.is_hint_even("M-L1")).is_false()
+	_board.set_selectable(["A1-L1", "A2-C"])
+	var even: Array[String] = ["A2-C"]
+	_board.set_hints({"A1-L1": "+1", "A2-C": "±0 カバーあり", "D1-C": "−1"}, even)
+	assert_array(_board.drawn_hint_keys()).is_equal(["A1-L1", "A2-C"])
+	assert_bool(_board.is_hint_even("A2-C")).is_true()
+	assert_bool(_board.is_hint_even("A1-L1")).is_false()
 	_board.clear_overlays()
 	assert_array(_board.drawn_hint_keys()).is_empty()
-	assert_bool(_board.is_hint_even("A-C")).is_false()
+	assert_bool(_board.is_hint_even("A2-C")).is_false()
 
 
 func test_only_selectable_areas_emit_when_pressed() -> void:
 	_board.show_snapshot(_snapshot(true))
-	_board.set_selectable(["M-L1", "A-C"])
-	_click("M-C")
+	_board.set_selectable(["A1-L1", "A2-C"])
+	_click("A1-C")
 	assert_array(_pressed).is_empty()
-	_click("A-C")
-	assert_array(_pressed).is_equal(["A-C"])
+	_click("A2-C")
+	assert_array(_pressed).is_equal(["A2-C"])
 
 
 func test_releasing_outside_the_pressed_area_cancels_the_press() -> void:
 	_board.show_snapshot(_snapshot(true))
-	_board.set_selectable(["M-L1", "M-C"])
-	_click("M-L1", "M-C")
+	_board.set_selectable(["A1-L1", "A1-C"])
+	_click("A1-L1", "A1-C")
 	assert_array(_pressed).is_empty()
 
 
 func test_overlays_are_cleared() -> void:
 	_board.show_snapshot(_snapshot(true))
-	_board.set_selectable(["M-L1"])
-	_board.set_selected("M-L1")
-	_board.set_hints({"M-L1": "+1"})
-	_board.show_intent("M-C", "M-L1")
-	_board.show_movements([Movement.new(GameEnums.TeamSide.HOME, "4-4-2-lb", PitchArea.from_key("D-L2"),
-			PitchArea.from_key("M-L2"), GameEnums.MovementReason.SLIDE)])
-	_board.show_compare("M-L1", 1, 0)
-	assert_array(_board.selectable_areas()).is_equal(["M-L1"])
-	assert_str(_board.selected_area()).is_equal("M-L1")
-	assert_str(_board.hint_of("M-L1")).is_equal("+1")
+	_board.set_selectable(["A1-L1"])
+	_board.set_selected("A1-L1")
+	_board.set_hints({"A1-L1": "+1"})
+	_board.show_intent("A1-C", "A1-L1")
+	_board.show_movements([Movement.new(GameEnums.TeamSide.HOME, "4-4-2-lb", PitchArea.from_key("D1-L2"),
+			PitchArea.from_key("A1-L2"), GameEnums.MovementReason.SLIDE)])
+	_board.show_compare("A1-L1", 1, 0)
+	assert_array(_board.selectable_areas()).is_equal(["A1-L1"])
+	assert_str(_board.selected_area()).is_equal("A1-L1")
+	assert_str(_board.hint_of("A1-L1")).is_equal("+1")
 	assert_bool(_board.has_intent()).is_true()
 	assert_int(_board.movement_count()).is_equal(1)
 	assert_str(_board.compare_tag()).is_equal("1対0")
 	_board.clear_overlays()
 	assert_array(_board.selectable_areas()).is_empty()
 	assert_str(_board.selected_area()).is_empty()
-	assert_str(_board.hint_of("M-L1")).is_empty()
+	assert_str(_board.hint_of("A1-L1")).is_empty()
 	assert_bool(_board.has_intent()).is_false()
 	assert_int(_board.movement_count()).is_equal(0)
 	assert_str(_board.compare_tag()).is_empty()
 	# 選べるエリアが無くなったので、押しても出ない
-	_click("M-L1")
+	_click("A1-L1")
 	assert_array(_pressed).is_empty()
 
 
@@ -224,14 +224,14 @@ func test_pieces_in_a_crowded_area_are_folded() -> void:
 	var snapshot := BoardSnapshot.new()
 	var players: Array[Dictionary] = []
 	for number: int in [2, 3, 4, 5, 6]:
-		players.append({"player_id": "p%d" % number, "number": number, "area": "D-C"})
+		players.append({"player_id": "p%d" % number, "number": number, "area": "D1-C"})
 	snapshot.user_players = players
-	snapshot.user_counts = {"D-C": 5}
+	snapshot.user_counts = {"D1-C": 5}
 	_board.show_snapshot(snapshot)
-	assert_array(_board.pieces_in("D-C")["user"] as Array).is_equal([2, 3, 4, 5, 6])
-	assert_int(_board.visible_piece_count("D-C", true)).is_equal(3)
-	assert_str(_board.overflow_tag("D-C", true)).is_equal("+2")
-	assert_int(_board.visible_piece_count("M-C", true)).is_equal(0)
+	assert_array(_board.pieces_in("D1-C")["user"] as Array).is_equal([2, 3, 4, 5, 6])
+	assert_int(_board.visible_piece_count("D1-C", true)).is_equal(3)
+	assert_str(_board.overflow_tag("D1-C", true)).is_equal("+2")
+	assert_int(_board.visible_piece_count("A1-C", true)).is_equal(0)
 
 
 # --- 決定前のプレビュー ---
@@ -242,7 +242,7 @@ func _preview_snapshot(user_spec: Dictionary) -> BoardSnapshot:
 	for player_id: String in user_spec:
 		players.append({"player_id": player_id, "number": 0, "area": user_spec[player_id]})
 	snapshot.user_players = players
-	snapshot.opponent_players = [{"player_id": "o1", "number": 0, "area": "D-C"}]
+	snapshot.opponent_players = [{"player_id": "o1", "number": 0, "area": "D1-C"}]
 	return snapshot
 
 
@@ -252,38 +252,38 @@ func _move(player_id: String, from_key: String, to_key: String,
 
 
 func test_preview_rings_continue_the_row_of_pieces_in_the_destination() -> void:
-	# D-C には自分の p1 がいる。M-C の p2 と M-L1 の p3 が D-C へ動くと、輪は p1 の隣から順に並ぶ
-	_board.show_snapshot(_preview_snapshot({"p1": "D-C", "p2": "M-C", "p3": "M-L1"}))
-	_board.show_preview([_move("p2", "M-C", "D-C"), _move("p3", "M-L1", "D-C")])
+	# D1-C には自分の p1 がいる。A1-C の p2 と A1-L1 の p3 が D1-C へ動くと、輪は p1 の隣から順に並ぶ
+	_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1"}))
+	_board.show_preview([_move("p2", "A1-C", "D1-C"), _move("p3", "A1-L1", "D1-C")])
 	assert_int(_board.preview_movements().size()).is_equal(2)
-	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D-C", true, 1))
-	assert_vector(_board.preview_center(1)).is_equal(_board.piece_center("D-C", true, 2))
+	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D1-C", true, 1))
+	assert_vector(_board.preview_center(1)).is_equal(_board.piece_center("D1-C", true, 2))
 	# 駒は動かさない（相手の駒も、自分の駒も、いまの位置のまま）
-	assert_int((_board.pieces_in("M-C")["user"] as Array).size()).is_equal(1)
-	assert_int((_board.pieces_in("D-C")["opponent"] as Array).size()).is_equal(1)
+	assert_int((_board.pieces_in("A1-C")["user"] as Array).size()).is_equal(1)
+	assert_int((_board.pieces_in("D1-C")["opponent"] as Array).size()).is_equal(1)
 
 
 func test_preview_rings_stop_at_the_last_slot_of_a_crowded_area() -> void:
-	_board.show_snapshot(_preview_snapshot({"p1": "D-C", "p2": "D-C", "p3": "D-C", "p4": "D-C", "p5": "M-C"}))
-	_board.show_preview([_move("p5", "M-C", "D-C")])
-	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D-C", true, TacticsBoard.MAX_PIECES - 1))
+	_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "D1-C", "p3": "D1-C", "p4": "D1-C", "p5": "A1-C"}))
+	_board.show_preview([_move("p5", "A1-C", "D1-C")])
+	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D1-C", true, TacticsBoard.MAX_PIECES - 1))
 
 
 func test_preview_keeps_every_reason_and_is_cleared_with_the_overlays() -> void:
 	# 開示後の矢印と違い、プレビューは方式の動き（リトリート・マークの付け直し）も出す
-	_board.show_snapshot(_preview_snapshot({"p1": "M-C", "p2": "M-L1"}))
-	_board.show_preview([_move("p1", "M-C", "D-C", GameEnums.MovementReason.RETREAT_RESET),
-			_move("p2", "M-L1", "M-C", GameEnums.MovementReason.MARK)])
+	_board.show_snapshot(_preview_snapshot({"p1": "A1-C", "p2": "A1-L1"}))
+	_board.show_preview([_move("p1", "A1-C", "D1-C", GameEnums.MovementReason.RETREAT_RESET),
+			_move("p2", "A1-L1", "A1-C", GameEnums.MovementReason.MARK)])
 	assert_int(_board.preview_movements().size()).is_equal(2)
 	_board.clear_overlays()
 	assert_array(_board.preview_movements()).is_empty()
 
 
 func test_preview_arrows_start_from_the_piece_of_the_moving_player() -> void:
-	# M-C の自分の駒は盤面の選手の順に p0・p2。p2 の矢印は2つ目の駒から出る
-	_board.show_snapshot(_preview_snapshot({"p0": "M-C", "p1": "D-C", "p2": "M-C"}))
-	_board.show_preview([_move("p2", "M-C", "D-C")])
-	assert_vector(_board.preview_origin(0)).is_equal(_board.piece_center("M-C", true, 1))
+	# A1-C の自分の駒は盤面の選手の順に p0・p2。p2 の矢印は2つ目の駒から出る
+	_board.show_snapshot(_preview_snapshot({"p0": "A1-C", "p1": "D1-C", "p2": "A1-C"}))
+	_board.show_preview([_move("p2", "A1-C", "D1-C")])
+	assert_vector(_board.preview_origin(0)).is_equal(_board.piece_center("A1-C", true, 1))
 
 
 # --- 開示で駒を動かす ---
@@ -295,14 +295,14 @@ func _players_of(spec: Dictionary) -> Array[Dictionary]:
 	return players
 
 
-## 動いた後の盤面: 自分 p1 D-C・p2 M-C・p3 M-L1・p4 A-C、相手 o1 M-C
+## 動いた後の盤面: 自分 p1 D1-C・p2 A1-C・p3 A1-L1・p4 A2-C、相手 o1 A1-C
 func _shift_board(duration_sec: float) -> void:
 	var snapshot := BoardSnapshot.new()
-	snapshot.user_players = _players_of({"p1": "D-C", "p2": "M-C", "p3": "M-L1", "p4": "A-C"})
-	snapshot.opponent_players = _players_of({"o1": "M-C"})
+	snapshot.user_players = _players_of({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1", "p4": "A2-C"})
+	snapshot.opponent_players = _players_of({"o1": "A1-C"})
 	_board.show_snapshot(snapshot)
-	# 動く前: p2 は D-C（p1 の次）、o1 は A-C。p1・p3 は動かない。p4 は動く前に居ない（動かさない）
-	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C", "p3": "M-L1"}), _players_of({"o1": "A-C"}), "", duration_sec)
+	# 動く前: p2 は D1-C（p1 の次）、o1 は A2-C。p1・p3 は動かない。p4 は動く前に居ない（動かさない）
+	_board.start_shift(_players_of({"p1": "D1-C", "p2": "D1-C", "p3": "A1-L1"}), _players_of({"o1": "A2-C"}), "", duration_sec)
 
 
 func _path_of(player_id: String) -> Dictionary:
@@ -323,11 +323,11 @@ func test_shift_moves_only_the_players_whose_area_changed_in_both_teams() -> voi
 
 func test_shift_runs_from_the_row_slot_before_to_the_row_slot_after() -> void:
 	_shift_board(1.0)
-	# p2 は動く前の D-C で自分の2つ目、動いた後の M-C で自分の1つ目
-	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D-C", true, 1))
-	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("M-C", true, 0))
-	assert_vector(_path_of("o1")["from"] as Vector2).is_equal(_board.piece_center("A-C", false, 0))
-	assert_vector(_path_of("o1")["to"] as Vector2).is_equal(_board.piece_center("M-C", false, 0))
+	# p2 は動く前の D1-C で自分の2つ目、動いた後の A1-C で自分の1つ目
+	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D1-C", true, 1))
+	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("A1-C", true, 0))
+	assert_vector(_path_of("o1")["from"] as Vector2).is_equal(_board.piece_center("A2-C", false, 0))
+	assert_vector(_path_of("o1")["to"] as Vector2).is_equal(_board.piece_center("A1-C", false, 0))
 
 
 func test_shift_stops_on_the_next_snapshot_or_when_the_overlays_are_cleared() -> void:
@@ -348,13 +348,13 @@ func test_shift_with_no_time_does_not_move() -> void:
 
 
 func test_a_player_who_only_moves_along_the_row_is_shifted_too() -> void:
-	# p1 が D-C から出ていくと、D-C に残る p2 は列の2つ目から1つ目へ詰まる（エリアは同じでも、駒は動く）
+	# p1 が D1-C から出ていくと、D1-C に残る p2 は列の2つ目から1つ目へ詰まる（エリアは同じでも、駒は動く）
 	var snapshot := BoardSnapshot.new()
-	snapshot.user_players = _players_of({"p1": "M-C", "p2": "D-C"})
+	snapshot.user_players = _players_of({"p1": "A1-C", "p2": "D1-C"})
 	_board.show_snapshot(snapshot)
-	_board.start_shift(_players_of({"p1": "D-C", "p2": "D-C"}), [], "", 1.0)
-	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D-C", true, 1))
-	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("D-C", true, 0))
+	_board.start_shift(_players_of({"p1": "D1-C", "p2": "D1-C"}), [], "", 1.0)
+	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D1-C", true, 1))
+	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("D1-C", true, 0))
 	assert_int(_board.shift_paths().size()).is_equal(2)
 
 
@@ -379,23 +379,23 @@ func _assert_ball_in(point: Vector2, key: String) -> void:
 
 func _ball_board(ball_after: String, ball_before: String, user_before: Dictionary, duration_sec: float = 1.0) -> void:
 	var snapshot := BoardSnapshot.new()
-	snapshot.user_players = _players_of({"p1": "M-C"})
+	snapshot.user_players = _players_of({"p1": "A1-C"})
 	snapshot.ball_area = ball_after
 	_board.show_snapshot(snapshot)
 	_board.start_shift(_players_of(user_before), [], ball_before, duration_sec)
 
 
 func test_the_ball_moves_with_the_pieces_from_its_area_before_the_turn() -> void:
-	_ball_board("A-C", "M-C", {"p1": "D-C"})
+	_ball_board("A2-C", "A1-C", {"p1": "D1-C"})
 	var path: Dictionary = _board.shift_ball_path()
-	_assert_ball_in(path["from"] as Vector2, "M-C")
-	_assert_ball_in(path["to"] as Vector2, "A-C")
+	_assert_ball_in(path["from"] as Vector2, "A1-C")
+	_assert_ball_in(path["to"] as Vector2, "A2-C")
 	# 動き始めは判定前の位置に描く
 	assert_vector(_board.ball_center()).is_equal(path["from"] as Vector2)
 
 
 func test_the_ball_alone_moves_when_no_piece_does() -> void:
-	_ball_board("A-C", "M-C", {"p1": "M-C"})
+	_ball_board("A2-C", "A1-C", {"p1": "A1-C"})
 	assert_array(_board.shift_paths()).is_empty()
 	assert_bool(_board.is_shifting()).is_true()
 	assert_dict(_board.shift_ball_path()).is_not_empty()
@@ -405,36 +405,36 @@ func test_the_ball_alone_moves_when_no_piece_does() -> void:
 
 func test_the_ball_does_not_move_without_a_readable_area_or_time() -> void:
 	# 判定前のキーが読めない
-	_ball_board("A-C", "X-9", {"p1": "M-C"})
+	_ball_board("A2-C", "X-9", {"p1": "A1-C"})
 	assert_dict(_board.shift_ball_path()).is_empty()
 	assert_bool(_board.is_shifting()).is_false()
 	# いまの盤面にボールが無い
-	_ball_board("", "M-C", {"p1": "M-C"})
+	_ball_board("", "A1-C", {"p1": "A1-C"})
 	assert_dict(_board.shift_ball_path()).is_empty()
 	# 時間が 0
-	_ball_board("A-C", "M-C", {"p1": "M-C"}, 0.0)
+	_ball_board("A2-C", "A1-C", {"p1": "A1-C"}, 0.0)
 	assert_dict(_board.shift_ball_path()).is_empty()
 	assert_bool(_board.is_shifting()).is_false()
 
 
 func test_the_ball_stays_when_its_area_does_not_change() -> void:
-	_ball_board("M-C", "M-C", {"p1": "D-C"})
+	_ball_board("A1-C", "A1-C", {"p1": "D1-C"})
 	assert_dict(_board.shift_ball_path()).is_empty()
 	assert_bool(_board.is_shifting()).is_true()
 	_board.clear_overlays()
 	# 判定前のボールが無い（空文字）ときも動かさない
-	_ball_board("M-C", "", {"p1": "M-C"})
+	_ball_board("A1-C", "", {"p1": "A1-C"})
 	assert_dict(_board.shift_ball_path()).is_empty()
 	assert_bool(_board.is_shifting()).is_false()
 
 
 func test_the_ball_is_drawn_where_it_now_is_after_the_shift_stops() -> void:
-	_ball_board("A-C", "M-C", {"p1": "D-C"}, 0.05)
+	_ball_board("A2-C", "A1-C", {"p1": "D1-C"}, 0.05)
 	await await_millis(300)
 	assert_bool(_board.is_shifting()).is_false()
 	assert_dict(_board.shift_ball_path()).is_empty()
-	_assert_ball_in(_board.ball_center(), "A-C")
-	_ball_board("A-C", "M-C", {"p1": "D-C"})
+	_assert_ball_in(_board.ball_center(), "A2-C")
+	_ball_board("A2-C", "A1-C", {"p1": "D1-C"})
 	_board.show_snapshot(BoardSnapshot.new())
 	assert_dict(_board.shift_ball_path()).is_empty()
 
@@ -444,19 +444,19 @@ func test_the_ball_is_drawn_where_it_now_is_after_the_shift_stops() -> void:
 func test_standing_things_are_drawn_from_the_far_side_to_the_near_side() -> void:
 	# 奥（敵陣）の駒が先、手前（自陣）の駒が後。手前の駒が奥の駒に重なって描かれる
 	var snapshot := BoardSnapshot.new()
-	snapshot.user_players = _players_of({"near": "D-C", "far": "A-C", "mid": "M-L2"})
-	snapshot.opponent_players = _players_of({"o_far": "A-R2"})
-	snapshot.ball_area = "M-C"
+	snapshot.user_players = _players_of({"near": "D1-C", "far": "A2-C", "mid": "A1-L2"})
+	snapshot.opponent_players = _players_of({"o_far": "A2-R2"})
+	snapshot.ball_area = "A1-C"
 	_board.show_snapshot(snapshot)
-	_board.show_preview([_move("mid", "M-L2", "D-L2", GameEnums.MovementReason.PRESS)])
+	_board.show_preview([_move("mid", "A1-L2", "D1-L2", GameEnums.MovementReason.PRESS)])
 	var order: Array[Dictionary] = _board.standing_order()
 	# 駒 4（自分3・相手1）＋プレビューの駒 1＋ボール 1
 	assert_int(order.size()).is_equal(6)
 	for index: int in range(1, order.size()):
 		assert_float((order[index - 1]["plan"] as Vector2).y).override_failure_message(str(index)) \
 				.is_less_equal((order[index]["plan"] as Vector2).y)
-	assert_array(["A-C", "A-R2"]).contains([_board.plan_area_at(order[0]["plan"] as Vector2)])
-	assert_array(["D-C", "D-L2"]).contains([_board.plan_area_at(order[order.size() - 1]["plan"] as Vector2)])
+	assert_array(["A2-C", "A2-R2"]).contains([_board.plan_area_at(order[0]["plan"] as Vector2)])
+	assert_array(["D1-C", "D1-L2"]).contains([_board.plan_area_at(order[order.size() - 1]["plan"] as Vector2)])
 	var kinds: Array[String] = []
 	var previews: int = 0
 	for thing: Dictionary in order:
@@ -469,7 +469,7 @@ func test_standing_things_are_drawn_from_the_far_side_to_the_near_side() -> void
 
 func test_standing_things_in_a_crowded_area_end_with_the_overflow_tag() -> void:
 	var snapshot := BoardSnapshot.new()
-	snapshot.user_players = _players_of({"p1": "D-C", "p2": "D-C", "p3": "D-C", "p4": "D-C", "p5": "D-C"})
+	snapshot.user_players = _players_of({"p1": "D1-C", "p2": "D1-C", "p3": "D1-C", "p4": "D1-C", "p5": "D1-C"})
 	_board.show_snapshot(snapshot)
 	var pieces: int = 0
 	var tags: Array[String] = []

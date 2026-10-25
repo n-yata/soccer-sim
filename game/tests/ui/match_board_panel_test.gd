@@ -186,7 +186,9 @@ func test_next_is_sent_only_once() -> void:
 	var leaves: Array[int] = [0]
 	_panel.turn_ready_to_leave.connect(func() -> void: leaves[0] += 1)
 	_press(_first_targeted_action(GameEnums.ChoiceFamily.ATTACK))
-	_panel.board().area_pressed.emit(_panel.board().selectable_areas()[0])
+	# このターンに選べたエリア（有効なキー）。LEAVING で押しても受け付けないことを、無効なキーでなく確かめる
+	var chosen: String = _panel.board().selectable_areas()[0]
+	_panel.board().area_pressed.emit(chosen)
 	_panel.primary_button().pressed.emit()
 	_panel.primary_button().pressed.emit()
 	_panel.primary_button().pressed.emit()
@@ -194,7 +196,7 @@ func test_next_is_sent_only_once() -> void:
 	assert_int(_panel.state()).is_equal(State.LEAVING)
 	# LEAVING では手もエリアも受け付けない
 	_press(0)
-	_panel.board().area_pressed.emit("M-C")
+	_panel.board().area_pressed.emit(chosen)
 	assert_int(_panel.state()).is_equal(State.LEAVING)
 	assert_int(_controller.state().turn_records.size()).is_equal(1)
 
@@ -232,7 +234,7 @@ func test_the_user_defends_with_the_board_in_the_user_view() -> void:
 
 func test_a_disabled_move_cannot_be_chosen() -> void:
 	_start(true)
-	# キックオフ（中盤・中央）ではシュートを選べない
+	# キックオフ（中盤（自陣）・中央）ではシュートを選べない
 	var shot: Button = _panel.choice_panel().button_for(GameEnums.PlayType.SHOT)
 	assert_bool(shot.disabled).is_true()
 

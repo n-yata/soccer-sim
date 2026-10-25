@@ -7,6 +7,8 @@ class_name MatchScreen
 extends AppScreen
 
 const TOP_BAR_HEIGHT: float = 96.0
+## 画面の上下の外周の余白（左右は 24px）
+const VERTICAL_MARGIN: int = 12
 
 var _controller: MatchController
 var _score_bug: ScoreBug
@@ -121,11 +123,14 @@ func _build() -> void:
 	var margin := MarginContainer.new()
 	margin.name = "Layout"
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "top", "right", "bottom"]:
+	# 左右は 24px、上下は 12px（2026-10-25。6列の作戦ボードの高さ 600px を入れるため）
+	for side: String in ["left", "right"]:
 		margin.add_theme_constant_override("margin_" + side, 24)
+	for side: String in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, VERTICAL_MARGIN)
 	add_child(margin)
-	# 上部バー 96px ＋ 本体 576px ＋ 外周 24px × 2 = 720px（screen-common.md §1.1）。上部バーと本体の間に余白を置かない
-	# （置くと本体が 576px を割り、作戦ボードの最小の高さ 560px が入らない）
+	# 上部バー 96px ＋ 本体 600px ＋ 外周 12px × 2 = 720px（screen-common.md §1.1）。上部バーと本体の間に余白を置かない
+	# （置くと本体が 600px を割り、作戦ボードの最小の高さ 600px が入らない）
 	var layout := VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 0)
 	margin.add_child(layout)

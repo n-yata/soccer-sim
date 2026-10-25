@@ -1,5 +1,5 @@
-## 作戦ボード（screen-common.md §5 の TacticsBoard）。15エリアの盤面を描き、エリアを押す操作を受ける。
-## ピッチを縦に置いて斜めから見せ、利用者の攻撃方向は常に上（列は左から L2〜R2、行は上から A・M・D）。受け取るエリアは
+## 作戦ボード（screen-common.md §5 の TacticsBoard）。30エリアの盤面（5レーン×6列）を描き、エリアを押す操作を受ける。
+## ピッチを縦に置いて斜めから見せ、利用者の攻撃方向は常に上（レーンは左から L2〜R2、列は上から A2〜D1）。受け取るエリアは
 ## すべて利用者の視点のキー（BoardSnapshot・RevealView の値）で、ボードはエリアを変換しない。
 ## 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
 ## BoardProjection の写し方を通す（2026-10-23）。
@@ -17,8 +17,9 @@ signal area_pressed(area_key: String)
 
 const THEME_TYPE: StringName = &"TacticsBoard"
 ## 平面図での1エリアの最小の大きさ（screen-common.md §1.1）。画面でいちばん小さい奥の行でも、押せる範囲が 48dp（96px）
-## 以上になる値（幅 136 × 奥の縮み 0.72 ≒ 98px、高さ 140 の行は奥で約 0.73 倍 ≒ 98px）
-const MIN_CELL: Vector2 = Vector2(136, 140)
+## 以上になる値（幅 136 × 奥の縮み 0.72 ≒ 98px。6列の高さは 100 × 6 = 600 で、上の余白 4% を除いて1行 96px。
+## 行の高さは奥でも詰めない（BoardProjection.NEAR_WEIGHT = 1.0。2026-10-25）
+const MIN_CELL: Vector2 = Vector2(136, 100)
 ## 駒の直径と、同じ段の2つの駒の中心の間隔の上限。1チームは 2列×2段。セルの幅が狭いときは、エリアの半分に収まるよう縮める
 const PIECE_DIAMETER: float = 26.0
 const PIECE_STEP: float = 36.0

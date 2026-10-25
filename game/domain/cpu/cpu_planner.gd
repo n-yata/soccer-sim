@@ -37,9 +37,9 @@ static func _probabilities_of(hints: Array[ChoiceHint], state: MatchState, side:
 
 ## 局面の加点（functional-overview.md アルゴリズム8）。人数差だけの評価では、CPU が前へ運ばずシュートも打たず、
 ## 守備も運ぶ先をほとんど読めなかったため。ball は保持側（攻撃側）の視点のボール位置。
-## - 攻撃の手・奪取側の手で運ぶ先があれば forward_bonus × (運ぶ先のゾーン − ボールのゾーン)（後ろへ運ぶ手は負）
+## - 攻撃の手・奪取側の手で運ぶ先があれば forward_bonus × (運ぶ先の列 − ボールの列)（後ろへ運ぶ手は負）
 ## - シュートなら shot_bonus
-## - 守備の手は anticipation_bonus × (制限するエリアのゾーン − ボールのゾーン)。制限するエリアも攻撃側の視点なので、
+## - 守備の手は anticipation_bonus × (制限するエリアの列 − ボールの列)。制限するエリアも攻撃側の視点なので、
 ##   攻撃が前へ運びたがるのを見越して、ボールより前のエリアを守りに行く
 ## - ほかは 0
 static func situation_bonus(hint: ChoiceHint, ball: PitchArea, cpu: CpuConfig) -> float:

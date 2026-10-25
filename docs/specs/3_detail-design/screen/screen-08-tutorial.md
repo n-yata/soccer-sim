@@ -21,12 +21,12 @@
 
 ```
 TutorialScreen (Control)
-├── Layout (VBoxContainer)                  # 外周の余白 24px（screen-common.md §1.1）
+├── Layout (VBoxContainer)                  # 外周の余白 左右 24px・上下 12px（S-03 と同じ盤面を使うため。screen-common.md §1.1。2026-10-25）
 │   ├── Header                              # ScreenHeader（左は「やめる」、その右に「チュートリアル 3／10」）
 │   │   ├── StepProgress (ProgressBar)      # 段階の進み具合。ヘッダーの右側
 │   │   ├── PhaseTag (Label)                # 局面のタグ（S-03 と同じ表示）。盤面を出す段階だけ。陣形・方式はパネルの SetupCard に出る
 │   │   └── RevealBanner (VBoxContainer)    # 両者の選択の帯（S-03 と同じ2段。FR-09）。開示から次の段階まで PhaseTag の代わりに出す
-│   └── Stage (Control)                     # 高さ 576px。段階の種類で中身を切り替える
+│   └── Stage (Control)                     # 高さ 600px（6列の作戦ボードの最小の高さ。2026-10-25 に 576px から変更）。段階の種類で中身を切り替える
 │       ├── MatchView                       # 盤面を出す段階: MatchBoardPanel（S-03 の BoardPanel と同じ部品）
 │       │   ├── （SideTopSlot に）Coach (PanelContainer)    # 説明文の吹き出し。地 surface、左に accent の縦線
 │       │   │   └── CoachText (RichTextLabel)              # 段階の説明文。強調は accent。長いときは吹き出しの中でスクロール
