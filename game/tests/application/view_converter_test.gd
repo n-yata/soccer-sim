@@ -94,6 +94,16 @@ func test_hints_convert_keeps_the_offside_warning() -> void:
 	assert_bool(converted[1].is_offside).is_false()
 
 
+func test_hints_convert_keeps_the_marker_warning() -> void:
+	# マークがついてくる注意（2026-10-28）も利用者の視点のヒントへ写す
+	var hint := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, _area("A1-C"), false, 1, 0, GameEnums.CoverKind.NONE)
+	hint.is_marked = true
+	var plain := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, _area("A1-L1"), false, 1, 0, GameEnums.CoverKind.NONE)
+	var converted: Array[ChoiceHint] = ViewConverter.hints_to_user([hint, plain] as Array[ChoiceHint], HOME)
+	assert_bool(converted[0].is_marked).is_true()
+	assert_bool(converted[1].is_marked).is_false()
+
+
 func test_movements_convert_by_the_side_that_moved() -> void:
 	var movements: Array[Movement] = [
 		Movement.new(HOME, "h", _area("D2-L2"), _area("M1-L2"), GameEnums.MovementReason.POSSESSION_ADVANCE),

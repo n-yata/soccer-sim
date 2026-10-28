@@ -43,7 +43,7 @@ static func action_name(family: GameEnums.ChoiceFamily, action: int) -> String:
 ## 出せ、人数に関係なく読みで決まる、ほかの手と違う規則のため）。ほかの手は空。
 static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
 	if family == GameEnums.ChoiceFamily.ATTACK and action == GameEnums.PlayType.THROUGH_PASS:
-		return "スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれたら奪われ、読まれなければ通る"
+		return "スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれるか相手が入ってくれば奪われ、そうでなければ通る"
 	if family != GameEnums.ChoiceFamily.DEFENSE:
 		return ""
 	if action == GameEnums.DefenseAction.PRESS:
@@ -121,14 +121,15 @@ static func attack_style_name(style: GameEnums.AttackStyle) -> String:
 
 
 ## ヒントの札（表示仕様「`+1`、`±0 カバーあり`」）。カバーは同数のときだけ添える（同数のときだけ判定に効くため）。
-## 人数を比べない手（リトリート・保持）は空。スルーパスだけは人数の代わりに「読み次第」を出す。
+## 人数を比べない手（リトリート・保持）は空。スルーパスだけは人数の代わりに「読み次第」（マーカーがついてくるなら「マーク注意」）を出す。
 static func hint_tag(hint: ChoiceHint) -> String:
 	# 今の配置のままオフサイドになる運ぶ先は、ほかの札より先に注意を出す（作戦ボードの札の幅に収まる5文字。2026-10-25）
 	if hint.is_offside:
 		return "オフサイド"
 	# スルーパスは人数を比べないが、通るかが読み次第であることを札で示す（作戦ボードの札の幅に収まる4文字。2026-10-25）
 	if hint.family == GameEnums.ChoiceFamily.ATTACK and hint.action == GameEnums.PlayType.THROUGH_PASS:
-		return "読み次第"
+		# 相手が何もしなくてもマーカーがついて入ってくる運ぶ先は、読みに関係なく奪われるので注意を出す（2026-10-28）
+		return "マーク注意" if hint.is_marked else "読み次第"
 	if not hint.is_compared:
 		return ""
 	var diff: int = hint.diff()

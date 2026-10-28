@@ -48,6 +48,7 @@ static func hints_to_user(hints: Array[ChoiceHint], attacker: GameEnums.TeamSide
 		var copied := ChoiceHint.new(hint.family, hint.action, to_user(hint.target, attacker),
 				hint.is_compared, hint.own_count, hint.opponent_count, hint.cover)
 		copied.is_offside = hint.is_offside
+		copied.is_marked = hint.is_marked
 		converted.append(copied)
 	return converted
 

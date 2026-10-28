@@ -17,6 +17,9 @@ var opponent_count: int
 var cover: GameEnums.CoverKind
 ## 今の配置（守備の手の前）のままだと、受け手がオフサイドになる攻撃の手か（2026-10-25）。守備の手でラインが動くので、確定ではない
 var is_offside: bool = false
+## 相手が何もしなくても、マンツーマンの付け直しで守備の選手が運ぶ先へ入ってくるスルーパスか（2026-10-28）。判定は読みに
+## 関係なくロストになる。守備の手でマーカーの割り当てが変わるので、どちら向きにも確定ではない
+var is_marked: bool = false
 
 
 func _init(p_family: GameEnums.ChoiceFamily, p_action: int, p_target: PitchArea, p_is_compared: bool,
@@ -40,4 +43,5 @@ func duplicate_deep() -> ChoiceHint:
 	var copied_target: PitchArea = null if target == null else target.duplicate_deep()
 	var copied := ChoiceHint.new(family, action, copied_target, is_compared, own_count, opponent_count, cover)
 	copied.is_offside = is_offside
+	copied.is_marked = is_marked
 	return copied

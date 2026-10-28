@@ -40,8 +40,11 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
 	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
 	detail.read = read_of(defense.target, compare, ball)
-	var outcome: GameEnums.TurnOutcome = through_pass_outcome(detail) \
-			if attack.action == GameEnums.PlayType.THROUGH_PASS else outcome_of(detail, attack.action == GameEnums.PlayType.SHOT)
+	var outcome: GameEnums.TurnOutcome
+	if attack.action == GameEnums.PlayType.THROUGH_PASS:
+		outcome = through_pass_outcome(detail, defender_entered(movements, pair.attacker_side, attack.target))
+	else:
+		outcome = outcome_of(detail, attack.action == GameEnums.PlayType.SHOT)
 	return JudgeOutput.new(outcome, detail, step.pair, movements)
 
 
@@ -173,11 +176,27 @@ static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> Ju
 	return JudgeDetail.new(compare.duplicate_deep(), attackers, defenders, cover)
 
 
-## スルーパスの結果（2026-10-25。シャビの判断「読まれたら必ず奪われる」）。人数に関係なく、運ぶ先をぴったり読まれたら
-## ロスト、それ以外（隣の読み・外れ）は前進。カバー判定もしない。空いたスペースへ走り込ませるハイリスク・ハイリターンの手で、
-## 通るかどうかを人数ではなく読み合いだけで決める。
-static func through_pass_outcome(detail: JudgeDetail) -> GameEnums.TurnOutcome:
-	return GameEnums.TurnOutcome.LOSS if detail.read == GameEnums.ReadKind.EXACT else GameEnums.TurnOutcome.ADVANCE
+## スルーパスの結果（2026-10-25。シャビの判断「読まれたら必ず奪われる」）。人数に関係なく、運ぶ先をぴったり読まれたか、
+## そのターンに守備の選手が運ぶ先へ入ってきた（defender_entered。プレスの寄せ・カバーの下がり・マークの追従のどれでも。
+## 2026-10-28。シャビの判断「スルーパスした先に、相手も移動してくれば、相手が勝つ」）ならロスト、それ以外は前進。
+## カバー判定もしない。空いたスペースへ走り込ませるハイリスク・ハイリターンの手で、通るかを人数ではなく読み合いで決める。
+static func through_pass_outcome(detail: JudgeDetail, defender_entered: bool) -> GameEnums.TurnOutcome:
+	if detail.read == GameEnums.ReadKind.EXACT or defender_entered:
+		return GameEnums.TurnOutcome.LOSS
+	return GameEnums.TurnOutcome.ADVANCE
+
+
+## 判定の動き（守備の手・攻撃の手・マークの付け直し）のうち、守備側の選手が target（攻撃側の視点）へ入ってきた動きがあるか。
+## 動きの位置は動いたチーム自身の視点なので、守備側の動きは target を守備側の視点に写して比べる。
+## 守備側だけを数える条件は、今は外しても結果が変わらない（スルーパスで攻撃側が動くのは受け手の target への走り込みだけで、
+## 列の数が偶数なので target と target.mirrored() は一致しない）が、意図を表すので残す。
+## ヒント（MoveHints。相手が何もしない場合のマークの追従）と共有する。
+static func defender_entered(movements: Array[Movement], attacker_side: GameEnums.TeamSide, target: PitchArea) -> bool:
+	var seen: PitchArea = target.mirrored()
+	for movement: Movement in movements:
+		if movement.side != attacker_side and movement.to.equals(seen):
+			return true
+	return false
 
 
 ## 手順5〜6の後半。内訳から結果を決める。トランジションのカウンター（アルゴリズム6）と共有する。

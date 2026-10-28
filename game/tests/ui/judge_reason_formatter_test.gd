@@ -35,6 +35,19 @@ func test_through_pass_reason_blames_the_read_not_the_numbers() -> void:
 	assert_str(JudgeReasonFormatter.format(missed)).is_equal("敵陣・中央で 3対1。読めず前進")
 
 
+func test_through_pass_lost_without_an_exact_read_blames_the_defender_coming_in() -> void:
+	# ぴったり読まれていないのにロストしたのは、守備が運ぶ先へ入ってきたから（2026-10-28）。「読まれず」とは言わない
+	var unread: RevealView = _through_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, 1, 1,
+			GameEnums.ReadKind.NONE)
+	assert_str(JudgeReasonFormatter.format(unread)).is_equal("敵陣・中央で 1対1。相手に入られてロスト")
+	var near: RevealView = _through_reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, 1, 1,
+			GameEnums.ReadKind.NEAR)
+	assert_str(JudgeReasonFormatter.format(near)).is_equal("敵陣・中央で 1対1。相手に入られてロスト")
+	var defender: RevealView = _through_reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.LOSS, 1, 1,
+			GameEnums.ReadKind.NONE)
+	assert_str(JudgeReasonFormatter.format(defender)).is_equal("敵陣・中央で 1対1。運ぶ先に入ってロスト")
+
+
 func test_offside_reason_names_where_the_receiver_was() -> void:
 	# オフサイド（2026-10-25）は人数や読みではなく、受け手がラインより前にいたことが理由。どちらの側から見ても文の形は同じ
 	# （エリア名は利用者の視点。利用者が守備側なら、相手の受け手はふつう利用者の自陣にいる）

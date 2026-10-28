@@ -209,7 +209,7 @@ func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press
 func test_target_rule_explains_the_through_pass() -> void:
 	# スルーパス（2026-10-25）は、出せる先と、人数に関係なく読みで決まることを一言で（MoveRules・OpenPlayJudge と同じ内容）
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
-			.is_equal("スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれたら奪われ、読まれなければ通る")
+			.is_equal("スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれるか相手が入ってくれば奪われ、そうでなければ通る")
 
 
 func test_offside_hint_tag_warns_before_anything_else() -> void:
@@ -220,6 +220,18 @@ func test_offside_hint_tag_warns_before_anything_else() -> void:
 	assert_str(MatchTexts.hint_tag(pass_hint)).is_equal("オフサイド")
 	var through := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, PitchArea.from_key("A1-C"), false, 1, 0,
 			GameEnums.CoverKind.NONE)
+	through.is_offside = true
+	assert_str(MatchTexts.hint_tag(through)).is_equal("オフサイド")
+
+
+func test_through_pass_hint_tag_warns_when_the_marker_follows_in() -> void:
+	# 相手が何もしなくてもマーカーが運ぶ先へついてくるスルーパスは、読みに関係なく奪われるので「読み次第」でなく注意を出す。
+	# オフサイドの注意はそれより先（プレーが止まるので、ついてくるかに関係ない。2026-10-28）
+	var through := ChoiceHint.new(ATTACK, GameEnums.PlayType.THROUGH_PASS, PitchArea.from_key("A1-C"), false, 1, 1,
+			GameEnums.CoverKind.NONE)
+	through.is_marked = true
+	assert_str(MatchTexts.hint_tag(through)).is_equal("マーク注意")
+	assert_bool(MatchTexts.is_hint_muted(through)).is_false()
 	through.is_offside = true
 	assert_str(MatchTexts.hint_tag(through)).is_equal("オフサイド")
 

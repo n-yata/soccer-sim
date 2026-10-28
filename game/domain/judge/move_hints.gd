@@ -34,7 +34,8 @@ static func _add_attack_hints(hints: Array[ChoiceHint], state: MatchState, start
 	for action: int in GameEnums.PlayType.values():
 		for choice: TurnChoice in _choices(options, family, action):
 			var is_shot: bool = action == GameEnums.PlayType.SHOT
-			var pair: LayoutPair = OpenPlayJudge.apply_attack(start, defender_styles, state.ball_area, choice).pair
+			var step: LayoutStep = OpenPlayJudge.apply_attack(start, defender_styles, state.ball_area, choice)
+			var pair: LayoutPair = step.pair
 			var compare: PitchArea = state.ball_area if is_shot else choice.target
 			var detail: JudgeDetail = OpenPlayJudge.detail_at(pair, compare, is_shot)
 			# スルーパスは人数に関係なく、読みだけで通るかが決まる（アルゴリズム5）ので、人数を比べない手にする
@@ -43,6 +44,9 @@ static func _add_attack_hints(hints: Array[ChoiceHint], state: MatchState, start
 					detail.attacker_count, detail.defender_count, detail.cover)
 			# 今の配置（守備の手の前）のラインで、受け手がオフサイドになるか（2026-10-25）
 			hint.is_offside = OffsideRule.is_offside(start, state.ball_area, choice)
+			# 相手が何もしなくても、マンツーマンのマーカーが受け手について運ぶ先へ入ってくるスルーパス（判定と同じ関数。2026-10-28）
+			hint.is_marked = action == GameEnums.PlayType.THROUGH_PASS \
+					and OpenPlayJudge.defender_entered(step.movements, start.attacker_side, choice.target)
 			hints.append(hint)
 
 

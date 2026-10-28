@@ -65,10 +65,13 @@ static func _is_through_pass(reveal: RevealView, is_attacker: bool) -> bool:
 
 
 ## スルーパスは人数に関係なく読みで決まる（アルゴリズム5。2026-10-25）ので、原因は読みだけで言う。
-## ぴったり読まれたらロスト、隣の読みは止められず前進、外れは前進。
+## ぴったり読まれたらロスト、守備が運ぶ先へ入ってきたらロスト（2026-10-28）、それ以外（隣の読み・外れ）は前進。
 static func _through_pass_cause(reveal: RevealView, is_attacker: bool) -> String:
 	if reveal.read == GameEnums.ReadKind.EXACT:
 		return "読まれて" if is_attacker else "読み切って"
+	# ぴったり読まれずにロストしたのは、守備が運ぶ先へ入ってきたから（2026-10-28）
+	if reveal.outcome == GameEnums.TurnOutcome.LOSS:
+		return "相手に入られて" if is_attacker else "運ぶ先に入って"
 	if reveal.read == GameEnums.ReadKind.NEAR:
 		return "隣を読まれたが" if is_attacker else "隣を読んだが"
 	return "読まれず" if is_attacker else "読めず"

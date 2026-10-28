@@ -120,7 +120,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`）・`is_complete_for(family)`（判定に使える形か。攻守ターン・トランジションの判定で共有） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
-| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持・スルーパスは比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`is_offside`（今の配置のままオフサイドになる攻撃の手か。2026-10-25）・`diff()`。評価値や推奨の印は持たない |
+| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持・スルーパスは比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`is_offside`（今の配置のままオフサイドになる攻撃の手か。2026-10-25）・`is_marked`（相手が何もしなくても、マンツーマンの付け直しで守備の選手が運ぶ先へ入ってくるスルーパスか。どちら向きにも確定ではない。`OpenPlayJudge.defender_entered` で判定と共有。2026-10-28）・`diff()`。評価値や推奨の印は持たない |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`read: ReadKind`（守備の読みの段階） |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣ゴール前 `D1-C`。攻撃側の視点で `A2-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
@@ -273,8 +273,10 @@ static func read_of(restricted: PitchArea, compare: PitchArea, ball: PitchArea) 
 ## 読み（detail.read）は judge が read_of で入れる（トランジションは NONE）
 static func detail_at(pair: LayoutPair, compare: PitchArea, is_shot: bool) -> JudgeDetail
 static func outcome_of(detail: JudgeDetail, is_shot: bool) -> GameEnums.TurnOutcome
-## スルーパスの結果（ぴったり読まれたらロスト、それ以外は前進。人数・カバーによらない。2026-10-25）
-static func through_pass_outcome(detail: JudgeDetail) -> GameEnums.TurnOutcome
+## スルーパスの結果（ぴったり読まれたか、守備が運ぶ先へ入ってきたらロスト、それ以外は前進。defender_entered は判定の動きから出す（2026-10-28）。人数・カバーによらない。2026-10-25）
+static func through_pass_outcome(detail: JudgeDetail, defender_entered: bool) -> GameEnums.TurnOutcome
+## 判定の動きのうち、守備側の選手が target（攻撃側の視点）へ入ってきた動きがあるか（2026-10-28。ヒントの is_marked と共有）
+static func defender_entered(movements: Array[Movement], attacker_side: GameEnums.TeamSide, target: PitchArea) -> bool
 ## スルーパスの受け手（target から1マス以内・ball 以外のエリアの、いちばん近い攻撃側の選手。同じなら配置の順）。
 ## いなければ null。MoveRules（選べるか）と apply_attack（動かす）で共有する
 static func through_pass_runner(attacker: TeamLayout, ball: PitchArea, target: PitchArea) -> PlayerState

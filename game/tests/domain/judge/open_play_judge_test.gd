@@ -239,14 +239,32 @@ func test_through_pass_runner_is_the_nearest_teammate_outside_the_ball_area() ->
 	assert_object(OpenPlayJudge.through_pass_runner(_team([["a1", "M2-C", ""], ["a2", "M2-C", ""]]), ball, target)).is_null()
 
 
-func test_through_pass_runner_is_followed_by_the_man_marker() -> void:
-	# 守備側はマンツーマン。m1 は a2（A1-L1 = 守備側の D2-R1）につく。a2 が A1-C へ走り込むと、m1 も D2-C へついていく
+func test_through_pass_runner_followed_in_by_the_man_marker_is_lost() -> void:
+	# 守備側はマンツーマン。m1 は a2（A1-L1 = 守備側の D2-R1）につく。a2 が A1-C へ走り込むと、m1 も D2-C へついていく。
+	# 運ぶ先へ守備が入ってきたので、読まれていなくても奪われる（2026-10-28。シャビの判断）
 	var pair: LayoutPair = _scene([["a1", "M2-C", ""], ["a2", "A1-L1", ""]],
 			[["m1", "D2-R1", ""], ["m2", "M1-C", ""], ["far", "A2-L2", ""]], MAN, "M2-C")
 	var output: JudgeOutput = _judge(pair, MAN, "M2-C",
 			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
 	assert_array(_moves(output)).contains(["a2:A1-L1>A1-C:THROUGH_RUN", "m1:D2-R1>D2-C:MARK"])
-	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-1 NONE")
+	assert_str(_summary(output)).is_equal("LOSS A1-C 1-1 NONE")
+
+
+func test_through_pass_into_an_area_a_cover_drops_into_is_lost() -> void:
+	# ボールのエリア M2-C（守備側の M1-C）のカバーで、d1 が背後の D2-C（攻撃側の視点で運ぶ先の A1-C）へ下がる。
+	# 制限したのはボールのエリアで読みは外れだが、運ぶ先へ守備が入ってきたので奪われる（2026-10-28）。
+	# d1 が下がるのでラインも A1 になり、A1-L1 の受け手はオフサイドではない
+	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-L1", ""]]), _team([["d1", "M1-C", ""]]), HOME)
+	var output: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.COVER, "M2-C"))
+	assert_array(_moves(output)).is_equal(["d1:M1-C>D2-C:COVER", "a2:A1-L1>A1-C:THROUGH_RUN"])
+	assert_str(_summary(output)).is_equal("LOSS A1-C 1-1 NONE")
+	# 守備が運ぶ先へ入らなければ（遠くへのプレス）、同じ場面でも通る
+	var far := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-L1", ""]]),
+			_team([["d1", "D2-L2", ""], ["far", "A2-L2", ""]]), HOME)
+	var through: JudgeOutput = _judge(far, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
+	assert_str(_summary(through)).is_equal("ADVANCE A1-C 1-0 NONE")
 
 
 # --- オフサイド（2026-10-25。守備の手を適用した後のラインで、人数・読みより先に判定する） ---

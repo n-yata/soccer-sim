@@ -298,16 +298,20 @@ func test_choosing_another_move_or_submitting_clears_the_preview() -> void:
 
 
 func test_through_pass_tags_are_never_muted_by_the_hidden_numbers() -> void:
-	# スルーパスの札はどれも「読み次第」。人数を比べない手なので、隠れた人数差が ±0 でも控えめな色にしない（色から人数差を漏らさない）
+	# スルーパスの札は「読み次第」か、マーカーがついてくる運ぶ先の「マーク注意」（2026-10-28）。人数を比べない手なので、
+	# 隠れた人数差が ±0 でも控えめな色にしない（色から人数差を漏らさない）
 	_start(true)
 	var even_through: int = 0
+	var expected: Dictionary = {}
 	for hint: ChoiceHint in _controller.user_hints():
-		if hint.action == GameEnums.PlayType.THROUGH_PASS and hint.family == GameEnums.ChoiceFamily.ATTACK and hint.diff() == 0:
-			even_through += 1
+		if hint.action == GameEnums.PlayType.THROUGH_PASS and hint.family == GameEnums.ChoiceFamily.ATTACK:
+			expected[hint.target.to_key()] = "マーク注意" if hint.is_marked else "読み次第"
+			if hint.diff() == 0:
+				even_through += 1
 	assert_int(even_through).override_failure_message("人数差が ±0 のスルーパスの運ぶ先がある場面であること").is_greater(0)
 	_press(GameEnums.PlayType.THROUGH_PASS)
 	for key: String in _panel.board().selectable_areas():
-		assert_str(_panel.board().hint_of(key)).is_equal("読み次第")
+		assert_str(_panel.board().hint_of(key)).override_failure_message(key).is_equal(expected[key])
 		assert_bool(_panel.board().is_hint_even(key)).override_failure_message(key).is_false()
 
 

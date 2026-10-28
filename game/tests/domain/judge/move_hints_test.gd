@@ -124,6 +124,30 @@ func test_attack_hints_mark_the_targets_offside_on_the_current_line() -> void:
 		assert_bool(entry.begins_with("SHORT_PASS") or entry.begins_with("THROUGH_PASS")).override_failure_message(entry).is_true()
 
 
+func test_through_pass_hint_marks_the_targets_a_man_marker_follows_into() -> void:
+	# 相手はマンツーマン。m1 は h2（A1-L1 = AWAY から見て D2-R1）につく。h2 が A1-C へ走り込むと、相手が何もしなくても
+	# m1 がついて入ってくるので、判定は読みに関係なくロスト（2026-10-28）。札で「マーク注意」を出す材料にする
+	var spec_home: Array = [["h1", "M2-C", ""], ["h2", "A1-L1", ""]]
+	var spec_away: Array = [["m1", "D2-R1", ""], ["m2", "M1-C", ""], ["far", "A2-L2", ""]]
+	var marked: Array[String] = []
+	for hint: ChoiceHint in _hints(_open_state(spec_home, spec_away, "M2-C", MAN), HOME):
+		if hint.is_marked:
+			marked.append("%s %s" % [GameEnums.PlayType.keys()[hint.action], hint.target.to_key()])
+	assert_array(marked).contains(["THROUGH_PASS A1-C"])
+	# 受け手がもう運ぶ先（A1-L1）にいれば走り込まず、マーカーも動かないので、マンツーマンでも注意は出ない
+	var through_targets: Array[String] = []
+	for hint: ChoiceHint in _hints(_open_state(spec_home, spec_away, "M2-C", MAN), HOME):
+		if hint.action == GameEnums.PlayType.THROUGH_PASS:
+			through_targets.append(hint.target.to_key())
+	assert_array(through_targets).contains(["A1-L1"])
+	assert_array(marked).not_contains(["THROUGH_PASS A1-L1"])
+	for entry: String in marked:
+		assert_bool(entry.begins_with("THROUGH_PASS")).override_failure_message(entry).is_true()
+	# ゾーンなら誰もついてこないので、同じ配置でも注意は出ない
+	for hint: ChoiceHint in _hints(_open_state(spec_home, spec_away, "M2-C", ZONE), HOME):
+		assert_bool(hint.is_marked).override_failure_message(_describe(hint)).is_false()
+
+
 func test_shot_hint_compares_the_ball_area_without_a_cover_check() -> void:
 	var state: MatchState = _open_state([["h1", "A2-C", ""]], [["a1", "D1-C", ""], ["a2", "A2-L2", ""]], "A2-C")
 	var shots: Array[String] = []

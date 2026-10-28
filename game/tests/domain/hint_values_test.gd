@@ -43,3 +43,13 @@ func test_duplicate_deep_keeps_the_offside_warning() -> void:
 	assert_bool(hint.duplicate_deep().is_offside).is_true()
 	hint.is_offside = false
 	assert_bool(hint.duplicate_deep().is_offside).is_false()
+
+
+func test_duplicate_deep_keeps_the_marker_warning() -> void:
+	# マークがついてくる注意（2026-10-28）も写す
+	var hint := ChoiceHint.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS,
+			PitchArea.from_key("A1-C"), false, 1, 0, GameEnums.CoverKind.NONE)
+	hint.is_marked = true
+	assert_bool(hint.duplicate_deep().is_marked).is_true()
+	hint.is_marked = false
+	assert_bool(hint.duplicate_deep().is_marked).is_false()
