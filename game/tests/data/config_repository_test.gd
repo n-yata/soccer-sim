@@ -12,7 +12,8 @@ func _repository_with(case_name: String, turns: int, temperature: float, floor_p
 		style_bonus: float = CpuConfig.new().style_bonus, forward_bonus: float = CpuConfig.new().forward_bonus,
 		shot_bonus: float = CpuConfig.new().shot_bonus,
 		anticipation_bonus: float = CpuConfig.new().anticipation_bonus,
-		additional: int = 0, offside_penalty: float = CpuConfig.new().offside_penalty) -> ConfigRepository:
+		additional: int = 0, offside_penalty: float = CpuConfig.new().offside_penalty,
+		marked_penalty: float = CpuConfig.new().marked_penalty) -> ConfigRepository:
 	var dir: String = create_temp_dir("config_repository/" + case_name)
 	var rules := MatchRuleConfig.new()
 	rules.turns_per_half = turns
@@ -26,6 +27,7 @@ func _repository_with(case_name: String, turns: int, temperature: float, floor_p
 	cpu.shot_bonus = shot_bonus
 	cpu.anticipation_bonus = anticipation_bonus
 	cpu.offside_penalty = offside_penalty
+	cpu.marked_penalty = marked_penalty
 	assert_int(ResourceSaver.save(cpu, dir.path_join(CPU_FILE))).is_equal(OK)
 	return ConfigRepository.new(dir)
 
@@ -42,6 +44,7 @@ func test_bundled_settings_match_the_initial_values() -> void:
 	assert_float(repository.cpu().anticipation_bonus).is_equal(1.0)
 	assert_float(repository.cpu().style_bonus).is_equal(1.0)
 	assert_float(repository.cpu().offside_penalty).is_equal(3.0)
+	assert_float(repository.cpu().marked_penalty).is_equal(3.0)
 
 
 func test_valid_files_are_read_as_they_are() -> void:
@@ -88,9 +91,10 @@ func test_out_of_range_cpu_values_report_an_error() -> void:
 	var repository: ConfigRepository = _repository_with("cpu_error", 12, 0.0, 0.1)
 	await assert_error(func() -> void: repository.cpu()) \
 			.is_push_error(("ConfigRepository: cpu_config.tres の値が範囲外（temperature=0.0, floor_probability=0.1, style_bonus=%s,"
-					+ " forward_bonus=%s, shot_bonus=%s, anticipation_bonus=%s, offside_penalty=%s）のため、初期値を使う")
+					+ " forward_bonus=%s, shot_bonus=%s, anticipation_bonus=%s, offside_penalty=%s, marked_penalty=%s）のため、初期値を使う")
 					% [CpuConfig.new().style_bonus, CpuConfig.new().forward_bonus, CpuConfig.new().shot_bonus,
-							CpuConfig.new().anticipation_bonus, CpuConfig.new().offside_penalty])
+							CpuConfig.new().anticipation_bonus, CpuConfig.new().offside_penalty,
+							CpuConfig.new().marked_penalty])
 
 
 func test_negative_additional_turns_fall_back_to_the_initial_values_with_an_error() -> void:
@@ -206,6 +210,24 @@ func test_out_of_range_offside_penalty_falls_back_to_the_initial_values() -> voi
 				penalty)
 		var cpu: CpuConfig = repository.cpu()
 		assert_float(cpu.offside_penalty).override_failure_message(str(penalty)).is_equal(CpuConfig.new().offside_penalty)
+		assert_float(cpu.anticipation_bonus).override_failure_message(str(penalty)).is_equal(CpuConfig.new().anticipation_bonus)
+
+
+func test_marked_penalty_is_read_including_zero() -> void:
+	# マーク注意の減点（2026-10-29）。0 なら CPU はマーカーがついてくるスルーパスを避けない
+	for penalty: float in [0.0, 4.5]:
+		var repository: ConfigRepository = _repository_with("marked_%s" % penalty, 12, 0.5, 0.2, 1.0, 1.0, 1.0, 1.0, 0,
+				CpuConfig.new().offside_penalty, penalty)
+		assert_float(repository.cpu().marked_penalty).override_failure_message(str(penalty)).is_equal(penalty)
+
+
+func test_out_of_range_marked_penalty_falls_back_to_the_initial_values() -> void:
+	# 負なら、マーカーがついてくる手を好むことになる。範囲外なら、ほかの値と一緒に初期値へ戻す
+	for penalty: float in [-0.1, NAN, INF]:
+		var repository: ConfigRepository = _repository_with("bad_marked_%s" % penalty, 12, 0.5, 0.2, 2.0, 2.0, 2.0, 2.0, 0,
+				CpuConfig.new().offside_penalty, penalty)
+		var cpu: CpuConfig = repository.cpu()
+		assert_float(cpu.marked_penalty).override_failure_message(str(penalty)).is_equal(CpuConfig.new().marked_penalty)
 		assert_float(cpu.anticipation_bonus).override_failure_message(str(penalty)).is_equal(CpuConfig.new().anticipation_bonus)
 
 

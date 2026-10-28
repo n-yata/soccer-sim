@@ -412,7 +412,7 @@ static func score(hint: ChoiceHint) -> float
 static func style_bonus(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea, cpu: CpuConfig) -> float
 ## 局面の加点。攻撃の手・カウンターは forward_bonus × 前へ進む列数、シュートは shot_bonus、守備の手は anticipation_bonus × ボールより前の列数、ほかは 0（アルゴリズム8）
 static func situation_bonus(hint: ChoiceHint, ball: PitchArea, cpu: CpuConfig) -> float
-## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。score + style_bonus + situation_bonus を probabilities に通す（choose_turn と同じ計算）
+## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。score + style_bonus + situation_bonus − オフサイドの減点 − マーク注意の減点を probabilities に通す（choose_turn と同じ計算）
 static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]
 ## 試合開始時・ハーフタイムの陣形と方式（一様ランダム）
 static func choose_setup(catalog: ContentCatalog, rng: RandomNumberGenerator) -> TeamSetup
@@ -737,7 +737,7 @@ func validation_errors() -> Array[String]
 | Resource（`class_name`） | ファイル（`game/config/`） | 持つ値 |
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数・アディショナルタイムの最大ターン数 |
-| `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty（2026-10-25） |
+| `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty（2026-10-25）・マーク注意の減点 marked_penalty（2026-10-29） |
 | `PresentationConfig` | `presentation_config.tres` | 開示で駒を動かす時間（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 

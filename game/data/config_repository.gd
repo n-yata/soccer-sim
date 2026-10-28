@@ -69,12 +69,12 @@ func _load_cpu() -> CpuConfig:
 			and loaded.floor_probability >= 0.0 and loaded.floor_probability < 1.0
 	var is_bonus_valid: bool = _is_bonus_valid(loaded.style_bonus) and _is_bonus_valid(loaded.forward_bonus) \
 			and _is_bonus_valid(loaded.shot_bonus) and _is_bonus_valid(loaded.anticipation_bonus) \
-			and _is_bonus_valid(loaded.offside_penalty)
+			and _is_bonus_valid(loaded.offside_penalty) and _is_bonus_valid(loaded.marked_penalty)
 	if not (is_temperature_valid and is_floor_valid and is_bonus_valid):
 		push_error(("ConfigRepository: %s の値が範囲外（temperature=%s, floor_probability=%s, style_bonus=%s,"
-				+ " forward_bonus=%s, shot_bonus=%s, anticipation_bonus=%s, offside_penalty=%s）のため、初期値を使う")
+				+ " forward_bonus=%s, shot_bonus=%s, anticipation_bonus=%s, offside_penalty=%s, marked_penalty=%s）のため、初期値を使う")
 				% [CPU_FILE, loaded.temperature, loaded.floor_probability, loaded.style_bonus, loaded.forward_bonus,
-						loaded.shot_bonus, loaded.anticipation_bonus, loaded.offside_penalty])
+						loaded.shot_bonus, loaded.anticipation_bonus, loaded.offside_penalty, loaded.marked_penalty])
 		return CpuConfig.new()
 	return loaded
 

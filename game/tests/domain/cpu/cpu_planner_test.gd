@@ -340,6 +340,41 @@ func test_offside_penalty_lowers_the_probability_of_an_offside_pass() -> void:
 	assert_float(avoided[offside]).is_less(plain[offside])
 
 
+func test_marked_penalty_lowers_only_the_marked_through_pass() -> void:
+	# 相手はマンツーマン（move_hints_test.gd と同じ場面）。m1 は h2（A1-L1）につき、h2 が A1-C へ走り込むと
+	# 相手が何もしなくてもついて入ってくる（マーク注意。2026-10-29）。h2 がもういる A1-L1 へのスルーパスは注意なし
+	var state: MatchState = _scene()
+	state.away_setup = TeamSetup.new("y", TeamStyles.new(GameEnums.DefenseStyle.MAN, GameEnums.AttackStyle.COUNTER))
+	state.home_players = _players([["h1", "M2-C"], ["h2", "A1-L1"]])
+	state.away_players = _players([["m1", "D2-R1"], ["m2", "M1-C"], ["far", "A2-L2"]])
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
+	var marked: int = -1
+	var free: int = -1
+	for index: int in range(hints.size()):
+		var hint: ChoiceHint = hints[index]
+		if hint.action != GameEnums.PlayType.THROUGH_PASS or hint.is_offside:
+			continue
+		if hint.target.to_key() == "A1-C" and hint.is_marked:
+			marked = index
+		elif hint.target.to_key() == "A1-L1" and not hint.is_marked:
+			free = index
+	assert_int(marked).override_failure_message("マーク注意のスルーパスがある場面であること").is_not_equal(-1)
+	assert_int(free).override_failure_message("注意なしのスルーパスがある場面であること").is_not_equal(-1)
+	var none := _cpu()
+	none.marked_penalty = 0.0
+	var penalized := _cpu()
+	penalized.marked_penalty = 3.0
+	var plain: Array[float] = CpuPlanner.turn_probabilities(state, HOME, none)
+	var avoided: Array[float] = CpuPlanner.turn_probabilities(state, HOME, penalized)
+	# 減点が無ければ、どちらのスルーパスも評価値 0 で同じ確率。減点でマーク注意の手だけが下がる
+	assert_float(plain[marked]).is_equal_approx(plain[free], 0.000001)
+	assert_float(avoided[marked]).is_less(plain[marked])
+	assert_float(avoided[marked]).is_less(avoided[free])
+	# 注意なしの手は減点されないので、減った分が回ってきて確率が上がる（全部の手を減点すると正規化で変わらない）
+	assert_float(avoided[free]).is_greater(plain[free])
+	assert_float(_sum(avoided)).is_equal_approx(1.0, 0.000001)
+
+
 func test_shot_bonus_raises_the_shot_probability() -> void:
 	# h1 がボールの A2-C（ペナルティエリア）にいて、シュートを選べる場面
 	var state: MatchState = _scene()

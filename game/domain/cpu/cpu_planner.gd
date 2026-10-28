@@ -19,8 +19,8 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide, cpu: CpuCon
 	return TurnChoice.new(picked.family, picked.action, target)
 
 
-## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点と局面の加点を足して
-## probabilities を通す。
+## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点と局面の加点を足し、
+## オフサイドの減点とマーク注意の減点を引いて（両方当てはまれば両方引く）probabilities を通す。
 static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]:
 	return _probabilities_of(MoveHints.evaluate(state, side, MoveRules.options_for(state, side)), state, side, cpu)
 
@@ -32,8 +32,10 @@ static func _probabilities_of(hints: Array[ChoiceHint], state: MatchState, side:
 	for hint: ChoiceHint in hints:
 		# 今の配置のままオフサイドになる手は、ボールを失う手として減点する（2026-10-25）
 		var offside: float = cpu.offside_penalty if hint.is_offside else 0.0
+		# 相手が何もしなくても守備がついて入ってくるスルーパス（マーク注意）も、ボールを失う手として減点する（2026-10-29）
+		var marked: float = cpu.marked_penalty if hint.is_marked else 0.0
 		scores.append(score(hint) + style_bonus(hint, styles, state.ball_area, cpu)
-				+ situation_bonus(hint, state.ball_area, cpu) - offside)
+				+ situation_bonus(hint, state.ball_area, cpu) - offside - marked)
 	return probabilities(scores, cpu)
 
 

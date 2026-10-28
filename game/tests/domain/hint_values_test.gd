@@ -33,6 +33,7 @@ func test_cpu_config_defaults_match_the_external_settings_table() -> void:
 	assert_float(cpu.floor_probability).is_equal(0.05)
 	assert_float(cpu.style_bonus).is_equal(1.0)
 	assert_float(cpu.offside_penalty).is_equal(3.0)
+	assert_float(cpu.marked_penalty).is_equal(3.0)
 
 
 func test_duplicate_deep_keeps_the_offside_warning() -> void:
