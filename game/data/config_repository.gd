@@ -93,6 +93,10 @@ func _load_presentation() -> PresentationConfig:
 	if not (is_finite(shift_sec) and shift_sec > 0.0 and shift_sec <= MAX_BOARD_SHIFT_SEC):
 		push_error("ConfigRepository: %s の値が範囲外（board_shift_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, shift_sec])
 		return PresentationConfig.new()
+	if not loaded.review_lookback_turns >= 0:
+		push_error("ConfigRepository: %s の値が範囲外（review_lookback_turns=%d）のため、初期値を使う" % [PRESENTATION_FILE,
+				loaded.review_lookback_turns])
+		return PresentationConfig.new()
 	return loaded
 
 

@@ -32,8 +32,48 @@ func test_attack_direction_is_upward() -> void:
 
 func test_show_counts_keeps_the_counts() -> void:
 	var pitch: MiniPitch = auto_free(MiniPitch.new()) as MiniPitch
-	pitch.show_counts({"D2-C": 2, "A1-C": 1}, false)
+	pitch.show_counts({"D2-C": 2, "A1-C": 1})
 	assert_dict(pitch.counts()).is_equal({"D2-C": 2, "A1-C": 1})
+
+
+func test_show_turn_keeps_both_teams_the_ball_and_only_the_drawn_movements() -> void:
+	var pitch: MiniPitch = auto_free(MiniPitch.new(Vector2(64, 40))) as MiniPitch
+	var press := Movement.new(GameEnums.TeamSide.AWAY, "a", PitchArea.from_key("M1-L1"), PitchArea.from_key("M1-C"),
+			GameEnums.MovementReason.PRESS)
+	var slide := Movement.new(GameEnums.TeamSide.HOME, "b", PitchArea.from_key("D2-C"), PitchArea.from_key("D2-L1"),
+			GameEnums.MovementReason.SLIDE)
+	var dribble := Movement.new(GameEnums.TeamSide.HOME, "c", PitchArea.from_key("M1-C"), PitchArea.from_key("M2-C"),
+			GameEnums.MovementReason.DRIBBLE)
+	# 動いていない動きは矢印にしない
+	var still := Movement.new(GameEnums.TeamSide.HOME, "d", PitchArea.from_key("M2-C"), PitchArea.from_key("M2-C"),
+			GameEnums.MovementReason.COVER)
+	pitch.show_turn({"M2-C": 2}, {"M1-C": 1, "M2-C": 1}, [press, slide, dribble, still] as Array[Movement], "M2-C")
+	assert_dict(pitch.counts()).is_equal({"M2-C": 2})
+	assert_dict(pitch.opponent_counts()).is_equal({"M1-C": 1, "M2-C": 1})
+	assert_str(pitch.ball_area()).is_equal("M2-C")
+	assert_array(pitch.drawn_movements()).is_equal([press, dribble])
+	assert_object(pitch.custom_minimum_size).is_equal(Vector2(320, 240))
+	# 「自分−相手」。どちらも 0 のマスは空
+	assert_str(pitch.count_text("M2-C")).is_equal("2−1")
+	assert_str(pitch.count_text("M1-C")).is_equal("0−1")
+	assert_str(pitch.count_text("D1-C")).is_empty()
+
+
+func test_one_team_count_text_is_the_number_or_empty() -> void:
+	var pitch: MiniPitch = auto_free(MiniPitch.new()) as MiniPitch
+	pitch.show_counts({"D2-C": 2, "A1-C": 0})
+	assert_str(pitch.count_text("D2-C")).is_equal("2")
+	assert_str(pitch.count_text("A1-C")).is_empty()
+
+
+func test_show_counts_after_a_turn_goes_back_to_one_team() -> void:
+	var pitch: MiniPitch = auto_free(MiniPitch.new()) as MiniPitch
+	pitch.show_turn({"M2-C": 2}, {"M1-C": 1}, [Movement.new(GameEnums.TeamSide.HOME, "c", PitchArea.from_key("M1-C"),
+			PitchArea.from_key("M2-C"), GameEnums.MovementReason.DRIBBLE)] as Array[Movement], "M2-C")
+	pitch.show_counts({"D2-C": 3})
+	assert_dict(pitch.opponent_counts()).is_empty()
+	assert_array(pitch.drawn_movements()).is_empty()
+	assert_str(pitch.ball_area()).is_empty()
 
 
 func test_minimum_size_fits_five_by_six_cells_of_one_team() -> void:

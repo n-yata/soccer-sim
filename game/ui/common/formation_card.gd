@@ -28,7 +28,7 @@ func _ready() -> void:
 func show_formation(formation: FormationDef, counts: Dictionary, selected: bool, compact: bool) -> void:
 	_formation_id = formation.id
 	_name_label.text = formation.name
-	_mini_pitch.show_counts(counts, false)
+	_mini_pitch.show_counts(counts)
 	_mini_pitch.visible = not compact
 	custom_minimum_size = COMPACT_SIZE if compact else FULL_SIZE
 	_button.set_pressed_no_signal(selected)

@@ -236,10 +236,11 @@ func test_out_of_range_marked_penalty_falls_back_to_the_initial_values() -> void
 const PRESENTATION_FILE: String = "presentation_config.tres"
 
 
-func _presentation_with(case_name: String, shift_sec: float) -> ConfigRepository:
+func _presentation_with(case_name: String, shift_sec: float, lookback_turns: int = 3) -> ConfigRepository:
 	var dir: String = create_temp_dir("config_repository/presentation_" + case_name)
 	var presentation := PresentationConfig.new()
 	presentation.board_shift_sec = shift_sec
+	presentation.review_lookback_turns = lookback_turns
 	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
 	return ConfigRepository.new(dir)
 
@@ -270,6 +271,26 @@ func test_out_of_range_board_shift_reports_an_error() -> void:
 	var repository: ConfigRepository = _presentation_with("error", 3.0)
 	await assert_error(func() -> void: repository.presentation()) \
 			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_shift_sec=3.0）のため、初期値を使う")
+
+
+func test_bundled_review_lookback_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の「振り返りで得失点の直前に遡るターン数」の初期値 3
+	assert_int(ConfigRepository.new().presentation().review_lookback_turns).is_equal(3)
+	assert_int(PresentationConfig.new().review_lookback_turns).is_equal(3)
+
+
+func test_review_lookback_of_zero_or_more_is_read() -> void:
+	for lookback: int in [0, 1, 10]:
+		var repository: ConfigRepository = _presentation_with("lookback_%d" % lookback, 0.6, lookback)
+		assert_int(repository.presentation().review_lookback_turns).override_failure_message(str(lookback)) \
+				.is_equal(lookback)
+
+
+func test_negative_review_lookback_falls_back_to_the_initial_value_with_an_error() -> void:
+	var repository: ConfigRepository = _presentation_with("lookback_bad", 0.6, -1)
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（review_lookback_turns=-1）のため、初期値を使う")
+	assert_int(repository.presentation().review_lookback_turns).is_equal(PresentationConfig.new().review_lookback_turns)
 
 
 func test_missing_presentation_falls_back_to_the_initial_value_with_an_error() -> void:

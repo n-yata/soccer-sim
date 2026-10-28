@@ -6,6 +6,9 @@ extends RefCounted
 ## 利用者の役割（攻撃側 ATTACK／守備側 DEFENSE／喪失側 NEG_TRANSITION／奪取側 POS_TRANSITION）。判定理由の文の主語を決める
 var user_role: GameEnums.Phase = GameEnums.Phase.ATTACK
 var turn_kind: GameEnums.TurnKind = GameEnums.TurnKind.OPEN_PLAY
+## そのターンのハーフとターン（振り返りの各ターンの見出しに使う。開示は盤面の時計を出すので使わない）
+var half: int = 1
+var turn_number: int = 1
 ## 両者の手。運ぶ先は利用者の視点
 var user_choice: TurnChoice
 var opponent_choice: TurnChoice

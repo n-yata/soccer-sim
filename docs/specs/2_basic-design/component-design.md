@@ -126,7 +126,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
 | `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
-| `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10） |
+| `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10）。`area_tallies`（エリアのキー → `[勝ち, 負け, 膠着]`。判定の無かったエリアは入らない）・`phase_tallies`（`Phase` → 同じ形。4局面とも入る）・`goals: Array[ReviewGoal]`（`seq`・`half`・`turn_number`・`scorer`・得点後の `home_score`・`away_score`・直前のターンの通し番号 `lead_up_seqs`（古い順。得点のターンは含めない））・`segments: Array[ReviewSegment]`（`half`・`from_turn`・`to_turn`・`home_setup`・`away_setup`）・`turn_count`。数の配列の位置は `JudgeTally` の WIN・LOSE・STALL（2026-10-29） |
 | `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる。`formation(id)`（無ければ `null`）。2026-10-18 時点では陣形だけを持ち、ほかは使う機能の作業で足す |
 | `MatchupRuleDef` / `PrincipleDef` / `SimplificationDef` / `QuizQuestionDef` / `TutorialStepDef` | 各 `*_def.gd` | 噛み合わせルール / 戦術原則 / 単純化項目 / 場面問題 / （チュートリアルの段階） | — |
 | `MatchRecord` / `QuizAnswer` / `UserSettings` | `match_record.gd` / `quiz_answer.gd` / `user_settings.gd` | 戦績 / 回答結果 / 設定 | — |
@@ -668,7 +668,8 @@ func mark_tutorial_completed() -> bool
 > 2026-10-19 時点の実装の形: 選手は `{"player_id", "number", "area"}` の Dictionary の配列。`last_goal_by` はまだ得点が
 > 無ければ -1。`RevealView` は判定前・判定時の配置を `user_players_before`・`opponent_players_before`・
 > `user_players_at_judgement`・`opponent_players_at_judgement` の4つで持ち、内訳の有無を `has_detail`、局面を
-> `turn_kind` で持つ。`simplification_ids` は単純化カタログを扱う作業まで空。
+> `turn_kind` で持つ。`simplification_ids` は単純化カタログを扱う作業まで空。振り返りの各ターンの見出し用に、
+> そのターンの `half`・`turn_number` も持つ（2026-10-29）。
 
 `BoardSnapshot`（`board_snapshot.gd`）は、試合画面・ハーフタイム・方式の選び直しが表示する現在の状態。
 
@@ -705,6 +706,13 @@ func mark_tutorial_completed() -> bool
 `ReviewView`（`review_view.gd`）は、振り返り画面に渡す値。ドメインの `ReviewSummary`（集計値と、得失点の流れに
 含めるターンの通し番号）を `MatchController` が受け取り、各ターンを `RevealView` に変換して添える。ドメインの値は
 アプリケーション層の型を持たない（`ReviewSummary` は `RevealView` を含まない）。
+
+> 2026-10-29 時点の実装の形: 変換は `ViewConverter.review(records, catalog, lookback_turns)`（利用者 = `HOME` を viewer に
+> して集計するので、エリア・局面はすでに利用者の視点）。`area_tallies`・`phase_tallies` は `ReviewSummary` の写し。
+> `goals` は得点ごとの `{"is_user", "half", "turn_number", "score_user", "score_opponent", "turns": Array[RevealView]}`
+> （`turns` は直前のターン → 得点のターンの順）、`segments` は `{"half", "from_turn", "to_turn", "user_setup", "opponent_setup"}`。
+> ほかに `turn_count`（0 なら振り返るデータが無い）と、アディショナルタイムを「前半 15＋1」と出すための `turns_per_half` を持つ。
+> `review()` は試合前なら `push_error` して `null`。
 
 ## 4. データ層（`game/data/`）
 
@@ -756,8 +764,8 @@ func presentation() -> PresentationConfig
 > 初期値の Resource を返して `push_error` する（エラーハンドリング「設定値が不正」: 利用者には表示しない）。範囲は
 > 内側にあることを肯定形で確かめ、`is_finite` で NaN・無限大を拒否する。同梱の `.tres` が範囲内であることはテストで確かめる
 >
-> 2026-10-22 に `presentation()` を足した。`PresentationConfig` は、いまは駒を動かす時間（`board_shift_sec`）だけを持つ。
-> 振り返りで遡るターン数は、その作業で足す（いま使わない値を先に置かない）。3D 演出の上限は、3D 演出をやめたので持たない（2026-10-23）。
+> 2026-10-22 に `presentation()` を足した。`PresentationConfig` は、駒を動かす時間（`board_shift_sec`）と、
+> 振り返りで遡るターン数（`review_lookback_turns`。2026-10-29 に足した。0 以上）を持つ。3D 演出の上限は、3D 演出をやめたので持たない（2026-10-23）。
 
 ### 4.3 端末内保存
 

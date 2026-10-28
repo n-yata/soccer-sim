@@ -2,8 +2,8 @@
 ## 利用者の視点への変換（ViewConverter）と、画面へのシグナル・画面の切り替えの要求を受け持つ。
 ## 利用者 = HOME、CPU = AWAY（§1.3）。
 ##
-## 今回作った範囲は、試合の開始・1ターンの確定と開示・方式の選び直し・ハーフタイムまで。
-## 中断データの保存と再開・起動時の後始末・戦績と終了処理・振り返り・チュートリアルは、それぞれの作業で足す
+## 今回作った範囲は、試合の開始・1ターンの確定と開示・方式の選び直し・ハーフタイム・振り返り（2026-10-29）まで。
+## 中断データの保存と再開・起動時の後始末・戦績と終了処理・チュートリアルは、それぞれの作業で足す
 ## （そのとき、設計書の引数 content・store・user_data・is_tutorial を足す）。
 class_name MatchController
 extends RefCounted
@@ -192,6 +192,18 @@ func leave_result() -> bool:
 		return false
 	_request_screen.call(AppScreens.Id.S01_TITLE, {})
 	return true
+
+
+## 振り返り（S-07。アルゴリズム10）。メモリ上のターン記録を利用者の視点で集計し、得失点の流れの各ターンを
+## 開示の値にして返す。遡るターン数は PresentationConfig。試合前は null（UI の誤りなので push_error）。
+## 試合の途中でも呼べる（それまでのターンを集計する）が、画面は試合の後だけ開く。
+func review() -> ReviewView:
+	if not _is_started_or_error("review"):
+		return null
+	var view: ReviewView = ViewConverter.review(_state.turn_records, _catalog,
+			_config.presentation().review_lookback_turns)
+	view.turns_per_half = _rules.turns_per_half
+	return view
 
 
 ## 開示で、ターン前の配置から次のターン開始時の配置へ駒を動かす時間（秒。PresentationConfig）。

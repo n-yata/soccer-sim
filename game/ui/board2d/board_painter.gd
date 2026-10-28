@@ -7,6 +7,11 @@ extends RefCounted
 
 ## 駒を描く大きさ（平面図の台座の半径に対する倍率）。立てて描くので、平面図の大きさより少し大きく見せる
 const PIECE_DRAW_RATE: float = 1.25
+## 札の余白（文字の左右に足す幅の合計）と、集計の札で縮めてよい字の大きさの下限。
+## 下限は、最小の盤（TacticsBoard.MIN_CELL）のいちばん奥の行に、2桁が3つ並ぶ札（「勝12 負10 膠11」）が収まる大きさ
+## （12px では 0.1px はみ出した。2026-10-29 に実測）。1桁の札は、試合画面と同じ大きさの盤の奥の行でも 16px で収まる
+const TAG_PADDING: float = 14.0
+const MIN_TALLY_FONT_SIZE: int = 11
 
 
 static func paint(board: TacticsBoard) -> void:
@@ -23,6 +28,8 @@ static func paint(board: TacticsBoard) -> void:
 	# 札は駒と矢印の上に描く（通り道のエリアの札の字を隠さないように）
 	for key: String in board.drawn_hint_keys():
 		_draw_hint(board, key)
+	for key: String in board.drawn_tally_keys():
+		_draw_tally(board, key)
 	_draw_compare(board)
 
 
@@ -204,16 +211,44 @@ static func _ellipse(board: TacticsBoard, center: Vector2, rx: float, ry: float,
 ## ヒントの札を、エリアの下端の中央に。差がある札は accent、±0 の札は控えめな色。
 static func _draw_hint(board: TacticsBoard, key: String) -> void:
 	var rect: Rect2 = board.area_rect(key)
-	var at: Vector2 = board.to_screen(Vector2(rect.get_center().x, rect.end.y - 6.0))
+	var bottom: Vector2 = board.to_screen(Vector2(rect.get_center().x, rect.end.y - 6.0))
+	_draw_tag(board, bottom, board.hint_of(key), board.is_hint_even(key))
+
+
+## 振り返りの集計の札。駒を描かない盤面なので、エリアの中央に置く（札の下端を中央より札の高さの半分だけ下げる）。
+static func _draw_tally(board: TacticsBoard, key: String) -> void:
+	var center: Vector2 = board.to_screen(board.area_rect(key).get_center())
+	var text: String = board.tally_of(key)
+	_draw_tag(board, center + Vector2(0, TacticsBoard.HINT_HEIGHT / 2.0), text, false, tally_font_size(board, key, text))
+
+
+## 集計の札の字の大きさ。ヒントの札と同じ大きさで、札がエリアの幅（奥ほど狭い。上端の辺で測る）に収まらなければ、
+## 収まるまで下限まで縮める（「勝3 負1 膠1」は、奥の行ではヒントの大きさのままだと収まらない）。
+static func tally_font_size(board: TacticsBoard, key: String, text: String) -> int:
+	var rect: Rect2 = board.area_rect(key)
+	var room: float = board.to_screen(Vector2(rect.end.x, rect.position.y)).x - board.to_screen(rect.position).x
 	var font: Font = board.get_theme_default_font()
-	var hint: String = board.hint_of(key)
-	var tag_size: int = _font_size(board, &"hint_size")
-	var width: float = font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size).x + 14.0
+	var font_size: int = _font_size(board, &"hint_size")
+	while font_size > MIN_TALLY_FONT_SIZE and tag_width(font, text, font_size) > room:
+		font_size -= 1
+	return font_size
+
+
+static func tag_width(font: Font, text: String, font_size: int) -> float:
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + TAG_PADDING
+
+
+## 札（地の色つきの文字）。bottom は札の下端の中央（画面の座標）。is_muted なら控えめな地の色で描く。
+## tag_size が 0 ならヒントの札の大きさ。
+static func _draw_tag(board: TacticsBoard, bottom: Vector2, text: String, is_muted: bool, tag_size: int = 0) -> void:
+	var font: Font = board.get_theme_default_font()
+	if tag_size <= 0:
+		tag_size = _font_size(board, &"hint_size")
+	var width: float = tag_width(font, text, tag_size)
 	var height: float = TacticsBoard.HINT_HEIGHT
-	var tag_box := Rect2(at + Vector2(-width / 2.0, -height), Vector2(width, height))
-	var is_even: bool = board.is_hint_even(key)
-	board.draw_rect(tag_box, _color(board, &"tag_muted_bg") if is_even else _color(board, &"accent"))
-	_draw_centered_text(board, tag_box.get_center(), hint, tag_size, _color(board, &"text") if is_even else _color(board, &"bg"))
+	var tag_box := Rect2(bottom + Vector2(-width / 2.0, -height), Vector2(width, height))
+	board.draw_rect(tag_box, _color(board, &"tag_muted_bg") if is_muted else _color(board, &"accent"))
+	_draw_centered_text(board, tag_box.get_center(), text, tag_size, _color(board, &"text") if is_muted else _color(board, &"bg"))
 
 
 static func _draw_compare(board: TacticsBoard) -> void:

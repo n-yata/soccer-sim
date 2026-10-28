@@ -57,6 +57,8 @@ var _movements: Array[Movement] = []
 var _preview: Array[Movement] = []
 var _compare_area: String = ""
 var _compare_tag: String = ""
+## 振り返りの集計の札（エリアのキー → 「勝3 負1 膠1」）。選べるエリアに関係なく、札があるエリアにだけ描く
+var _tally: Dictionary = {}
 var _pressed_key: String = ""
 ## 開示の動きの状態（道筋と進み具合）と、それを進める Tween
 var _shift := BoardShift.new()
@@ -128,6 +130,13 @@ func show_compare(key: String, user_count: int, opponent_count: int) -> void:
 	queue_redraw()
 
 
+## 振り返り（S-07）の集計の札（エリアのキー → 札の文。空の文のエリアは描かない）。駒・ボールは描かない盤面として使う
+## （show_snapshot を呼ばなければ駒もボールも無い）。札はエリアの中央に描く。
+func show_tally(tally: Dictionary) -> void:
+	_tally = tally.duplicate()
+	queue_redraw()
+
+
 ## 盤面（駒・記号・ボール）以外の重ね表示をすべて消す。
 func clear_overlays() -> void:
 	_stop_shift()
@@ -141,6 +150,7 @@ func clear_overlays() -> void:
 	_preview.clear()
 	_compare_area = ""
 	_compare_tag = ""
+	_tally.clear()
 	_pressed_key = ""
 	queue_redraw()
 
@@ -315,6 +325,19 @@ func hint_of(key: String) -> String:
 
 func is_hint_even(key: String) -> bool:
 	return _even_hints.has(key)
+
+
+func tally_of(key: String) -> String:
+	return _tally.get(key, "") as String
+
+
+## 集計の札を描くエリア（札の文が空でないエリア。PitchArea.all() の順）。
+func drawn_tally_keys() -> Array[String]:
+	var keys: Array[String] = []
+	for area: PitchArea in PitchArea.all():
+		if not tally_of(area.to_key()).is_empty():
+			keys.append(area.to_key())
+	return keys
 
 
 ## 同じ段の駒の中心の間隔（描画とテストで共有）。中央の余白から2列ぶんがエリアの半分に収まるよう、PIECE_STEP を上限に縮める。

@@ -209,6 +209,35 @@ func test_hints_are_drawn_only_on_selectable_areas_and_even_ones_are_muted() -> 
 	assert_bool(_board.is_hint_even("A2-C")).is_false()
 
 
+func test_tally_is_drawn_on_every_area_with_a_text_and_cleared_with_the_overlays() -> void:
+	# 振り返りの集計は、選べるエリアに関係なく札のあるエリアに描く。空の文は描かない
+	_board.show_tally({"A2-C": "勝1", "M1-R1": "勝1 負1", "D1-L2": ""})
+	assert_array(_board.drawn_tally_keys()).is_equal(["M1-R1", "A2-C"])
+	assert_str(_board.tally_of("M1-R1")).is_equal("勝1 負1")
+	assert_str(_board.tally_of("D2-C")).is_empty()
+	# ヒントの札とは別に持つ
+	assert_array(_board.drawn_hint_keys()).is_empty()
+	_board.clear_overlays()
+	assert_array(_board.drawn_tally_keys()).is_empty()
+
+
+func test_tally_fits_the_narrowest_far_area_by_shrinking_the_font() -> void:
+	# 2桁が3つ並ぶ札でも、いちばん奥の行のエリアの幅に収まる（下限の字の大きさを割らない）
+	var text: String = ReviewTexts.tally_text([12, 10, 11])
+	var font: Font = _board.get_theme_default_font()
+	for board_size: Vector2 in [BOARD_SIZE, TacticsBoard.MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)]:
+		_board.size = board_size
+		var rect: Rect2 = _board.area_rect("A2-L2")
+		var room: float = _board.to_screen(Vector2(rect.end.x, rect.position.y)).x - _board.to_screen(rect.position).x
+		var font_size: int = BoardPainter.tally_font_size(_board, "A2-L2", text)
+		assert_int(font_size).override_failure_message(str(board_size)).is_greater_equal(BoardPainter.MIN_TALLY_FONT_SIZE)
+		assert_float(BoardPainter.tag_width(font, text, font_size)).override_failure_message(str(board_size)) \
+				.is_less_equal(room)
+	# 手前の行の短い札は、ヒントの札と同じ大きさのまま
+	var hint_size: int = _board.get_theme_font_size(&"hint_size", TacticsBoard.THEME_TYPE)
+	assert_int(BoardPainter.tally_font_size(_board, "D1-C", "勝1")).is_equal(hint_size)
+
+
 func test_only_selectable_areas_emit_when_pressed() -> void:
 	_board.show_snapshot(_snapshot(true))
 	_board.set_selectable(["A1-L1", "A2-C"])

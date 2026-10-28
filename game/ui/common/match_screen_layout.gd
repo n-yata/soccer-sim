@@ -79,6 +79,13 @@ static func tag(parent: Control, node_name: String, text_value: String) -> Label
 	return label
 
 
+## 子をすべて外して解放する（開くたびに中身を作り直す一覧に使う）。
+static func clear(parent: Node) -> void:
+	for child: Node in parent.get_children():
+		parent.remove_child(child)
+		child.queue_free()
+
+
 static func text(parent: Control, node_name: String, variation: StringName) -> Label:
 	var label := Label.new()
 	label.name = node_name

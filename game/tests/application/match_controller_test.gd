@@ -502,6 +502,101 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 	assert_bool(cpu_styles_changed).is_true()
 
 
+# --- 振り返り ---
+
+## 得点のある試合を最後まで進めた MatchController。config が null なら同梱の設定（ScreenTestHelper と同じ作り方）
+func _finished_match_with_a_goal(config: ConfigRepository = null) -> MatchController:
+	var seed_value: int = ScreenTestHelper.seed_reaching(ScreenTestHelper.Stop.STYLE_CHANGE)
+	assert_int(seed_value).override_failure_message("得点の起きるシードが無い").is_not_equal(-1)
+	var used: ConfigRepository = ConfigRepository.new() if config == null else config
+	var rng: RandomNumberGenerator = _rng(seed_value)
+	var controller := MatchController.new(_catalog, used, rng, CpuOpponent.new(_catalog, used.cpu(), rng),
+			_record_request, true)
+	controller.start_match(ScreenTestHelper.user_setup())
+	assert_bool(ScreenTestHelper.advance_until(controller, ScreenTestHelper.Stop.OVER)).is_true()
+	return controller
+
+
+## 集計（キー → [勝ち, 負け, 膠着]）の数の合計
+func _tally_total(tallies: Dictionary) -> int:
+	var total: int = 0
+	for counts: Array in tallies.values():
+		for count: int in counts:
+			total += count
+	return total
+
+
+func test_review_before_the_match_starts_reports_an_error_and_returns_null() -> void:
+	var controller: MatchController = _controller(1)
+	await assert_error(func() -> void: controller.review()) \
+			.is_push_error("MatchController: 試合が始まる前に review は呼べない")
+	assert_object(controller.review()).is_null()
+
+
+func test_review_matches_the_turn_records_seen_from_the_user() -> void:
+	var controller: MatchController = _finished_match_with_a_goal()
+	var records: Array[TurnRecord] = controller.state().turn_records
+	var expected: ReviewSummary = ReviewAggregator.aggregate(records, HOME,
+			ConfigRepository.new().presentation().review_lookback_turns)
+	var view: ReviewView = controller.review()
+	assert_int(view.turn_count).is_equal(records.size())
+	assert_int(view.turns_per_half).is_equal(ConfigRepository.new().match_rules().turns_per_half)
+	assert_dict(view.area_tallies).is_equal(expected.area_tallies)
+	assert_dict(view.phase_tallies).is_equal(expected.phase_tallies)
+	# 集計の実装に頼らない確認: 判定のあったターン（判定なし以外）は、ちょうど1つのエリアと1つの局面に1回ずつ数えられる
+	var judged: int = 0
+	for record: TurnRecord in records:
+		if record.outcome != GameEnums.TurnOutcome.NO_CONTEST:
+			judged += 1
+	assert_int(_tally_total(view.area_tallies)).is_equal(judged)
+	assert_int(_tally_total(view.phase_tallies)).is_equal(judged)
+	assert_int(view.goals.size()).is_equal(expected.goals.size())
+	assert_int(view.goals.size()).is_greater(0)
+	for index: int in range(expected.goals.size()):
+		var goal: ReviewGoal = expected.goals[index]
+		var shown: Dictionary = view.goals[index]
+		assert_bool(shown["is_user"] as bool).is_equal(goal.scorer == HOME)
+		assert_array([shown["half"], shown["turn_number"], shown["score_user"], shown["score_opponent"]]) \
+				.is_equal([goal.half, goal.turn_number, goal.home_score, goal.away_score])
+		var seqs: Array[int] = goal.lead_up_seqs.duplicate()
+		seqs.append(goal.seq)
+		var turns: Array = shown["turns"]
+		assert_int(turns.size()).is_equal(seqs.size())
+		for turn_index: int in range(seqs.size()):
+			var reveal: RevealView = turns[turn_index] as RevealView
+			var want: RevealView = ViewConverter.reveal(records[seqs[turn_index] - 1], _catalog)
+			assert_array([reveal.half, reveal.turn_number, reveal.outcome, reveal.compare_area, reveal.ball_after,
+					reveal.user_role]).is_equal([want.half, want.turn_number, want.outcome, want.compare_area,
+					want.ball_after, want.user_role])
+		assert_int((turns.back() as RevealView).outcome).is_equal(GameEnums.TurnOutcome.GOAL)
+	assert_int(view.segments.size()).is_equal(expected.segments.size())
+	var first: Dictionary = view.segments[0]
+	assert_str((first["user_setup"] as TeamSetup).formation_id).is_equal(ScreenTestHelper.user_setup().formation_id)
+	assert_str((first["opponent_setup"] as TeamSetup).formation_id) \
+			.is_equal(expected.segments[0].away_setup.formation_id)
+
+
+func test_review_looks_back_as_many_turns_as_the_presentation_settings_say() -> void:
+	var bundled := ConfigRepository.new()
+	var dir: String = create_temp_dir("match_controller/review_lookback_0")
+	ResourceSaver.save(bundled.match_rules(), dir.path_join("match_rule_config.tres"))
+	ResourceSaver.save(bundled.cpu(), dir.path_join("cpu_config.tres"))
+	var presentation := PresentationConfig.new()
+	presentation.review_lookback_turns = 0
+	ResourceSaver.save(presentation, dir.path_join("presentation_config.tres"))
+	var view: ReviewView = _finished_match_with_a_goal(ConfigRepository.new(dir)).review()
+	assert_int(view.goals.size()).is_greater(0)
+	for goal: Dictionary in view.goals:
+		assert_int((goal["turns"] as Array).size()).is_equal(1)
+
+
+func test_reveal_carries_the_half_and_the_turn_of_the_record() -> void:
+	var controller: MatchController = _controller(1)
+	controller.start_match(_user_setup())
+	controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
+	assert_array([controller.last_reveal().half, controller.last_reveal().turn_number]).is_equal([1, 1])
+
+
 # --- 結果の画面から出る ---
 
 func test_leave_result_before_the_end_is_rejected() -> void:

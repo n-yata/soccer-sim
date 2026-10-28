@@ -102,6 +102,8 @@ static func reveal(record: TurnRecord, catalog: ContentCatalog) -> RevealView:
 	var is_user_attacker: bool = attacker == GameEnums.TeamSide.HOME
 	view.user_role = role_of(record)
 	view.turn_kind = record.turn_kind
+	view.half = record.half
+	view.turn_number = record.turn_number
 	view.user_choice = choice_to_user(record.home_choice, attacker)
 	view.opponent_choice = choice_to_user(record.away_choice, attacker)
 	view.outcome = record.outcome
@@ -121,6 +123,31 @@ static func reveal(record: TurnRecord, catalog: ContentCatalog) -> RevealView:
 	view.user_players_at_judgement = _players(_layout_of(record.pair_at_judgement, GameEnums.TeamSide.HOME), GameEnums.TeamSide.HOME, home_numbers)
 	view.opponent_players_at_judgement = _players(_layout_of(record.pair_at_judgement, GameEnums.TeamSide.AWAY), GameEnums.TeamSide.AWAY, away_numbers)
 	view.movements = movements_to_user(record.movements)
+	return view
+
+
+## 試合のターン記録を利用者（HOME）から集計し、得失点の流れの各ターンを開示の値にする（アルゴリズム10）。
+## 集計は利用者を viewer にして行うので、エリア・局面はすでに利用者の視点。
+static func review(records: Array[TurnRecord], catalog: ContentCatalog, lookback_turns: int) -> ReviewView:
+	var summary: ReviewSummary = ReviewAggregator.aggregate(records, GameEnums.TeamSide.HOME, lookback_turns)
+	var by_seq: Dictionary = {}
+	for record: TurnRecord in records:
+		by_seq[record.seq] = record
+	var view := ReviewView.new()
+	view.area_tallies = summary.area_tallies.duplicate(true)
+	view.phase_tallies = summary.phase_tallies.duplicate(true)
+	view.turn_count = summary.turn_count
+	for goal: ReviewGoal in summary.goals:
+		var turns: Array[RevealView] = []
+		for seq: int in goal.lead_up_seqs:
+			turns.append(reveal(by_seq[seq] as TurnRecord, catalog))
+		turns.append(reveal(by_seq[goal.seq] as TurnRecord, catalog))
+		view.goals.append({"is_user": goal.scorer == GameEnums.TeamSide.HOME, "half": goal.half,
+				"turn_number": goal.turn_number, "score_user": goal.home_score, "score_opponent": goal.away_score,
+				"turns": turns})
+	for segment: ReviewSegment in summary.segments:
+		view.segments.append({"half": segment.half, "from_turn": segment.from_turn, "to_turn": segment.to_turn,
+				"user_setup": segment.home_setup, "opponent_setup": segment.away_setup})
 	return view
 
 

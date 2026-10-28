@@ -12,6 +12,7 @@ const SCREEN_SCENES: Dictionary = {
 	AppScreens.Id.S04_STYLE_CHANGE: "res://ui/screens/s04_style_change/style_change_screen.tscn",
 	AppScreens.Id.S05_HALFTIME: "res://ui/screens/s05_halftime/halftime_screen.tscn",
 	AppScreens.Id.S06_RESULT: "res://ui/screens/s06_result/result_screen.tscn",
+	AppScreens.Id.S07_REVIEW: "res://ui/screens/s07_review/review_screen.tscn",
 }
 
 @onready var _screen_root: MarginContainer = $ScreenRoot
