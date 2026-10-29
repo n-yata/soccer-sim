@@ -679,9 +679,12 @@ func save_settings(settings: UserSettings) -> bool
 func mark_tutorial_completed() -> bool
 ```
 
-> 2026-10-29 時点で作ったのは戦績（`records()`・`append_record()`・`totals()`）だけ。`UserDataService.new(record_store: RecordStore)` で作り、
+> 2026-10-29 時点で作ったのは戦績（`records()`・`append_record()`・`totals()`）と設定（`settings()`・`save_settings()`・
+> `mark_tutorial_completed()`）。`UserDataService.new(record_store: RecordStore, settings_store: SettingsStore)` で作り、
 > `App.user_data` に置く。失敗は `signal storage_failed(kind)` で知らせ、`App` が `storage_error` へ中継する。`records()` は写しを返し、
-> 終了日時の新しい順（同じ日時は後に記録したものが先）。回答結果・設定は、それぞれの作業で足す。
+> 終了日時の新しい順（同じ日時は後に記録したものが先）。`settings()` も写しを返す（画面が書き換えても、保存するまで持っている値は
+> 変わらない）。`save_settings()` は失敗しても持っている値を更新する（画面上の値を保つ）。保存の失敗の通知は、データごとに
+> 失敗が続く間は最初の1回だけ。回答結果は、その作業で足す。
 
 `bool` を返すメソッドは、保存に失敗したら `false` を返し、`App.storage_error` を出す（通知を出すのは
 `UserDataService` だけ。`append_record` を呼んだ `MatchController` は、`false` を受けても通知を重ねて出さない）。読み込みに失敗した
@@ -907,6 +910,16 @@ ISO 8601（タイムゾーンなし）で書く。
 > 保存の置き場所は `App.save_dir`（既定 `user://`。テストは一時ディレクトリを渡す）。
 > `SaveMigrator` は、形式の版が 1 だけで変換する対象が無いので、まだ作っていない（形式を変える作業で作る）。
 >
+> **2026-10-29 時点の実装の形（設定）**: `SettingsStore` は `_init(dir = "user://")`。`load()`・`load_state()`・`save()`。
+> ConfigFile の文字列（`encode_to_text`）を `SaveFileIO.write` で書く。**読み込みは `ConfigFile.parse` を使わない**
+> （値の `Object(...)`・`Resource(...)` からオブジェクトを作り、リソースを読み込むため。利用者が書き換えられるファイルでそれを起こさない）。
+> `SettingsStore.parse` が「[節]」「キー=値」「;・# の注釈」「空行」だけを受け付け、値は整数・小数・true・false。単純な文字列と英字だけの語は
+> 型違いとしてキーごとに初期値、組み立てる書き方（`Vector2(...)` など）を含むファイルは破損。`.bak` を使うかの判断は「この書式で読めて、
+> `format_version` が 1 以上の整数」（書式で読めなくても、`format_version=<整数>` の行が今の版より新しければ新しい版として扱い、書き込まない）。本体が壊れていて `.bak` が読めるときは、壊れた本体を退避してから `.bak` を使う（戦績と同じ）。
+> キーの外れ（音量が有限の 0.0〜1.0 の数でない、真偽値が bool でない、無い）はそのキーだけ初期値。
+> 退避（`<名前>.corrupt-<日時>`。同じ秒なら連番）は `SaveFileIO.move_aside` にまとめ、戦績と共用する。
+> 音量のバス `BGM`・`SE` は `game/default_bus_layout.tres`。ライセンスの本文（`OFL.txt`）は書き出しの `include_filter` に入れる。
+>
 > **2026-10-29 時点の実装の形（戦績）**: `RecordStore` は `_init(rules, dir = "user://")`。`append` のたびにファイルを読み直す
 > （直前に解析した・書いた文字列と結果だけを覚え、同じ中身は解析し直さない）。本体が壊れていて `.bak` が読めるときは、壊れた本体を
 > 退避してから `.bak` を使う（退避しないと、次の書き込みで本体が `.bak` へ回されて消えるため）。
@@ -1039,6 +1052,9 @@ func route_back() -> bool
 | `FormationCard` | 陣形のカード（陣形名・`MiniPitch`・選択中の印） |
 | `MatchMenu` | 試合中の画面のメニュー（設定・中断してタイトルへ） |
 | `SettingsPanel` | 設定の中身（設定画面と、試合中のメニューから重ねて開く設定で共用） |
+| `SettingsOverlay` | 試合中のメニューから重ねて開く設定（`SettingsPanel` と閉じる。2026-10-29） |
+| `LicenseView` | 同梱した素材のライセンスの表示（設定の「ライセンス」。2026-10-29） |
+| `AudioBuses` | 設定の音量をオーディオバス `BGM`・`SE` へ反映する（ノードを持たない。2026-10-29） |
 | `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
 | `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
 | `MatchTexts` | 試合の画面の文言（エリア名「中盤（敵陣）・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |

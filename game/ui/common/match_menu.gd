@@ -2,11 +2,12 @@
 ## 「設定」「中断してタイトルへ」「閉じる」。直前の保存に失敗していたら、中断の前に警告つきの確認を出す
 ## （その場合、続きから再開できないことがあるため）。保存に成功していれば確認なしで suspend_requested を出す
 ## （中断は試合を消さず、タイトルから再開できるため）。
-## 「設定」は設定の保存（UserDataService）を作る作業まで「準備中」で押せない。
+## 「設定」は settings_requested を出す（重ねて開く設定は MatchMenuHost が持つ）。メニューは開いたまま、その上に重ねる。
 class_name MatchMenu
 extends ModalOverlay
 
 signal suspend_requested
+signal settings_requested
 signal closed
 
 const UNSAVED_WARNING: String = "直前の途中経過を保存できていません。中断してアプリを閉じると、続きから再開できない場合があります。中断しますか？"
@@ -22,8 +23,8 @@ func _init() -> void:
 	super()
 	name = "MatchMenu"
 	MatchScreenLayout.text(body, "Title", &"SectionTitleLabel").text = "メニュー"
-	_settings_button = ModalOverlay.make_button("SettingsButton", "設定（準備中）")
-	_settings_button.disabled = true
+	_settings_button = ModalOverlay.make_button("SettingsButton", "設定")
+	_settings_button.pressed.connect(func() -> void: settings_requested.emit())
 	_suspend_button = ModalOverlay.make_button("SuspendButton", "中断してタイトルへ")
 	_close_button = ModalOverlay.make_button("CloseButton", "閉じる", &"AccentCard")
 	for button: Button in [_settings_button, _suspend_button, _close_button]:

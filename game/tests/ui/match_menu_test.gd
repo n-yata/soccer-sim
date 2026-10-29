@@ -5,15 +5,25 @@ extends GdUnitTestSuite
 var _original_controller: MatchController
 var _requested: Array[int] = []
 var _test_count: int = 0
+## App.user_data の元のサービス（試合画面は設定を読むので、テストの間は一時ディレクトリへ保存するものに差し替える）
+var _original_user_data: UserDataService
+var _user_data_count: int = 0
+## 設定のテストはバスの音量を変えるので、前に控えて後で戻す
+var _saved_buses: Array = []
 
 
 func before_test() -> void:
+	_user_data_count += 1
+	_saved_buses = ScreenTestHelper.save_buses()
+	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("match_menu/user_%d" % _user_data_count))
 	_original_controller = App.match_controller
 	_requested.clear()
 	App.screen_requested.connect(_on_screen_requested)
 
 
 func after_test() -> void:
+	App.user_data = _original_user_data
+	ScreenTestHelper.restore_buses(_saved_buses)
 	App.match_controller = _original_controller
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
@@ -129,11 +139,10 @@ func test_suspend_with_unsaved_progress_warns_first() -> void:
 	assert_bool(menu.is_open()).is_false()
 
 
-func test_back_closes_the_topmost_layer_and_settings_is_not_ready_yet() -> void:
+func test_back_closes_the_topmost_layer() -> void:
 	var menu: MatchMenu = _menu()
 	var closed: Array[bool] = []
 	menu.closed.connect(func() -> void: closed.append(true))
-	assert_bool(menu.settings_button().disabled).is_true()
 	menu.open(true)
 	menu.suspend_button().pressed.emit()
 	assert_bool(menu.handle_back()).is_true()
@@ -163,6 +172,111 @@ func test_match_screen_menu_opens_from_the_button_and_back_and_suspends_to_the_t
 	host.menu().suspend_button().pressed.emit()
 	assert_array(_requested).is_equal([AppScreens.Id.S01_TITLE] as Array[int])
 	assert_int(App.match_controller.suspended_status()).is_equal(AppScreens.SuspendedStatus.RESUMABLE)
+
+
+## メニューの「設定」で設定を重ね、戻る操作はライセンス → 設定 → メニューの順に閉じる。値は App.user_data に保存される
+func test_settings_from_the_menu_stack_on_top_and_back_closes_them_in_order() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var host: MatchMenuHost = screen.menu_host()
+	host.menu_button().pressed.emit()
+	assert_bool(host.menu().settings_button().disabled).is_false()
+	host.menu().settings_button().pressed.emit()
+	var overlay: SettingsOverlay = host.settings_overlay()
+	assert_bool(overlay.is_open()).is_true()
+	assert_bool(host.menu().is_open()).is_true()
+	# 設定はメニューより上に描く（後の子）
+	assert_int(overlay.get_index()).is_greater(host.menu().get_index())
+	overlay.panel().se_slider().value = 40.0
+	assert_float(App.user_data.settings().se_volume).is_equal_approx(0.4, 0.0001)
+	overlay.panel().license_button().pressed.emit()
+	assert_bool(overlay.license_view().is_open()).is_true()
+	assert_bool(screen.handle_back()).is_true()
+	assert_bool(overlay.license_view().is_open()).is_false()
+	assert_bool(overlay.is_open()).is_true()
+	assert_bool(screen.handle_back()).is_true()
+	assert_bool(overlay.is_open()).is_false()
+	assert_bool(host.menu().is_open()).is_true()
+	assert_bool(screen.handle_back()).is_true()
+	assert_bool(host.menu().is_open()).is_false()
+	assert_array(_requested).is_empty()
+
+
+## ヒントの札が出ているエリアの数（選べるエリアのうち、札の文があるもの）
+func _hint_tag_count(panel: MatchBoardPanel) -> int:
+	var count: int = 0
+	for area_key: String in panel.board().selectable_areas():
+		if not panel.board().hint_of(area_key).is_empty():
+			count += 1
+	return count
+
+
+## ヒント表示を切り替えると、選んだ手のまま札が消える／出る（screen-03-match.md「メニュー」の 2.）
+func test_turning_hints_off_in_the_match_redraws_without_hint_tags() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var panel: MatchBoardPanel = screen.board_panel()
+	var choice: TurnChoice = _choice_with_target(App.match_controller.user_options())
+	panel.choice_panel().button_for(choice.action).pressed.emit()
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_TARGET)
+	assert_int(_hint_tag_count(panel)).is_greater(0)
+	var host: MatchMenuHost = screen.menu_host()
+	host.menu_button().pressed.emit()
+	host.menu().settings_button().pressed.emit()
+	host.settings_overlay().panel().hint_toggle().button_pressed = false
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_TARGET)
+	assert_int(_hint_tag_count(panel)).is_equal(0)
+	assert_bool(App.user_data.settings().show_hints).is_false()
+	host.settings_overlay().panel().hint_toggle().button_pressed = true
+	assert_int(_hint_tag_count(panel)).is_greater(0)
+
+
+## 運ぶ先まで選んだ後（READY）に切り替えても、選んだ手と運ぶ先はそのまま（screen-03-match.md「メニュー」の 2.「選択は保つ」）。
+## 閉じると、メニューにキー操作のフォーカスが戻る
+func test_turning_hints_off_after_choosing_a_target_keeps_the_choice() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var panel: MatchBoardPanel = screen.board_panel()
+	var choice: TurnChoice = _choice_with_target(App.match_controller.user_options())
+	panel.choice_panel().button_for(choice.action).pressed.emit()
+	var target: String = panel.board().selectable_areas()[0]
+	panel.board().area_pressed.emit(target)
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.READY)
+	var summary: String = panel.primary_summary()
+	var host: MatchMenuHost = screen.menu_host()
+	host.menu_button().pressed.emit()
+	host.menu().settings_button().pressed.emit()
+	host.settings_overlay().panel().hint_toggle().button_pressed = false
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.READY)
+	assert_str(panel.primary_summary()).is_equal(summary)
+	assert_int(_hint_tag_count(panel)).is_equal(0)
+	host.settings_overlay().close_button().pressed.emit()
+	assert_bool(host.menu().is_ancestor_of(get_viewport().gui_get_focus_owner())).is_true()
+
+
+## 設定でヒント表示が OFF なら、試合画面は最初からヒントの札を出さない
+func test_with_hints_off_the_match_screen_shows_no_hint_tags() -> void:
+	var settings: UserSettings = App.user_data.settings()
+	settings.show_hints = false
+	App.user_data.save_settings(settings)
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var panel: MatchBoardPanel = screen.board_panel()
+	panel.choice_panel().button_for(_choice_with_target(App.match_controller.user_options()).action).pressed.emit()
+	assert_int(panel.board().selectable_areas().size()).is_greater(0)
+	assert_int(_hint_tag_count(panel)).is_equal(0)
+
+
+## 運ぶ先を持つ手のうち、選べる最初の手
+func _choice_with_target(options: MoveOptions) -> TurnChoice:
+	var action_counts: Array[int] = [GameEnums.PlayType.size(), GameEnums.DefenseAction.size(),
+			GameEnums.NegTransAction.size(), GameEnums.PosTransAction.size()]
+	for family: int in range(action_counts.size()):
+		for action: int in range(action_counts[family]):
+			var family_value: GameEnums.ChoiceFamily = family as GameEnums.ChoiceFamily
+			if options.is_available(family_value, action) and MoveOptions.needs_target(family_value, action):
+				return TurnChoice.new(family_value, action, options.targets(family_value, action)[0])
+	return null
 
 
 func test_match_screen_menu_does_not_open_while_the_move_is_being_submitted() -> void:

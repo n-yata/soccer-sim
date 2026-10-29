@@ -23,7 +23,7 @@ func _on_failed(kind: AppScreens.StorageErrorKind) -> void:
 
 
 func _service(case_name: String) -> UserDataService:
-	var service := UserDataService.new(RecordStore.new(_rules, _dir(case_name)))
+	var service := UserDataService.new(RecordStore.new(_rules, _dir(case_name)), SettingsStore.new(_dir(case_name)))
 	service.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: _failures.append(kind))
 	return service
 
@@ -121,7 +121,7 @@ func test_repeated_save_failures_are_reported_once_until_a_save_works() -> void:
 	var file: FileAccess = FileAccess.open(blocked, FileAccess.WRITE)
 	file.store_string("x")
 	file.close()
-	var service := UserDataService.new(RecordStore.new(_rules, blocked))
+	var service := UserDataService.new(RecordStore.new(_rules, blocked), SettingsStore.new(blocked))
 	service.storage_failed.connect(_on_failed)
 	service.append_record(_record(1, "2026-10-29T10:00:00", 1, 0))
 	service.append_record(_record(1, "2026-10-29T10:00:00", 1, 0))
@@ -158,8 +158,75 @@ func test_a_failed_save_is_reported_and_not_kept() -> void:
 	var file: FileAccess = FileAccess.open(blocked, FileAccess.WRITE)
 	file.store_string("x")
 	file.close()
-	var service := UserDataService.new(RecordStore.new(_rules, blocked))
+	var service := UserDataService.new(RecordStore.new(_rules, blocked), SettingsStore.new(blocked))
 	service.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: _failures.append(kind))
 	assert_bool(service.append_record(_record(1, "2026-10-29T10:00:00", 1, 0))).is_false()
 	assert_array(_failures).is_equal([AppScreens.StorageErrorKind.USER_DATA_SAVE])
 	assert_array(service.records()).is_empty()
+
+
+# --- 設定 ---
+
+func _put_settings(case_name: String, text: String) -> void:
+	var file: FileAccess = FileAccess.open(_dir(case_name).path_join(SettingsStore.FILE_NAME), FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
+
+
+func test_settings_start_at_the_defaults_and_are_kept_after_saving() -> void:
+	var service: UserDataService = _service("settings")
+	var settings: UserSettings = service.settings()
+	assert_array([settings.bgm_volume, settings.se_volume, settings.show_hints]).is_equal([0.7, 0.7, true])
+	settings.bgm_volume = 0.3
+	settings.show_hints = false
+	assert_bool(service.save_settings(settings)).is_true()
+	var reread: UserSettings = _service("settings").settings()
+	assert_array([reread.bgm_volume, reread.show_hints]).is_equal([0.3, false])
+	assert_array(_failures).is_empty()
+
+
+## 受け取った写しを書き換えても、保存するまで持っている値は変わらない
+func test_settings_returns_a_copy() -> void:
+	var service: UserDataService = _service("settings_copy")
+	service.settings().show_hints = false
+	assert_bool(service.settings().show_hints).is_true()
+
+
+func test_a_failed_settings_save_keeps_the_new_values_and_reports_once() -> void:
+	var blocked: String = _dir("settings_blocked").path_join("records")
+	var file: FileAccess = FileAccess.open(blocked, FileAccess.WRITE)
+	file.store_string("x")
+	file.close()
+	var service := UserDataService.new(RecordStore.new(_rules, blocked), SettingsStore.new(blocked))
+	service.storage_failed.connect(_on_failed)
+	var settings: UserSettings = service.settings()
+	settings.se_volume = 0.0
+	assert_bool(service.save_settings(settings)).is_false()
+	assert_bool(service.save_settings(settings)).is_false()
+	assert_float(service.settings().se_volume).is_equal(0.0)
+	assert_array(_failures).is_equal([AppScreens.StorageErrorKind.USER_DATA_SAVE])
+
+
+func test_broken_settings_are_reported_once_and_read_as_the_defaults() -> void:
+	_put_settings("settings_broken", "[audio]\nbgm_volume=0.1\n")
+	var service: UserDataService = _service("settings_broken")
+	assert_float(service.settings().bgm_volume).is_equal(UserSettings.DEFAULT_VOLUME)
+	service.settings()
+	assert_array(_failures).is_equal([AppScreens.StorageErrorKind.USER_DATA_LOAD])
+
+
+func test_newer_settings_are_reported_once_and_never_saved() -> void:
+	_put_settings("settings_newer", "[meta]\nformat_version=2\n")
+	var service: UserDataService = _service("settings_newer")
+	assert_bool(service.save_settings(service.settings())).is_false()
+	assert_array(_failures).is_equal([AppScreens.StorageErrorKind.USER_DATA_NEWER])
+
+
+func test_mark_tutorial_completed_saves_only_that_flag() -> void:
+	var service: UserDataService = _service("tutorial")
+	var settings: UserSettings = service.settings()
+	settings.bgm_volume = 0.4
+	service.save_settings(settings)
+	assert_bool(service.mark_tutorial_completed()).is_true()
+	var reread: UserSettings = _service("tutorial").settings()
+	assert_array([reread.tutorial_completed, reread.bgm_volume]).is_equal([true, 0.4])

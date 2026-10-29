@@ -14,6 +14,7 @@ const SCREEN_SCENES: Dictionary = {
 	AppScreens.Id.S06_RESULT: "res://ui/screens/s06_result/result_screen.tscn",
 	AppScreens.Id.S07_REVIEW: "res://ui/screens/s07_review/review_screen.tscn",
 	AppScreens.Id.S11_RECORDS: "res://ui/screens/s11_records/records_screen.tscn",
+	AppScreens.Id.S12_SETTINGS: "res://ui/screens/s12_settings/settings_screen.tscn",
 }
 
 @onready var _screen_root: MarginContainer = $ScreenRoot
@@ -50,8 +51,9 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_apply_safe_area)
 	_apply_safe_area()
 	# 起動時の後始末（UC-05）。中断データが壊れていれば、ここで出た通知をタイトルを開いた後に出す。
-	# 設定の読み込み（UserDataService.settings()）は、設定の作業で足す
+	# 設定を読んで音量をバスへ反映する。読み込みの失敗の通知も、タイトルを開いた後に出す
 	App.match_controller.inspect_suspended()
+	AudioBuses.apply(App.user_data.settings())
 	App.request_screen(AppScreens.Id.S01_TITLE)
 
 

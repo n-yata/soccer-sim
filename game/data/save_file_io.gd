@@ -7,6 +7,10 @@ const TMP_SUFFIX: String = ".tmp"
 const BAK_SUFFIX: String = ".bak"
 ## 読み込む大きさの上限（component-design.md §4.3「読み込み時の検証」の 5MB。改変されたファイルを全量読み込まない）
 const MAX_READ_BYTES: int = 5 * 1024 * 1024
+## 壊れたファイルの退避先の名前 <名前>.corrupt-<YYYYMMDD-HHMMSS>（component-design.md §4.3「破損・新しい版のときに元のファイルを失わない」）
+const CORRUPT_INFIX: String = ".corrupt-"
+## 退避先の名前が既にあるとき（同じ秒に2回退避した）に試す、連番の数
+const MAX_MOVE_ASIDE_SUFFIX: int = 9
 
 
 ## 1. .tmp に全体を書いて閉じる → 2. 本体があれば .bak へ → 3. .tmp を本体へ → 4. .bak を消す。どこかで失敗したら false。
@@ -60,6 +64,20 @@ static func delete(path: String) -> bool:
 		if FileAccess.file_exists(candidate) and DirAccess.remove_absolute(candidate) != OK:
 			is_ok = false
 	return is_ok
+
+
+## 壊れたファイル source を、path（本体のパス）の退避先 <path>.corrupt-<端末のローカル時刻> へ名前を変えて残す
+## （自動では消さない）。名前が既にあれば「-1」〜の連番を付ける。どれも使えない・名前を変えられなければ false。
+static func move_aside(source: String, path: String) -> bool:
+	var now: Dictionary = Time.get_datetime_dict_from_system()
+	var target: String = path + CORRUPT_INFIX + "%04d%02d%02d-%02d%02d%02d" % [now["year"], now["month"], now["day"],
+			now["hour"], now["minute"], now["second"]]
+	for suffix: int in range(MAX_MOVE_ASIDE_SUFFIX + 1):
+		var candidate: String = target if suffix == 0 else "%s-%d" % [target, suffix]
+		if FileAccess.file_exists(candidate) or DirAccess.dir_exists_absolute(candidate):
+			continue
+		return DirAccess.rename_absolute(source, candidate) == OK
+	return false
 
 
 ## 1つのファイルを、上限を超えない大きさなら読む（無い・読めない・大きすぎるなら空文字）。.bak への切り替えはしない。

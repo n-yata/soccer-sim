@@ -68,9 +68,20 @@ func focus_first() -> void:
 			return
 
 
+## 重ねた部品の上にさらに重ねたとき（メニューの上の設定など）は、上の部品の中へ移ったフォーカスを取り返さない
+## （取り返すと、上の部品を操作できない）。
 func _on_focus_changed(control: Control) -> void:
-	if visible and control != null and not is_ancestor_of(control):
+	if visible and control != null and not is_ancestor_of(control) and not _is_in_other_open_overlay(control):
 		focus_first()
+
+
+func _is_in_other_open_overlay(control: Control) -> bool:
+	var node: Node = control.get_parent()
+	while node != null:
+		if node is ModalOverlay and node != self and (node as ModalOverlay).is_open():
+			return true
+		node = node.get_parent()
+	return false
 
 
 func _hide_overlay() -> void:

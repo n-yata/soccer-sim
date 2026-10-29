@@ -192,7 +192,7 @@ MatchScreen (Control)
    `SHOW_RESULT`（`is_match_over()` が真。最終ターンの判定理由）は押せない。中断で結果画面と終了処理を飛ばさないため。2026-10-29）と、
    `MatchMenu.open(match_controller.has_unsaved_progress())`
 2. 「設定」: `SettingsOverlay` を出し、`SettingsPanel.show_settings(App.user_data.settings())`。音量は `SettingsPanel` がその場で反映する。`committed` を受けたら
-   `App.user_data.save_settings()`。ヒント表示を変えた場合は `BoardPanel.refresh_hints()` を呼ぶ（`SELECT_*`・`READY` なら、パネルが「ターンを始める」の 2. を
+   `App.user_data.save_settings()`。ヒント表示を変えた場合は `BoardPanel.set_show_hints(値)` を呼ぶ（画面を開いたときも同じ関数で設定の値を渡す）（`SELECT_*`・`READY` なら、パネルが「ターンを始める」の 2. を
    やり直して、選んだ手のヒントを描き直す。選択は保つ）
 3. 「中断してタイトルへ」: `MatchMenu` が警告を添えた確認を出し（`has_unsaved_progress()` が真のとき）、了承されたら
    `suspend_requested` → `match_controller.suspend_to_title()`。戻り値が `false` でも画面はタイトルへ進む（通知は

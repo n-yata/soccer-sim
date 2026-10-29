@@ -33,6 +33,8 @@ var _state: State = State.IDLE
 var _snapshot: BoardSnapshot
 var _options: MoveOptions
 var _hints: Array[ChoiceHint] = []
+## ヒント表示（設定。FR-19）。OFF の間は user_hints() を呼ばず、ヒントを空にする
+var _show_hints: bool = true
 var _selected_family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
 var _selected_action: int = -1
 var _selected_target: String = ""
@@ -81,7 +83,7 @@ func start_turn() -> void:
 		return
 	_snapshot = _controller.snapshot()
 	_options = _controller.user_options()
-	_hints = _controller.user_hints()
+	_hints = _current_hints()
 	_selected_action = -1
 	_selected_target = ""
 	_reveal = null
@@ -105,6 +107,23 @@ func start_turn() -> void:
 
 func state() -> State:
 	return _state
+
+
+## ヒント表示を切り替える（試合中のメニューの設定から）。手を選んでいる間なら、選んだ手と運ぶ先のまま描き直す
+## （screen-03-match.md「メニュー」の 2.）。
+func set_show_hints(is_on: bool) -> void:
+	if is_on == _show_hints:
+		return
+	_show_hints = is_on
+	if _state not in [State.SELECT_ACTION, State.SELECT_TARGET, State.READY]:
+		return
+	_hints = _current_hints()
+	if _state == State.SELECT_ACTION:
+		return
+	var target: String = _selected_target
+	_on_action_selected(_selected_family, _selected_action)
+	if not target.is_empty():
+		_on_area_pressed(target)
 
 
 # --- 部品（画面とテストが使う） ---
@@ -267,6 +286,13 @@ func _submit() -> void:
 func _current_choice() -> TurnChoice:
 	var target: PitchArea = null if _selected_target.is_empty() else PitchArea.from_key(_selected_target)
 	return TurnChoice.new(_selected_family, _selected_action, target)
+
+
+## ヒント表示が ON なら利用者のヒント、OFF なら空（user_hints() を呼ばない）。
+func _current_hints() -> Array[ChoiceHint]:
+	if _show_hints:
+		return _controller.user_hints()
+	return []
 
 
 func _hints_for(family: GameEnums.ChoiceFamily, action: int) -> Array[ChoiceHint]:

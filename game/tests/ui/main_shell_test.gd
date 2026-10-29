@@ -11,10 +11,13 @@ var _test_count: int = 0
 ## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
 var _original_user_data: UserDataService
 var _user_data_count: int = 0
+## MainShell は起動時に設定の音量をバスへ反映するので、前に控えて後で戻す
+var _saved_buses: Array = []
 
 
 func before_test() -> void:
 	_user_data_count += 1
+	_saved_buses = ScreenTestHelper.save_buses()
 	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("main_shell/records_%d" % _user_data_count))
 	_original_controller = App.match_controller
 	_test_count += 1
@@ -24,6 +27,7 @@ func before_test() -> void:
 
 func after_test() -> void:
 	App.user_data = _original_user_data
+	ScreenTestHelper.restore_buses(_saved_buses)
 	App.match_controller = _original_controller
 
 

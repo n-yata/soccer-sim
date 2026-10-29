@@ -169,7 +169,8 @@ func _leave_an_unrecorded_match() -> String:
 	var file: FileAccess = FileAccess.open(records_dir, FileAccess.WRITE)
 	file.store_string("x")
 	file.close()
-	var user_data := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), records_dir))
+	var user_data := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), records_dir),
+			SettingsStore.new(records_dir))
 	var controller: MatchController = ScreenTestHelper.new_controller(ScreenTestHelper.seed_reaching(
 			ScreenTestHelper.Stop.OVER), App.request_screen, _store, user_data)
 	App.match_controller = controller

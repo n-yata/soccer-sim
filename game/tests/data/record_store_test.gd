@@ -36,7 +36,7 @@ func _read(path: String) -> String:
 func _moved_aside(case_name: String) -> Array[String]:
 	var moved: Array[String] = []
 	for file_name: String in DirAccess.get_files_at(_dir(case_name)):
-		if file_name.begins_with(RecordStore.FILE_NAME + RecordStore.CORRUPT_INFIX):
+		if file_name.begins_with(RecordStore.FILE_NAME + SaveFileIO.CORRUPT_INFIX):
 			moved.append(file_name)
 	return moved
 
@@ -208,10 +208,10 @@ func test_a_corrupted_file_that_cannot_be_moved_aside_is_not_overwritten() -> vo
 	var start: int = int(Time.get_unix_time_from_system())
 	for offset: int in range(10):
 		var stamp: Dictionary = Time.get_datetime_dict_from_unix_time(start + offset + _local_offset_sec())
-		var blocker: String = _path(case_name) + RecordStore.CORRUPT_INFIX + "%04d%02d%02d-%02d%02d%02d" % [stamp["year"],
+		var blocker: String = _path(case_name) + SaveFileIO.CORRUPT_INFIX + "%04d%02d%02d-%02d%02d%02d" % [stamp["year"],
 				stamp["month"], stamp["day"], stamp["hour"], stamp["minute"], stamp["second"]]
 		# 名前が既にあれば連番を付けて探すので、連番の名前もすべて塞ぐ
-		for suffix: int in range(RecordStore.MAX_QUARANTINE_SUFFIX + 1):
+		for suffix: int in range(SaveFileIO.MAX_MOVE_ASIDE_SUFFIX + 1):
 			var name_taken: String = blocker if suffix == 0 else "%s-%d" % [blocker, suffix]
 			DirAccess.make_dir_recursive_absolute(name_taken)
 			_put(name_taken.path_join("keep"), "x")

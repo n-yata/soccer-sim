@@ -12,9 +12,6 @@ extends RefCounted
 enum LoadState { OK, EMPTY, CORRUPTED, NEWER_VERSION }
 
 const FILE_NAME: String = "match_records.json"
-const CORRUPT_INFIX: String = ".corrupt-"
-## 退避先の名前が既にあるとき（同じ秒に2回退避した）に試す、連番の数
-const MAX_QUARANTINE_SUFFIX: int = 9
 ## 書き込み後のファイルの大きさの上限（読み込みの上限 SaveFileIO.MAX_READ_BYTES より小さくする）
 const MAX_WRITE_BYTES: int = 4 * 1024 * 1024
 
@@ -124,22 +121,9 @@ func _parse(text: String) -> void:
 ## 壊れたファイルを退避する。名前を変えられたら true。本体を退避したら、本体が無い間に古い .bak が使われないよう
 ## .bak も確かめ直す（読めない .bak は消す。読める .bak は残して、それを使う）。
 func _quarantine(source: String) -> bool:
-	var now: Dictionary = Time.get_datetime_dict_from_system()
-	var stamp: String = "%04d%02d%02d-%02d%02d%02d" % [now["year"], now["month"], now["day"],
-			now["hour"], now["minute"], now["second"]]
-	if not _rename_to_free_name(source, _path + CORRUPT_INFIX + stamp):
+	if not SaveFileIO.move_aside(source, _path):
 		return false
 	var bak_path: String = _path + SaveFileIO.BAK_SUFFIX
 	if source != bak_path and FileAccess.file_exists(bak_path) and not _is_usable(SaveFileIO.read_limited(bak_path)):
 		DirAccess.remove_absolute(bak_path)
 	return true
-
-
-## 退避先の名前（無ければそのまま、あれば「-1」〜の連番を付けた名前）へ変える。どれも使えなければ false。
-static func _rename_to_free_name(source: String, target: String) -> bool:
-	for suffix: int in range(MAX_QUARANTINE_SUFFIX + 1):
-		var candidate: String = target if suffix == 0 else "%s-%d" % [target, suffix]
-		if FileAccess.file_exists(candidate) or DirAccess.dir_exists_absolute(candidate):
-			continue
-		return DirAccess.rename_absolute(source, candidate) == OK
-	return false

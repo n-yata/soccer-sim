@@ -23,14 +23,30 @@ static func new_controller(seed_value: int, request: Callable, store: SuspendedM
 			user_data)
 
 
-## App.user_data を、dir に戦績を保存するサービスに差し替え、元のサービスを返す（after_test で戻す）。
-## タイトル・戦績の画面は App.user_data を読むので、開発用の PC の戦績を読み書きしないために使う。
+## App.user_data を、dir に戦績・設定を保存するサービスに差し替え、元のサービスを返す（after_test で戻す）。
+## タイトル・戦績・設定・試合の画面は App.user_data を読むので、開発用の PC の戦績・設定を読み書きしないために使う。
 static func use_user_data_in(dir: String) -> UserDataService:
 	var original: UserDataService = App.user_data
-	var service := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), dir))
+	var service := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), dir), SettingsStore.new(dir))
 	service.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: App.storage_error.emit(kind))
 	App.user_data = service
 	return original
+
+
+## オーディオバス（BGM・SE）の音量とミュートを控える。設定を変えるテストは before_test で控え、after_test で restore_buses に渡す
+## （AudioServer はテストの間で共有されるため）。
+static func save_buses() -> Array:
+	var saved: Array = []
+	for bus_name: StringName in [AudioBuses.BGM_BUS, AudioBuses.SE_BUS]:
+		var index: int = AudioServer.get_bus_index(bus_name)
+		saved.append([index, AudioServer.get_bus_volume_db(index), AudioServer.is_bus_mute(index)])
+	return saved
+
+
+static func restore_buses(saved: Array) -> void:
+	for entry: Array in saved:
+		AudioServer.set_bus_volume_db(entry[0] as int, entry[1] as float)
+		AudioServer.set_bus_mute(entry[0] as int, entry[2] as bool)
 
 
 static func user_setup() -> TeamSetup:

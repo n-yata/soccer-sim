@@ -62,7 +62,7 @@ func _unblock(records_dir: String) -> void:
 
 ## 戦績の記録先（records_dir）と、その中を読み直す別のサービス
 func _user_data(records_dir: String) -> UserDataService:
-	var service := UserDataService.new(RecordStore.new(_rules, records_dir))
+	var service := UserDataService.new(RecordStore.new(_rules, records_dir), SettingsStore.new(records_dir))
 	service.storage_failed.connect(_on_failed)
 	return service
 

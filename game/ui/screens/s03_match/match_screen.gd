@@ -37,6 +37,8 @@ func enter(_params: Dictionary) -> void:
 	_board_panel.result_shown.connect(_on_result_shown)
 	_board_panel.turn_ready_to_leave.connect(_on_turn_ready_to_leave)
 	_board_panel.bind(_controller)
+	# ヒント表示が OFF なら、パネルは user_hints() を呼ばない（screen-03-match.md「ターンを始める」）
+	_board_panel.set_show_hints(App.user_data.settings().show_hints)
 	_board_panel.start_turn()
 
 
@@ -174,7 +176,7 @@ func _build() -> void:
 	_board_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_board_panel)
 	# メニューは画面の最後の子（上に重ねる）
-	_menu_host = MatchMenuHost.new(self, top_bar, _can_open_menu)
+	_menu_host = MatchMenuHost.new(self, top_bar, _can_open_menu, _board_panel.set_show_hints)
 
 
 ## メニューを開けるのは、手を選んでいる間と判定理由を出している間（screen-03-match.md「メニュー」）。
