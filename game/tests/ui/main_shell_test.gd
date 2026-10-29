@@ -1,6 +1,32 @@
 ## MainShell のテスト。セーフエリアの余白の計算（screen-common.md §1.1）と、画面の対応の有無。
 ## 画面の入れ替えそのものは ScreenSwitcher のテスト、戻る操作でアプリを閉じることはエミュレーターと PC で確かめる。
+## MainShell は起動時に App.match_controller.inspect_suspended() を呼ぶので、テストごとに一時ディレクトリへ保存する
+## コントローラに差し替える（開発用の PC の中断データを読み書きしないため）。
 extends GdUnitTestSuite
+
+var _original_controller: MatchController
+var _save_dir: String
+## 一時ディレクトリはスイートの中ではテストごとに消えないので、テストごとに別の名前にする（前のテストの中断データを読まないため）
+var _test_count: int = 0
+
+
+func before_test() -> void:
+	_original_controller = App.match_controller
+	_test_count += 1
+	_save_dir = create_temp_dir("main_shell/save_%d" % _test_count)
+	_use_store_in(_save_dir)
+
+
+func after_test() -> void:
+	App.match_controller = _original_controller
+
+
+func _use_store_in(dir: String) -> void:
+	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
+	var store := SuspendedMatchStore.new(catalog, ConfigRepository.new().match_rules(), dir)
+	var controller: MatchController = ScreenTestHelper.new_controller(0, App.request_screen, store)
+	controller.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: App.storage_error.emit(kind))
+	App.match_controller = controller
 
 
 func _assert_margins(actual: Vector2, left: float, right: float) -> void:
@@ -89,6 +115,42 @@ func test_main_shell_keeps_screen_when_requested_screen_is_missing() -> void:
 	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S01_TITLE)
 	assert_object(shell.get_node("ScreenRoot").get_child(0)).is_same(title)
 	shell.free()
+
+
+func test_a_corrupted_suspended_match_at_startup_is_reported_after_the_title_opens() -> void:
+	var file: FileAccess = FileAccess.open(_save_dir.path_join(SuspendedMatchStore.FILE_NAME), FileAccess.WRITE)
+	file.store_string("{broken")
+	file.close()
+	var shell: MainShell = await _open_main_shell()
+	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S01_TITLE)
+	assert_str(shell.toast_message()).is_equal(ToastView.message_of(AppScreens.StorageErrorKind.SUSPEND_LOAD))
+	assert_bool(FileAccess.file_exists(_save_dir.path_join(SuspendedMatchStore.FILE_NAME))).is_false()
+	shell.free()
+
+
+func test_a_resumable_match_at_startup_shows_the_resume_card_without_a_notice() -> void:
+	var earlier: MatchController = App.match_controller
+	earlier.start_match(ScreenTestHelper.user_setup())
+	_use_store_in(_save_dir)
+	var shell: MainShell = await _open_main_shell()
+	assert_str(shell.toast_message()).is_empty()
+	var title: TitleScreen = shell.current_screen() as TitleScreen
+	assert_bool(title.resume_card().visible).is_true()
+	shell.free()
+
+
+func test_storage_errors_after_the_title_opened_are_shown_at_once() -> void:
+	var shell: MainShell = await _open_main_shell()
+	assert_str(shell.toast_message()).is_empty()
+	App.storage_error.emit(AppScreens.StorageErrorKind.SUSPEND_SAVE)
+	assert_str(shell.toast_message()).is_equal(ToastView.message_of(AppScreens.StorageErrorKind.SUSPEND_SAVE))
+	shell.free()
+
+
+func test_every_storage_error_kind_has_a_message() -> void:
+	for kind: int in AppScreens.StorageErrorKind.values():
+		assert_str(ToastView.message_of(kind as AppScreens.StorageErrorKind)).override_failure_message(str(kind)) \
+				.is_not_empty()
 
 
 func test_back_at_title_means_the_app_should_quit() -> void:

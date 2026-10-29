@@ -27,7 +27,7 @@ TitleScreen (Control)
 │   ├── ProductNameLabel (Label)           # プロダクト名（仮称）。Barlow Condensed／Noto Sans JP Bold 88px
 │   └── TaglineLabel (Label)               # 「読み合いで戦術を学ぶボードゲーム」
 └── Cards (VBoxContainer)                  # 右の列（16:9 で幅 632px）。外周の余白 24px、間隔 16px
-    ├── ResumeCard (Button)                # 再開カード。RESUMABLE のときだけ。高さ 112px。縁 accent
+    ├── ResumeCard (Button)                # 再開カード。RESUMABLE のときだけ。高さ 140px（2026-10-29 に 112px から変えた）。縁 accent
     │   ├── ResumeTag (Label)              # 「RESUME」
     │   ├── ResumeTitle (Label)            # 「中断した試合を再開」
     │   ├── ResumeSummary (Label)          # 「前半 7／15・4-3-3 対 4-4-2」
@@ -65,14 +65,14 @@ TitleScreen (Control)
 | 変数 | 型 | 内容 |
 |---|---|---|
 | `_state` | `State` | 上の状態 |
-| `_status` | `MatchController.SuspendedStatus` | `enter` で取った中断データの状態 |
+| `_status` | `AppScreens.SuspendedStatus` | `enter` で取った中断データの状態 |
 
 ## イベント処理の詳細フロー
 
 ### 画面を開く（`enter`）
 
 1. `_status = match_controller.suspended_status()`
-2. `_status == RESUMABLE` なら `ResumeCard` を出し、`snapshot()` から「前半／後半 N／M・自分の陣形 対 相手の陣形」と
+2. `_status == RESUMABLE` なら `ResumeCard` を出し、`suspended_snapshot()` から「前半／後半 N／M・自分の陣形 対 相手の陣形」と
    スコアを作る。それ以外は隠す
 3. `App.user_data.settings().tutorial_completed` でチュートリアルのカードの位置と「はじめての方へ」を決める
 4. 小さなカードの一言を作る: 理解度チェックは `quiz_progress()` の全学習目標の正答数／問題数（「3／8 正解」。0件なら
@@ -134,8 +134,11 @@ TitleScreen (Control)
   `IDLE` の戻る操作（`false`）
 - **行き先の画面が無いカード**: 押せなくして「準備中」を出す。カードの中の文字は、テーマの選択不可の文字色にそろえる。
   行き先は `MainShell.SCREEN_SCENES` の対応で決まり、画面を作って対応を足せば押せるようになる
-- **サービス（`MatchController`・`UserDataService`）を作る作業で足すもの**: 再開カード、小さなカードの一言、チュートリアルの位置の切り替え、
-  「CPU 対戦」の確認の手順（`NewMatchGate`・`ConfirmDialog`）、状態 `BUSY`・`CONFIRMING`
+- **中断・再開の作業（2026-10-29）で足したもの**: 再開カード（`suspended_snapshot()` から一言とスコア。地は通常のカード、
+  縁 `accent`（テーマの型 `ResumeCard`）。4行が入るよう高さを 112px から 140px にした）、「CPU 対戦」の確認の手順
+  （`NewMatchGate`・`ConfirmDialog`）、状態 `BUSY`・`CONFIRMING`
+- **戦績・設定（`UserDataService`）を作る作業で足すもの**: 小さなカードの一言、チュートリアルの位置の切り替え、
+  戦績を記録できていない試合（`FINALIZE_PENDING`）の確認
 - プロダクト名は仮称の「SOCCER GAME」（正式名は要件定義書 §7.1 #4）。日本語は Noto Sans JP を置くまで、端末のフォントで表示される
 
 ## 例外・エラー表示

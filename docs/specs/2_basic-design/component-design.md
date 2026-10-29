@@ -490,9 +490,10 @@ func new_tutorial_controller() -> MatchController
 ```gdscript
 class_name MatchController extends RefCounted
 
+## 次の2つは UI とアプリケーション層の両方が読むので AppScreens に置く（AppScreens.SuspendedStatus・AppScreens.StartupResult。2026-10-29）
 ## NONE: なし／RESUMABLE: 再開できる（再開カードを出す）／FINALIZE_PENDING: 終了処理（戦績の記録）が済んでいない試合が残っている
-enum SuspendedStatus { NONE, RESUMABLE, FINALIZE_PENDING }
-enum StartupResult { NONE, RESUMABLE, FINALIZED, FINALIZE_FAILED, CORRUPTED }
+# enum SuspendedStatus { NONE, RESUMABLE, FINALIZE_PENDING }
+# enum StartupResult { NONE, RESUMABLE, FINALIZED, FINALIZE_FAILED, CORRUPTED }
 
 signal state_changed(snapshot: BoardSnapshot)   # 盤面・スコア・相手の方式が変わった。ターンの途中（submit_turn の中）では出さず、continue_after_reveal()・方式の選び直し・ハーフタイムの確定の後に出す（試合画面は、これを受けて次のターンを始める）
 signal turn_resolved(reveal: RevealView, snapshot: BoardSnapshot)  # 開示（駒とボールの動きと判定理由の表示に使う）
@@ -559,15 +560,33 @@ func start_tutorial_step(step: TutorialStepDef) -> void
 >   `false` を返す（確定の二度押しで開示を飛ばさない。得点・ハーフタイムの画面を経ずに再開しない）。確認待ちの開示が
 >   無いときの `continue_after_reveal` は何もしない。
 > - `BoardSnapshot.movements` は直前のターンの動き。方式の選び直し・ハーフタイムで配置を作り直した後は空。
-> - 中断データからの再開はまだ無いので、試合の開始前に `snapshot`・`user_options`・`user_hints`・`opponent_setup` を
->   呼ぶと push_error して `null`（ヒントは空）を返す。UI は `is_match_started()` で確かめてから呼ぶ。保存の作業で、
->   上の `snapshot` の説明（中断データの状態を返す）に揃える。
+> - 試合の開始前に `snapshot`・`user_options`・`user_hints`・`opponent_setup` を呼ぶと push_error して `null`（ヒントは空）を
+>   返す。UI は `is_match_started()` で確かめてから呼ぶ。タイトルの再開カードは `snapshot()` ではなく `suspended_snapshot()`
+>   （再開できる中断データの盤面。無ければ `null`）を使う（2026-10-29。試合中の盤面と中断データの盤面を1つの関数で
+>   切り替えると、試合中なのか中断中なのかを呼び出し側が見分けられないため）。
 > - 作り方は `_init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberGenerator, opponent: OpponentPolicy,
 >   request_screen: Callable, assert_on_invalid_cpu: bool = OS.is_debug_build())`。画面の切り替えは `App.request_screen` を
 >   注入して頼む（テストで要求を記録するため）。CPU の手が選べないときに `assert` で止めるかは引数で決める（書き出し版の
 >   置き換えの経路をテストするため）。設計書の `content`・`store`・`user_data`・`is_tutorial` は、保存・戦績・チュートリアルの作業で足す
 > - `submit_style_change`・`submit_halftime` は、進行段階が違えば何もせず `false` を返す
-> - 保存・再開・起動時の後始末・終了処理・振り返り・チュートリアルは、それぞれの作業で作る
+> - 終了処理・チュートリアルは、それぞれの作業で作る
+>
+> **2026-10-29 に足した範囲（中断・再開）**: `inspect_suspended`・`suspended_status`・`suspended_snapshot`・`resume`・
+> `has_unsaved_progress`・`suspend_to_title`、保存の時点①〜④、`leave_result` での中断データの削除。
+> - 保存先は `_init` の最後の引数 `store: SuspendedMatchStore = null`（`null` なら保存しない。保存を確かめないテストと
+>   チュートリアル用）。設計の `content`・`user_data`・`is_tutorial` の引数は、戦績・チュートリアルの作業で足す
+> - 保存・読み込みの失敗は `signal storage_failed(kind)` で知らせ、`App` が `storage_error` へ中継する。通知は失敗が続く間は
+>   最初の1回だけ出し、次に保存に成功したら戻す
+> - 保存の失敗の扱いと再開カード用の写しは `SuspendKeeper`（`application/suspend_keeper.gd`）が持つ
+> - `SuspendedStatus`・`StartupResult` は、UI（タイトル・`NewMatchGate`）とアプリケーション層の両方が読むので、`MatchController` の
+>   内側ではなく `AppScreens` に置いた（`coding-gdscript.md`「enum はクラスに属させる」）。
+>   `SuspendedStatus` は `NONE`・`RESUMABLE` だけ。`StartupResult` は `NONE`・`RESUMABLE`・`DISCARDED`・`CORRUPTED`。
+>   終了処理（戦績の記録）が無い間は、`FINISHED` と、最終ターンまで終えた `IN_PROGRESS` を起動時に削除する（`DISCARDED`）。
+>   戦績の作業で、後者を終了処理のやり直し（`FINALIZED`・`FINALIZE_FAILED`・`FINALIZE_PENDING`）に替える
+> - `start_match` の保存に失敗したら、前の試合の中断データを消す（上書きできないまま残ると、新しい試合を中断したときに
+>   前の試合を再開してしまうため）
+> - `suspend_to_title` はメモリ上の試合を閉じ、保存されている中断データを読み直して再開カード用の写しにしてから、タイトルを頼む
+> - 再開した試合の `last_goal_by` は、ターン記録の最後の `GOAL` の攻撃側
 
 **保存の時点**（正本は `functional-overview.md`「確定事項」の保存の時点）は、次のメソッドの中で
 `SuspendedMatchStore.save()` を呼ぶことで実現する。チュートリアル用のインスタンスは保存しない。
@@ -866,6 +885,15 @@ ISO 8601（タイムゾーンなし）で書く。
 `.tmp` は読まずに消す（書き込みの途中で止まった可能性があるため）。削除（`delete()`）は本体・`.bak`・`.tmp` を
 すべて消す。
 
+> **2026-10-29 時点の実装の形（中断データ）**: `SaveFileIO` は `static` の `write(path, text)`・`read(path, is_valid)`
+> （`is_valid` が偽なら `.bak` を読む）・`exists`・`delete`。中断データの形は `SuspendedMatchEncoder`、読み込みと検証は
+> `SuspendedMatchDecoder`（`ContentCatalog` と `MatchRuleConfig` を受け取る。誤りは `errors()` で読める。改変された保存データは
+> 利用者の誤りではないので `push_error` しない）、項目の読み出しは `SaveDataReader`（型・必須・範囲を確かめ、外れた項目を
+> 「場所: 理由」で積む）。`SuspendedMatchStore` は `_init(catalog, rules, dir = "user://")`、`load()` は `SuspendedLoad`
+> （`status: NONE / OK / CORRUPTED`・`state`）。配置の組には `attacker_side` を書く（`data-definition.md` §2.1）。
+> 保存の置き場所は `App.save_dir`（既定 `user://`。テストは一時ディレクトリを渡す）。
+> `SaveMigrator` は、形式の版が 1 だけで変換する対象が無いので、まだ作っていない（形式を変える作業で作る）。
+
 ## 5. UI 層（`game/ui/`）
 
 **責務**: 画面の表示・入力・作戦ボード（開示の動きを含む。`architecture-overview.md`「UI 層」）。`App` の
@@ -1019,7 +1047,7 @@ func route_back() -> bool
 |---|---|
 | オートロード | `App` |
 | enum（`GameEnums` 内） | `Lane`・`Zone`・`DefenseStyle`・`AttackStyle`・`TurnKind`・`PlayType`・`DefenseAction`・`NegTransAction`・`PosTransAction`・`TurnOutcome`・`MatchStatus`・`MatchStage`・`PrincipleStatus`・`TeamSide`・`ChoiceFamily`・`CoverKind`・`MovementReason`・`MatchResult`・`Phase`・`JudgeTally` |
-| enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`MatchController.SuspendedStatus`・`MatchController.StartupResult`・`SuspendedLoad.Status`・`RecordStore.LoadState`（`QuizAnswerStore`・`SettingsStore` も同名の enum を各クラス内に持つ。クラスの内側なので衝突しない） |
+| enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`AppScreens.SuspendedStatus`・`AppScreens.StartupResult`（2026-10-29 に `MatchController` から移した）・`SuspendedLoad.Status`・`RecordStore.LoadState`（`QuizAnswerStore`・`SettingsStore` も同名の enum を各クラス内に持つ。クラスの内側なので衝突しない） |
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OffsideRule`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |

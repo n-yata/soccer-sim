@@ -74,12 +74,13 @@ func test_pressing_a_card_requests_its_destination() -> void:
 
 
 func test_every_card_requests_its_own_destination() -> void:
-	_title.enter({})
 	var all_screens: Dictionary = {}
 	for screen: int in AppScreens.Id.values():
 		all_screens[screen] = "res://any.tscn"
-	_title.apply_availability(all_screens)
 	for card_name: String in CARD_DESTINATIONS:
+		# 遷移を頼んだ後は画面が替わる前提で押せなくなる（BUSY）ので、カードごとに開き直す
+		_title.enter({})
+		_title.apply_availability(all_screens)
 		_requested.clear()
 		_card(card_name).pressed.emit()
 		assert_array(_requested).override_failure_message(card_name) \

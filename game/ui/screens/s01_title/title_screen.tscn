@@ -66,8 +66,9 @@ theme_override_constants/separation = 16
 [node name="ResumeCard" type="Button" parent="Layout/CardsMargin/Cards"]
 unique_name_in_owner = true
 visible = false
-custom_minimum_size = Vector2(0, 112)
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
+theme_type_variation = &"ResumeCard"
 
 [node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/ResumeCard"]
 layout_mode = 1
@@ -92,6 +93,24 @@ text = "RESUME"
 layout_mode = 2
 theme_type_variation = &"CardTitleLabel"
 text = "中断した試合を再開"
+
+[node name="ResumeRow" type="HBoxContainer" parent="Layout/CardsMargin/Cards/ResumeCard/Box"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="ResumeSummary" type="Label" parent="Layout/CardsMargin/Cards/ResumeCard/Box/ResumeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"SubLabel"
+text = "前半 1／15・4-3-3 対 4-4-2"
+
+[node name="ResumeScore" type="Label" parent="Layout/CardsMargin/Cards/ResumeCard/Box/ResumeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "0 – 0"
 
 [node name="TutorialCard" type="Button" parent="Layout/CardsMargin/Cards"]
 unique_name_in_owner = true

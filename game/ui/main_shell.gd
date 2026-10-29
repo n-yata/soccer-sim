@@ -17,6 +17,10 @@ const SCREEN_SCENES: Dictionary = {
 
 @onready var _screen_root: MarginContainer = $ScreenRoot
 var _switcher: ScreenSwitcher
+var _toast: ToastView
+## タイトルを開く前に出た保存のエラー（起動時の中断データの破損など）。タイトルを開いてから出す（component-design.md §5.1）
+var _pending_errors: Array[int] = []
+var _is_title_shown: bool = false
 
 
 ## 画面のシーンがあるか。タイトルが、カードを押せるかの判断に使う。
@@ -38,16 +42,46 @@ static func side_margins(window_size: Vector2i, safe_area: Rect2i, viewport_heig
 
 func _ready() -> void:
 	_switcher = ScreenSwitcher.new(_screen_root, SCREEN_SCENES)
+	_toast = ToastView.new()
+	add_child(_toast)
 	App.screen_requested.connect(_on_screen_requested)
+	App.storage_error.connect(_on_storage_error)
 	get_viewport().size_changed.connect(_apply_safe_area)
 	_apply_safe_area()
-	# 起動時の中断データ・設定の確認（MatchController.inspect_suspended() など）は、サービスを作る作業で足す
+	# 起動時の後始末（UC-05）。中断データが壊れていれば、ここで出た通知をタイトルを開いた後に出す。
+	# 設定の読み込み（UserDataService.settings()）は、設定の作業で足す
+	App.match_controller.inspect_suspended()
 	App.request_screen(AppScreens.Id.S01_TITLE)
 
 
 func _exit_tree() -> void:
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
+	if App.storage_error.is_connected(_on_storage_error):
+		App.storage_error.disconnect(_on_storage_error)
+
+
+## 表示中の通知の文（出していなければ空）。
+func toast_message() -> String:
+	return _toast.current_message()
+
+
+func _on_storage_error(kind: AppScreens.StorageErrorKind) -> void:
+	if not _is_title_shown:
+		_pending_errors.append(kind)
+		return
+	_toast.show_message(ToastView.message_of(kind))
+
+
+## 画面を開き、初めてタイトルを開いたら、それまでに出た通知を出す（続けて出たときは最後のものが残る）。
+func _open_screen(screen: AppScreens.Id, params: Dictionary) -> void:
+	_switcher.open(screen, params)
+	if _is_title_shown or _switcher.current_id() != AppScreens.Id.S01_TITLE:
+		return
+	_is_title_shown = true
+	for kind: int in _pending_errors:
+		_toast.show_message(ToastView.message_of(kind as AppScreens.StorageErrorKind))
+	_pending_errors.clear()
 
 
 func _notification(what: int) -> void:
@@ -65,7 +99,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## 画面の入れ替えは、シグナルを受けたフレームの処理が終わってから行う。画面のボタンの pressed の中で
 ## App.request_screen() が呼ばれるため、その場で入れ替えると、押されたボタンを持つ画面ごと処理の途中で外すことになる。
 func _on_screen_requested(screen: AppScreens.Id, params: Dictionary) -> void:
-	_switcher.open.call_deferred(screen, params)
+	_open_screen.call_deferred(screen, params)
 
 
 func _on_back_requested(source: String) -> void:

@@ -12,12 +12,13 @@ enum Stop { START, STYLE_CHANGE, HALFTIME, OVER, TRANSITION }
 
 
 ## 固定シードの乱数と本物の CpuOpponent で作った MatchController。画面の要求は request に渡す。
-static func new_controller(seed_value: int, request: Callable) -> MatchController:
+## store を渡すと中断データを保存する（同じシードなら、保存の有無で試合の進み方は変わらない）。
+static func new_controller(seed_value: int, request: Callable, store: SuspendedMatchStore = null) -> MatchController:
 	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var config := ConfigRepository.new()
-	return MatchController.new(catalog, config, rng, CpuOpponent.new(catalog, config.cpu(), rng), request, true)
+	return MatchController.new(catalog, config, rng, CpuOpponent.new(catalog, config.cpu(), rng), request, true, store)
 
 
 static func user_setup() -> TeamSetup:
@@ -78,7 +79,20 @@ static func reached(controller: MatchController, stop: Stop) -> bool:
 ## 試合を始めてから、stop まで進めたシード（0 から順に探す）。見つからなければ -1。
 ## 得点（STYLE_CHANGE）はまれで、CPU が評価値の高い手に寄った後（2026-10-22。τ=0.5）は、この補助の利用者の手では
 ## 200 試合に数回しか起きない。そのため探す範囲を広くとる
+## 探した結果は覚えておく（同じ段階を何度も探すと、そのたびに試合を最初から回すため。2026-10-29 に全体のテストが 10 分を超えた）。
+## シードから試合の進み方は決まるので、覚えた値は同じ実行の中で変わらない。
+static var _seed_cache: Dictionary = {}
+
+
 static func seed_reaching(stop: Stop) -> int:
+	if _seed_cache.has(stop):
+		return _seed_cache[stop] as int
+	var found: int = _search_seed(stop)
+	_seed_cache[stop] = found
+	return found
+
+
+static func _search_seed(stop: Stop) -> int:
 	for seed_value: int in range(SEED_SEARCH_LIMIT):
 		var controller: MatchController = new_controller(seed_value, func(_s: AppScreens.Id, _p: Dictionary) -> void: pass)
 		controller.start_match(user_setup())

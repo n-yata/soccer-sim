@@ -55,7 +55,7 @@
 | `match.players.*[].fixed_area` | `area|null` | ○ | — | 固定されていなければ `null` |
 | `match.players.*[].current_area` | `area` | ○ | 有効なエリアのキー（`area` 型）。読み込み時に不正なら中断データを使わない | 今いるエリア（チーム自身の視点）。ターンをまたいで持ち越す（1ターン1マス。2026-10-24 に追加） |
 | `match.players.*[].moved_in_turn` | `bool` | ○ | `bool` 以外なら中断データを使わない | 直前のターンの手などで、そのターン開始の位置から動いたか。次のターン開始の方式の動きでは動かない（2026-10-24 に追加） |
-| `match.transition_origin` | `object|null` | ○ | `turn_kind` が `TRANSITION` のときだけ `null` でない | 直前の配置（`attacker`・`defender` に、それぞれ `players` と同じ形の10件） |
+| `match.transition_origin` | `object|null` | ○ | `turn_kind` が `TRANSITION` のときだけ `null` でない | 直前の配置。配置の組の形（下の注記） |
 | `match.started_at` | `datetime` | ○ | — | 開始日時 |
 | `match.turn_records` | `array` | ○ | 0〜（（1ハーフのターン数＋アディショナルタイムの最大ターン数）× 2）件 | ターン記録（次表） |
 
@@ -73,7 +73,7 @@
 | `choices.*.action` | `string` | ○ | `family` に対応する区分値の名前（`SHORT_PASS` など） | — |
 | `choices.*.target` | `area|null` | ○ | 運ぶ先を持つ手のときだけ `null` でない | 攻撃側の視点 |
 | `ball_before` / `ball_after` | `area` | ○ | — | 判定前・判定後のボール位置（攻撃側の視点） |
-| `players_before` / `players_at_judgement` | `object` | ○ | `HOME`・`AWAY` に `players` と同じ形の10件 | 判定前・判定時の両者の配置（選手単位） |
+| `players_before` / `players_at_judgement` | `object` | ○ | 配置の組の形（下の注記）。基本エリアはその記録の陣形から導いたものと一致 | 判定前・判定時の両者の配置（選手単位） |
 | `movements` | `array` | ○ | 0〜40件 | 選手の動き |
 | `movements[].side` | `enum<TeamSide>` | ○ | — | — |
 | `movements[].player_id` | `string` | ○ | その側の選手 ID | — |
@@ -85,6 +85,13 @@
 | `judge.cover` | `enum<CoverKind>` | ○ | — | カバーの有無 |
 | `judge.read` | `enum<ReadKind>` | ○ | — | 守備の読みの段階（ぴったり・隣・外れ。アルゴリズム5。トランジションは `NONE`）。2026-10-24 に追加 |
 | `outcome` | `enum<TurnOutcome>` | ○ | — | ターン結果 |
+
+**配置の組**（`match.transition_origin`・ターン記録の `players_before`・`players_at_judgement`。2026-10-29 に形を決めた）
+
+| キー | 型 | 必須 | 範囲・制約 | 備考 |
+|---|---|:--:|---|---|
+| `attacker_side` | `enum<TeamSide>` | ○ | — | その配置で攻撃側（トランジションでは奪取側）のチーム。選手の動きの側を決めるのに使う |
+| `HOME` / `AWAY` | `array` | ○ | `match.players` と同じ形の10件。基本エリアは、その時点の陣形から導いたものと一致 | 各チームの配置。`current_area` は配置としての現在エリア（ターンの中の計算が読む値）を書く |
 
 ### 2.2 戦績 `match_records.json`（形式の版 1）
 

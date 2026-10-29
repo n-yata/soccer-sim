@@ -1,8 +1,8 @@
 ## S-04 方式の選び直し（screen-04-style-change.md）。得点の後、キックオフの前に方式を選び直す。
 ## 初期値は現在の方式で、変えずにキックオフできる。S-03 への切り替えは MatchController が頼む。
 ##
-## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 噛み合わせ・方式の解説（NotesView）、
-## 試合中のメニュー。メニューが無い間、戻る操作は何もしない。
+## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 噛み合わせ・方式の解説（NotesView）。
+## 試合中のメニュー（中断してタイトルへ）は MatchMenuHost が持つ（2026-10-29。S-03 と同じ）。
 class_name StyleChangeScreen
 extends AppScreen
 
@@ -14,6 +14,7 @@ var _goal_label: Label
 var _opponent_label: Label
 var _picker: StylePicker
 var _kick_off_button: Button
+var _menu_host: MatchMenuHost
 
 
 func _init() -> void:
@@ -41,12 +42,17 @@ static func goal_text(last_goal_by: int) -> String:
 	return ""
 
 
+## 戻る操作: メニュー・確認が開いていれば閉じ、EDITING ならメニューを開く（screen-04-style-change.md）。アプリは閉じない。
 func handle_back() -> bool:
-	return true
+	return _menu_host.handle_back()
 
 
 func state() -> State:
 	return _state
+
+
+func menu_host() -> MatchMenuHost:
+	return _menu_host
 
 
 func picker() -> StylePicker:
@@ -93,3 +99,4 @@ func _build() -> void:
 	_picker.name = "StylePicker"
 	(parts["side"] as VBoxContainer).add_child(_picker)
 	(parts["side"] as VBoxContainer).move_child(_picker, 0)
+	_menu_host = MatchMenuHost.new(self, parts["top_bar"] as HBoxContainer, func() -> bool: return _state == State.EDITING)

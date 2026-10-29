@@ -1,8 +1,8 @@
 ## S-03 試合（screen-03-match.md）。上部バー（スコア・局面のタグ・両者の選択の帯）と、盤面と手の選択（MatchBoardPanel）。
 ## 手の選択から判定理由までの状態はパネルが持ち、この画面は上部バーと画面の進み方（continue_after_reveal）を持つ。
 ##
-## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 試合中のメニュー（設定・中断）。3D 演出は 2026-10-23 にやめた。
-## メニューが無い間、戻る操作は何もしない（試合画面からアプリを閉じない）。
+## 試合中のメニュー（中断してタイトルへ）は MatchMenuHost が持つ（2026-10-29）。メニューの「設定」は設定の作業で足す。
+## 3D 演出は 2026-10-23 にやめた。
 class_name MatchScreen
 extends AppScreen
 
@@ -19,6 +19,7 @@ var _reveal_banner: VBoxContainer
 var _user_choice_label: Label
 var _opponent_choice_label: Label
 var _board_panel: MatchBoardPanel
+var _menu_host: MatchMenuHost
 
 
 func _init() -> void:
@@ -50,13 +51,17 @@ func exit() -> void:
 	_board_panel.unbind()
 
 
-## メニュー（設定・中断）が無い間は、戻る操作で何もしない。アプリも閉じない。
+## 戻る操作: メニュー・確認が開いていれば閉じ、閉じていればメニューを開く。アプリは閉じない。
 func handle_back() -> bool:
-	return true
+	return _menu_host.handle_back()
 
 
 func board_panel() -> MatchBoardPanel:
 	return _board_panel
+
+
+func menu_host() -> MatchMenuHost:
+	return _menu_host
 
 
 func score_bug() -> ScoreBug:
@@ -168,6 +173,15 @@ func _build() -> void:
 	_board_panel.name = "BoardPanel"
 	_board_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_board_panel)
+	# メニューは画面の最後の子（上に重ねる）
+	_menu_host = MatchMenuHost.new(self, top_bar, _can_open_menu)
+
+
+## メニューを開けるのは、手を選んでいる間と判定理由を出している間（screen-03-match.md「メニュー」）。
+## 決定の処理中（SUBMITTING）と画面の切り替えを待つ間（LEAVING）は開かない。
+func _can_open_menu() -> bool:
+	return _board_panel.state() in [MatchBoardPanel.State.SELECT_ACTION, MatchBoardPanel.State.SELECT_TARGET,
+			MatchBoardPanel.State.READY, MatchBoardPanel.State.SHOW_RESULT]
 
 
 func _banner_label(node_name: String, variation: StringName) -> Label:

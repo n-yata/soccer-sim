@@ -32,6 +32,8 @@ func test_request_screen_without_params_sends_empty_dictionary() -> void:
 
 func test_ready_creates_a_match_controller_that_requests_screens_through_the_app() -> void:
 	var app: Node = auto_free((load(APP_SCRIPT) as GDScript).new() as Node) as Node
+	var dir: String = create_temp_dir("app/ready")
+	app.set("save_dir", dir)
 	add_child(app)
 	_received.clear()
 	app.connect("screen_requested", _on_screen_requested)
@@ -55,6 +57,21 @@ func test_ready_creates_a_match_controller_that_requests_screens_through_the_app
 				controller.continue_after_reveal()
 	assert_bool(controller.is_match_over()).is_true()
 	assert_int(_received.back()[0] as int).is_equal(AppScreens.Id.S06_RESULT)
+	# 中断データは save_dir に保存される
+	assert_bool(FileAccess.file_exists(dir.path_join(SuspendedMatchStore.FILE_NAME))).is_true()
+
+
+func test_storage_failures_of_the_match_controller_reach_storage_error() -> void:
+	var app: Node = auto_free((load(APP_SCRIPT) as GDScript).new() as Node) as Node
+	# 存在しないディレクトリなので、試合の作成時の保存が失敗する
+	app.set("save_dir", create_temp_dir("app/fail").path_join("missing"))
+	add_child(app)
+	var errors: Array[int] = []
+	app.connect("storage_error", func(kind: AppScreens.StorageErrorKind) -> void: errors.append(kind))
+	var controller: MatchController = app.get("match_controller") as MatchController
+	controller.start_match(TeamSetup.new("4-4-2",
+			TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER)))
+	assert_array(errors).is_equal([AppScreens.StorageErrorKind.SUSPEND_SAVE] as Array[int])
 
 
 func test_screen_ids_cover_the_12_screens_in_order() -> void:

@@ -8,7 +8,8 @@ const SIDE_WIDTH: float = 480.0
 const PRIMARY_HEIGHT: float = 112.0
 
 
-## 戻り値: {"score_bug": ScoreBug, "info": VBoxContainer, "side": VBoxContainer, "primary": Button}
+## 戻り値: {"score_bug": ScoreBug, "top_bar": HBoxContainer, "info": VBoxContainer, "side": VBoxContainer, "primary": Button}
+## （top_bar は試合中のメニューの「≡」を置く場所。S-04・S-05）
 static func build(root: Control, primary_name: String, primary_text: String) -> Dictionary:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var margin := MarginContainer.new()
@@ -67,7 +68,8 @@ static func build(root: Control, primary_name: String, primary_text: String) -> 
 	primary.custom_minimum_size = Vector2(0, PRIMARY_HEIGHT)
 	primary.theme_type_variation = &"AccentCard"
 	column.add_child(primary)
-	return {"score_bug": score_bug, "info": info, "side": side, "primary": primary}
+	top_bar.add_theme_constant_override("separation", 16)
+	return {"score_bug": score_bug, "top_bar": top_bar, "info": info, "side": side, "primary": primary}
 
 
 ## 地の色つきのタグ（「GOAL」「HALF TIME」「FULL TIME」）。折り返さない（幅を詰めると1文字ずつ縦に並ぶため）。

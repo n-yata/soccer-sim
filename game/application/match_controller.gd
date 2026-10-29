@@ -2,11 +2,17 @@
 ## 利用者の視点への変換（ViewConverter）と、画面へのシグナル・画面の切り替えの要求を受け持つ。
 ## 利用者 = HOME、CPU = AWAY（§1.3）。
 ##
-## 今回作った範囲は、試合の開始・1ターンの確定と開示・方式の選び直し・ハーフタイム・振り返り（2026-10-29）まで。
-## 中断データの保存と再開・起動時の後始末・戦績と終了処理・チュートリアルは、それぞれの作業で足す
-## （そのとき、設計書の引数 content・store・user_data・is_tutorial を足す）。
+## 今回作った範囲は、試合の開始・1ターンの確定と開示・方式の選び直し・ハーフタイム・振り返り・中断データの保存と再開・
+## 起動時の後始末（2026-10-29）まで。戦績と終了処理・チュートリアルは、それぞれの作業で足す
+## （そのとき、設計書の引数 user_data・is_tutorial を足す）。保存の失敗の扱いと再開カード用の写しは SuspendKeeper が持つ。
+## ファイルの目安 300 行を超えている（2026-10-29 に約 380 行）。UI の入口は設計上このクラス1つ（component-design.md §3.2）なので、
+## 公開する関数はここに置き、中身を別のクラスへ分けている（変換は ViewConverter、保存は SuspendKeeper）。
+## 戦績の作業で終了処理を足すときは、終了処理を別のクラスに分ける。
 class_name MatchController
 extends RefCounted
+
+## 中断データの保存・読み込みに失敗した（App が storage_error へ中継する）
+signal storage_failed(kind: AppScreens.StorageErrorKind)
 
 ## 盤面・スコア・相手の方式が変わった。ターンの途中（submit_turn の中）では出さず、continue_after_reveal・
 ## 方式の選び直し・ハーフタイムの確定・試合の開始の後に出す（試合画面は、これを受けて次のターンを始める）
@@ -34,12 +40,15 @@ var _last_goal_by: int = -1
 var _awaiting_continue: bool = false
 ## 盤面に出す動き（直前のターンの動き）。方式の選び直し・ハーフタイムで配置を作り直したら空にする
 var _board_movements: Array[Movement] = []
+var _keeper: SuspendKeeper
 
 
 ## request_screen は画面の切り替えを頼む関数（App.request_screen。テストでは記録用の関数）。
 ## assert_on_invalid_cpu: CPU の手が選べないとき assert で止めるか（開発時は止める。書き出し版は止めずに置き換える）。
+## store は中断データの保存先。null なら保存しない（保存を確かめないテストとチュートリアル用）。
 func _init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberGenerator, opponent: OpponentPolicy,
-		request_screen: Callable, assert_on_invalid_cpu: bool = OS.is_debug_build()) -> void:
+		request_screen: Callable, assert_on_invalid_cpu: bool = OS.is_debug_build(),
+		store: SuspendedMatchStore = null) -> void:
 	_catalog = catalog
 	_rules = config.match_rules()
 	_config = config
@@ -47,6 +56,63 @@ func _init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberG
 	_opponent = opponent
 	_request_screen = request_screen
 	_assert_on_invalid_cpu = assert_on_invalid_cpu
+	_keeper = SuspendKeeper.new(store, _rules)
+	_keeper.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: storage_failed.emit(kind))
+
+
+# --- 起動時・再開・中断（UC-05） ---
+
+## 起動時に1回だけ呼ぶ後始末（確定事項「起動時の扱い」）。破損なら削除して storage_failed(SUSPEND_LOAD)。
+func inspect_suspended() -> AppScreens.StartupResult:
+	return _keeper.inspect()
+
+
+## タイトルを開くたびに呼ぶ。試合中（start_match・resume の後、中断する前）は NONE。
+func suspended_status() -> AppScreens.SuspendedStatus:
+	return AppScreens.SuspendedStatus.RESUMABLE if _keeper.resumable() != null else AppScreens.SuspendedStatus.NONE
+
+
+## 再開できる中断データの盤面（タイトルの再開カード用）。再開できる試合が無ければ null。
+func suspended_snapshot() -> BoardSnapshot:
+	var state: MatchState = _keeper.resumable()
+	if state == null:
+		return null
+	return ViewConverter.snapshot(state, _catalog, [], _goal_side_of(state), _rules.turns_per_half,
+			state.stage == GameEnums.MatchStage.HALFTIME)
+
+
+## 中断した試合を保存データから読み直して再開し、進行段階が示す画面（TURN→S-03、STYLE_CHANGE→S-04、HALFTIME→S-05）を頼む。
+## 読めなかったときは中断データを消し、storage_failed(SUSPEND_LOAD) を出してタイトルを頼み直し、false。
+func resume() -> bool:
+	var state: MatchState = _keeper.load_for_resume()
+	if state == null:
+		_request_screen.call(AppScreens.Id.S01_TITLE, {})
+		return false
+	_open(state)
+	_last_goal_by = _goal_side_of(state)
+	state_changed.emit(snapshot())
+	_request_screen.call(_screen_of(state.stage), {})
+	return true
+
+
+## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認で警告する）。
+func has_unsaved_progress() -> bool:
+	return _keeper.has_unsaved()
+
+
+## 試合中のメニューから中断してタイトルへ。直前の保存に失敗していれば保存をやり直す（保存の時点④）。
+## メモリ上の試合を閉じ、保存されている中断データを再開カード用に読み直してから、タイトルを頼む。保存をやり直して失敗したら false。
+func suspend_to_title() -> bool:
+	if _state == null:
+		return false
+	var is_saved: bool = true
+	if _keeper.has_unsaved():
+		is_saved = _keeper.save(_state)
+	_state = null
+	_awaiting_continue = false
+	_keeper.inspect()
+	_request_screen.call(AppScreens.Id.S01_TITLE, {})
+	return is_saved
 
 
 ## 試合を作る。CPU の陣形・方式を選び、前半のキックオフ側を注入された乱数で決める。陣形が無ければ false。
@@ -62,11 +128,11 @@ func start_match(user_setup: TeamSetup) -> bool:
 	if state == null:
 		push_error("MatchController: 試合を作れない（陣形が無い）: %s" % user_setup.formation_id)
 		return false
-	_state = state
-	_last_reveal = null
-	_last_goal_by = -1
-	_awaiting_continue = false
-	_board_movements = []
+	_open(state)
+	# 保存の時点②。前の中断データはここで上書きされる（削除の時点①）。保存に失敗したら前の中断データを消す
+	# （上書きできないまま残ると、新しい試合を中断したときに前の試合を再開してしまうため）
+	if not _keeper.save(_state):
+		_keeper.drop_stale()
 	state_changed.emit(snapshot())
 	_request_screen.call(AppScreens.Id.S03_MATCH, {})
 	return true
@@ -128,6 +194,8 @@ func submit_turn(user_choice: TurnChoice) -> bool:
 		push_error("MatchController: ターンを解決できない")
 		return false
 	_state = resolution.next_state
+	# 保存の時点①（得点・ハーフ終了で進行段階が変わる③もこの1回で兼ねる）。開示より前に保存する
+	_keeper.save(_state)
 	var record: TurnRecord = resolution.record
 	if record.outcome == GameEnums.TurnOutcome.GOAL:
 		_last_goal_by = record.attacker
@@ -165,6 +233,8 @@ func submit_style_change(user_styles: TeamStyles) -> bool:
 		return false
 	_state = next
 	_board_movements = []
+	# 保存の時点③（選び直した方式を含めて保存する）
+	_keeper.save(_state)
 	state_changed.emit(snapshot())
 	_request_screen.call(AppScreens.Id.S03_MATCH, {})
 	return true
@@ -179,17 +249,21 @@ func submit_halftime(user_setup: TeamSetup) -> bool:
 		return false
 	_state = next
 	_board_movements = []
+	# 保存の時点③（選び直した陣形・方式を含めて保存する）
+	_keeper.save(_state)
 	state_changed.emit(snapshot())
 	_request_screen.call(AppScreens.Id.S03_MATCH, {})
 	return true
 
 
 ## 結果の画面（S-06）から出る。試合が終わる前は push_error して false。
-## 終了処理（戦績の記録・中断データの削除）は保存・戦績の作業で足す。今はタイトル（S-01）を頼むだけ。
+## 中断データを消してからタイトル（S-01）を頼む（削除の時点②）。戦績の記録（終了処理）はまだ無いので、今は無条件に消す。
+## 戦績の作業で、終了処理が済んでいる場合だけ消し、済んでいなければやり直す形に変える。
 func leave_result() -> bool:
 	if not is_match_over():
 		push_error("MatchController: 試合が終わる前に結果の画面からは出られない")
 		return false
+	_keeper.delete()
 	_request_screen.call(AppScreens.Id.S01_TITLE, {})
 	return true
 
@@ -220,7 +294,7 @@ func opponent_setup() -> TeamSetup:
 
 
 ## 現在の盤面・スコア（利用者の視点）。動きは直前のターンのもの（方式の選び直し・ハーフタイムの後は空）。
-## 試合前は null（中断データからの再開は保存の作業で足す。それまでは start_match の前に呼ぶのは UI の誤り）。
+## 試合前（start_match・resume の前、中断した後）は null で、呼ぶのは UI の誤り。タイトルの再開カードは suspended_snapshot を使う。
 func snapshot() -> BoardSnapshot:
 	if not _is_started_or_error("snapshot"):
 		return null
@@ -238,9 +312,37 @@ func stage() -> GameEnums.MatchStage:
 	return GameEnums.MatchStage.TURN if _state == null else _state.stage
 
 
-## 試合の状態の写し（保存の作業で中断データを書くときにも使う）。
+## 試合の状態の写し（テストと、試合を外から確かめる用。中断データの保存は SuspendKeeper がメモリ上の状態から直接行う）。
 func state() -> MatchState:
 	return null if _state == null else _state.duplicate_deep()
+
+
+## 試合をメモリに置き、開示・盤面の動きの状態を初めからにする（新しい試合と再開で共通）。試合中は再開カードを出さない。
+func _open(state: MatchState) -> void:
+	_state = state
+	_last_reveal = null
+	_last_goal_by = -1
+	_awaiting_continue = false
+	_board_movements = []
+	_keeper.forget()
+
+
+## 最後の得点の側（ターン記録の最後の GOAL の攻撃側）。得点が無ければ -1。再開した試合の「〜が得点しました」に使う。
+static func _goal_side_of(state: MatchState) -> int:
+	for index: int in range(state.turn_records.size() - 1, -1, -1):
+		if state.turn_records[index].outcome == GameEnums.TurnOutcome.GOAL:
+			return state.turn_records[index].attacker
+	return -1
+
+
+## 進行段階の画面（確定事項「再開先」）。
+static func _screen_of(stage: GameEnums.MatchStage) -> AppScreens.Id:
+	match stage:
+		GameEnums.MatchStage.STYLE_CHANGE:
+			return AppScreens.Id.S04_STYLE_CHANGE
+		GameEnums.MatchStage.HALFTIME:
+			return AppScreens.Id.S05_HALFTIME
+	return AppScreens.Id.S03_MATCH
 
 
 func _is_started_or_error(caller: String) -> bool:

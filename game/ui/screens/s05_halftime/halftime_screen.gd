@@ -1,8 +1,8 @@
 ## S-05 ハーフタイム（screen-05-halftime.md）。前半のスコアと相手の前半の陣形・方式を見て、陣形と方式を選び直す。
 ## 初期値は前半の陣形・方式で、変えずに後半を始められる。S-03 への切り替えは MatchController が頼む。
 ##
-## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 前半の噛み合わせ（ミニピッチ・解説）、
-## 試合中のメニュー。メニューが無い間、戻る操作は何もしない。陣形のカードは小さい版を2列に並べる。
+## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 前半の噛み合わせ（ミニピッチ・解説）。
+## 試合中のメニュー（中断してタイトルへ）は MatchMenuHost が持つ（2026-10-29。S-03 と同じ）。陣形のカードは小さい版を2列に並べる。
 class_name HalftimeScreen
 extends AppScreen
 
@@ -19,6 +19,7 @@ var _picker: StylePicker
 var _second_half_button: Button
 ## 陣形 ID → カード
 var _cards: Dictionary = {}
+var _menu_host: MatchMenuHost
 
 
 func _init() -> void:
@@ -38,8 +39,13 @@ func enter(_params: Dictionary) -> void:
 	_set_state(State.EDITING)
 
 
+## 戻る操作は S-04 と同じ（メニュー・確認が開いていれば閉じ、EDITING ならメニューを開く）。アプリは閉じない。
 func handle_back() -> bool:
-	return true
+	return _menu_host.handle_back()
+
+
+func menu_host() -> MatchMenuHost:
+	return _menu_host
 
 
 func state() -> State:
@@ -133,3 +139,4 @@ func _build() -> void:
 	_picker.name = "StylePicker"
 	side.add_child(_picker)
 	side.move_child(_picker, 2)
+	_menu_host = MatchMenuHost.new(self, parts["top_bar"] as HBoxContainer, func() -> bool: return _state == State.EDITING)

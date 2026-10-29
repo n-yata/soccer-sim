@@ -104,7 +104,7 @@
 | 項目 | 種別 | 必須 | 初期値／取得元 | 入力チェック／備考 |
 |---|---|:--:|---|---|
 | プロダクト名 | 表示 | — | 固定文言（仮称） | 正式名は要件定義書 §7.1 #4 |
-| 再開カード | ボタン | — | `MatchController.suspended_status()` が `RESUMABLE` のときの `snapshot()`（スコア・ハーフ・ターン） | `RESUMABLE` のときだけ表示する。タイトルを開くたびに確かめる |
+| 再開カード | ボタン | — | `MatchController.suspended_status()` が `RESUMABLE` のときの `suspended_snapshot()`（スコア・ハーフ・ターン） | `RESUMABLE` のときだけ表示する。タイトルを開くたびに確かめる |
 | CPU 対戦 | カード（大） | — | — | `KICK OFF` の見出しをつけた大きなカード |
 | チュートリアル | カード | — | `UserDataService.settings()` のチュートリアル完了フラグ | 未完了なら「CPU 対戦」の直前に置き「はじめての方へ」を付ける。完了後は小さなカードの並びの最後へ移す（FR-12） |
 | 理解度チェック | カード（小） | — | 一言: `UserDataService.quiz_progress()` | 「3／8 正解」など、全学習目標の正答数／問題数 |
