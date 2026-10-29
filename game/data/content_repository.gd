@@ -1,12 +1,15 @@
 ## 静的データ（game/content/*.json）を読み、検証して ContentCatalog に変換する（component-design.md §4.1）。
-## 今は陣形（formations.json）だけを扱う。ほかの静的データは、それを使う機能の作業で足す。
+## 陣形（formations.json）・単純化カタログ（simplifications.json）・チュートリアルの段階（tutorial.json）を扱う。
+## ほかの静的データは、それを使う機能の作業で足す。単純化とチュートリアルの形・範囲は TutorialContentReader が確かめる。
 ##
 ## 静的データはアプリに同梱するため、誤りは開発時の誤りとして扱う（data-definition.md §4）。
-## 誤りが1件でもあれば、陣形を持たない空の ContentCatalog を返す（一部だけ正しいデータで動き続けないため）。
+## 誤りが1件でもあれば、何も持たない空の ContentCatalog を返す（一部だけ正しいデータで動き続けないため）。
 class_name ContentRepository
 extends RefCounted
 
 const FORMATIONS_FILE: String = "formations.json"
+const SIMPLIFICATIONS_FILE: String = "simplifications.json"
+const TUTORIAL_FILE: String = "tutorial.json"
 
 # 以下の値は data-definition.md §3・§3.1 の範囲・制約の写し。正本を変えたらここも合わせる
 const FORMAT_VERSION: int = 1
@@ -43,11 +46,17 @@ func load_catalog() -> ContentCatalog:
 	_errors.clear()
 	_is_loaded = true
 	var formations: Array[FormationDef] = _load_formations()
+	# 段階の陣形は MVP の陣形の ID で確かめる（読み込んだ陣形で確かめると、陣形の誤り1件が段階の数だけ誤りを増やすため）
+	var reader := TutorialContentReader.new(FORMATION_IDS)
+	var simplifications: Array[SimplificationDef] = reader.read_simplifications(_read_json(SIMPLIFICATIONS_FILE))
+	_add_reader_errors(SIMPLIFICATIONS_FILE, reader)
+	var steps: Array[TutorialStepDef] = reader.read_tutorial(_read_json(TUTORIAL_FILE))
+	_add_reader_errors(TUTORIAL_FILE, reader)
 	if not _errors.is_empty():
 		for message: String in _errors:
 			push_error(message)
 		return ContentCatalog.new()
-	return ContentCatalog.new(formations)
+	return ContentCatalog.new(formations, simplifications, steps)
 
 
 ## 直前の load_catalog() で見つかった誤り。まだ読んでいなければ読む。空なら正常。
@@ -226,3 +235,22 @@ func _is_integer(value: Variant) -> bool:
 
 func _error(location: String, reason: String) -> void:
 	_errors.append("%s: %s: %s" % [FORMATIONS_FILE, location, reason])
+
+
+## file を JSON として読む。無い・読めなければ誤りを記録して null（読み手が「オブジェクトでない」として扱う）。
+func _read_json(file: String) -> Variant:
+	var path: String = _content_dir.path_join(file)
+	if not FileAccess.file_exists(path):
+		_errors.append("%s: (ファイル): ファイルが無い: %s" % [file, path])
+		return null
+	var json := JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK:
+		_errors.append("%s: (ファイル): JSON として読めない（%d 行目: %s）" % [file, json.get_error_line(),
+				json.get_error_message()])
+		return null
+	return json.data
+
+
+func _add_reader_errors(file: String, reader: TutorialContentReader) -> void:
+	for message: String in reader.errors():
+		_errors.append("%s: %s" % [file, message])

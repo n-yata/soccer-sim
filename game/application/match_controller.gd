@@ -312,6 +312,24 @@ func final_record() -> MatchRecord:
 	return MatchRecord.of(_state, _finished_at)
 
 
+## チュートリアルの段階の盤面で試合の状態を作り直す（UC-06。App.new_tutorial_controller() で作った別インスタンスだけが使う）。
+## 相手が ScriptedOpponent なら、台本をその段階の手に差し替える。盤面の無い段階（SCOPE）・作れない盤面は push_error して false。
+## 画面の切り替えは頼まず、state_changed も出さない（チュートリアルの画面が自分で盤面を描き直す）。
+func start_tutorial_step(step: TutorialStepDef) -> bool:
+	if not step.has_board():
+		push_error("MatchController: 盤面の無い段階は始められない: %s" % step.id)
+		return false
+	var state: MatchState = MatchRules.create_scene(step.home_setup, step.away_setup, step.turn_kind, step.possession,
+			step.ball_area, _catalog)
+	if state == null:
+		push_error("MatchController: 段階の盤面を作れない: %s" % step.id)
+		return false
+	if _opponent is ScriptedOpponent:
+		(_opponent as ScriptedOpponent).use_step(step)
+	_open(state)
+	return true
+
+
 ## 振り返り（S-07。アルゴリズム10）。メモリ上のターン記録を利用者の視点で集計し、得失点の流れの各ターンを
 ## 開示の値にして返す。遡るターン数は PresentationConfig。試合前は null（UI の誤りなので push_error）。
 ## 試合の途中でも呼べる（それまでのターンを集計する）が、画面は試合の後だけ開く。

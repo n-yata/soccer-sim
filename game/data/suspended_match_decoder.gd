@@ -211,7 +211,7 @@ func _choice(fields: Dictionary, key: String, location: String) -> TurnChoice:
 	var family: int = _reader.enum_value(choice, "family", location + ".family", GameEnums.ChoiceFamily)
 	if family < 0:
 		return null
-	var actions: Dictionary = SuspendedMatchEncoder.ACTION_ENUMS[family]
+	var actions: Dictionary = TurnChoice.ACTION_ENUMS[family]
 	var action: int = _reader.enum_value(choice, "action", location + ".action", actions)
 	var target: PitchArea = _reader.area_or_null(choice, "target", location + ".target")
 	if action < 0:

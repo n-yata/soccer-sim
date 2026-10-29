@@ -9,14 +9,6 @@ extends RefCounted
 
 const FORMAT_VERSION: int = 1
 
-## ChoiceFamily → その手の区分値の enum（action を名前で書くため）
-const ACTION_ENUMS: Dictionary = {
-	GameEnums.ChoiceFamily.ATTACK: GameEnums.PlayType,
-	GameEnums.ChoiceFamily.DEFENSE: GameEnums.DefenseAction,
-	GameEnums.ChoiceFamily.NEG_TRANS: GameEnums.NegTransAction,
-	GameEnums.ChoiceFamily.POS_TRANS: GameEnums.PosTransAction,
-}
-
 
 static func encode(state: MatchState) -> Dictionary:
 	var records: Array = []
@@ -91,7 +83,7 @@ static func _pair(pair: LayoutPair) -> Dictionary:
 
 
 static func _choice(choice: TurnChoice) -> Dictionary:
-	var actions: Dictionary = ACTION_ENUMS[choice.family]
+	var actions: Dictionary = TurnChoice.ACTION_ENUMS[choice.family]
 	return {"family": GameEnums.ChoiceFamily.find_key(choice.family), "action": actions.find_key(choice.action),
 			"target": _area(choice.target)}
 

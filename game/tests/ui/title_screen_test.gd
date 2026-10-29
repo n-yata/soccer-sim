@@ -50,6 +50,43 @@ func _pending_label(card_name: String) -> Label:
 	return _card(card_name).find_child("PendingLabel", true, false) as Label
 
 
+## チュートリアルが未完了なら、KICK OFF の直前の大きなカードで「はじめての方へ」を出す（screen-01-title.md「画面を開く」の 3.）
+func test_an_unfinished_tutorial_is_the_large_card_before_kick_off() -> void:
+	_title.enter({})
+	var tutorial: Button = _title.tutorial_card()
+	var kick_off: Button = _card("KickOffCard")
+	assert_object(tutorial.get_parent()).is_same(kick_off.get_parent())
+	assert_int(tutorial.get_index()).is_equal(kick_off.get_index() - 1)
+	assert_bool((tutorial.find_child("FirstTimeBadge", true, false) as Control).visible).is_true()
+	assert_int(_title.small_cards().columns).is_equal(4)
+	assert_bool(tutorial.disabled).is_false()
+
+
+## 完了後は小さなカードの最後（5列）。「はじめての方へ」を隠し、KICK OFF を高くする（再開カードも無いとき）
+func test_a_finished_tutorial_moves_to_the_end_of_the_small_cards() -> void:
+	App.user_data.mark_tutorial_completed()
+	_title.enter({})
+	var tutorial: Button = _title.tutorial_card()
+	assert_object(tutorial.get_parent()).is_same(_title.small_cards())
+	assert_int(tutorial.get_index()).is_equal(_title.small_cards().get_child_count() - 1)
+	assert_int(_title.small_cards().columns).is_equal(5)
+	assert_bool((tutorial.find_child("FirstTimeBadge", true, false) as Control).visible).is_false()
+	assert_float(_card("KickOffCard").custom_minimum_size.y).is_equal(200.0)
+	tutorial.pressed.emit()
+	assert_array(_requested).is_equal([AppScreens.Id.S08_TUTORIAL] as Array[int])
+
+
+## もう一度開いたときに未完了へ戻っていれば（設定を消したなど）、大きなカードへ戻す
+func test_the_tutorial_card_moves_back_when_unfinished_again() -> void:
+	_title.place_tutorial_card(true)
+	_title.place_tutorial_card(false)
+	var kick_off: Button = _card("KickOffCard")
+	assert_object(_title.tutorial_card().get_parent()).is_same(kick_off.get_parent())
+	assert_int(_title.tutorial_card().get_index()).is_equal(kick_off.get_index() - 1)
+	assert_int(_title.small_cards().columns).is_equal(4)
+	assert_float(kick_off.custom_minimum_size.y).is_equal(136.0)
+
+
 ## MainShell.SCREEN_SCENES に登録した画面（S-02 試合準備など）のカードだけが押せる。
 ## 押せるカードがあることを、下の test_kick_off_card_is_enabled_because_match_setup_exists で確かめる
 ## （押せるカードが1つも無いと、enter が MainShell の対応を使っているかを区別できないため）。

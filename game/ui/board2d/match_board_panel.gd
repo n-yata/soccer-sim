@@ -3,8 +3,8 @@
 ## 手の選択から判定理由の表示までの状態と、MatchController の turn_resolved の受信はこの部品が持つ。
 ##
 ## turn_resolved を受けたら、すぐ判定理由の表示へ進み、盤面の上で駒とボールを動かす（3D 演出は 2026-10-23 にやめた）。
-## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）:
-## - ヒントの ON/OFF（設定がまだ無いため常に ON）・「実戦では」・チュートリアル用の set_options_filter など
+## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 「実戦では」。
+## チュートリアル（S-08）のための口: bind の show_next・set_options_filter・set_interactive・side_top_slot／side_bottom_slot（2026-10-29）。
 ## 子のノードはコードで組む（部品を差し替えやすく、テストで名前を引けるよう、ノード名は screen-03-match.md に合わせる）。
 ## ファイルの目安（300行）を超えている分は、ノードを組むコード（_build_*）。手の選択から判定理由までの流れは1つの
 ## 状態機械なので分けない。部品が増えたときに、組む部分を .tscn へ移すかを見直す。
@@ -35,6 +35,12 @@ var _options: MoveOptions
 var _hints: Array[ChoiceHint] = []
 ## ヒント表示（設定。FR-19）。OFF の間は user_hints() を呼ばず、ヒントを空にする
 var _show_hints: bool = true
+## 判定理由の後に主ボタン（次のターンへ）を出すか。偽なら出さずに turn_ready_to_leave を出す（チュートリアルは画面の「次へ」を使う）
+var _show_next: bool = true
+## 選べる手を絞る区分値の名前（空なら絞らない。チュートリアルの段階）
+var _options_filter: Array[String] = []
+## 手のボタンと主ボタンを出すか（偽なら盤面を見せるだけ。チュートリアルの説明の段階）
+var _is_interactive: bool = true
 var _selected_family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
 var _selected_action: int = -1
 var _selected_target: String = ""
@@ -54,17 +60,21 @@ var _judge_detail: Label
 var _primary_button: Button
 var _button_summary: Label
 var _button_action: Label
+var _side_top_slot: VBoxContainer
+var _side_bottom_slot: VBoxContainer
 
 
 func _init() -> void:
 	_build()
 
 
-## コントローラーをつなぐ（画面の enter で1回だけ。2回目以降は何もしない）。
-func bind(controller: MatchController) -> void:
+## コントローラーをつなぐ（画面の enter で1回だけ。2回目以降は何もしない）。show_next が偽なら、判定理由を出しても主ボタンを
+## 出さず、すぐ turn_ready_to_leave を出す（チュートリアル。screen-08-tutorial.md）。
+func bind(controller: MatchController, show_next: bool = true) -> void:
 	if _controller != null:
 		return
 	_controller = controller
+	_show_next = show_next
 	_controller.turn_resolved.connect(_on_turn_resolved)
 
 
@@ -82,7 +92,7 @@ func start_turn() -> void:
 		push_error("MatchBoardPanel: bind の前に start_turn は呼べない")
 		return
 	_snapshot = _controller.snapshot()
-	_options = _controller.user_options()
+	_options = _filtered(_controller.user_options())
 	_hints = _current_hints()
 	_selected_action = -1
 	_selected_target = ""
@@ -93,7 +103,8 @@ func start_turn() -> void:
 	# 選べる手が1つもないことは起きない（トランジション・守備の手は常に1つ以上選べる。アルゴリズム3）。
 	# 起きたら開発時の誤りとして止める（screen-03-match.md「例外・エラー表示」）
 	assert(_choice_panel.has_available(), "MatchBoardPanel: 選べる手が1つもない")
-	_choice_panel.visible = true
+	_choice_panel.visible = _is_interactive
+	_primary_button.visible = _is_interactive
 	_choice_panel.set_enabled(true)
 	_target_info.text = ""
 	_target_info.visible = false
@@ -107,6 +118,26 @@ func start_turn() -> void:
 
 func state() -> State:
 	return _state
+
+
+## 選べる手を区分値の名前で絞る（チュートリアルの段階。空なら絞らない）。次の start_turn から効く。
+func set_options_filter(actions: Array[String]) -> void:
+	_options_filter = actions.duplicate()
+
+
+## 偽なら手のボタンと主ボタンを隠し、盤面を見せるだけにする（チュートリアルの説明の段階）。次の start_turn から効く。
+func set_interactive(enabled: bool) -> void:
+	_is_interactive = enabled
+
+
+## 操作の列の上端（両チームの陣形・方式の下）に部品を置く入れ物（チュートリアルの説明の吹き出し）。
+func side_top_slot() -> VBoxContainer:
+	return _side_top_slot
+
+
+## 操作の列の下端（主ボタンの上）に部品を置く入れ物（チュートリアルの「次へ」）。
+func side_bottom_slot() -> VBoxContainer:
+	return _side_bottom_slot
 
 
 ## ヒント表示を切り替える（試合中のメニューの設定から）。手を選んでいる間なら、選んだ手と運ぶ先のまま描き直す
@@ -288,6 +319,19 @@ func _current_choice() -> TurnChoice:
 	return TurnChoice.new(_selected_family, _selected_action, target)
 
 
+## 絞り込み（set_options_filter）があれば、その局面の手のうち名前が合う手だけを残す（手を足すことはない）。
+func _filtered(options: MoveOptions) -> MoveOptions:
+	if _options_filter.is_empty():
+		return options
+	var family: GameEnums.ChoiceFamily = TurnChoice.family_for(_snapshot.turn_kind, _snapshot.user_has_ball)
+	var names: Dictionary = TurnChoice.ACTION_ENUMS[family]
+	var actions: Array[int] = []
+	for action_name: String in _options_filter:
+		if names.has(action_name):
+			actions.append(names[action_name] as int)
+	return options.restricted_to(family, actions)
+
+
 ## ヒント表示が ON なら利用者のヒント、OFF なら空（user_hints() を呼ばない）。
 func _current_hints() -> Array[ChoiceHint]:
 	if _show_hints:
@@ -331,6 +375,9 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	_set_primary(NEXT_SUMMARY, NEXT, true)
 	_state = State.SHOW_RESULT
 	result_shown.emit(snapshot)
+	if not _show_next:
+		_primary_button.visible = false
+		turn_ready_to_leave.emit()
 
 
 func _set_primary(summary: String, action: String, enabled: bool) -> void:
@@ -361,7 +408,13 @@ func _build() -> void:
 	side.add_theme_constant_override("separation", 16)
 	columns.add_child(side)
 	_build_setup_card(side)
+	_side_top_slot = VBoxContainer.new()
+	_side_top_slot.name = "SideTopSlot"
+	side.add_child(_side_top_slot)
 	_build_side_body(side)
+	_side_bottom_slot = VBoxContainer.new()
+	_side_bottom_slot.name = "SideBottomSlot"
+	side.add_child(_side_bottom_slot)
 	_build_primary_button(side)
 
 

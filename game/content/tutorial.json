@@ -1,0 +1,109 @@
+{
+  "format_version": 1,
+  "steps": [
+    {
+      "id": "pitch",
+      "kind": "EXPLAIN",
+      "text": "ピッチは横5レーン×縦6列の30エリアに分かれています。上が相手のゴール、下が自分のゴールです。●が自分（4-3-3）、◆が CPU（4-4-2）の選手で、白いボールを持っているのは自分です。",
+      "covers": ["PITCH"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "OPEN_PLAY", "possession": "HOME", "ball_area": "M1-C"
+      }
+    },
+    {
+      "id": "matchup",
+      "kind": "EXPLAIN",
+      "text": "判定の基本は、エリアごとの人数の比べ合いです。自分が多いエリアは数的優位、少ないエリアは数的不利。陣形の組み合わせ（噛み合わせ）で、どこに人が余り、どこが空くかが決まります。",
+      "covers": ["MATCHUP"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "OPEN_PLAY", "possession": "HOME", "ball_area": "M1-C"
+      }
+    },
+    {
+      "id": "attack",
+      "kind": "OPERATE",
+      "text": "手は CPU と同時に選び、同時に明かします。相手の手は見えません。ショートパスかドリブルで、ボールを運ぶエリアを選んで「決定」しましょう。判定は、運ぶ先の人数と、相手の読みとカバーで決まります。",
+      "covers": ["SIMULTANEOUS", "JUDGEMENT"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "OPEN_PLAY", "possession": "HOME", "ball_area": "M2-C"
+      },
+      "allowed_actions": ["SHORT_PASS", "DRIBBLE"],
+      "opponent_choice": {"family": "DEFENSE", "action": "PRESS", "target": "A2-L2"}
+    },
+    {
+      "id": "defense",
+      "kind": "OPERATE",
+      "text": "今度は守備です。相手がどこへ運ぶかを読み、そのエリアへ寄せる（プレス）か、背後へ下がる（カバー）かを選びます。読みが当たれば、ボールを奪いやすくなります。",
+      "covers": ["JUDGEMENT"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "OPEN_PLAY", "possession": "AWAY", "ball_area": "M1-C"
+      },
+      "allowed_actions": ["PRESS", "COVER"],
+      "opponent_choice": {"family": "ATTACK", "action": "SHORT_PASS", "target": "M2-L1"}
+    },
+    {
+      "id": "styles",
+      "kind": "EXPLAIN",
+      "text": "方式で選手の動き方が変わります。守備はゾーン（エリアを守る）とマンツーマン（人につく）、攻撃は保持型（大外が前へ）とカウンター型（背後を狙う）。今の陣形と方式は、右上の2行で確かめられます。",
+      "covers": ["STYLES"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "MAN", "attack": "COUNTER"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "POSSESSION"},
+        "turn_kind": "OPEN_PLAY", "possession": "AWAY", "ball_area": "M1-C"
+      }
+    },
+    {
+      "id": "positive_transition",
+      "kind": "OPERATE",
+      "text": "ボールを奪った直後は、ポジティブトランジション（攻撃への切り替え）です。相手の守備が整う前に前へ運ぶ（カウンター）か、落ち着いて保持するかを選びましょう。",
+      "covers": ["PHASES"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "TRANSITION", "possession": "HOME", "ball_area": "M2-L1"
+      },
+      "allowed_actions": ["COUNTER", "SECURE"],
+      "opponent_choice": {"family": "NEG_TRANS", "action": "COUNTER_PRESS", "target": null}
+    },
+    {
+      "id": "negative_transition",
+      "kind": "OPERATE",
+      "text": "ボールを失った直後は、ネガティブトランジション（守備への切り替え）です。すぐに奪い返す（即時奪回）か、下がって守備を整える（リトリート）かを選びましょう。",
+      "covers": ["PHASES"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "TRANSITION", "possession": "AWAY", "ball_area": "M2-R1"
+      },
+      "allowed_actions": ["COUNTER_PRESS", "RETREAT"],
+      "opponent_choice": {"family": "POS_TRANS", "action": "COUNTER", "target": "A2-L1"}
+    },
+    {
+      "id": "shot",
+      "kind": "OPERATE",
+      "text": "相手ゴール前のペナルティエリア（白線の中の3マス）からはシュートが打てます。人数で上回れば得点、下回れば止められます。同数のときは、相手にぴったり読まれていなければ得点です。",
+      "covers": ["SHOT"],
+      "setup": {
+        "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
+        "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
+        "turn_kind": "OPEN_PLAY", "possession": "HOME", "ball_area": "A2-C"
+      },
+      "allowed_actions": ["SHOT"],
+      "opponent_choice": {"family": "DEFENSE", "action": "PRESS", "target": "A2-L2"}
+    },
+    {
+      "id": "scope",
+      "kind": "SCOPE",
+      "text": "最後に、このゲームが表現していないことを確かめておきましょう。実際のサッカーには、ここに挙げた要素もあります。「完了」でチュートリアルを終えます。",
+      "covers": []
+    }
+  ]
+}

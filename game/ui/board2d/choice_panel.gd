@@ -51,11 +51,9 @@ func show_options(options: MoveOptions, turn_kind: GameEnums.TurnKind, user_has_
 		_available.append(is_available)
 
 
-## 局面の手の種類。トランジションでボールを持っているのは奪取側。
+## 局面の手の種類（正本は TurnChoice.family_for。チュートリアルの静的データの検証もそれを使う）。
 static func family_of(turn_kind: GameEnums.TurnKind, user_has_ball: bool) -> GameEnums.ChoiceFamily:
-	if turn_kind == GameEnums.TurnKind.TRANSITION:
-		return GameEnums.ChoiceFamily.POS_TRANS if user_has_ball else GameEnums.ChoiceFamily.NEG_TRANS
-	return GameEnums.ChoiceFamily.ATTACK if user_has_ball else GameEnums.ChoiceFamily.DEFENSE
+	return TurnChoice.family_for(turn_kind, user_has_ball)
 
 
 ## 選んだ手に印を付け、ほかの手の印を外す。-1 ならすべて外す。

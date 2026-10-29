@@ -58,6 +58,21 @@ func targets(family: GameEnums.ChoiceFamily, action: int) -> Array[PitchArea]:
 	return result
 
 
+## family の手のうち actions（手の区分値）だけを残した写し（チュートリアルの段階で選べる手を絞る。手を足すことはない）。
+## ほかの種類の手は残さない。
+func restricted_to(family: GameEnums.ChoiceFamily, actions: Array[int]) -> MoveOptions:
+	var copy := MoveOptions.new()
+	for action: int in actions:
+		if not is_available(family, action):
+			continue
+		if needs_target(family, action):
+			for area: PitchArea in targets(family, action):
+				copy.add_target(family, action, area.duplicate_deep())
+		else:
+			copy.allow(family, action)
+	return copy
+
+
 ## 運ぶ先の PitchArea まで写す。
 func duplicate_deep() -> MoveOptions:
 	var copy := MoveOptions.new()

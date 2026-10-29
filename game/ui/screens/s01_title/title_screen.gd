@@ -1,7 +1,7 @@
 ## S-01 タイトル（screen-01-title.md）。各機能への入口と、中断した試合の再開カード。
 ## 「CPU 対戦」は NewMatchGate に任せる（中断中の試合・戦績を記録できていない試合があれば、ConfirmDialog で確かめる）。
-## 小さなカードの一言は戦績だけ（2026-10-29）。理解度チェックの一言は理解度チェックの作業で、チュートリアルの位置の切り替え
-## （設定の tutorial_completed）はチュートリアルの作業で足す（完了にする手段がまだ無いため）。
+## 小さなカードの一言は戦績だけ（2026-10-29）。理解度チェックの一言は理解度チェックの作業で足す。
+## チュートリアルのカードは、未完了なら KICK OFF の直前の大きなカード、完了後は小さなカードの最後（設定の tutorial_completed）。
 ## プロダクト名は仮称（正式名は要件定義書 §7.1 #4）。
 class_name TitleScreen
 extends AppScreen
@@ -9,12 +9,22 @@ extends AppScreen
 ## IDLE: すべて押せる／BUSY: 再開・CPU 対戦の処理中（二度押しで2回遷移しない）／CONFIRMING: 確認ダイアログだけ押せる
 enum State { IDLE, BUSY, CONFIRMING }
 
+# カードの大きさ（screen-01-title.md「ノード構成」）
+const LARGE_TUTORIAL_SIZE: Vector2 = Vector2(0, 104)
+const SMALL_CARD_SIZE: Vector2 = Vector2(96, 96)
+const KICK_OFF_SIZE: Vector2 = Vector2(0, 136)
+const KICK_OFF_TALL_SIZE: Vector2 = Vector2(0, 200)
+const SMALL_COLUMNS: int = 4
+const SMALL_COLUMNS_WITH_TUTORIAL: int = 5
+
 @onready var _resume_card: Button = %ResumeCard
 @onready var _resume_summary: Label = %ResumeSummary
 @onready var _resume_score: Label = %ResumeScore
 @onready var _kick_off_card: Button = %KickOffCard
 @onready var _records_card: Button = %RecordsCard
 @onready var _records_sub: Label = %RecordsSub
+@onready var _tutorial_card: Button = %TutorialCard
+@onready var _small_cards: GridContainer = $Layout/CardsMargin/Cards/SmallCards
 ## カード → 行き先の画面（screen-01-title.md「画面遷移」）。「CPU 対戦」だけは NewMatchGate を通る
 @onready var _destinations: Dictionary = {
 	%TutorialCard: AppScreens.Id.S08_TUTORIAL,
@@ -43,13 +53,62 @@ func enter(_params: Dictionary) -> void:
 	_gate.finished.connect(_on_gate_finished)
 	_show_resume_card(App.match_controller.suspended_snapshot()
 			if App.match_controller.suspended_status() == AppScreens.SuspendedStatus.RESUMABLE else null)
-	# チュートリアルは未完了の位置（シーンの並びのまま）。設定の読み込みに失敗したときと同じ扱い（screen-01-title.md「例外・エラー表示」）
+	# 設定の読み込みに失敗したときは初期値（未完了）なので、未完了の位置になる（screen-01-title.md「例外・エラー表示」）
+	place_tutorial_card(App.user_data.settings().tutorial_completed)
 	apply_availability(MainShell.SCREEN_SCENES)
 	# 戦績のカードの一言「5勝 2分 3敗」（0件なら「まだ記録がありません」）。押せない間は「準備中」だけを出す
 	# 小さなカードは幅が狭く、1行に収まらない。数の途中で折り返さないよう、勝ち・引き分け・負けで行を分ける
 	_records_sub.text = RecordTexts.totals_summary(App.user_data.totals()).replace(" ", "\n")
 	_records_sub.visible = not _records_card.disabled
 	_state = State.IDLE
+
+
+## チュートリアルのカードを置く（screen-01-title.md「画面を開く」の 3.）。完了後は小さなカードの最後へ移し（5列）、
+## 「はじめての方へ」と説明の行を隠す。未完了なら KICK OFF の直前の大きなカードに戻す。
+## 再開カードもチュートリアルの大きなカードも無いときは、KICK OFF を高くする。
+func place_tutorial_card(is_completed: bool) -> void:
+	var cards: Node = _kick_off_card.get_parent()
+	var title: Label = _tutorial_card.find_child("TutorialTitle", true, false) as Label
+	if is_completed:
+		if _tutorial_card.get_parent() != _small_cards:
+			_tutorial_card.reparent(_small_cards, false)
+		_small_cards.move_child(_tutorial_card, -1)
+		_small_cards.columns = SMALL_COLUMNS_WITH_TUTORIAL
+		_tutorial_card.custom_minimum_size = SMALL_CARD_SIZE
+		_tutorial_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_tutorial_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		# 小さなカードの幅では名前が1行に入らないので、ほかの小さなカードと同じく折り返す
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	else:
+		if _tutorial_card.get_parent() != cards:
+			_tutorial_card.reparent(cards, false)
+		# move_child の位置は動かした後の位置。KICK OFF より前にあれば、取り出すと KICK OFF が1つ前へ詰まる
+		var target: int = _kick_off_card.get_index()
+		if _tutorial_card.get_index() < target:
+			target -= 1
+		cards.move_child(_tutorial_card, target)
+		_small_cards.columns = SMALL_COLUMNS
+		_tutorial_card.custom_minimum_size = LARGE_TUTORIAL_SIZE
+		_tutorial_card.size_flags_horizontal = Control.SIZE_FILL
+		_tutorial_card.size_flags_vertical = Control.SIZE_FILL
+		title.autowrap_mode = TextServer.AUTOWRAP_OFF
+		title.size_flags_horizontal = Control.SIZE_FILL
+	for node_name: String in ["FirstTimeBadge", "TutorialSub"]:
+		(_tutorial_card.find_child(node_name, true, false) as Control).visible = not is_completed
+	# 大きなカードは中央へ、小さなカードはほかの小さなカードと同じく上へそろえる
+	var box: BoxContainer = _tutorial_card.get_node("Box") as BoxContainer
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN if is_completed else BoxContainer.ALIGNMENT_CENTER
+	var has_large_card: bool = _resume_card.visible or not is_completed
+	_kick_off_card.custom_minimum_size = KICK_OFF_SIZE if has_large_card else KICK_OFF_TALL_SIZE
+
+
+func tutorial_card() -> Button:
+	return _tutorial_card
+
+
+func small_cards() -> GridContainer:
+	return _small_cards
 
 
 ## 行き先の画面が scene_paths（画面 ID → シーン）に無いカードは押せなくし、「準備中」を出す。

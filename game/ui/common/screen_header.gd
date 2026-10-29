@@ -13,6 +13,11 @@ func _ready() -> void:
 	_back_button.pressed.connect(func() -> void: back_pressed.emit())
 
 
+## 今の画面名。
+func title_text() -> String:
+	return _title_label.text
+
+
 ## 画面名を変える。
 func set_title(text: String) -> void:
 	_title_label.text = text

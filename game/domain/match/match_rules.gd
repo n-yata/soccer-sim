@@ -29,6 +29,32 @@ static func create_match(match_id: String, home: TeamSetup, away: TeamSetup, kic
 	return state
 
 
+## 決まった場面の盤面（チュートリアルの段階。component-design.md §3.2 start_tutorial_step）。両チームを基本配置に置き（固定なし。
+## キックオフの位置は使わない。盤面全体の噛み合わせを見せるため）、ボールを持つ側の最寄りの選手をボールの位置に立たせる。
+## ball_area は攻撃側（possession）の視点。トランジションなら、その配置を起点にする。陣形が無ければ null。
+static func create_scene(home: TeamSetup, away: TeamSetup, turn_kind: GameEnums.TurnKind, possession: GameEnums.TeamSide,
+		ball_area: PitchArea, catalog: ContentCatalog) -> MatchState:
+	var home_formation: FormationDef = catalog.formation(home.formation_id)
+	var away_formation: FormationDef = catalog.formation(away.formation_id)
+	if home_formation == null or away_formation == null:
+		return null
+	var state := MatchState.new()
+	state.home_setup = home.duplicate_deep()
+	state.away_setup = away.duplicate_deep()
+	state.home_players = BaseLayoutDeriver.derive(home_formation).players
+	state.away_players = BaseLayoutDeriver.derive(away_formation).players
+	state.possession = possession
+	state.first_half_kickoff = possession
+	state.ball_area = ball_area.duplicate_deep()
+	state.turn_kind = turn_kind
+	if turn_kind == GameEnums.TurnKind.TRANSITION:
+		# 起点は試合の選手の写しにする（place_holder が選手を動かすときは、起点にも with_fixed で別に反映する）
+		state.transition_origin = LayoutPair.new(TeamLayout.from_players(state.players_of(possession)).duplicate_deep(),
+				TeamLayout.from_players(state.players_of(MatchState.other(possession))).duplicate_deep(), possession)
+	MatchPositions.place_holder(state, null)
+	return state
+
+
 ## 盤面表示・選択肢の計算に使う、ターン開始時の両チームの配置（保持側を attacker として持つ）。
 static func current_layouts(state: MatchState) -> LayoutStep:
 	return StyleLayoutCalculator.turn_start(state)

@@ -127,7 +127,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
 | `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
 | `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10）。`area_tallies`（エリアのキー → `[勝ち, 負け, 膠着]`。判定の無かったエリアは入らない）・`phase_tallies`（`Phase` → 同じ形。4局面とも入る）・`goals: Array[ReviewGoal]`（`seq`・`half`・`turn_number`・`scorer`・得点後の `home_score`・`away_score`・直前のターンの通し番号 `lead_up_seqs`（古い順。得点のターンは含めない））・`segments: Array[ReviewSegment]`（`half`・`from_turn`・`to_turn`・`home_setup`・`away_setup`）・`turn_count`。数の配列の位置は `JudgeTally` の WIN・LOSE・STALL（2026-10-29） |
-| `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる。`formation(id)`（無ければ `null`）。2026-10-18 時点では陣形だけを持ち、ほかは使う機能の作業で足す |
+| `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる。`formation(id)`（無ければ `null`）。2026-10-29 時点では陣形・単純化（`simplifications: Array[SimplificationDef]`）・チュートリアルの段階（`tutorial_steps: Array[TutorialStepDef]`）を持ち、ほかは使う機能の作業で足す |
 | `MatchupRuleDef` / `PrincipleDef` / `SimplificationDef` / `QuizQuestionDef` / `TutorialStepDef` | 各 `*_def.gd` | 噛み合わせルール / 戦術原則 / 単純化項目 / 場面問題 / （チュートリアルの段階） | — |
 | `MatchRecord` / `QuizAnswer` / `UserSettings` | `match_record.gd` / `quiz_answer.gd` / `user_settings.gd` | 戦績 / 回答結果 / 設定 | — |
 
@@ -574,7 +574,9 @@ func start_tutorial_step(step: TutorialStepDef) -> void
 > **2026-10-29 に足した範囲（中断・再開）**: `inspect_suspended`・`suspended_status`・`suspended_snapshot`・`resume`・
 > `has_unsaved_progress`・`suspend_to_title`、保存の時点①〜④、`leave_result` での中断データの削除。
 > - 保存先は `_init` の最後の引数 `store: SuspendedMatchStore = null`（`null` なら保存しない。保存を確かめないテストと
->   チュートリアル用）。設計の `content`・`is_tutorial` の引数は、チュートリアルの作業で足す（`user_data` は戦績の作業で足した）
+>   チュートリアル用）。設計の `content`・`is_tutorial` の引数は足さない（`user_data` は戦績の作業で足した）。チュートリアル用の
+>   インスタンスは、保存先・戦績の記録先を `null` にし、画面の切り替えの要求を捨てる関数を渡して作る（`App.new_tutorial_controller()`。
+>   2026-10-29。`is_tutorial` の役目は、この組み合わせで果たす）
 > - 保存・読み込みの失敗は `signal storage_failed(kind)` で知らせ、`App` が `storage_error` へ中継する。通知は失敗が続く間は
 >   最初の1回だけ出し、次に保存に成功したら戻す
 > - 保存の失敗の扱いと再開カード用の写しは `SuspendKeeper`（`application/suspend_keeper.gd`）が持つ
@@ -585,6 +587,11 @@ func start_tutorial_step(step: TutorialStepDef) -> void
 >   前の試合を再開してしまうため）
 > - `suspend_to_title` はメモリ上の試合を閉じ、保存されている中断データを読み直して再開カード用の写しにしてから、タイトルを頼む
 > - 再開した試合の `last_goal_by` は、ターン記録の最後の `GOAL` の攻撃側
+>
+> **2026-10-29 に足した範囲（チュートリアル）**: `start_tutorial_step(step) -> bool`。段階の盤面を `MatchRules.create_scene` で作り
+> （両チームを基本配置に置き、ボールを持つ側の最寄りの選手をボールの位置に立たせる。トランジションはその配置を起点にする）、
+> 相手が `ScriptedOpponent` なら台本をその段階の手に差し替える（`use_step`）。盤面の無い段階・作れない盤面は `push_error` して `false`。
+> 画面の切り替えは頼まず `state_changed` も出さない（チュートリアルの画面が自分で描き直す）。開示を確認していなくても次の段階で作り直せる
 >
 > **2026-10-29 に足した範囲（戦績）**: 試合の終了処理とそのやり直し（`retry_pending_finalize`・`final_record`・
 > `leave_result` の終了処理のやり直し・`inspect_suspended` の `FINALIZED`／`FINALIZE_FAILED`・`suspended_status` の `FINALIZE_PENDING`）。
@@ -651,6 +658,7 @@ rng: RandomNumberGenerator)` で作り、`CpuPlanner` を呼ぶ。
 
 > 2026-10-18 時点で作ったのは `LibraryService` の `formations()`・`base_counts()` だけ（試合準備の作業）。`LibraryService.new(catalog: ContentCatalog)` で作り、
 > `formations()` は呼び出し側が並べ替えても影響しないよう配列をコピーして返す。ほかの関数は、それを使う画面の作業で足す。
+> 2026-10-29（チュートリアルの作業）に `simplifications()`・`tutorial_steps()` を足した（配列は写し、中の値は読むだけ）。
 
 ```gdscript
 class_name LibraryService extends RefCounted
@@ -770,6 +778,12 @@ func validation_errors() -> Array[String]
 
 静的データはアプリに同梱するため、読み込みの失敗は開発時の誤りとして扱う。NFR-17 の自動テストが
 `validation_errors()` が空であることを確かめる。ファイルの一覧は `repository-structure.md`「game/content/」。
+
+> 2026-10-29 時点で読むのは `formations.json`・`simplifications.json`・`tutorial.json`。単純化とチュートリアルの形・範囲は
+> `TutorialContentReader`（`data/tutorial_content_reader.gd`。項目の読み出しは `SaveDataReader`）が確かめる。段階の陣形は、読み込んだ陣形ではなく
+> MVP の陣形の ID（`ContentRepository.FORMATION_IDS`）で確かめる（陣形の誤り1件が、段階の数だけ誤りを増やさないため）。
+> 段階の手が試合の規則で選べるか・7要素を網羅するか・単純化の ID と件数がカタログと一致するかは、テスト（`tests/content/tutorial_content_test.gd`）で確かめる
+> （ルールの計算が要るため、読み込みでは確かめない）。手の名前と区分値の対応は `TurnChoice.ACTION_ENUMS`、局面の手の種類は `TurnChoice.family_for`。
 
 ### 4.2 調整値（`ConfigRepository`）
 

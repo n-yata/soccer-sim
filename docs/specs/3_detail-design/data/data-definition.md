@@ -227,6 +227,10 @@
 | `steps[].opponent_choice` | `object` | △ | `kind` が `OPERATE` のとき。ターン記録の `choices.*` と同じ形 | `ScriptedOpponent` が出す手（試合の規則で選べる手であること） |
 | `steps[].covers` | `array<string>` | ○ | — | この段階で体験する要素（`PITCH`・`MATCHUP`・`PHASES`・`SIMULTANEOUS`・`STYLES`・`JUDGEMENT`・`SHOT`）。全段階を合わせて7要素すべてを含む（FR-12） |
 
+- 2026-10-29（チュートリアルの作業）: 利用者は `HOME`、相手は `AWAY`。`ball_area` と `opponent_choice.target` は、試合と同じく攻撃側（ボールを持つ側）の視点で書く。
+  `allowed_actions` はその局面の利用者の手の種類の名前（`possession` と `turn_kind` から決まる）、`opponent_choice.family` もその局面の相手の手の種類であること。
+  `covers` は重複しない。段階の数は読み込みの上限 30 件。盤面の手が試合の規則で選べるか・7要素を網羅するかはテストで確かめる（`component-design.md` §4.1 の注記）
+
 ## 4. 読み込み時の検証のまとめ
 
 | データ | 範囲・制約に反したとき | 根拠 |

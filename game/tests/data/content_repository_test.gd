@@ -14,9 +14,18 @@ func _real_data() -> Dictionary:
 	return JSON.parse_string(text) as Dictionary
 
 
+## 陣形以外の静的データ（単純化・チュートリアル）は本物を写す（陣形の誤りだけを確かめるため）。
+func _copy_other_real_files(dir: String) -> void:
+	for file_name: String in [ContentRepository.SIMPLIFICATIONS_FILE, ContentRepository.TUTORIAL_FILE]:
+		var copied := FileAccess.open(dir.path_join(file_name), FileAccess.WRITE)
+		copied.store_string(FileAccess.get_file_as_string(REAL_CONTENT_DIR.path_join(file_name)))
+		copied.close()
+
+
 ## data の内容で formations.json を一時ディレクトリに書き、その場所を読む ContentRepository を返す。
 func _repository_with(data: Variant, case_name: String) -> ContentRepository:
 	var dir: String = create_temp_dir("content_repository/" + case_name)
+	_copy_other_real_files(dir)
 	var file := FileAccess.open(dir.path_join(FORMATIONS_FILE), FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))
 	file.close()
@@ -79,13 +88,16 @@ func test_validation_errors_loads_when_not_loaded_yet() -> void:
 
 
 func test_missing_file_is_an_error() -> void:
-	var repository := ContentRepository.new(create_temp_dir("content_repository/missing"))
+	var missing_dir: String = create_temp_dir("content_repository/missing")
+	_copy_other_real_files(missing_dir)
+	var repository := ContentRepository.new(missing_dir)
 	assert_int(repository.load_catalog().formations.size()).is_equal(0)
 	assert_int(repository.validation_errors().size()).is_equal(1)
 
 
 func test_broken_json_is_an_error() -> void:
 	var dir: String = create_temp_dir("content_repository/broken_json")
+	_copy_other_real_files(dir)
 	var file := FileAccess.open(dir.path_join(FORMATIONS_FILE), FileAccess.WRITE)
 	file.store_string("{\"format_version\": 1, \"formations\": [")
 	file.close()
@@ -287,6 +299,7 @@ func test_coordinate_beyond_json_range_is_an_error() -> void:
 	var broken: String = text.replace("\"id\": \"4-4-2-gk\", \"type\": \"GK\", \"label\": \"GK\", \"number\": 1, \"x\": 50,",
 			"\"id\": \"4-4-2-gk\", \"type\": \"GK\", \"label\": \"GK\", \"number\": 1, \"x\": 1e999,")
 	assert_str(broken).is_not_equal(text)
+	_copy_other_real_files(dir)
 	var file := FileAccess.open(dir.path_join(FORMATIONS_FILE), FileAccess.WRITE)
 	file.store_string(broken)
 	file.close()
