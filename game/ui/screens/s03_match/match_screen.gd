@@ -159,6 +159,8 @@ func _build() -> void:
 	_phase_tag = Label.new()
 	_phase_tag.name = "PhaseTag"
 	_phase_tag.theme_type_variation = &"TagLabel"
+	# 英字と日本語の2行（MatchTexts.phase_tag）。行ごとに中央へそろえる
+	_phase_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_phase_tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top_bar.add_child(_phase_tag)

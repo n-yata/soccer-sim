@@ -62,6 +62,24 @@ func _play_turn(screen: MatchScreen) -> void:
 
 # --- S-03 ---
 
+## トランジションのターンでも、上部バーが基準の幅（1280px）から左右の余白（24px ずつ）を除いた幅に収まる。
+## 局面のタグが1行で約 480px あった頃は、上部バーが 1364px になり画面からはみ出した（2026-10-29）。
+## どちらの側がボールを持っていても収まるよう、4つのタグすべてで測る
+func test_the_top_bar_fits_the_screen_width_in_every_phase() -> void:
+	_match_at(ScreenTestHelper.Stop.TRANSITION)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	assert_str(screen.phase_text()).contains("TRANSITION")
+	var top_bar: HBoxContainer = screen.find_child("TopBar", true, false) as HBoxContainer
+	var phase_tag: Label = screen.find_child("PhaseTag", true, false) as Label
+	for turn_kind: GameEnums.TurnKind in [GameEnums.TurnKind.OPEN_PLAY, GameEnums.TurnKind.TRANSITION]:
+		for user_has_ball: bool in [true, false]:
+			phase_tag.text = MatchTexts.phase_tag(turn_kind, user_has_ball)
+			assert_float(top_bar.get_combined_minimum_size().x).override_failure_message(phase_tag.text) \
+					.is_less_equal(1280.0 - 48.0)
+			assert_float(top_bar.get_combined_minimum_size().y).override_failure_message(phase_tag.text) \
+					.is_less_equal(96.0)
+
+
 func test_match_screen_shows_the_score_and_the_phase() -> void:
 	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen

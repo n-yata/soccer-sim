@@ -55,10 +55,10 @@ func test_choice_summary_has_the_target_only_when_the_move_has_one() -> void:
 
 
 func test_phase_tags_follow_the_turn_kind_and_possession() -> void:
-	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.OPEN_PLAY, true)).is_equal("ATTACK 攻撃")
-	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.OPEN_PLAY, false)).is_equal("DEFENSE 守備")
-	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.TRANSITION, true)).is_equal("POS.TRANSITION ポジティブトランジション")
-	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.TRANSITION, false)).is_equal("NEG.TRANSITION ネガティブトランジション")
+	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.OPEN_PLAY, true)).is_equal("ATTACK\n攻撃")
+	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.OPEN_PLAY, false)).is_equal("DEFENSE\n守備")
+	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.TRANSITION, true)).is_equal("POS.TRANSITION\nポジティブトランジション")
+	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.TRANSITION, false)).is_equal("NEG.TRANSITION\nネガティブトランジション")
 
 
 func test_outcome_labels_pair_the_code_and_the_japanese_name() -> void:

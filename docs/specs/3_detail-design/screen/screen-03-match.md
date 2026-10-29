@@ -31,7 +31,7 @@ MatchScreen (Control)
 │   │   │   ├── OpponentChip (Label)          # 「CPU ◆」。地 #4A2611
 │   │   │   └── ClockLabel (Label)            # 「前半 5／15」。アディショナルタイムは「前半 15＋2」
 │   │   ├── PossessionLabel (Label)           # 「● 自分のボール」／「◆ CPU のボール」。地は保持側のチームの色。開示中も隠さず、判定後の保持に替える（2026-10-24）
-│   │   ├── PhaseTag (Label)                  # 「ATTACK 攻撃」。地 accent、文字 bg。開示中は隠し、RevealBanner に替える
+│   │   ├── PhaseTag (Label)                  # 「ATTACK」と「攻撃」の2行（1行だとトランジションの「NEG.TRANSITION ネガティブトランジション」で上部バーが画面の幅を超えた。2026-10-29）。地 accent、文字 bg。開示中は隠し、RevealBanner に替える
 │   │   └── RevealBanner (VBoxContainer)      # 両者の選択の帯（2段）。開示から次のターンまで表示（それ以外は非表示）。各段 24px、ELLIPSIS
 │   │       ├── UserChoiceLabel (Label)       # 「YOU ショートパス → 中盤（敵陣）・中央」。地 #0E3A55
 │   │       └── OpponentChoiceLabel (Label)   # 「CPU プレス → 中盤（自陣）・左HS」。地 #4A2611

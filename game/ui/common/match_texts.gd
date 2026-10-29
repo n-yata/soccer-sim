@@ -67,10 +67,11 @@ static func possession_text(user_has_ball: bool) -> String:
 
 
 ## 局面のタグ。トランジションでボールを持っているのは奪取側（ポジティブ）。
+## 英字と日本語を2行に分ける（1行の「NEG.TRANSITION ネガティブトランジション」は約 480px あり、上部バーが画面の幅を超えた。2026-10-29）。
 static func phase_tag(turn_kind: GameEnums.TurnKind, user_has_ball: bool) -> String:
 	if turn_kind == GameEnums.TurnKind.TRANSITION:
-		return "POS.TRANSITION ポジティブトランジション" if user_has_ball else "NEG.TRANSITION ネガティブトランジション"
-	return "ATTACK 攻撃" if user_has_ball else "DEFENSE 守備"
+		return "POS.TRANSITION\nポジティブトランジション" if user_has_ball else "NEG.TRANSITION\nネガティブトランジション"
+	return "ATTACK\n攻撃" if user_has_ball else "DEFENSE\n守備"
 
 
 ## 「ADVANCE 前進」の形。
