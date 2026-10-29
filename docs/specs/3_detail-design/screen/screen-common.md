@@ -173,7 +173,7 @@ Android のタッチと PC のマウスで同じ処理が動くように、入�
 | `ScreenHeader` | `set_title(text: String)`、`set_back_label(text: String)`、`add_to_right(control: Control)`（右端に部品を置く。画面の組み立て中＝木に入る前にも呼べる。2026-10-29） | `back_pressed` | 左に戻る（またはやめる）、その右に画面名。右側は画面ごとの表示（タブ・段階の番号など）に使う |
 | `FormationCard` | `show_formation(formation: FormationDef, counts: Dictionary, selected: bool, compact: bool)` | `pressed(formation_id: String)` | `compact` が真なら陣形名と ✓ だけの小さい版（S-05）。関数名は `CanvasItem.show()` とぶつかるため `show_formation`。ルートは `Control` で、中に全面のトグルボタン（選択中は押した状態＝黄色の縁）を置く（シグナル `pressed` が `Button.pressed` とぶつかるため）。選択の状態は画面が持ち、カードは受け取った値を出すだけ |
 | `SimplificationList` | `show_items(items: Array[SimplificationDef])` | — | S-10 と S-08 の最後の段階で共用 |
-| `NewMatchGate` | `NewMatchGate.new(controller: MatchController, request_screen: Callable)`、`begin(dialog: ConfirmDialog)` | `finished(started: bool)` | 「CPU 対戦」の確認の手順（[`screen-01-title.md`](./screen-01-title.md)「CPU 対戦を押す」）。ノードを持たない `RefCounted`。`host` の引数は使わないので外した（2026-10-29）。戦績を記録できていない試合（`FINALIZE_PENDING`）の確認は、戦績の作業で足す |
+| `NewMatchGate` | `NewMatchGate.new(controller: MatchController, request_screen: Callable)`、`begin(dialog: ConfirmDialog)` | `finished(started: bool)` | 「CPU 対戦」の確認の手順（[`screen-01-title.md`](./screen-01-title.md)「CPU 対戦を押す」）。ノードを持たない `RefCounted`。`host` の引数は使わないので外した（2026-10-29）。文言は `DISCARD_MESSAGE`・`UNRECORDED_MESSAGE`（戦績を記録できていない試合。2026-10-29 の戦績の作業で足した） |
 
 `ToastView`（短い通知）は `MainShell` が1つだけ持ち、`App.storage_error` を受けて表示する。各画面は持たない。
 画面の下端から 32px に、地 `surface`・縁 `accent` の枠（テーマの型 `ToastPanel`）で5秒出す。押せない表示（下の画面の操作を止めない）。

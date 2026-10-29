@@ -5,11 +5,11 @@
 class_name AppScreens
 extends RefCounted
 
-## NONE: なし／RESUMABLE: 再開できる（再開カードを出す）。終了処理待ち（FINALIZE_PENDING）は戦績の作業で足す
-enum SuspendedStatus { NONE, RESUMABLE }
-## 起動時の後始末の結果（MatchController.inspect_suspended）。DISCARDED は FINISHED と、最終ターンまで終えた IN_PROGRESS を
-## 消した（戦績の作業で、終了処理のやり直しの FINALIZED・FINALIZE_FAILED に分ける）
-enum StartupResult { NONE, RESUMABLE, DISCARDED, CORRUPTED }
+## NONE: なし／RESUMABLE: 再開できる（再開カードを出す）／FINALIZE_PENDING: 終了処理（戦績の記録）が済んでいない試合が残っている
+enum SuspendedStatus { NONE, RESUMABLE, FINALIZE_PENDING }
+## 起動時の後始末の結果（MatchController.inspect_suspended）。FINALIZED は終了処理が済んだ試合を消した（FINISHED を見つけた、
+## または最終ターンまで終えた IN_PROGRESS の終了処理をやり直して済んだ）。FINALIZE_FAILED はやり直しにも失敗して残した
+enum StartupResult { NONE, RESUMABLE, FINALIZED, FINALIZE_FAILED, CORRUPTED }
 
 enum Id {
 	S01_TITLE,

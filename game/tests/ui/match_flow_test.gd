@@ -7,13 +7,19 @@ const MAIN_SHELL_SCENE: String = "res://ui/main_shell.tscn"
 const MAX_STEPS: int = 300
 
 var _original_controller: MatchController
+## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
+var _original_user_data: UserDataService
+var _user_data_count: int = 0
 
 
 func before_test() -> void:
+	_user_data_count += 1
+	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("match_flow/records_%d" % _user_data_count))
 	_original_controller = App.match_controller
 
 
 func after_test() -> void:
+	App.user_data = _original_user_data
 	App.match_controller = _original_controller
 
 
@@ -66,7 +72,7 @@ func test_a_whole_match_can_be_played_through_the_screens() -> void:
 		elif screen is ResultScreen:
 			var snapshot: BoardSnapshot = controller.snapshot()
 			assert_str((screen as ResultScreen).outcome()) \
-					.is_equal(ResultScreen.outcome_text(snapshot.score_user, snapshot.score_opponent))
+					.is_equal(RecordTexts.result_word(MatchRecord.result_of(snapshot.score_user, snapshot.score_opponent)))
 			_press(screen, "TitleButton")
 		await _frames()
 

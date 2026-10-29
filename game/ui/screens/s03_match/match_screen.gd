@@ -178,8 +178,11 @@ func _build() -> void:
 
 
 ## メニューを開けるのは、手を選んでいる間と判定理由を出している間（screen-03-match.md「メニュー」）。
-## 決定の処理中（SUBMITTING）と画面の切り替えを待つ間（LEAVING）は開かない。
+## 決定の処理中（SUBMITTING）と画面の切り替えを待つ間（LEAVING）は開かない。試合を終えた後（最終ターンの判定理由）も
+## 開かない（中断せず、結果画面と終了処理を通す。2026-10-29）。
 func _can_open_menu() -> bool:
+	if _controller.is_match_over():
+		return false
 	return _board_panel.state() in [MatchBoardPanel.State.SELECT_ACTION, MatchBoardPanel.State.SELECT_TARGET,
 			MatchBoardPanel.State.READY, MatchBoardPanel.State.SHOW_RESULT]
 

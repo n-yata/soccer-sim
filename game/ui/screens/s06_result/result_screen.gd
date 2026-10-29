@@ -1,8 +1,6 @@
-## S-06 試合結果（screen-06-result.md）。勝敗と最終スコアを出し、振り返り（S-07）かタイトルへ進む。
-## 勝敗は色だけでなく文字で示す。タイトルへの切り替えは MatchController.leave_result が頼む。
-##
-## 今回の範囲で外しているもの（.steering/20261019-match-screen/design.md）: 陣形・方式の推移（final_record。戦績の作業で足す）。
-## 勝敗とスコアは snapshot() から出す。「振り返り」は 2026-10-29 に足した。
+## S-06 試合結果（screen-06-result.md）。勝敗・最終スコア・陣形と方式の推移を出し、振り返り（S-07）かタイトルへ進む。
+## 勝敗は色だけでなく文字で示す。タイトルへの切り替えは MatchController.leave_result が頼む（終了処理のやり直しを含む）。
+## スコアの表示は snapshot()、勝敗と推移は final_record()（開くたびに呼ぶ。振り返りから戻ったときも同じ）。
 class_name ResultScreen
 extends AppScreen
 
@@ -13,6 +11,7 @@ var _score_bug: ScoreBug
 var _outcome_label: Label
 var _title_button: Button
 var _review_button: Button
+var _history_list: VBoxContainer
 
 
 func _init() -> void:
@@ -24,17 +23,13 @@ func enter(_params: Dictionary) -> void:
 	if snapshot == null:
 		return
 	_score_bug.show_snapshot(snapshot, "FT")
-	_outcome_label.text = outcome_text(snapshot.score_user, snapshot.score_opponent)
+	var record: MatchRecord = App.match_controller.final_record()
+	_outcome_label.text = RecordTexts.result_word(record.result)
+	MatchScreenLayout.clear(_history_list)
+	var lines: Array[String] = RecordTexts.history_lines(record, snapshot.turns_per_half)
+	for index: int in range(lines.size()):
+		MatchScreenLayout.text(_history_list, "History%d" % index, &"").text = lines[index]
 	_set_state(State.IDLE)
-
-
-## 利用者から見た勝敗。
-static func outcome_text(score_user: int, score_opponent: int) -> String:
-	if score_user > score_opponent:
-		return "勝ち"
-	if score_user < score_opponent:
-		return "負け"
-	return "引き分け"
 
 
 ## 戻る操作は「タイトルへ」と同じ（screen-06-result.md）。
@@ -57,6 +52,14 @@ func review_button() -> Button:
 
 func outcome() -> String:
 	return _outcome_label.text
+
+
+func history_texts() -> Array[String]:
+	var texts: Array[String] = []
+	for label: Node in _history_list.get_children():
+		if not label.is_queued_for_deletion():
+			texts.append((label as Label).text)
+	return texts
 
 
 func score_bug() -> ScoreBug:
@@ -103,3 +106,10 @@ func _build() -> void:
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
 	MatchScreenLayout.tag(info, "FullTimeTag", "FULL TIME")
 	_outcome_label = MatchScreenLayout.text(info, "OutcomeLabel", &"ResultLabel")
+	# 陣形・方式の推移は操作の列の上（残りの高さ。screen-06-result.md「ノード構成」）
+	var side: VBoxContainer = parts["side"] as VBoxContainer
+	MatchScreenLayout.text(side, "HistoryTitle", &"SectionTitleLabel").text = "陣形・方式の推移"
+	_history_list = VBoxContainer.new()
+	_history_list.name = "HistoryList"
+	_history_list.add_theme_constant_override("separation", 8)
+	side.add_child(_history_list)

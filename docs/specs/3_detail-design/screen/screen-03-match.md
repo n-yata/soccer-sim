@@ -188,7 +188,8 @@ MatchScreen (Control)
 
 ### メニュー
 
-1. 「≡」を押す（`SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` のときだけ押せる）と、
+1. 「≡」を押す（`SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` のときだけ押せる。ただし試合を終えた後の
+   `SHOW_RESULT`（`is_match_over()` が真。最終ターンの判定理由）は押せない。中断で結果画面と終了処理を飛ばさないため。2026-10-29）と、
    `MatchMenu.open(match_controller.has_unsaved_progress())`
 2. 「設定」: `SettingsOverlay` を出し、`SettingsPanel.show_settings(App.user_data.settings())`。音量は `SettingsPanel` がその場で反映する。`committed` を受けたら
    `App.user_data.save_settings()`。ヒント表示を変えた場合は `BoardPanel.refresh_hints()` を呼ぶ（`SELECT_*`・`READY` なら、パネルが「ターンを始める」の 2. を
@@ -202,7 +203,7 @@ MatchScreen (Control)
 | 状態 | 動き |
 |---|---|
 | メニュー・設定・確認ダイアログを開いている | いちばん上のものを閉じる |
-| `SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` | メニューを開く |
+| `SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` | メニューを開く（試合を終えた後の `SHOW_RESULT` は開かない） |
 | `SUBMITTING`・`LEAVING` | 何もしない |
 
 いずれも `true` を返す（試合画面からアプリを閉じない）。

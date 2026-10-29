@@ -13,7 +13,7 @@ static func aggregate(records: Array[TurnRecord], viewer: GameEnums.TeamSide, lo
 	for record: TurnRecord in records:
 		_count(summary, record, viewer)
 	summary.goals = _goals(records, lookback_turns)
-	summary.segments = _segments(records)
+	summary.segments = segments(records)
 	return summary
 
 
@@ -90,8 +90,9 @@ static func _goals(records: Array[TurnRecord], lookback_turns: int) -> Array[Rev
 
 
 ## 両チームの陣形・方式が同じ連続したターンを1つの時間帯にする。ハーフの境では必ず区切る。
-static func _segments(records: Array[TurnRecord]) -> Array[ReviewSegment]:
-	var segments: Array[ReviewSegment] = []
+## 戦績の陣形と方式の推移（MatchRecord.of）も、これを使う。
+static func segments(records: Array[TurnRecord]) -> Array[ReviewSegment]:
+	var result: Array[ReviewSegment] = []
 	var current: ReviewSegment = null
 	for record: TurnRecord in records:
 		if current != null and current.half == record.half and _same_setup(current.home_setup, record.home_setup) \
@@ -104,8 +105,8 @@ static func _segments(records: Array[TurnRecord]) -> Array[ReviewSegment]:
 		current.to_turn = record.turn_number
 		current.home_setup = record.home_setup.duplicate_deep()
 		current.away_setup = record.away_setup.duplicate_deep()
-		segments.append(current)
-	return segments
+		result.append(current)
+	return result
 
 
 static func _same_setup(a: TeamSetup, b: TeamSetup) -> bool:

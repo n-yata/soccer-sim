@@ -3,15 +3,14 @@
 ## 利用者 = HOME、CPU = AWAY（§1.3）。
 ##
 ## 今回作った範囲は、試合の開始・1ターンの確定と開示・方式の選び直し・ハーフタイム・振り返り・中断データの保存と再開・
-## 起動時の後始末（2026-10-29）まで。戦績と終了処理・チュートリアルは、それぞれの作業で足す
-## （そのとき、設計書の引数 user_data・is_tutorial を足す）。保存の失敗の扱いと再開カード用の写しは SuspendKeeper が持つ。
-## ファイルの目安 300 行を超えている（2026-10-29 に約 380 行）。UI の入口は設計上このクラス1つ（component-design.md §3.2）なので、
-## 公開する関数はここに置き、中身を別のクラスへ分けている（変換は ViewConverter、保存は SuspendKeeper）。
-## 戦績の作業で終了処理を足すときは、終了処理を別のクラスに分ける。
+## 起動時の後始末・試合の終了処理（戦績の記録）とそのやり直し（2026-10-29）まで。チュートリアルは、その作業で足す
+## （そのとき、設計書の引数 is_tutorial を足す）。保存の失敗の扱いと再開カード用の写しは SuspendKeeper が持つ。
+## ファイルの目安 300 行を超えている（2026-10-29 に約 430 行）。UI の入口は設計上このクラス1つ（component-design.md §3.2）なので、
+## 公開する関数はここに置き、中身を別のクラスへ分けている（変換は ViewConverter、保存は SuspendKeeper、終了処理は MatchFinalizer）。
 class_name MatchController
 extends RefCounted
 
-## 中断データの保存・読み込みに失敗した（App が storage_error へ中継する）
+## 中断データの保存・読み込みに失敗した（App が storage_error へ中継する。戦績の失敗は UserDataService が知らせる）
 signal storage_failed(kind: AppScreens.StorageErrorKind)
 
 ## 盤面・スコア・相手の方式が変わった。ターンの途中（submit_turn の中）では出さず、continue_after_reveal・
@@ -41,14 +40,20 @@ var _awaiting_continue: bool = false
 ## 盤面に出す動き（直前のターンの動き）。方式の選び直し・ハーフタイムで配置を作り直したら空にする
 var _board_movements: Array[Movement] = []
 var _keeper: SuspendKeeper
+var _finalizer: MatchFinalizer
+## 今の試合の終了処理（戦績の記録 → FINISHED で保存）が済んだか
+var _is_finalized: bool = false
+## 今の試合の戦績の終了日時（最初に終了処理をした時刻。まだなら空）
+var _finished_at: String = ""
 
 
 ## request_screen は画面の切り替えを頼む関数（App.request_screen。テストでは記録用の関数）。
 ## assert_on_invalid_cpu: CPU の手が選べないとき assert で止めるか（開発時は止める。書き出し版は止めずに置き換える）。
 ## store は中断データの保存先。null なら保存しない（保存を確かめないテストとチュートリアル用）。
+## user_data は戦績の記録先。null なら記録しない（記録は成功した扱い）。
 func _init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberGenerator, opponent: OpponentPolicy,
 		request_screen: Callable, assert_on_invalid_cpu: bool = OS.is_debug_build(),
-		store: SuspendedMatchStore = null) -> void:
+		store: SuspendedMatchStore = null, user_data: UserDataService = null) -> void:
 	_catalog = catalog
 	_rules = config.match_rules()
 	_config = config
@@ -58,18 +63,39 @@ func _init(catalog: ContentCatalog, config: ConfigRepository, rng: RandomNumberG
 	_assert_on_invalid_cpu = assert_on_invalid_cpu
 	_keeper = SuspendKeeper.new(store, _rules)
 	_keeper.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: storage_failed.emit(kind))
+	_finalizer = MatchFinalizer.new(user_data, _keeper)
 
 
 # --- 起動時・再開・中断（UC-05） ---
 
 ## 起動時に1回だけ呼ぶ後始末（確定事項「起動時の扱い」）。破損なら削除して storage_failed(SUSPEND_LOAD)。
+## FINISHED なら削除し、最終ターンまで終えた IN_PROGRESS なら終了処理をやり直す（済めば削除して FINALIZED、だめなら FINALIZE_FAILED）。
 func inspect_suspended() -> AppScreens.StartupResult:
-	return _keeper.inspect()
+	var result: AppScreens.StartupResult = _keeper.inspect()
+	if _keeper.pending() == null:
+		return result
+	return AppScreens.StartupResult.FINALIZED if retry_pending_finalize() else AppScreens.StartupResult.FINALIZE_FAILED
 
 
 ## タイトルを開くたびに呼ぶ。試合中（start_match・resume の後、中断する前）は NONE。
 func suspended_status() -> AppScreens.SuspendedStatus:
-	return AppScreens.SuspendedStatus.RESUMABLE if _keeper.resumable() != null else AppScreens.SuspendedStatus.NONE
+	if _keeper.resumable() != null:
+		return AppScreens.SuspendedStatus.RESUMABLE
+	if _keeper.pending() != null:
+		return AppScreens.SuspendedStatus.FINALIZE_PENDING
+	return AppScreens.SuspendedStatus.NONE
+
+
+## FINALIZE_PENDING のときに、終了処理（戦績の記録 → FINISHED で保存 → 中断データの削除）をやり直す。済んだら true。
+## 終了処理待ちの試合が無ければ false。終了日時はやり直した時刻（最終ターンの時刻は持っていない）。
+func retry_pending_finalize() -> bool:
+	var pending: MatchState = _keeper.pending()
+	if pending == null:
+		return false
+	if _finalizer.finalize(pending, _now_text()) == null:
+		return false
+	_keeper.delete()
+	return true
 
 
 ## 再開できる中断データの盤面（タイトルの再開カード用）。再開できる試合が無ければ null。
@@ -102,8 +128,9 @@ func has_unsaved_progress() -> bool:
 
 ## 試合中のメニューから中断してタイトルへ。直前の保存に失敗していれば保存をやり直す（保存の時点④）。
 ## メモリ上の試合を閉じ、保存されている中断データを再開カード用に読み直してから、タイトルを頼む。保存をやり直して失敗したら false。
+## 試合が終わった後（最終ターンの判定理由）は中断しない（false。結果画面と終了処理を通す。画面はメニューを開かない）。
 func suspend_to_title() -> bool:
-	if _state == null:
+	if _state == null or is_match_over():
 		return false
 	var is_saved: bool = true
 	if _keeper.has_unsaved():
@@ -196,6 +223,9 @@ func submit_turn(user_choice: TurnChoice) -> bool:
 	_state = resolution.next_state
 	# 保存の時点①（得点・ハーフ終了で進行段階が変わる③もこの1回で兼ねる）。開示より前に保存する
 	_keeper.save(_state)
+	# 後半を終えたら終了処理。失敗しても、上の保存で IN_PROGRESS のまま残っている（leave_result・次の起動時にやり直す）
+	if is_match_over():
+		_finalize_current()
 	var record: TurnRecord = resolution.record
 	if record.outcome == GameEnums.TurnOutcome.GOAL:
 		_last_goal_by = record.attacker
@@ -257,15 +287,29 @@ func submit_halftime(user_setup: TeamSetup) -> bool:
 
 
 ## 結果の画面（S-06）から出る。試合が終わる前は push_error して false。
-## 中断データを消してからタイトル（S-01）を頼む（削除の時点②）。戦績の記録（終了処理）はまだ無いので、今は無条件に消す。
-## 戦績の作業で、終了処理が済んでいる場合だけ消し、済んでいなければやり直す形に変える。
+## 終了処理が済んでいなければやり直す。済んでいれば中断データを消し（削除の時点②）、なお失敗したら消さずに終了処理待ちとして残す
+## （戦績を失わないため。タイトルは FINALIZE_PENDING になる）。どちらでもタイトル（S-01）を頼む。
 func leave_result() -> bool:
 	if not is_match_over():
 		push_error("MatchController: 試合が終わる前に結果の画面からは出られない")
 		return false
-	_keeper.delete()
+	if not _is_finalized:
+		_finalize_current()
+	if _is_finalized:
+		_keeper.delete()
+	else:
+		_keeper.keep_pending(_state)
 	_request_screen.call(AppScreens.Id.S01_TITLE, {})
 	return true
+
+
+## 結果画面が開くたびに呼ぶ戦績（勝敗・スコア・陣形と方式の推移）。終了処理が済んでいなくても、今の試合の状態から作る。
+## 試合が終わる前は null（UI の誤りなので push_error）。
+func final_record() -> MatchRecord:
+	if not is_match_over():
+		push_error("MatchController: 試合が終わる前に final_record は呼べない")
+		return null
+	return MatchRecord.of(_state, _finished_at)
 
 
 ## 振り返り（S-07。アルゴリズム10）。メモリ上のターン記録を利用者の視点で集計し、得失点の流れの各ターンを
@@ -324,7 +368,24 @@ func _open(state: MatchState) -> void:
 	_last_goal_by = -1
 	_awaiting_continue = false
 	_board_movements = []
+	_is_finalized = false
+	_finished_at = ""
 	_keeper.forget()
+
+
+## 今の試合の終了処理。済んだら FINISHED にした状態に置き換える。終了日時は最初に試みた時刻。
+func _finalize_current() -> void:
+	if _finished_at.is_empty():
+		_finished_at = _now_text()
+	var finished: MatchState = _finalizer.finalize(_state, _finished_at)
+	if finished != null:
+		_state = finished
+		_is_finalized = true
+
+
+## 端末のローカル時刻（ISO 8601。タイムゾーンなし）。
+static func _now_text() -> String:
+	return Time.get_datetime_string_from_system(false, false)
 
 
 ## 最後の得点の側（ターン記録の最後の GOAL の攻撃側）。得点が無ければ -1。再開した試合の「〜が得点しました」に使う。

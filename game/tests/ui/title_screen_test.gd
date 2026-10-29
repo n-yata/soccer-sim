@@ -16,9 +16,14 @@ const CARD_DESTINATIONS: Dictionary = {
 
 var _title: TitleScreen
 var _requested: Array[int] = []
+## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
+var _original_user_data: UserDataService
+var _user_data_count: int = 0
 
 
 func before_test() -> void:
+	_user_data_count += 1
+	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("title_screen/records_%d" % _user_data_count))
 	_title = auto_free((load(TITLE_SCENE) as PackedScene).instantiate() as TitleScreen) as TitleScreen
 	add_child(_title)
 	_requested.clear()
@@ -26,6 +31,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	App.user_data = _original_user_data
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
 

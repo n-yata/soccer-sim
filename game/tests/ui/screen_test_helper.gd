@@ -12,13 +12,25 @@ enum Stop { START, STYLE_CHANGE, HALFTIME, OVER, TRANSITION }
 
 
 ## 固定シードの乱数と本物の CpuOpponent で作った MatchController。画面の要求は request に渡す。
-## store を渡すと中断データを保存する（同じシードなら、保存の有無で試合の進み方は変わらない）。
-static func new_controller(seed_value: int, request: Callable, store: SuspendedMatchStore = null) -> MatchController:
+## store を渡すと中断データを保存し、user_data を渡すと戦績を記録する（同じシードなら、保存の有無で試合の進み方は変わらない）。
+static func new_controller(seed_value: int, request: Callable, store: SuspendedMatchStore = null,
+		user_data: UserDataService = null) -> MatchController:
 	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var config := ConfigRepository.new()
-	return MatchController.new(catalog, config, rng, CpuOpponent.new(catalog, config.cpu(), rng), request, true, store)
+	return MatchController.new(catalog, config, rng, CpuOpponent.new(catalog, config.cpu(), rng), request, true, store,
+			user_data)
+
+
+## App.user_data を、dir に戦績を保存するサービスに差し替え、元のサービスを返す（after_test で戻す）。
+## タイトル・戦績の画面は App.user_data を読むので、開発用の PC の戦績を読み書きしないために使う。
+static func use_user_data_in(dir: String) -> UserDataService:
+	var original: UserDataService = App.user_data
+	var service := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), dir))
+	service.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: App.storage_error.emit(kind))
+	App.user_data = service
+	return original
 
 
 static func user_setup() -> TeamSetup:

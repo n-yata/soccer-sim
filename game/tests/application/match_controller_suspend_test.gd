@@ -183,19 +183,22 @@ func test_inspect_deletes_corrupted_data_and_reports_it() -> void:
 	assert_int(controller.suspended_status()).is_equal(AppScreens.SuspendedStatus.NONE)
 
 
-func test_inspect_discards_finished_matches_and_matches_played_to_the_end() -> void:
+## 戦績の記録先を持たないコントローラーでは、記録は成功した扱い（戦績の記録の失敗は match_controller_finalize_test）
+func test_inspect_deletes_finished_matches_and_finalizes_matches_played_to_the_end() -> void:
 	var store: SuspendedMatchStore = _store("inspect_finished")
 	var over: MatchController = _controller_at(store, ScreenTestHelper.Stop.OVER)
-	# 最終ターンまで終えた IN_PROGRESS（戦績の作業までは、終了処理をやり直さずに消す）
-	assert_int(store.load().state.status).is_equal(GameEnums.MatchStatus.IN_PROGRESS)
-	assert_int(_controller(store, 3).inspect_suspended()).is_equal(AppScreens.StartupResult.DISCARDED)
-	assert_int(store.load().status).is_equal(SuspendedLoad.Status.NONE)
-	# FINISHED
-	store.save(MatchRules.finish(over.state()))
+	# 最終ターンで終了処理が済み、FINISHED で保存されている
+	assert_int(store.load().state.status).is_equal(GameEnums.MatchStatus.FINISHED)
 	var controller: MatchController = _controller(store, 3)
-	assert_int(controller.inspect_suspended()).is_equal(AppScreens.StartupResult.DISCARDED)
+	assert_int(controller.inspect_suspended()).is_equal(AppScreens.StartupResult.FINALIZED)
 	assert_int(store.load().status).is_equal(SuspendedLoad.Status.NONE)
 	assert_int(controller.suspended_status()).is_equal(AppScreens.SuspendedStatus.NONE)
+	# 最終ターンまで終えた IN_PROGRESS（終了処理の保存に失敗した試合）は、やり直して消す
+	var unfinished: MatchState = over.state()
+	unfinished.status = GameEnums.MatchStatus.IN_PROGRESS
+	store.save(unfinished)
+	assert_int(_controller(store, 3).inspect_suspended()).is_equal(AppScreens.StartupResult.FINALIZED)
+	assert_int(store.load().status).is_equal(SuspendedLoad.Status.NONE)
 	assert_array(_failures).is_empty()
 
 

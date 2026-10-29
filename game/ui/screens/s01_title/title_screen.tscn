@@ -264,6 +264,13 @@ theme_type_variation = &"CardTitleLabel"
 text = "戦績"
 autowrap_mode = 3
 
+[node name="RecordsSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/RecordsCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
 [node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/RecordsCard/Box"]
 layout_mode = 2
 size_flags_vertical = 10

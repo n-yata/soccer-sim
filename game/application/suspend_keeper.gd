@@ -13,6 +13,8 @@ var _rules: MatchRuleConfig
 var _has_unsaved: bool = false
 ## 再開できる中断データの写し（タイトルの再開カード用）。無ければ null
 var _resumable: MatchState
+## 最終ターンまで終えたのに終了処理（戦績の記録）が済んでいない試合（FINALIZE_PENDING）。無ければ null
+var _pending: MatchState
 
 
 func _init(store: SuspendedMatchStore, rules: MatchRuleConfig) -> void:
@@ -37,9 +39,10 @@ func has_unsaved() -> bool:
 	return _has_unsaved
 
 
-## 中断データを消し、再開カード用の写しも捨てる。
+## 中断データを消し、再開カード用の写しと終了処理待ちの試合も捨てる。
 func delete() -> void:
 	_resumable = null
+	_pending = null
 	_has_unsaved = false
 	if _store != null:
 		_store.delete()
@@ -52,10 +55,11 @@ func drop_stale() -> void:
 
 
 ## 保存されている中断データを確かめ直し、再開できる写しを持つ（起動時と、中断してタイトルへ戻ったとき）。
-## 破損 → 削除して通知（SUSPEND_LOAD）。FINISHED と、最終ターンまで終えた IN_PROGRESS → 削除（再開の対象にしない。
-## 戦績を記録する終了処理は、戦績の作業で足す）。
+## 破損 → 削除して通知（SUSPEND_LOAD）。FINISHED → 戦績は記録済みなので削除（FINALIZED）。
+## 最終ターンまで終えた IN_PROGRESS → 終了処理待ち（pending）として持ち、FINALIZE_FAILED を返す（やり直しは MatchController）。
 func inspect() -> AppScreens.StartupResult:
 	_resumable = null
+	_pending = null
 	if _store == null:
 		return AppScreens.StartupResult.NONE
 	var loaded: SuspendedLoad = _store.load()
@@ -66,9 +70,12 @@ func inspect() -> AppScreens.StartupResult:
 			_store.delete()
 			storage_failed.emit(AppScreens.StorageErrorKind.SUSPEND_LOAD)
 			return AppScreens.StartupResult.CORRUPTED
-	if not is_resumable(loaded.state):
+	if loaded.state.status == GameEnums.MatchStatus.FINISHED:
 		_store.delete()
-		return AppScreens.StartupResult.DISCARDED
+		return AppScreens.StartupResult.FINALIZED
+	if not is_resumable(loaded.state):
+		_pending = loaded.state
+		return AppScreens.StartupResult.FINALIZE_FAILED
 	_resumable = loaded.state
 	return AppScreens.StartupResult.RESUMABLE
 
@@ -94,9 +101,22 @@ func resumable() -> MatchState:
 	return _resumable
 
 
-## 試合を新しく始めたとき・再開したとき。試合中は再開カードを出さない。
+## 終了処理待ちの試合（無ければ null）。読むだけにする。
+func pending() -> MatchState:
+	return _pending
+
+
+## 結果画面から出るときに終了処理のやり直しにも失敗した試合を、終了処理待ちとして持つ（中断データは消さずに残っている）。
+func keep_pending(state: MatchState) -> void:
+	_resumable = null
+	_pending = state
+
+
+## 試合を新しく始めたとき・再開したとき。試合中は再開カード・終了処理待ちを出さない
+## （新しい試合なら、終了処理待ちの試合は利用者の確認を経て上書きされる。削除の時点①）。
 func forget() -> void:
 	_resumable = null
+	_pending = null
 
 
 func is_resumable(state: MatchState) -> bool:

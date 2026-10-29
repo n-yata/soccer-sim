@@ -57,8 +57,12 @@ func test_ready_creates_a_match_controller_that_requests_screens_through_the_app
 				controller.continue_after_reveal()
 	assert_bool(controller.is_match_over()).is_true()
 	assert_int(_received.back()[0] as int).is_equal(AppScreens.Id.S06_RESULT)
-	# 中断データは save_dir に保存される
+	# 中断データと戦績は save_dir に保存される。終えた試合は戦績に1件入り、App.user_data から読める
 	assert_bool(FileAccess.file_exists(dir.path_join(SuspendedMatchStore.FILE_NAME))).is_true()
+	assert_bool(FileAccess.file_exists(dir.path_join(RecordStore.FILE_NAME))).is_true()
+	var user_data: UserDataService = app.get("user_data") as UserDataService
+	assert_int(user_data.records().size()).is_equal(1)
+	assert_str(user_data.records()[0].match_id).is_equal(controller.state().match_id)
 
 
 func test_storage_failures_of_the_match_controller_reach_storage_error() -> void:
@@ -72,6 +76,20 @@ func test_storage_failures_of_the_match_controller_reach_storage_error() -> void
 	controller.start_match(TeamSetup.new("4-4-2",
 			TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER)))
 	assert_array(errors).is_equal([AppScreens.StorageErrorKind.SUSPEND_SAVE] as Array[int])
+
+
+func test_storage_failures_of_the_user_data_reach_storage_error() -> void:
+	var app: Node = auto_free((load(APP_SCRIPT) as GDScript).new() as Node) as Node
+	var dir: String = create_temp_dir("app/user_data_fail")
+	var file: FileAccess = FileAccess.open(dir.path_join(RecordStore.FILE_NAME), FileAccess.WRITE)
+	file.store_string("{ broken")
+	file.close()
+	app.set("save_dir", dir)
+	add_child(app)
+	var errors: Array[int] = []
+	app.connect("storage_error", func(kind: AppScreens.StorageErrorKind) -> void: errors.append(kind))
+	assert_dict((app.get("user_data") as UserDataService).totals()).is_equal({"win": 0, "draw": 0, "lose": 0})
+	assert_array(errors).is_equal([AppScreens.StorageErrorKind.USER_DATA_LOAD] as Array[int])
 
 
 func test_screen_ids_cover_the_12_screens_in_order() -> void:

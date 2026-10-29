@@ -8,9 +8,14 @@ var _original_controller: MatchController
 var _save_dir: String
 ## 一時ディレクトリはスイートの中ではテストごとに消えないので、テストごとに別の名前にする（前のテストの中断データを読まないため）
 var _test_count: int = 0
+## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
+var _original_user_data: UserDataService
+var _user_data_count: int = 0
 
 
 func before_test() -> void:
+	_user_data_count += 1
+	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("main_shell/records_%d" % _user_data_count))
 	_original_controller = App.match_controller
 	_test_count += 1
 	_save_dir = create_temp_dir("main_shell/save_%d" % _test_count)
@@ -18,6 +23,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	App.user_data = _original_user_data
 	App.match_controller = _original_controller
 
 

@@ -42,7 +42,7 @@ static func read(path: String, is_valid: Callable) -> String:
 	if FileAccess.file_exists(tmp_path):
 		DirAccess.remove_absolute(tmp_path)
 	for candidate: String in [path, path + BAK_SUFFIX]:
-		var text: String = _read_limited(candidate)
+		var text: String = read_limited(candidate)
 		if not text.is_empty() and is_valid.call(text):
 			return text
 	return ""
@@ -62,7 +62,8 @@ static func delete(path: String) -> bool:
 	return is_ok
 
 
-static func _read_limited(path: String) -> String:
+## 1つのファイルを、上限を超えない大きさなら読む（無い・読めない・大きすぎるなら空文字）。.bak への切り替えはしない。
+static func read_limited(path: String) -> String:
 	if not FileAccess.file_exists(path):
 		return ""
 	var file: FileAccess = FileAccess.open(path, FileAccess.READ)

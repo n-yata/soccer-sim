@@ -186,6 +186,18 @@ func test_match_screen_menu_does_not_open_while_the_move_is_being_submitted() ->
 		assert_bool(screen.menu_host().is_open()).is_false()
 
 
+## 試合を終えた後（最終ターンの判定理由）は、メニューを開かない（中断せず、結果画面と終了処理を通す）
+func test_match_screen_menu_does_not_open_after_the_last_turn() -> void:
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.OVER)
+	assert_bool(controller.is_match_over()).is_true()
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	screen.menu_host().menu_button().pressed.emit()
+	assert_bool(screen.menu_host().is_open()).is_false()
+	screen.handle_back()
+	assert_bool(screen.menu_host().is_open()).is_false()
+	assert_array(_requested).is_empty()
+
+
 func test_style_change_menu_suspends_and_is_closed_while_kicking_off() -> void:
 	_match_at(ScreenTestHelper.Stop.STYLE_CHANGE)
 	var screen: StyleChangeScreen = _open("res://ui/screens/s04_style_change/style_change_screen.tscn") \

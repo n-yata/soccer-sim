@@ -55,10 +55,11 @@ static func _area(area: PitchArea) -> Variant:
 
 
 static func _setups(home: TeamSetup, away: TeamSetup) -> Dictionary:
-	return {"HOME": _setup(home), "AWAY": _setup(away)}
+	return {"HOME": setup_fields(home), "AWAY": setup_fields(away)}
 
 
-static func _setup(setup: TeamSetup) -> Dictionary:
+## 陣形と方式の形 {formation_id, defense, attack}。戦績の推移（MatchRecordCodec）も同じ形で書く。
+static func setup_fields(setup: TeamSetup) -> Dictionary:
 	return {"formation_id": setup.formation_id, "defense": GameEnums.DefenseStyle.find_key(setup.styles.defense),
 			"attack": GameEnums.AttackStyle.find_key(setup.styles.attack)}
 

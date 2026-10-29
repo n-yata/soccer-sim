@@ -10,9 +10,14 @@ var _requested: Array[int] = []
 var _store: SuspendedMatchStore
 ## 一時ディレクトリはスイートの中ではテストごとに消えないので、テストごとに別の名前にする
 var _test_count: int = 0
+## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
+var _original_user_data: UserDataService
+var _user_data_count: int = 0
 
 
 func before_test() -> void:
+	_user_data_count += 1
+	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("title_resume/records_%d" % _user_data_count))
 	_original_controller = App.match_controller
 	_requested.clear()
 	_test_count += 1
@@ -24,6 +29,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	App.user_data = _original_user_data
 	App.match_controller = _original_controller
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
@@ -132,3 +138,71 @@ func test_back_while_confirming_closes_the_dialog_like_cancel() -> void:
 	assert_array(_requested).is_empty()
 	# IDLE に戻ったら、戻る操作でアプリを閉じる
 	assert_bool(title.handle_back()).is_false()
+
+
+# --- 戦績のカードの一言と、戦績を記録できていない試合（FINALIZE_PENDING） ---
+
+func _record(id_number: int, score_user: int, score_cpu: int) -> MatchRecord:
+	var record := MatchRecord.new()
+	record.match_id = "20261029-100000-%04d" % id_number
+	record.record_id = record.match_id
+	record.finished_at = "2026-10-29T10:00:00"
+	record.score_user = score_user
+	record.score_cpu = score_cpu
+	record.result = MatchRecord.result_of(score_user, score_cpu)
+	record.timeline.append(RecordPeriod.new(1, 1, ScreenTestHelper.user_setup(), ScreenTestHelper.user_setup()))
+	return record
+
+
+func test_the_records_card_shows_the_totals() -> void:
+	assert_str(_open().records_summary_text()).is_equal("まだ記録がありません")
+	App.user_data.append_record(_record(1, 2, 0))
+	App.user_data.append_record(_record(2, 1, 1))
+	App.user_data.append_record(_record(3, 0, 1))
+	assert_str(_open().records_summary_text()).is_equal("1勝\n1分\n1敗")
+
+
+## 戦績の保存先にファイルを置いて記録を失敗させたまま試合を終え、結果画面から出る（終了処理待ちが残る）。
+## 戻り値は戦績の保存先（_unblock で記録できるようにする）
+func _leave_an_unrecorded_match() -> String:
+	var records_dir: String = create_temp_dir("title_resume/pending_%d" % _test_count).path_join("records")
+	var file: FileAccess = FileAccess.open(records_dir, FileAccess.WRITE)
+	file.store_string("x")
+	file.close()
+	var user_data := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), records_dir))
+	var controller: MatchController = ScreenTestHelper.new_controller(ScreenTestHelper.seed_reaching(
+			ScreenTestHelper.Stop.OVER), App.request_screen, _store, user_data)
+	App.match_controller = controller
+	controller.start_match(ScreenTestHelper.user_setup())
+	assert_bool(ScreenTestHelper.advance_until(controller, ScreenTestHelper.Stop.OVER)).is_true()
+	controller.leave_result()
+	assert_int(controller.suspended_status()).is_equal(AppScreens.SuspendedStatus.FINALIZE_PENDING)
+	return records_dir
+
+
+func test_kick_off_with_an_unrecorded_match_records_it_and_goes_to_the_setup_when_the_retry_works() -> void:
+	var records_dir: String = _leave_an_unrecorded_match()
+	var title: TitleScreen = _open()
+	# 終了処理待ちの試合は再開カードに出さない
+	assert_bool(title.resume_card().visible).is_false()
+	DirAccess.remove_absolute(records_dir)
+	DirAccess.make_dir_recursive_absolute(records_dir)
+	(title.find_child("KickOffCard", true, false) as Button).pressed.emit()
+	assert_bool(title.confirm_dialog().is_open()).is_false()
+	assert_array(_requested).is_equal([AppScreens.Id.S02_MATCH_SETUP] as Array[int])
+	assert_int(RecordStore.new(ConfigRepository.new().match_rules(), records_dir).load_all().size()).is_equal(1)
+	assert_int(_store.load().status).is_equal(SuspendedLoad.Status.NONE)
+
+
+func test_kick_off_with_an_unrecorded_match_asks_when_the_retry_fails() -> void:
+	_leave_an_unrecorded_match()
+	var title: TitleScreen = _open()
+	(title.find_child("KickOffCard", true, false) as Button).pressed.emit()
+	var dialog: ConfirmDialog = title.confirm_dialog()
+	assert_bool(dialog.is_open()).is_true()
+	assert_str(dialog.message()).is_equal(NewMatchGate.UNRECORDED_MESSAGE)
+	assert_int(title.state()).is_equal(TitleScreen.State.CONFIRMING)
+	dialog.ok_button().pressed.emit()
+	assert_array(_requested).is_equal([AppScreens.Id.S02_MATCH_SETUP] as Array[int])
+	# 中断データはここでは消さない（試合の作成時に上書きされる）
+	assert_int(_store.load().status).is_equal(SuspendedLoad.Status.OK)

@@ -574,19 +574,28 @@ func start_tutorial_step(step: TutorialStepDef) -> void
 > **2026-10-29 に足した範囲（中断・再開）**: `inspect_suspended`・`suspended_status`・`suspended_snapshot`・`resume`・
 > `has_unsaved_progress`・`suspend_to_title`、保存の時点①〜④、`leave_result` での中断データの削除。
 > - 保存先は `_init` の最後の引数 `store: SuspendedMatchStore = null`（`null` なら保存しない。保存を確かめないテストと
->   チュートリアル用）。設計の `content`・`user_data`・`is_tutorial` の引数は、戦績・チュートリアルの作業で足す
+>   チュートリアル用）。設計の `content`・`is_tutorial` の引数は、チュートリアルの作業で足す（`user_data` は戦績の作業で足した）
 > - 保存・読み込みの失敗は `signal storage_failed(kind)` で知らせ、`App` が `storage_error` へ中継する。通知は失敗が続く間は
 >   最初の1回だけ出し、次に保存に成功したら戻す
 > - 保存の失敗の扱いと再開カード用の写しは `SuspendKeeper`（`application/suspend_keeper.gd`）が持つ
 > - `SuspendedStatus`・`StartupResult` は、UI（タイトル・`NewMatchGate`）とアプリケーション層の両方が読むので、`MatchController` の
 >   内側ではなく `AppScreens` に置いた（`coding-gdscript.md`「enum はクラスに属させる」）。
->   `SuspendedStatus` は `NONE`・`RESUMABLE` だけ。`StartupResult` は `NONE`・`RESUMABLE`・`DISCARDED`・`CORRUPTED`。
->   終了処理（戦績の記録）が無い間は、`FINISHED` と、最終ターンまで終えた `IN_PROGRESS` を起動時に削除する（`DISCARDED`）。
->   戦績の作業で、後者を終了処理のやり直し（`FINALIZED`・`FINALIZE_FAILED`・`FINALIZE_PENDING`）に替える
+>   値は上の設計のとおり（戦績の作業で、仮の `DISCARDED` を `FINALIZED`・`FINALIZE_FAILED` に替え、`FINALIZE_PENDING` を足した）
 > - `start_match` の保存に失敗したら、前の試合の中断データを消す（上書きできないまま残ると、新しい試合を中断したときに
 >   前の試合を再開してしまうため）
 > - `suspend_to_title` はメモリ上の試合を閉じ、保存されている中断データを読み直して再開カード用の写しにしてから、タイトルを頼む
 > - 再開した試合の `last_goal_by` は、ターン記録の最後の `GOAL` の攻撃側
+>
+> **2026-10-29 に足した範囲（戦績）**: 試合の終了処理とそのやり直し（`retry_pending_finalize`・`final_record`・
+> `leave_result` の終了処理のやり直し・`inspect_suspended` の `FINALIZED`／`FINALIZE_FAILED`・`suspended_status` の `FINALIZE_PENDING`）。
+> - 戦績の記録先は `_init` の最後の引数 `user_data: UserDataService = null`（`null` なら記録は成功した扱い）
+> - 終了処理（記録 → `FINISHED` → 保存）は `MatchFinalizer`（`application/match_finalizer.gd`）が行う。最終ターンでは、保存の時点①の
+>   `IN_PROGRESS` の保存の後に終了処理をする（記録に失敗しても、最終ターンまでの状態が残る）
+> - 終了処理待ちの試合は `SuspendKeeper` が持つ（`pending()`・`keep_pending()`）。起動時に見つけたら、その場でやり直す
+> - 戦績の終了日時は、最初に終了処理を試みた時刻。起動時・CPU 対戦の前のやり直しは、やり直した時刻（最終ターンの時刻は持っていない）
+> - 試合を終えた後（最終ターンの判定理由）は `suspend_to_title` が `false` を返し、試合画面もメニューを開かない（中断で結果画面と
+>   終了処理を飛ばさない）
+> - `final_record()` は試合が終わる前は `push_error` して `null`。推移は `ReviewAggregator.segments`（振り返りの時間帯と同じ区切り）の始まり
 
 **保存の時点**（正本は `functional-overview.md`「確定事項」の保存の時点）は、次のメソッドの中で
 `SuspendedMatchStore.save()` を呼ぶことで実現する。チュートリアル用のインスタンスは保存しない。
@@ -669,6 +678,10 @@ func settings() -> UserSettings
 func save_settings(settings: UserSettings) -> bool
 func mark_tutorial_completed() -> bool
 ```
+
+> 2026-10-29 時点で作ったのは戦績（`records()`・`append_record()`・`totals()`）だけ。`UserDataService.new(record_store: RecordStore)` で作り、
+> `App.user_data` に置く。失敗は `signal storage_failed(kind)` で知らせ、`App` が `storage_error` へ中継する。`records()` は写しを返し、
+> 終了日時の新しい順（同じ日時は後に記録したものが先）。回答結果・設定は、それぞれの作業で足す。
 
 `bool` を返すメソッドは、保存に失敗したら `false` を返し、`App.storage_error` を出す（通知を出すのは
 `UserDataService` だけ。`append_record` を呼んだ `MatchController` は、`false` を受けても通知を重ねて出さない）。読み込みに失敗した
@@ -893,6 +906,14 @@ ISO 8601（タイムゾーンなし）で書く。
 > （`status: NONE / OK / CORRUPTED`・`state`）。配置の組には `attacker_side` を書く（`data-definition.md` §2.1）。
 > 保存の置き場所は `App.save_dir`（既定 `user://`。テストは一時ディレクトリを渡す）。
 > `SaveMigrator` は、形式の版が 1 だけで変換する対象が無いので、まだ作っていない（形式を変える作業で作る）。
+>
+> **2026-10-29 時点の実装の形（戦績）**: `RecordStore` は `_init(rules, dir = "user://")`。`append` のたびにファイルを読み直す
+> （直前に解析した・書いた文字列と結果だけを覚え、同じ中身は解析し直さない）。本体が壊れていて `.bak` が読めるときは、壊れた本体を
+> 退避してから `.bak` を使う（退避しないと、次の書き込みで本体が `.bak` へ回されて消えるため）。
+> 形と検証は `MatchRecordCodec`（陣形と方式の形は中断データと同じ `SuspendedMatchEncoder.setup_fields`。陣形 ID は、陣形を減らした
+> 後も過去の戦績を破損にしないよう、ID の形（`ContentRepository.ID_PATTERN`）だけを確かめ、カタログにあるかは見ない）。`.bak` を使うかの判断は「読めて検証が通る、または
+> 新しい版」。破損を退避できなかったときは、壊れたファイルを上書きしないよう `append` は `false`。戦績1件は `MatchRecord`、
+> 推移の1区切りは `RecordPeriod`（`half`・`from_turn`・`user_setup`・`cpu_setup`）。`MatchRecord.of(state, finished_at)` で作る。
 
 ## 5. UI 層（`game/ui/`）
 

@@ -1,6 +1,6 @@
 ## アプリケーション層の入口（オートロード名 App。component-design.md §3.1）。
 ## オートロード名と衝突するため class_name は付けない。
-## サービスのうち user_data は、それを作る作業（戦績・設定）で足す。
+## user_data は今は戦績だけを持つ（理解度チェックの結果・設定は、それぞれの作業で足す）。
 extends Node
 
 ## UI に開いてほしい画面を知らせる。UI のルート（MainShell）が受けて画面を切り替える
@@ -13,6 +13,8 @@ signal storage_error(kind: AppScreens.StorageErrorKind)
 var save_dir: String = "user://"
 ## 画面向けの参照（陣形の一覧・基本配置）
 var library: LibraryService
+## 戦績（理解度チェックの結果・設定は、それぞれの作業で足す）
+var user_data: UserDataService
 ## 本番の試合用（CPU 対戦）
 var match_controller: MatchController
 
@@ -26,8 +28,10 @@ func _ready() -> void:
 	rng.randomize()
 	var config := ConfigRepository.new()
 	var store := SuspendedMatchStore.new(catalog, config.match_rules(), save_dir)
+	user_data = UserDataService.new(RecordStore.new(config.match_rules(), save_dir))
+	user_data.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: storage_error.emit(kind))
 	match_controller = MatchController.new(catalog, config, rng, CpuOpponent.new(catalog, config.cpu(), rng),
-			request_screen, OS.is_debug_build(), store)
+			request_screen, OS.is_debug_build(), store, user_data)
 	match_controller.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: storage_error.emit(kind))
 
 

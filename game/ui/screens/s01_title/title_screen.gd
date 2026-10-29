@@ -1,7 +1,7 @@
 ## S-01 タイトル（screen-01-title.md）。各機能への入口と、中断した試合の再開カード。
-## 「CPU 対戦」は NewMatchGate に任せる（中断中の試合があれば、破棄してよいかを ConfirmDialog で確かめる）。
-## 戦績・設定（UserDataService）を作る作業で足すもの: 小さなカードの一言、チュートリアルの位置の切り替え、
-## 戦績を記録できていない試合（FINALIZE_PENDING）の確認。
+## 「CPU 対戦」は NewMatchGate に任せる（中断中の試合・戦績を記録できていない試合があれば、ConfirmDialog で確かめる）。
+## 小さなカードの一言は戦績だけ（2026-10-29）。理解度チェックの一言とチュートリアルの位置の切り替えは、
+## 理解度チェック・設定の作業で足す。
 ## プロダクト名は仮称（正式名は要件定義書 §7.1 #4）。
 class_name TitleScreen
 extends AppScreen
@@ -13,6 +13,8 @@ enum State { IDLE, BUSY, CONFIRMING }
 @onready var _resume_summary: Label = %ResumeSummary
 @onready var _resume_score: Label = %ResumeScore
 @onready var _kick_off_card: Button = %KickOffCard
+@onready var _records_card: Button = %RecordsCard
+@onready var _records_sub: Label = %RecordsSub
 ## カード → 行き先の画面（screen-01-title.md「画面遷移」）。「CPU 対戦」だけは NewMatchGate を通る
 @onready var _destinations: Dictionary = {
 	%TutorialCard: AppScreens.Id.S08_TUTORIAL,
@@ -43,6 +45,10 @@ func enter(_params: Dictionary) -> void:
 			if App.match_controller.suspended_status() == AppScreens.SuspendedStatus.RESUMABLE else null)
 	# チュートリアルは未完了の位置（シーンの並びのまま）。設定の読み込みに失敗したときと同じ扱い（screen-01-title.md「例外・エラー表示」）
 	apply_availability(MainShell.SCREEN_SCENES)
+	# 戦績のカードの一言「5勝 2分 3敗」（0件なら「まだ記録がありません」）。押せない間は「準備中」だけを出す
+	# 小さなカードは幅が狭く、1行に収まらない。数の途中で折り返さないよう、勝ち・引き分け・負けで行を分ける
+	_records_sub.text = RecordTexts.totals_summary(App.user_data.totals()).replace(" ", "\n")
+	_records_sub.visible = not _records_card.disabled
 	_state = State.IDLE
 
 
@@ -88,6 +94,10 @@ func resume_summary_text() -> String:
 
 func resume_score_text() -> String:
 	return _resume_score.text
+
+
+func records_summary_text() -> String:
+	return _records_sub.text if _records_sub.visible else ""
 
 
 func confirm_dialog() -> ConfirmDialog:

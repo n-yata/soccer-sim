@@ -5,15 +5,21 @@ extends GdUnitTestSuite
 
 var _original_controller: MatchController
 var _requested: Array[int] = []
+## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
+var _original_user_data: UserDataService
+var _user_data_count: int = 0
 
 
 func before_test() -> void:
+	_user_data_count += 1
+	_original_user_data = ScreenTestHelper.use_user_data_in(create_temp_dir("match_screens/records_%d" % _user_data_count))
 	_original_controller = App.match_controller
 	_requested.clear()
 	App.screen_requested.connect(_on_screen_requested)
 
 
 func after_test() -> void:
+	App.user_data = _original_user_data
 	App.match_controller = _original_controller
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
@@ -269,16 +275,21 @@ func test_halftime_cards_are_compact_but_large_enough_to_press() -> void:
 # --- S-06 ---
 
 func test_result_text_for_win_draw_and_loss() -> void:
-	assert_str(ResultScreen.outcome_text(2, 1)).is_equal("勝ち")
-	assert_str(ResultScreen.outcome_text(1, 1)).is_equal("引き分け")
-	assert_str(ResultScreen.outcome_text(0, 3)).is_equal("負け")
+	assert_str(RecordTexts.result_word(MatchRecord.result_of(2, 1))).is_equal("勝ち")
+	assert_str(RecordTexts.result_word(MatchRecord.result_of(1, 1))).is_equal("引き分け")
+	assert_str(RecordTexts.result_word(MatchRecord.result_of(0, 3))).is_equal("負け")
 
 
 func test_result_shows_the_final_score_and_returns_to_the_title_once() -> void:
 	var controller: MatchController = _match_at(ScreenTestHelper.Stop.OVER)
 	var screen: ResultScreen = _open("res://ui/screens/s06_result/result_screen.tscn") as ResultScreen
 	var snapshot: BoardSnapshot = controller.snapshot()
-	assert_str(screen.outcome()).is_equal(ResultScreen.outcome_text(snapshot.score_user, snapshot.score_opponent))
+	assert_str(screen.outcome()).is_equal(RecordTexts.result_word(MatchRecord.result_of(snapshot.score_user,
+			snapshot.score_opponent)))
+	# 陣形・方式の推移は前半の行から始まり、後半の行を含む
+	var history: Array[String] = screen.history_texts()
+	assert_str(history[0]).starts_with("前半: ● %s" % ScreenTestHelper.user_setup().formation_id)
+	assert_bool(history.any(func(line: String) -> bool: return line.begins_with("後半: "))).is_true()
 	assert_str(screen.score_bug().score_text()).is_equal("%d – %d" % [snapshot.score_user, snapshot.score_opponent])
 	assert_str(screen.score_bug().clock_text()).is_equal("FT")
 	screen.title_button().pressed.emit()

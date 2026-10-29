@@ -1,7 +1,7 @@
 ## 「CPU 対戦」を押したときの確認の手順（screen-01-title.md「CPU 対戦を押す」・screen-common.md §5 の NewMatchGate）。ノードを持たない。
-## 中断中の試合が無ければそのまま試合準備へ、あれば破棄してよいかを確かめてから進む。どの経路でも中断データはここでは消さない
-## （試合を作ったときに上書きされる。削除の時点①）。
-## 戦績を記録できていない試合（FINALIZE_PENDING）の確認は、戦績の作業で足す。
+## 中断中の試合が無ければそのまま試合準備へ、あれば破棄してよいかを確かめてから進む。戦績を記録できていない試合
+## （FINALIZE_PENDING）は、先に終了処理をやり直し、それでも失敗したときだけ戦績が記録されないことを確かめる。
+## どの経路でも中断データはここでは消さない（試合を作ったときに上書きされる。削除の時点①）。
 class_name NewMatchGate
 extends RefCounted
 
@@ -9,6 +9,7 @@ extends RefCounted
 signal finished(started: bool)
 
 const DISCARD_MESSAGE: String = "新しい試合を始めると、中断している試合は破棄されます"
+const UNRECORDED_MESSAGE: String = "前の試合の戦績を記録できていません。新しい試合を始めると、その戦績は記録されません"
 
 var _controller: MatchController
 var _request_screen: Callable
@@ -28,12 +29,17 @@ func begin(dialog: ConfirmDialog) -> void:
 		return
 	_is_busy = true
 	# 画面を開いた後に変わっている可能性があるので、取り直す
-	if _controller.suspended_status() == AppScreens.SuspendedStatus.NONE:
+	var status: AppScreens.SuspendedStatus = _controller.suspended_status()
+	if status == AppScreens.SuspendedStatus.NONE:
+		_finish(true)
+		return
+	if status == AppScreens.SuspendedStatus.FINALIZE_PENDING and _controller.retry_pending_finalize():
 		_finish(true)
 		return
 	_dialog = dialog
 	_dialog.answered.connect(_on_answered, CONNECT_ONE_SHOT)
-	_dialog.ask(DISCARD_MESSAGE, "始める", "やめる")
+	_dialog.ask(UNRECORDED_MESSAGE if status == AppScreens.SuspendedStatus.FINALIZE_PENDING else DISCARD_MESSAGE,
+			"始める", "やめる")
 
 
 func is_busy() -> bool:
