@@ -18,6 +18,7 @@ config/quit_on_go_back=false
 [autoload]
 
 App="*res://application/app.gd"
+Sfx="*res://ui/common/sound_cues.gd"
 
 [debug]
 

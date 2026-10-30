@@ -81,7 +81,9 @@ SettingsScreen (Control)
   値を入れる（`show_settings`）ときは保存しない
 - ライセンスは `LicenseView`（`ModalOverlay`）。今は同梱した Barlow Condensed の `OFL.txt`（先頭に著作権表示）だけ。
   Noto Sans JP はフォントを置く作業で足す（素材の一覧は `assets/LICENSES.md` の書き写し）
-- BGM・効果音の素材はまだ無い。バスの音量だけを変える（音の作業で素材と再生を足す）
+- 効果音は 2026-10-30 に足した（`SoundCues`。鳴らす場面は `component-design.md` の UI 層の部品の表）。どれも `SE` バスで鳴るので、
+  効果音音量がそのまま効く。BGM の素材はまだ無い（BGM 音量はバスの音量だけを変える）
+- 効果音の素材は CC0 で、表示の義務が無いので `LicenseView` には載せない（調達元と作者は `assets/LICENSES.md`「効果音」）
 
 ## 例外・エラー表示
 

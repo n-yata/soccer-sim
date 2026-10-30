@@ -8,6 +8,8 @@ var _requested: Array[int] = []
 ## App.user_data の元のサービス（テストの間は一時ディレクトリへ保存するものに差し替える）
 var _original_user_data: UserDataService
 var _user_data_count: int = 0
+## 効果音のテストが Sfx.cue_played につなぐ受け手（after_test で切る）
+var _on_cue: Callable
 
 
 func before_test() -> void:
@@ -21,6 +23,8 @@ func before_test() -> void:
 func after_test() -> void:
 	App.user_data = _original_user_data
 	App.match_controller = _original_controller
+	if _on_cue.is_valid() and Sfx.cue_played.is_connected(_on_cue):
+		Sfx.cue_played.disconnect(_on_cue)
 	if App.screen_requested.is_connected(_on_screen_requested):
 		App.screen_requested.disconnect(_on_screen_requested)
 
@@ -221,6 +225,52 @@ func test_next_starts_the_next_turn_in_the_middle_of_a_half() -> void:
 	assert_array(screen.reveal_texts()).is_empty()
 	assert_str(screen.score_bug().clock_text()).is_equal("前半 2／15")
 	assert_array(_requested).is_empty()
+
+
+## 効果音（.steering/20261030-sound-effects）: 試合を最後まで画面で進め、ターンごとに鳴らした音を確かめる。
+## ハーフの最初のターンを始めたら笛、得点の開示なら得点した側の音、ハーフの終わりの開示なら笛。それ以外は鳴らさない
+## （ボタンのクリック音は数えない）。得点が起きるシードを使う
+func test_the_match_screen_plays_the_whistle_and_the_goal_sounds_at_their_moments() -> void:
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.STYLE_CHANGE, false)
+	var played: Array[int] = []
+	# 途中の assert が失敗しても後のテストに残らないよう、after_test で切る
+	_on_cue = func(cue: SoundCues.Cue) -> void:
+		if cue != SoundCues.Cue.CLICK:
+			played.append(cue)
+	Sfx.cue_played.connect(_on_cue)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var counts: Dictionary = {"kickoff": 0, "goal": 0, "half_over": 0}
+	for step: int in range(ScreenTestHelper.MAX_STEPS):
+		if controller.is_match_over():
+			break
+		if controller.state().stage == GameEnums.MatchStage.STYLE_CHANGE:
+			controller.submit_style_change(controller.snapshot().user_setup.styles)
+		elif controller.state().stage == GameEnums.MatchStage.HALFTIME:
+			controller.submit_halftime(controller.snapshot().user_setup)
+		# ターンを始めたときの音
+		var is_kickoff: bool = controller.snapshot().turn_number == 1
+		assert_array(played).override_failure_message("ターンの始め: %d" % controller.snapshot().turn_number) \
+				.is_equal([SoundCues.Cue.WHISTLE] as Array[int] if is_kickoff else [] as Array[int])
+		counts["kickoff"] += 1 if is_kickoff else 0
+		played.clear()
+		_play_turn(screen)
+		# 開示の音
+		var reveal: RevealView = controller.last_reveal()
+		var expected: Array[int] = []
+		if reveal.outcome == GameEnums.TurnOutcome.GOAL:
+			expected.append(SoundCues.Cue.GOAL_FOR if MatchTexts.turn_winner(reveal) == MatchTexts.TurnWinner.USER
+					else SoundCues.Cue.GOAL_AGAINST)
+			counts["goal"] += 1
+		if controller.snapshot().is_half_over:
+			expected.append(SoundCues.Cue.WHISTLE)
+			counts["half_over"] += 1
+		assert_array(played).override_failure_message("開示: %s" % reveal.outcome).is_equal(expected)
+		played.clear()
+		screen.board_panel().primary_button().pressed.emit()
+	assert_bool(controller.is_match_over()).is_true()
+	assert_dict(counts).is_equal({"kickoff": 2, "goal": controller.snapshot().score_user + controller.snapshot().score_opponent,
+			"half_over": 2})
+	assert_int(counts["goal"] as int).is_greater(0)
 
 
 func test_match_screen_back_does_nothing_and_exit_disconnects() -> void:

@@ -126,6 +126,8 @@ MatchScreen (Control)
 2. `App.user_data.settings().show_hints` が真なら `_hints = user_hints()`、偽なら空
 3. `TacticsBoard.clear_overlays()`、`RevealBanner`・`JudgeTelop` を隠し、`PhaseTag`・`ChoicePanel` を出す。`PossessionLabel` をそのターンの保持で描き直す。`SetupCard` を描き直す。`TargetInfo` は空にして隠す
 4. `PrimaryButton` の要約を空、操作を「LOCK IN」にして押せなくする。`_state = SELECT_ACTION`
+5. `snapshot.turn_number` が 1（前半・後半のキックオフ）なら、笛を鳴らす（`Sfx.play(WHISTLE)`。再開した試合の1ターン目でも鳴らす。
+   得点後の再開では鳴らさない。2026-10-30 の効果音の作業。鳴らすのは `MatchScreen` で、チュートリアルでは鳴らさない）
 
 ### 手のボタンを押す（`ChoicePanel.action_selected`）
 
@@ -173,7 +175,9 @@ MatchScreen (Control)
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
 4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功・オフサイド（2026-10-25）、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
-   空でなければ、該当する単純化の「実戦では」を `RealWorldNote` に出す（複数なら先頭の1件）
+   空でなければ、該当する単純化の「実戦では」を `RealWorldNote` に出す（複数なら先頭の1件）。
+   効果音（2026-10-30）: 得点なら、`turn_winner` が自分なら `GOAL_FOR`、相手なら `GOAL_AGAINST`。`_snapshot.is_half_over`（前半の終わり・
+   試合の終わり）なら笛（`WHISTLE`）。両方に当たれば両方を鳴らす
 5. `PrimaryButton` を「次のターンへ／NEXT」にする。`_state = SHOW_RESULT`
 
 > 動いている間も、テロップ・矢印はすぐ出し、「次へ」も押せる（待たせない）。方式の選び直し・ハーフタイムの後と試合の最初は

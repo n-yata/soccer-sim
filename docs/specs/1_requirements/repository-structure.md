@@ -42,7 +42,8 @@ soccer-game/
 │   ├── content/                   # 静的データ（JSON。今は formations.json だけ）
 │   ├── config/                    # 調整値（Resource .tres。今は match_rule_config.tres・cpu_config.tres）
 │   ├── assets/                    # 素材（テクスチャ・音・フォント。ライセンス台帳 LICENSES.md を含む）
-│   │   └── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt
+│   │   ├── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt
+│   │   └── sounds/                # 効果音（Ogg Vorbis。CC0。2026-10-30）
 │   └── tests/                     # gdUnit4 のテスト
 └── tools/                         # 開発補助スクリプト
     ├── run-tests.sh               # テストの一括実行（禁止依存の検査と gdUnit4）

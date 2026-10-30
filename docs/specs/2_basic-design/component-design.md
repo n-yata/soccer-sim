@@ -1069,6 +1069,7 @@ func route_back() -> bool
 | `SettingsOverlay` | 試合中のメニューから重ねて開く設定（`SettingsPanel` と閉じる。2026-10-29） |
 | `LicenseView` | 同梱した素材のライセンスの表示（設定の「ライセンス」。2026-10-29） |
 | `AudioBuses` | 設定の音量をオーディオバス `BGM`・`SE` へ反映する（ノードを持たない。2026-10-29） |
+| `SoundCues` | 効果音（オートロード `Sfx`。2026-10-30）。音（`CLICK`・`GOAL_FOR`・`GOAL_AGAINST`・`WHISTLE`）→ ファイル（`assets/sounds/`）の対応を持ち、すべて `SE` バスで鳴らす。木に入った `BaseButton` の `pressed` に自分でつないでクリック音を鳴らす。得点・笛は `MatchScreen` が鳴らす（時点は `screen-03-match.md`）。素材の台帳は `assets/LICENSES.md`「効果音」 |
 | `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
 | `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
 | `MatchTexts` | 試合の画面の文言（エリア名「中盤（敵陣）・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
@@ -1096,7 +1097,7 @@ func route_back() -> bool
 
 | 区分 | 名前 |
 |---|---|
-| オートロード | `App` |
+| オートロード | `App`・`Sfx`（効果音。UI 層の `SoundCues`。2026-10-30） |
 | enum（`GameEnums` 内） | `Lane`・`Zone`・`DefenseStyle`・`AttackStyle`・`TurnKind`・`PlayType`・`DefenseAction`・`NegTransAction`・`PosTransAction`・`TurnOutcome`・`MatchStatus`・`MatchStage`・`PrincipleStatus`・`TeamSide`・`ChoiceFamily`・`CoverKind`・`MovementReason`・`MatchResult`・`Phase`・`JudgeTally` |
 | enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`AppScreens.SuspendedStatus`・`AppScreens.StartupResult`（2026-10-29 に `MatchController` から移した）・`SuspendedLoad.Status`・`RecordStore.LoadState`（`QuizAnswerStore`・`SettingsStore` も同名の enum を各クラス内に持つ。クラスの内側なので衝突しない） |
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OffsideRule`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |

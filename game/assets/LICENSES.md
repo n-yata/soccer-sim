@@ -20,6 +20,21 @@
   RFN の有無は、元のファイル（2.004）の OFL の本文と name テーブルで確かめた結果。Barlow Condensed は小さいので元のファイルを置いている。
   画面で使う文字に絞ったサブセットは、静的データの文言がそろってから作る（`architecture-overview.md` のフォントの注記）。
 
+## 効果音
+
+置き場所はすべて `sounds/`。どれも CC0 1.0（パブリックドメイン。表示の義務は無いが、作者名をここに残す）。
+
+| ファイル | 元のファイル | 調達元 | バージョン | 作者 | 手を加えたこと |
+|---|---|---|---|---|---|
+| `click.ogg` | `Audio/click_001.ogg` | OpenGameArt の「Interface Sounds」（`kenney_interfaceSounds.zip`。同梱の `License.txt` が CC0） | 1.0（2020-02-11） | Kenney（www.kenney.nl） | なし |
+| `goal_for.ogg` | `OGG/jingles_SAX/jingles_SAX02.ogg` | OpenGameArt の「85 Short music jingles」（`jingleSounds_Kenney.zip`。同梱の `license.txt` が CC0） | 版の表記なし（2026-10-30 に取得） | Kenney（www.kenney.nl） | なし |
+| `goal_against.ogg` | `OGG/jingles_SAX/jingles_SAX01.ogg` | 同上 | 同上 | 同上 | なし |
+| `whistle.ogg` | `218318 splicesound referee-whistle-blow-gymnasium.wav` | Wikimedia Commons（元は freesound の 218318。Commons のライセンス欄が CC0） | 2026-10-30 に取得 | SpliceSound | 先頭 1.5 秒に切り、最後の 0.4 秒をフェードアウト、モノラルの Ogg Vorbis にした |
+
+- 調達元のページ（2026-10-30 に確認）: Kenney の2つは OpenGameArt の各ページのライセンス欄と zip の中のライセンスの文、
+  笛は Wikimedia Commons のファイルのページ（`File:218318 splicesound referee-whistle-blow-gymnasium.wav`）のライセンス欄。
+- 差し替えるときは、同じファイル名で置き換えてこの表を直す（どの場面で鳴らすかは `SoundCues` が持つ）。
+
 ## アドオン
 
 | アドオン | 置き場所 | 調達元 | バージョン | ライセンス | 書き出しへの同梱 |

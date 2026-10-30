@@ -20,6 +20,8 @@ var _user_choice_label: Label
 var _opponent_choice_label: Label
 var _board_panel: MatchBoardPanel
 var _menu_host: MatchMenuHost
+## 開示中のターン（結果を出したときに、得点の音を選ぶ）
+var _reveal: RevealView
 
 
 func _init() -> void:
@@ -100,19 +102,29 @@ func _on_turn_started(snapshot: BoardSnapshot) -> void:
 	_phase_tag.text = MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball)
 	_phase_tag.visible = true
 	_reveal_banner.visible = false
+	# 前半・後半のキックオフの笛（再開した試合の1ターン目でも鳴らす）
+	if snapshot.turn_number == 1:
+		Sfx.play(SoundCues.Cue.WHISTLE)
 
 
 ## 開示: 局面のタグを両者の選択の帯に替える。スコアはまだ描き直さない（得点を判定理由より先に見せない）。
 func _on_reveal_started(reveal: RevealView) -> void:
+	_reveal = reveal
 	_user_choice_label.text = "あなた: %s" % MatchTexts.choice_summary(reveal.user_choice)
 	_opponent_choice_label.text = "CPU: %s" % MatchTexts.choice_summary(reveal.opponent_choice)
 	_phase_tag.visible = false
 	_reveal_banner.visible = true
 
 
+## 結果を出す: 得点なら得点した側の音、ハーフの終わり（前半の終わり・試合の終わり）なら笛。
 func _on_result_shown(snapshot: BoardSnapshot) -> void:
 	_score_bug.show_snapshot(snapshot)
 	_show_possession(snapshot)
+	if _reveal != null and _reveal.outcome == GameEnums.TurnOutcome.GOAL:
+		var is_user_goal: bool = MatchTexts.turn_winner(_reveal) == MatchTexts.TurnWinner.USER
+		Sfx.play(SoundCues.Cue.GOAL_FOR if is_user_goal else SoundCues.Cue.GOAL_AGAINST)
+	if snapshot.is_half_over:
+		Sfx.play(SoundCues.Cue.WHISTLE)
 
 
 ## 保持の表示を、保持している側のチームの色の帯で出す（記号も添え、色だけで示さない）。
