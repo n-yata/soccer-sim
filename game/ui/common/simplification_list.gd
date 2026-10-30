@@ -15,6 +15,11 @@ func _init() -> void:
 	add_theme_constant_override("v_separation", 16)
 
 
+## カードの見出し「SIM-01 縦方向のライン調整」。
+static func title_of(simplification: SimplificationDef) -> String:
+	return "%s %s" % [simplification.id, simplification.name]
+
+
 func show_items(simplifications: Array[SimplificationDef]) -> void:
 	MatchScreenLayout.clear(self)
 	for simplification: SimplificationDef in simplifications:
@@ -42,7 +47,8 @@ func _card(simplification: SimplificationDef) -> Control:
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override("separation", 8)
 	card.add_child(lines)
-	MatchScreenLayout.text(lines, "Name", &"CardTitleLabel").text = simplification.name
+	# 見出しは「SIM-01 縦方向のライン調整」、「実戦では」は caution の色（screen-10-scope.md「ノード構成」・screen-common.md の色）
+	MatchScreenLayout.text(lines, "Name", &"CardTitleLabel").text = title_of(simplification)
 	MatchScreenLayout.text(lines, "InGame", &"").text = IN_GAME_PREFIX + simplification.in_game
-	MatchScreenLayout.text(lines, "InReal", &"MutedLabel").text = IN_REAL_PREFIX + simplification.in_real
+	MatchScreenLayout.text(lines, "InReal", &"CautionLabel").text = IN_REAL_PREFIX + simplification.in_real
 	return card

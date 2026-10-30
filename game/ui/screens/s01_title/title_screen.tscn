@@ -303,6 +303,14 @@ theme_type_variation = &"CardTitleLabel"
 text = "表現範囲"
 autowrap_mode = 3
 
+[node name="ScopeSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/ScopeCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "実戦との違い"
+autowrap_mode = 3
+
 [node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/ScopeCard/Box"]
 layout_mode = 2
 size_flags_vertical = 10
@@ -333,6 +341,14 @@ mouse_filter = 2
 layout_mode = 2
 theme_type_variation = &"CardTitleLabel"
 text = "設定"
+autowrap_mode = 3
+
+[node name="SettingsSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/SettingsCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "音量・ヒント"
 autowrap_mode = 3
 
 [node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/SettingsCard/Box"]

@@ -14,6 +14,7 @@ const SCREEN_SCENES: Dictionary = {
 	AppScreens.Id.S06_RESULT: "res://ui/screens/s06_result/result_screen.tscn",
 	AppScreens.Id.S07_REVIEW: "res://ui/screens/s07_review/review_screen.tscn",
 	AppScreens.Id.S08_TUTORIAL: "res://ui/screens/s08_tutorial/tutorial_screen.tscn",
+	AppScreens.Id.S10_SCOPE: "res://ui/screens/s10_scope/scope_screen.tscn",
 	AppScreens.Id.S11_RECORDS: "res://ui/screens/s11_records/records_screen.tscn",
 	AppScreens.Id.S12_SETTINGS: "res://ui/screens/s12_settings/settings_screen.tscn",
 }

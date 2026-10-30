@@ -87,6 +87,18 @@ func test_the_tutorial_card_moves_back_when_unfinished_again() -> void:
 	assert_float(kick_off.custom_minimum_size.y).is_equal(136.0)
 
 
+## 小さなカードの一言（screen-01-title.md「ノード構成」）。押せない間は隠して「準備中」だけを出す
+func test_small_cards_show_their_one_liners_only_while_available() -> void:
+	_title.enter({})
+	assert_str(_title.card_sub_text("ScopeCard")).is_equal("実戦との違い")
+	assert_str(_title.card_sub_text("SettingsCard")).is_equal("音量・ヒント")
+	assert_str(_title.card_sub_text("RecordsCard")).is_equal("まだ記録がありません")
+	_title.apply_availability({AppScreens.Id.S02_MATCH_SETUP: "res://any.tscn"})
+	for card_name: String in ["ScopeCard", "SettingsCard", "RecordsCard"]:
+		assert_str(_title.card_sub_text(card_name)).override_failure_message(card_name).is_empty()
+		assert_bool(_pending_label(card_name).visible).is_true()
+
+
 ## MainShell.SCREEN_SCENES に登録した画面（S-02 試合準備など）のカードだけが押せる。
 ## 押せるカードがあることを、下の test_kick_off_card_is_enabled_because_match_setup_exists で確かめる
 ## （押せるカードが1つも無いと、enter が MainShell の対応を使っているかを区別できないため）。

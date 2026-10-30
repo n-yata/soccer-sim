@@ -23,10 +23,12 @@
 ScopeScreen (Control)
 ├── Header                                  # ScreenHeader（「← 戻る」と「ゲームの表現範囲」）
 └── Scroll (ScrollContainer)                # 縦にスクロール
-    └── Body (VBoxContainer)                # 外周の余白 24px、間隔 20px
-        ├── Lead (Label)                    # 「このゲームが表現していないこと」＋1文の説明
-        └── SimplificationList              # common/simplification_list.tscn（S-08 の最後の段階と共用）。2列
-            └── SimplificationCard × 件数   # 「SIM-01 縦方向のライン調整」／「ゲームでは: …」／「実戦では: …」（caution の色）
+    └── (MarginContainer)                   # 外周の余白 24px
+        └── Body (VBoxContainer)            # 間隔 20px
+            ├── Lead (Label)                # 「このゲームが表現していないこと」
+            ├── LeadText (Label)            # 1文の説明
+            └── SimplificationList          # common/simplification_list.gd（スクリプトの部品。S-08 の最後の段階と共用）。2列
+                └── SimplificationCard × 件数   # 「SIM-01 縦方向のライン調整」／「ゲームでは: …」／「実戦では: …」（caution の色）
 ```
 
 - `SimplificationList` は S-08 の最後の段階でも同じものを使う（FR-23「チュートリアルの最後と同じ一覧」）
@@ -50,6 +52,13 @@ ScopeScreen (Control)
 | 操作 | 遷移先 |
 |---|---|
 | 戻る | S-01 タイトル |
+
+## 作る順序（2026-10-30 時点）
+
+ゲームの表現範囲の作業（`.steering/20261030-scope-screen/`）で全体を作った。シーンは `ScopeScreen` のスクリプトが部品を組み立てる
+（`.tscn` はルートだけ）。`SimplificationList` は `.tscn` ではなくスクリプトの部品（`SimplificationList.new()`）で、見出しは
+「SIM-01 縦方向のライン調整」、「実戦では」はテーマの型 `CautionLabel`（caution の色）。説明文は「このゲームが表現していないこと」の
+見出しと、「読み合いに集中できるよう、実際のサッカーの次の要素を単純化しています。」の1文。
 
 ## 例外・エラー表示
 

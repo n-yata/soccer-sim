@@ -21,10 +21,15 @@ const SMALL_COLUMNS_WITH_TUTORIAL: int = 5
 @onready var _resume_summary: Label = %ResumeSummary
 @onready var _resume_score: Label = %ResumeScore
 @onready var _kick_off_card: Button = %KickOffCard
-@onready var _records_card: Button = %RecordsCard
 @onready var _records_sub: Label = %RecordsSub
 @onready var _tutorial_card: Button = %TutorialCard
 @onready var _small_cards: GridContainer = $Layout/CardsMargin/Cards/SmallCards
+## 小さなカード → その一言。押せない間は一言を隠し「準備中」だけを出す（screen-01-title.md「作る順序」）
+@onready var _card_subs: Dictionary = {
+	%RecordsCard: %RecordsSub,
+	%ScopeCard: %ScopeSub,
+	%SettingsCard: %SettingsSub,
+}
 ## カード → 行き先の画面（screen-01-title.md「画面遷移」）。「CPU 対戦」だけは NewMatchGate を通る
 @onready var _destinations: Dictionary = {
 	%TutorialCard: AppScreens.Id.S08_TUTORIAL,
@@ -59,7 +64,6 @@ func enter(_params: Dictionary) -> void:
 	# 戦績のカードの一言「5勝 2分 3敗」（0件なら「まだ記録がありません」）。押せない間は「準備中」だけを出す
 	# 小さなカードは幅が狭く、1行に収まらない。数の途中で折り返さないよう、勝ち・引き分け・負けで行を分ける
 	_records_sub.text = RecordTexts.totals_summary(App.user_data.totals()).replace(" ", "\n")
-	_records_sub.visible = not _records_card.disabled
 	_state = State.IDLE
 
 
@@ -120,6 +124,8 @@ func apply_availability(scene_paths: Dictionary) -> void:
 		var pending_label: Label = card.find_child("PendingLabel", true, false) as Label
 		pending_label.visible = not is_available
 		_apply_card_text_state(card, is_available)
+		if _card_subs.has(card):
+			(_card_subs[card] as Label).visible = is_available
 
 
 ## 再開カードの一言「前半 7／15・4-3-3 対 4-4-2」。
@@ -153,6 +159,15 @@ func resume_summary_text() -> String:
 
 func resume_score_text() -> String:
 	return _resume_score.text
+
+
+## カードの一言（隠れていれば空）。
+func card_sub_text(card_name: String) -> String:
+	for card: Button in _card_subs:
+		if card.name == card_name:
+			var sub: Label = _card_subs[card] as Label
+			return sub.text if sub.visible else ""
+	return ""
 
 
 func records_summary_text() -> String:

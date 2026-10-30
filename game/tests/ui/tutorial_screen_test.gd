@@ -116,7 +116,8 @@ func test_the_last_step_shows_the_scope_and_complete_saves_the_flag() -> void:
 	assert_str(screen.title_text()).is_equal("チュートリアル %d／%d" % [_steps().size(), _steps().size()])
 	assert_int(screen.scope_list().card_texts().size()).is_equal(App.library.simplifications().size())
 	var first: SimplificationDef = App.library.simplifications()[0]
-	assert_array(screen.scope_list().card_texts()[0]).is_equal([first.name, SimplificationList.IN_GAME_PREFIX + first.in_game,
+	assert_array(screen.scope_list().card_texts()[0]).is_equal(["%s %s" % [first.id, first.name],
+			SimplificationList.IN_GAME_PREFIX + first.in_game,
 			SimplificationList.IN_REAL_PREFIX + first.in_real])
 	assert_bool(App.user_data.settings().tutorial_completed).is_false()
 	screen.complete_button().pressed.emit()
