@@ -1,5 +1,6 @@
 ## 画面向けの参照（component-design.md §3.4）。静的データ（ContentCatalog）から、画面が出す値を作る。
-## 今は陣形の一覧と基本配置の人数、単純化カタログ、チュートリアルの段階。matchup_counts・解説は、それを使う画面の作業で足す。
+## 今は陣形の一覧と基本配置の人数、単純化カタログ、チュートリアルの段階、戦術原則、場面問題。
+## matchup_counts・解説は、それを使う画面の作業で足す。
 class_name LibraryService
 extends RefCounted
 
@@ -23,6 +24,16 @@ func simplifications() -> Array[SimplificationDef]:
 ## チュートリアルの段階（並びが段階の順。FR-12）。配列は写し（中の値は読むだけ）。
 func tutorial_steps() -> Array[TutorialStepDef]:
 	return _catalog.tutorial_steps.duplicate()
+
+
+## 戦術原則（理解度チェックの根拠の原則の名前）。無ければ null。
+func principle(principle_id: String) -> PrincipleDef:
+	return _catalog.principle(principle_id)
+
+
+## 場面問題（並びが出題の順。FR-22）。配列は写し（中の値は読むだけ）。
+func quiz_questions() -> Array[QuizQuestionDef]:
+	return _catalog.quiz_questions.duplicate()
 
 
 ## 基本配置の人数（PitchArea のキー → 人数。そのチーム自身の視点。アルゴリズム1）。存在しない陣形なら空。

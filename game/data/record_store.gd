@@ -1,77 +1,42 @@
 ## 戦績（user://match_records.json）の読み込みと追記（component-design.md §4.3・data-definition.md §2.2）。
-## 書き込みの手順は SaveFileIO、形と検証は MatchRecordCodec。追記のたびにファイルを読み直す（終わった試合ごとに1回だけ）。
-## 同じ中身を何度も解析しないよう、直前に解析した（または書いた）文字列とその結果だけを覚えておく。
-## ・破損: 本体（無ければ .bak）を <名前>.corrupt-<YYYYMMDD-HHMMSS> へ名前を変えて退避し、0件として扱う。
-##   退避できなければ、壊れたファイルを上書きしないよう追記を断る。
-##   本体が壊れていて .bak が読めるとき（書き込みの途中で止まった後に本体が壊れたなど）は、.bak を使い、壊れた本体は退避する
-##   （退避しないと、次の書き込みで本体が .bak へ回されて消える）
-## ・新しい版（format_version が今の版より新しい）: 0件として扱い、書き込まない（古い版のアプリで新しい版のデータを上書きしない）
+## 破損・新しい版の扱いと書き込みの手順は VersionedJsonFile、形と検証は MatchRecordCodec。
+## 追記のたびにファイルを読み直す（終わった試合ごとに1回だけ）。破損・新しい版・無いときは0件として扱う。
 class_name RecordStore
 extends RefCounted
-
-enum LoadState { OK, EMPTY, CORRUPTED, NEWER_VERSION }
 
 const FILE_NAME: String = "match_records.json"
 ## 書き込み後のファイルの大きさの上限（読み込みの上限 SaveFileIO.MAX_READ_BYTES より小さくする）
 const MAX_WRITE_BYTES: int = 4 * 1024 * 1024
 
-var _path: String
 var _codec: MatchRecordCodec
-var _load_state: LoadState = LoadState.EMPTY
-## 直前の読み込みで破損を見つけ、退避できなかったか
-var _is_quarantine_failed: bool = false
-## 直前に解析した（または書いた）文字列と、その結果（読めなければ null の戦績・新しい版か）
-var _parsed_text: String = ""
-var _parsed_records: Variant = null
-var _is_parsed_newer: bool = false
+var _file: VersionedJsonFile
 
 
 ## dir はテストで別の場所を使うための引数。アプリは既定値を使う。
 func _init(rules: MatchRuleConfig, dir: String = "user://") -> void:
-	_path = dir.path_join(FILE_NAME)
 	_codec = MatchRecordCodec.new(rules)
+	_file = VersionedJsonFile.new(dir.path_join(FILE_NAME), MatchRecordCodec.FORMAT_VERSION, _codec.decode)
 
 
 ## 記録した順（古いものが先）。破損・新しい版・無いときは空。結果は load_state() で読める。
 func load_all() -> Array[MatchRecord]:
-	_is_quarantine_failed = false
-	if not SaveFileIO.exists(_path):
-		# 本体も .bak も無い。書き込みの途中の .tmp だけが残っていれば消しておく
-		SaveFileIO.read(_path, _is_usable)
-		_load_state = LoadState.EMPTY
+	var loaded: Variant = _file.load()
+	if loaded == null:
 		return []
-	var bak_path: String = _path + SaveFileIO.BAK_SUFFIX
-	if FileAccess.file_exists(_path) and FileAccess.file_exists(bak_path) \
-			and not _is_usable(SaveFileIO.read_limited(_path)):
-		if not _quarantine(_path):
-			_load_state = LoadState.CORRUPTED
-			_is_quarantine_failed = true
-			return []
-	var text: String = SaveFileIO.read(_path, _is_usable)
-	if text.is_empty():
-		_load_state = LoadState.CORRUPTED
-		var source: String = _path if FileAccess.file_exists(_path) else bak_path
-		_is_quarantine_failed = not _quarantine(source)
-		return []
-	_parse(text)
-	if _is_parsed_newer:
-		_load_state = LoadState.NEWER_VERSION
-		return []
-	_load_state = LoadState.OK
 	# 覚えている結果は書き換えさせない（append が足したり捨てたりする）
-	return (_parsed_records as Array[MatchRecord]).duplicate()
+	return (loaded as Array[MatchRecord]).duplicate()
 
 
 ## 直前の load_all（append の中の読み直しを含む）の結果。
-func load_state() -> LoadState:
-	return _load_state
+func load_state() -> VersionedJsonFile.LoadState:
+	return _file.load_state()
 
 
 ## 1件足す。同じ match_id があれば書かずに true（終了処理をやり直しても二重に記録しない）。
 ## 新しい版・退避できなかった破損のときは書かずに false。件数か大きさの上限を超えるなら、超えなくなるまで古いものから捨てる。
 func append(record: MatchRecord) -> bool:
 	var records: Array[MatchRecord] = load_all()
-	if _load_state == LoadState.NEWER_VERSION or _is_quarantine_failed:
+	if not _file.can_write():
 		return false
 	for existing: MatchRecord in records:
 		if existing.match_id == record.match_id:
@@ -87,43 +52,9 @@ func append(record: MatchRecord) -> bool:
 		records = records.slice(drop)
 		text = MatchRecordCodec.to_json(records)
 		size = text.to_utf8_buffer().size()
-	if not SaveFileIO.write(_path, text):
-		return false
-	_parsed_text = text
-	_parsed_records = records
-	_is_parsed_newer = false
-	return true
+	return _file.write(text, records)
 
 
 ## 直前の読み込みで見つかった誤り（開発時の確認用）。
 func errors() -> Array[String]:
 	return _codec.errors()
-
-
-## 本体を使うか .bak へ回るかを決める: 読めて検証が通るか、新しい版なら使う（新しい版は中身を確かめない）。
-func _is_usable(text: String) -> bool:
-	if text.is_empty():
-		return false
-	_parse(text)
-	return _is_parsed_newer or _parsed_records != null
-
-
-## text を解析して覚える。直前と同じ文字列なら解析し直さない。
-func _parse(text: String) -> void:
-	if text == _parsed_text and not text.is_empty():
-		return
-	_parsed_text = text
-	var root: Variant = JSON.parse_string(text)
-	_is_parsed_newer = root != null and MatchRecordCodec.version_of(root) > MatchRecordCodec.FORMAT_VERSION
-	_parsed_records = null if root == null or _is_parsed_newer else _codec.decode(root)
-
-
-## 壊れたファイルを退避する。名前を変えられたら true。本体を退避したら、本体が無い間に古い .bak が使われないよう
-## .bak も確かめ直す（読めない .bak は消す。読める .bak は残して、それを使う）。
-func _quarantine(source: String) -> bool:
-	if not SaveFileIO.move_aside(source, _path):
-		return false
-	var bak_path: String = _path + SaveFileIO.BAK_SUFFIX
-	if source != bak_path and FileAccess.file_exists(bak_path) and not _is_usable(SaveFileIO.read_limited(bak_path)):
-		DirAccess.remove_absolute(bak_path)
-	return true

@@ -692,7 +692,14 @@ func mark_tutorial_completed() -> bool
 > `App.user_data` に置く。失敗は `signal storage_failed(kind)` で知らせ、`App` が `storage_error` へ中継する。`records()` は写しを返し、
 > 終了日時の新しい順（同じ日時は後に記録したものが先）。`settings()` も写しを返す（画面が書き換えても、保存するまで持っている値は
 > 変わらない）。`save_settings()` は失敗しても持っている値を更新する（画面上の値を保つ）。保存の失敗の通知は、データごとに
-> 失敗が続く間は最初の1回だけ。回答結果は、その作業で足す。
+> 失敗が続く間は最初の1回だけ。
+>
+> 2026-10-31（理解度チェックの作業）に回答結果（`quiz_progress()`・`save_quiz_answer()`）を足した。
+> `UserDataService.new(record_store, settings_store, quiz_store: QuizAnswerStore, questions: Array[QuizQuestionDef])` で作る
+> （`questions` は正答状況の分母と、問題 ID → 学習目標。`App` が `library.quiz_questions()` を渡す）。`quiz.json` に無い問題の回答は数えない。
+> `save_quiz_answer()` は保存に失敗した回答を持っておき（画面の正答状況に含める）、次の回答のときに古いものから書き直す
+> （書き直さないと、次の保存が成功してファイルを読み直した時点で、失敗した回答が集計から黙って消えるため）。読み込み・保存の失敗の通知は戦績と同じ。
+> `LibraryService` には `principle()`・`quiz_questions()`（写し）を足した。
 
 `bool` を返すメソッドは、保存に失敗したら `false` を返し、`App.storage_error` を出す（通知を出すのは
 `UserDataService` だけ。`append_record` を呼んだ `MatchController` は、`false` を受けても通知を重ねて出さない）。読み込みに失敗した
@@ -779,6 +786,10 @@ func validation_errors() -> Array[String]
 静的データはアプリに同梱するため、読み込みの失敗は開発時の誤りとして扱う。NFR-17 の自動テストが
 `validation_errors()` が空であることを確かめる。ファイルの一覧は `repository-structure.md`「game/content/」。
 
+> 2026-10-31 に `principles.json`・`quiz.json` を足した。形・範囲（各チーム10人・学習目標ごとに2問以上・プレイテストの問題がちょうど2問・
+> 原則がカタログにある）は `QuizContentReader`（`data/quiz_content_reader.gd`）が確かめる。原則の ID と件数がカタログと一致するか、
+> 問題の文の人数・陣形が場面の図とゲームの基本配置と食い違わないかは、テスト（`tests/content/quiz_content_test.gd`）で確かめる。
+>
 > 2026-10-29 時点で読むのは `formations.json`・`simplifications.json`・`tutorial.json`。単純化とチュートリアルの形・範囲は
 > `TutorialContentReader`（`data/tutorial_content_reader.gd`。項目の読み出しは `SaveDataReader`）が確かめる。段階の陣形は、読み込んだ陣形ではなく
 > MVP の陣形の ID（`ContentRepository.FORMATION_IDS`）で確かめる（陣形の誤り1件が、段階の数だけ誤りを増やさないため）。
@@ -840,6 +851,11 @@ func append(record: MatchRecord) -> bool   # 同じ match_id があれば書か�
 
 `QuizAnswerStore`・`SettingsStore` も `RecordStore` と同じ形（`load_all`／`load`、`append`／`save`、
 `load_state`）にする。
+
+> 2026-10-31（理解度チェックの作業）: 戦績と回答結果は、破損・新しい版の扱い（下記）と書き込みの手順が同じなので、
+> `VersionedJsonFile`（`data/versioned_json_file.gd`）に1つにした。`RecordStore`・`QuizAnswerStore` は、中身の形と検証（decode）と
+> 追記の規則（戦績は同じ試合 ID を書かない・大きさの上限、回答結果は件数の上限 30,000）だけを持つ。`LoadState` も
+> `VersionedJsonFile.LoadState` に移した（`SettingsStore` は ConfigFile でキー単位に直すので、自分の enum を持つ）。
 
 **破損・新しい版のときに元のファイルを失わない**（戦績・回答結果・設定）:
 - **破損**: 読み込みで破損と判定したら、本体を `<名前>.corrupt-<YYYYMMDD-HHMMSS>` へ名前を変えて退避してから、
@@ -1073,6 +1089,7 @@ func route_back() -> bool
 | `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
 | `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
 | `MatchTexts` | 試合の画面の文言（エリア名「中盤（敵陣）・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
+| `QuizTexts` | 理解度チェックとタイトルのカードの文言（学習目標の名前・正答状況・正誤・根拠の原則）を1か所に集める（static）。問題の文の `{M2-L1}` を `MatchTexts.area_name` の呼び名にする（2026-10-31） |
 | `StylePicker` | 守備方式・攻撃方式の2択を2組並べる部品（方式の選び直し・ハーフタイム） |
 | `MatchScreenLayout` | 試合の合間の画面（方式の選び直し・ハーフタイム・試合結果）の骨組み（上部バー・本体・操作の列と主ボタン）を組む（static） |
 
@@ -1099,11 +1116,11 @@ func route_back() -> bool
 |---|---|
 | オートロード | `App`・`Sfx`（効果音。UI 層の `SoundCues`。2026-10-30） |
 | enum（`GameEnums` 内） | `Lane`・`Zone`・`DefenseStyle`・`AttackStyle`・`TurnKind`・`PlayType`・`DefenseAction`・`NegTransAction`・`PosTransAction`・`TurnOutcome`・`MatchStatus`・`MatchStage`・`PrincipleStatus`・`TeamSide`・`ChoiceFamily`・`CoverKind`・`MovementReason`・`MatchResult`・`Phase`・`JudgeTally` |
-| enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`AppScreens.SuspendedStatus`・`AppScreens.StartupResult`（2026-10-29 に `MatchController` から移した）・`SuspendedLoad.Status`・`RecordStore.LoadState`（`QuizAnswerStore`・`SettingsStore` も同名の enum を各クラス内に持つ。クラスの内側なので衝突しない） |
+| enum（その他） | `AppScreens.Id`・`AppScreens.StorageErrorKind`・`AppScreens.SuspendedStatus`・`AppScreens.StartupResult`（2026-10-29 に `MatchController` から移した）・`SuspendedLoad.Status`・`VersionedJsonFile.LoadState`（戦績・回答結果の読み込みの結果。`RecordStore`・`QuizAnswerStore` の `load_state()` が返す。2026-10-31 に `RecordStore` から移した）・`SettingsStore.LoadState`（同じ値の enum をクラス内に持つ。クラスの内側なので衝突しない） |
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OffsideRule`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
-| データ | `ContentRepository`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`StylePicker`・`MatchScreenLayout` |
+| データ | `ContentRepository`・`TutorialContentReader`・`QuizContentReader`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`VersionedJsonFile`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。

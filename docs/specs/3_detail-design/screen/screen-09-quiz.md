@@ -26,13 +26,13 @@ QuizScreen (Control)
 │   └── GoalCard × 4                        # Button。「LG-1 位置的・数的優位を見つける」＋「2問中 2問正解」／「未回答」
 └── QuestionView (HBoxContainer)            # 問題の表示（screen-common.md §1.1 の本体と操作の列）
     ├── ScenePane (VBoxContainer)           # 本体
-    │   ├── ScenePitch                      # MiniPitch（両チームの人数・ボール。横5レーン×縦6列、上が敵陣。1マスの大きさはこの画面の作業で決める）
-    │   └── SceneInfo (Label)               # 「自分: ゾーン　相手: 保持型　ボール: 中盤（敵陣）・左HS」
+    │   ├── ScenePitch                      # MiniPitch（両チームの人数・ボール。横5レーン×縦6列、上が敵陣。1マス 130×76。2026-10-31）
+    │   └── SceneInfo (Label)               # 「自分: ゾーン・保持型　相手: ゾーン・カウンター型　ボール: 中盤（敵陣）・左HS」。MutedLabel
     └── SideColumn (VBoxContainer)          # 操作の列。入りきらないときは ActionButton を下端に固定したまま、その上を縦にスクロール
-        ├── QuestionText (Label)            # 問題文。32px Bold
-        ├── Choices (VBoxContainer)
+        ├── QuestionText (Label)            # 問題文。CardTitleLabel（30px）
+        ├── Choices (VBoxContainer)         # 回答前だけ（回答後は隠して Feedback に替える）
         │   └── ChoiceButton × 選択肢の数    # Button。高さ 96px 以上。選んだものに accent の枠
-        ├── Feedback (PanelContainer)       # 回答後だけ。正誤（「正解」「不正解」の文字＋記号 ○／×）・解説・根拠の原則
+        ├── Feedback (PanelContainer)       # 回答後だけ。正誤（「○ 正解」「× 不正解」）・「あなたの答え: …」（不正解なら「／正解: …」）・解説・根拠の原則
         └── ActionButton (Button)           # 「回答する」→ 回答後は「次の問題」／最後は「一覧へ」。列の下端
 ```
 
@@ -42,7 +42,7 @@ QuizScreen (Control)
 |---|---|---|
 | `LIST` | 学習目標の一覧 | 学習目標のカード・戻る |
 | `ASKING` | 問題・選択肢 | 選択肢・回答する（選択肢を選ぶまで押せない）・戻る |
-| `ANSWERED` | ＋正誤・解説 | 次の問題・戻る（選択肢は押せない） |
+| `ANSWERED` | 問題・正誤・選んだ答えと正解・解説（選択肢は隠す） | 次の問題・戻る |
 
 ### 画面の中だけで持つ値
 
@@ -51,6 +51,12 @@ QuizScreen (Control)
 | `_questions` | `Array[QuizQuestionDef]` | 選んだ学習目標の問題（`quiz.json` の並び順） |
 | `_index` | `int` | 今の問題 |
 | `_picked` | `String` | 選んだ選択肢の `id`（未選択は空文字） |
+
+## 問題の文の書き方（2026-10-31）
+
+`quiz.json` の問題文・選択肢・解説では、エリアを `{M2-L1}` の形で書く。表示するときに試合の画面と同じ呼び名
+（`MatchTexts.area_name`。「中盤（敵陣）・左HS」）にする（`QuizTexts.fill`）。キーをそのまま出すと、試合の画面の呼び名と食い違い、
+図にもキーの表示が無いため。選択肢・解説に書いた「N対M」は、テスト（`tests/content/quiz_content_test.gd`）が図の人数と照らし合わせる。
 
 ## 正答状況の数え方
 
@@ -79,7 +85,9 @@ QuizScreen (Control)
 1. 選択肢を押すと `_picked` を記録し、枠を付ける（選び直せる）。「回答する」を押せるようにする
 2. 「回答する」を押すと、正誤を判定する（選択肢の ID が問題の正解と一致するか。ルールの計算は伴わない）
 3. `save_quiz_answer(QuizAnswer(問題 ID, 正誤, 今の日時))`。保存に失敗しても次へ進む（通知は `MainShell`）
-4. `Feedback` に正誤（○ 正解／× 不正解）、解説、根拠の原則（`library.principle(id)` の名前）を出す。正解の選択肢に印を付ける
+4. 選択肢を隠し、`Feedback` に正誤（○ 正解／× 不正解）、「あなたの答え: …」（不正解なら「／正解: …」を添える）、解説、
+   根拠の原則（`library.principle(id)` の「TP-03 チャレンジ＆カバー」。複数は「／」でつなぐ）を出す。操作の列は先頭へスクロールする
+   （2026-10-31。選択肢を残して正解に印を付ける形では、解説が列の下に隠れ、回答しても変わらないように見えた）
 5. `_state = ANSWERED`
 
 ### 「次の問題」・「一覧へ」を押す

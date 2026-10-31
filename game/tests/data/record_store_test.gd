@@ -1,5 +1,6 @@
 ## RecordStore・MatchRecordCodec（component-design.md §4.3・data-definition.md §2.2）のテスト。
 ## 一時ディレクトリに保存し、ファイルを直接置いて壊れた場合・新しい版・上限を作る。
+## 破損・新しい版の手順は VersionedJsonFile のもの（回答結果の保存と共有。直接のテストは versioned_json_file_test.gd）。
 ## gdUnit の一時ディレクトリはスイートの中でテストごとに消えないので、テストごとに別の名前を使う。
 extends GdUnitTestSuite
 
@@ -74,7 +75,7 @@ func _decodes(root: Variant) -> bool:
 func test_nothing_saved_is_empty() -> void:
 	var store: RecordStore = _store("empty")
 	assert_array(store.load_all()).is_empty()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.EMPTY)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.EMPTY)
 
 
 func test_appended_records_are_read_back_in_the_order_recorded() -> void:
@@ -82,7 +83,7 @@ func test_appended_records_are_read_back_in_the_order_recorded() -> void:
 	assert_bool(store.append(_record(1, 2, 1, 3))).is_true()
 	assert_bool(store.append(_record(2, 0, 0))).is_true()
 	var records: Array[MatchRecord] = store.load_all()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.OK)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.OK)
 	assert_array(records.map(func(r: MatchRecord) -> String: return r.match_id)) \
 			.is_equal([_record(1).match_id, _record(2).match_id])
 	assert_str(JSON.stringify(MatchRecordCodec.encode(records[0]))).is_equal(JSON.stringify(MatchRecordCodec.encode(_record(1, 2, 1, 3))))
@@ -140,7 +141,7 @@ func test_a_corrupted_file_is_moved_aside_and_read_as_empty() -> void:
 	_put(_path(case_name), "{ not json")
 	var store: RecordStore = _store(case_name)
 	assert_array(store.load_all()).is_empty()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.CORRUPTED)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.CORRUPTED)
 	assert_bool(FileAccess.file_exists(_path(case_name))).is_false()
 	var moved: Array[String] = _moved_aside(case_name)
 	assert_int(moved.size()).is_equal(1)
@@ -155,7 +156,7 @@ func test_corrupted_files_found_twice_are_both_kept() -> void:
 	_put(_path(case_name), "{ second")
 	var store: RecordStore = _store(case_name)
 	store.load_all()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.CORRUPTED)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.CORRUPTED)
 	var contents: Array[String] = []
 	for file_name: String in _moved_aside(case_name):
 		contents.append(_read(_dir(case_name).path_join(file_name)))
@@ -169,7 +170,7 @@ func test_after_moving_a_corrupted_file_aside_the_next_append_starts_a_new_file(
 	var store: RecordStore = _store(case_name)
 	assert_bool(store.append(_record(5))).is_true()
 	var records: Array[MatchRecord] = store.load_all()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.OK)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.OK)
 	assert_int(records.size()).is_equal(1)
 
 
@@ -180,7 +181,7 @@ func test_a_valid_backup_is_used_when_the_main_file_is_broken() -> void:
 	_put(_path(case_name) + SaveFileIO.BAK_SUFFIX, JSON.stringify(_valid_root()))
 	var store: RecordStore = _store(case_name)
 	assert_int(store.load_all().size()).is_equal(1)
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.OK)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.OK)
 	# 壊れた本体は退避されている（次の書き込みで .bak へ回されて消えない）
 	assert_array(_moved_aside(case_name)).has_size(1)
 	assert_str(_read(_dir(case_name).path_join(_moved_aside(case_name)[0]))).is_equal("{ broken")
@@ -195,7 +196,7 @@ func test_a_newer_version_is_read_as_empty_and_never_overwritten() -> void:
 	_put(_path(case_name), newer)
 	var store: RecordStore = _store(case_name)
 	assert_array(store.load_all()).is_empty()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.NEWER_VERSION)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.NEWER_VERSION)
 	assert_bool(store.append(_record(1))).is_false()
 	assert_str(_read(_path(case_name))).is_equal(newer)
 
@@ -217,7 +218,7 @@ func test_a_corrupted_file_that_cannot_be_moved_aside_is_not_overwritten() -> vo
 			_put(name_taken.path_join("keep"), "x")
 	var store: RecordStore = _store(case_name)
 	assert_bool(store.append(_record(1))).is_false()
-	assert_int(store.load_state()).is_equal(RecordStore.LoadState.CORRUPTED)
+	assert_int(store.load_state()).is_equal(VersionedJsonFile.LoadState.CORRUPTED)
 	assert_str(_read(_path(case_name))).is_equal("{ broken")
 
 

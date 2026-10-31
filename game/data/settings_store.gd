@@ -12,7 +12,7 @@
 class_name SettingsStore
 extends RefCounted
 
-## 値は RecordStore.LoadState と同じ意味（クラスの内側なので名前は衝突しない）
+## 値は VersionedJsonFile.LoadState と同じ意味（クラスの内側なので名前は衝突しない）
 enum LoadState { OK, EMPTY, CORRUPTED, NEWER_VERSION }
 
 const FILE_NAME: String = "settings.cfg"

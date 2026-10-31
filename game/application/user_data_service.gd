@@ -1,8 +1,8 @@
-## 画面向けの戦績と設定の参照と保存（component-design.md §3.4。モジュール構成図の A2）。戦績の追加はここだけを通す
-## （MatchController の終了処理が呼ぶ。持っている値を1か所で更新するため）。
-## 戦績・設定は、それぞれ最初に使うときに1回だけ読み、結果をメモリに持つ。読み込みの失敗の通知も、その1回だけ出す。
-## 保存の失敗の通知は、データごとに、失敗が続く間は最初の1回だけ出す（終了処理のやり直し・スライダーの操作のたびに重ねない。
-## 新しい版は読み込みの通知で知らせ済み）。理解度チェックの結果は、その作業で足す。
+## 画面向けの戦績・設定・理解度チェックの回答結果の参照と保存（component-design.md §3.4。モジュール構成図の A2）。
+## 戦績の追加はここだけを通す（MatchController の終了処理が呼ぶ。持っている値を1か所で更新するため）。
+## 戦績・設定・回答結果は、それぞれ最初に使うときに1回だけ読み、結果をメモリに持つ。読み込みの失敗の通知も、その1回だけ出す。
+## 保存の失敗の通知は、データごとに、失敗が続く間は最初の1回だけ出す（終了処理のやり直し・スライダーの操作・回答のたびに
+## 重ねない。新しい版は読み込みの通知で知らせ済み）。
 class_name UserDataService
 extends RefCounted
 
@@ -19,11 +19,24 @@ var _settings_store: SettingsStore
 var _settings: UserSettings
 ## 直前の設定の保存が失敗したか（戦績の _is_failing と同じ扱い）
 var _is_settings_failing: bool = false
+var _quiz_store: QuizAnswerStore
+## 場面問題（正答状況の集計の分母と、問題 ID → 学習目標 ID）
+var _questions: Array[QuizQuestionDef]
+## 保存できた回答（ファイルの順。古いものが先）。読む前は null
+var _answers: Variant = null
+## 保存に失敗した回答（古いものが先）。次の回答のときに先に書き直す。集計には、保存できた回答の後に含める
+var _unsaved_answers: Array[QuizAnswer] = []
+## 直前の回答の保存が失敗したか（戦績の _is_failing と同じ扱い）
+var _is_quiz_failing: bool = false
 
 
-func _init(record_store: RecordStore, settings_store: SettingsStore) -> void:
+## questions は場面問題（LibraryService.quiz_questions() と同じもの）。
+func _init(record_store: RecordStore, settings_store: SettingsStore, quiz_store: QuizAnswerStore,
+		questions: Array[QuizQuestionDef]) -> void:
 	_record_store = record_store
 	_settings_store = settings_store
+	_quiz_store = quiz_store
+	_questions = questions.duplicate()
 
 
 ## 新しい順（終了日時の新しい順。同じ日時は後に記録したものが先）。写しを返す。
@@ -50,9 +63,7 @@ func append_record(record: MatchRecord) -> bool:
 		_records = _record_store.load_all()
 		return true
 	if not _is_failing:
-		var is_newer: bool = _record_store.load_state() == RecordStore.LoadState.NEWER_VERSION
-		storage_failed.emit(AppScreens.StorageErrorKind.USER_DATA_NEWER if is_newer
-				else AppScreens.StorageErrorKind.USER_DATA_SAVE)
+		_emit_save_failed(_record_store.load_state())
 	_is_failing = true
 	return false
 
@@ -75,14 +86,76 @@ func _loaded() -> Array[MatchRecord]:
 	if _records != null:
 		return _records
 	var loaded: Array[MatchRecord] = _record_store.load_all()
-	match _record_store.load_state():
-		RecordStore.LoadState.CORRUPTED:
-			storage_failed.emit(AppScreens.StorageErrorKind.USER_DATA_LOAD)
-		RecordStore.LoadState.NEWER_VERSION:
-			storage_failed.emit(AppScreens.StorageErrorKind.USER_DATA_NEWER)
-			_is_failing = true
+	_is_failing = _emit_load_failed(_record_store.load_state())
 	_records = loaded
 	return loaded
+
+
+## 学習目標 ID → {"answered": int, "correct": int, "total": int}（screen-09-quiz.md「正答状況の数え方」）。
+## answered・correct は問題ごとの最新の回答で数える。total はその学習目標の問題の数。quiz.json に無い問題の回答は数えない。
+func quiz_progress() -> Dictionary:
+	var latest: Dictionary = {}
+	for answer: QuizAnswer in _loaded_answers() + _unsaved_answers:
+		latest[answer.question_id] = answer.correct
+	var progress: Dictionary = {}
+	for goal_id: String in QuizQuestionDef.GOAL_IDS:
+		progress[goal_id] = {"answered": 0, "correct": 0, "total": 0}
+	for question: QuizQuestionDef in _questions:
+		var counts: Dictionary = progress[question.goal_id]
+		counts["total"] += 1
+		if latest.has(question.id):
+			counts["answered"] += 1
+			if latest[question.id] as bool:
+				counts["correct"] += 1
+	return progress
+
+
+## 回答を1件足す。保存に失敗した回答は持っておき（画面の正答状況に含める）、次の回答のときに古いものから書き直す
+## （書き直さないと、次の保存が成功してファイルを読み直した時点で、失敗した回答が集計から黙って消えるため）。
+## 今回の回答まですべて書けたら true。書けないものが残れば通知して false（失敗が続く間の通知は1回だけ）。
+func save_quiz_answer(answer: QuizAnswer) -> bool:
+	_loaded_answers()
+	_unsaved_answers.append(answer)
+	var has_written: bool = false
+	while not _unsaved_answers.is_empty() and _quiz_store.append(_unsaved_answers[0]):
+		_unsaved_answers.pop_front()
+		has_written = true
+	if has_written:
+		# 上限で古い回答を捨てていることがあるので、保存したものを読み直す
+		_answers = _quiz_store.load_all()
+	if _unsaved_answers.is_empty():
+		_is_quiz_failing = false
+		return true
+	if not _is_quiz_failing:
+		_emit_save_failed(_quiz_store.load_state())
+	_is_quiz_failing = true
+	return false
+
+
+func _loaded_answers() -> Array[QuizAnswer]:
+	if _answers != null:
+		return _answers
+	var loaded: Array[QuizAnswer] = _quiz_store.load_all()
+	_is_quiz_failing = _emit_load_failed(_quiz_store.load_state())
+	_answers = loaded
+	return loaded
+
+
+## 戦績・回答結果の読み込みの失敗を通知する。新しい版なら、保存が失敗するもの（真）として返す。
+func _emit_load_failed(state: VersionedJsonFile.LoadState) -> bool:
+	match state:
+		VersionedJsonFile.LoadState.CORRUPTED:
+			storage_failed.emit(AppScreens.StorageErrorKind.USER_DATA_LOAD)
+		VersionedJsonFile.LoadState.NEWER_VERSION:
+			storage_failed.emit(AppScreens.StorageErrorKind.USER_DATA_NEWER)
+			return true
+	return false
+
+
+## 戦績・回答結果の保存の失敗を通知する（新しい版なら USER_DATA_NEWER）。
+func _emit_save_failed(state: VersionedJsonFile.LoadState) -> void:
+	storage_failed.emit(AppScreens.StorageErrorKind.USER_DATA_NEWER if state == VersionedJsonFile.LoadState.NEWER_VERSION
+			else AppScreens.StorageErrorKind.USER_DATA_SAVE)
 
 
 ## 設定の写し（画面が書き換えても、保存するまで持っている値は変わらない）。

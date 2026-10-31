@@ -27,7 +27,8 @@ static func new_controller(seed_value: int, request: Callable, store: SuspendedM
 ## タイトル・戦績・設定・試合の画面は App.user_data を読むので、開発用の PC の戦績・設定を読み書きしないために使う。
 static func use_user_data_in(dir: String) -> UserDataService:
 	var original: UserDataService = App.user_data
-	var service := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), dir), SettingsStore.new(dir))
+	var service := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), dir), SettingsStore.new(dir),
+			QuizAnswerStore.new(dir), App.library.quiz_questions())
 	service.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: App.storage_error.emit(kind))
 	App.user_data = service
 	return original

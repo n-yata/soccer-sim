@@ -45,14 +45,6 @@ static func encode(record: MatchRecord) -> Dictionary:
 			"result": GameEnums.MatchResult.find_key(record.result), "timeline": timeline}
 
 
-## 最上位の format_version（整数でなければ -1）。新しい版かどうかを、中身を確かめる前に見分けるのに使う。
-static func version_of(root: Variant) -> int:
-	if typeof(root) != TYPE_DICTIONARY:
-		return -1
-	var value: Variant = (root as Dictionary).get("format_version")
-	return int(value) if SaveDataReader.is_integer(value) and absf(float(value)) < 1e9 else -1
-
-
 ## 誤りがあれば null。ファイルの中の順（記録した順）のまま返す。
 func decode(root: Variant) -> Variant:
 	_reader = SaveDataReader.new()

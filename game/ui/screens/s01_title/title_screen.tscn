@@ -232,6 +232,13 @@ theme_type_variation = &"CardTitleLabel"
 text = "理解度チェック"
 autowrap_mode = 3
 
+[node name="QuizSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/QuizCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
 [node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/QuizCard/Box"]
 layout_mode = 2
 size_flags_vertical = 10

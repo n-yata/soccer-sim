@@ -1,6 +1,7 @@
 ## 静的データ（game/content/*.json）を読み、検証して ContentCatalog に変換する（component-design.md §4.1）。
-## 陣形（formations.json）・単純化カタログ（simplifications.json）・チュートリアルの段階（tutorial.json）を扱う。
-## ほかの静的データは、それを使う機能の作業で足す。単純化とチュートリアルの形・範囲は TutorialContentReader が確かめる。
+## 陣形（formations.json）・単純化カタログ（simplifications.json）・チュートリアルの段階（tutorial.json）・
+## 戦術原則カタログ（principles.json）・場面問題（quiz.json）を扱う。ほかの静的データは、それを使う機能の作業で足す。
+## 単純化とチュートリアルの形・範囲は TutorialContentReader、原則と場面問題は QuizContentReader が確かめる。
 ##
 ## 静的データはアプリに同梱するため、誤りは開発時の誤りとして扱う（data-definition.md §4）。
 ## 誤りが1件でもあれば、何も持たない空の ContentCatalog を返す（一部だけ正しいデータで動き続けないため）。
@@ -10,6 +11,8 @@ extends RefCounted
 const FORMATIONS_FILE: String = "formations.json"
 const SIMPLIFICATIONS_FILE: String = "simplifications.json"
 const TUTORIAL_FILE: String = "tutorial.json"
+const PRINCIPLES_FILE: String = "principles.json"
+const QUIZ_FILE: String = "quiz.json"
 
 # 以下の値は data-definition.md §3・§3.1 の範囲・制約の写し。正本を変えたらここも合わせる
 const FORMAT_VERSION: int = 1
@@ -49,14 +52,22 @@ func load_catalog() -> ContentCatalog:
 	# 段階の陣形は MVP の陣形の ID で確かめる（読み込んだ陣形で確かめると、陣形の誤り1件が段階の数だけ誤りを増やすため）
 	var reader := TutorialContentReader.new(FORMATION_IDS)
 	var simplifications: Array[SimplificationDef] = reader.read_simplifications(_read_json(SIMPLIFICATIONS_FILE))
-	_add_reader_errors(SIMPLIFICATIONS_FILE, reader)
+	_add_reader_errors(SIMPLIFICATIONS_FILE, reader.errors())
 	var steps: Array[TutorialStepDef] = reader.read_tutorial(_read_json(TUTORIAL_FILE))
-	_add_reader_errors(TUTORIAL_FILE, reader)
+	_add_reader_errors(TUTORIAL_FILE, reader.errors())
+	var quiz_reader := QuizContentReader.new()
+	var principles: Array[PrincipleDef] = quiz_reader.read_principles(_read_json(PRINCIPLES_FILE))
+	_add_reader_errors(PRINCIPLES_FILE, quiz_reader.errors())
+	var principle_ids: Array[String] = []
+	for principle: PrincipleDef in principles:
+		principle_ids.append(principle.id)
+	var questions: Array[QuizQuestionDef] = quiz_reader.read_quiz(_read_json(QUIZ_FILE), principle_ids)
+	_add_reader_errors(QUIZ_FILE, quiz_reader.errors())
 	if not _errors.is_empty():
 		for message: String in _errors:
 			push_error(message)
 		return ContentCatalog.new()
-	return ContentCatalog.new(formations, simplifications, steps)
+	return ContentCatalog.new(formations, simplifications, steps, principles, questions)
 
 
 ## 直前の load_catalog() で見つかった誤り。まだ読んでいなければ読む。空なら正常。
@@ -251,6 +262,7 @@ func _read_json(file: String) -> Variant:
 	return json.data
 
 
-func _add_reader_errors(file: String, reader: TutorialContentReader) -> void:
-	for message: String in reader.errors():
+## messages は読み手（TutorialContentReader・QuizContentReader）の errors()。
+func _add_reader_errors(file: String, messages: Array[String]) -> void:
+	for message: String in messages:
 		_errors.append("%s: %s" % [file, message])

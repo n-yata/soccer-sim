@@ -1,6 +1,5 @@
 ## S-01 タイトル（screen-01-title.md）。各機能への入口と、中断した試合の再開カード。
 ## 「CPU 対戦」は NewMatchGate に任せる（中断中の試合・戦績を記録できていない試合があれば、ConfirmDialog で確かめる）。
-## 小さなカードの一言は戦績だけ（2026-10-29）。理解度チェックの一言は理解度チェックの作業で足す。
 ## チュートリアルのカードは、未完了なら KICK OFF の直前の大きなカード、完了後は小さなカードの最後（設定の tutorial_completed）。
 ## プロダクト名は仮称（正式名は要件定義書 §7.1 #4）。
 class_name TitleScreen
@@ -22,10 +21,12 @@ const SMALL_COLUMNS_WITH_TUTORIAL: int = 5
 @onready var _resume_score: Label = %ResumeScore
 @onready var _kick_off_card: Button = %KickOffCard
 @onready var _records_sub: Label = %RecordsSub
+@onready var _quiz_sub: Label = %QuizSub
 @onready var _tutorial_card: Button = %TutorialCard
 @onready var _small_cards: GridContainer = $Layout/CardsMargin/Cards/SmallCards
 ## 小さなカード → その一言。押せない間は一言を隠し「準備中」だけを出す（screen-01-title.md「作る順序」）
 @onready var _card_subs: Dictionary = {
+	%QuizCard: %QuizSub,
 	%RecordsCard: %RecordsSub,
 	%ScopeCard: %ScopeSub,
 	%SettingsCard: %SettingsSub,
@@ -64,6 +65,8 @@ func enter(_params: Dictionary) -> void:
 	# 戦績のカードの一言「5勝 2分 3敗」（0件なら「まだ記録がありません」）。押せない間は「準備中」だけを出す
 	# 小さなカードは幅が狭く、1行に収まらない。数の途中で折り返さないよう、勝ち・引き分け・負けで行を分ける
 	_records_sub.text = RecordTexts.totals_summary(App.user_data.totals()).replace(" ", "\n")
+	# 理解度チェックのカードの一言「3／8 正解」（回答0件なら「未回答」）
+	_quiz_sub.text = QuizTexts.total_summary(App.user_data.quiz_progress())
 	_state = State.IDLE
 
 

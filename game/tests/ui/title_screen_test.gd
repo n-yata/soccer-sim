@@ -93,10 +93,23 @@ func test_small_cards_show_their_one_liners_only_while_available() -> void:
 	assert_str(_title.card_sub_text("ScopeCard")).is_equal("実戦との違い")
 	assert_str(_title.card_sub_text("SettingsCard")).is_equal("音量・ヒント")
 	assert_str(_title.card_sub_text("RecordsCard")).is_equal("まだ記録がありません")
+	assert_str(_title.card_sub_text("QuizCard")).is_equal("未回答")
 	_title.apply_availability({AppScreens.Id.S02_MATCH_SETUP: "res://any.tscn"})
-	for card_name: String in ["ScopeCard", "SettingsCard", "RecordsCard"]:
+	for card_name: String in ["ScopeCard", "SettingsCard", "RecordsCard", "QuizCard"]:
 		assert_str(_title.card_sub_text(card_name)).override_failure_message(card_name).is_empty()
 		assert_bool(_pending_label(card_name).visible).is_true()
+
+
+## 理解度チェックの一言は、全学習目標の正答数／問題数（同じ問題は最新の回答で数える。screen-01-title.md「画面を開く」の 4.）
+func test_the_quiz_card_shows_the_correct_answers_out_of_all_questions() -> void:
+	var total: int = App.library.quiz_questions().size()
+	App.user_data.save_quiz_answer(QuizAnswer.new("lg1-switch", false, "2026-10-31T10:00:00"))
+	_title.enter({})
+	assert_str(_title.card_sub_text("QuizCard")).is_equal("0／%d 正解" % total)
+	App.user_data.save_quiz_answer(QuizAnswer.new("lg1-switch", true, "2026-10-31T10:01:00"))
+	App.user_data.save_quiz_answer(QuizAnswer.new("lg2-cover", true, "2026-10-31T10:02:00"))
+	_title.enter({})
+	assert_str(_title.card_sub_text("QuizCard")).is_equal("2／%d 正解" % total)
 
 
 ## MainShell.SCREEN_SCENES に登録した画面（S-02 試合準備など）のカードだけが押せる。

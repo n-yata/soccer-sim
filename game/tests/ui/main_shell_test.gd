@@ -116,16 +116,14 @@ func test_main_shell_opens_title_on_start() -> void:
 	shell.free()
 
 
-func test_main_shell_keeps_screen_when_requested_screen_is_missing() -> void:
-	var shell: MainShell = await _open_main_shell()
-	var title: Node = shell.get_node("ScreenRoot").get_child(0)
-	# 理解度チェック（S-09）はまだ作っていない画面（S-08 チュートリアルは 2026-10-29 に作った）
-	assert_bool(MainShell.has_screen(AppScreens.Id.S09_QUIZ)).is_false()
-	App.request_screen(AppScreens.Id.S09_QUIZ)
-	await get_tree().process_frame
-	assert_int(shell.current_screen_id()).is_equal(AppScreens.Id.S01_TITLE)
-	assert_object(shell.get_node("ScreenRoot").get_child(0)).is_same(title)
-	shell.free()
+## 画面一覧（S-01〜S-12）のすべてを作った（理解度チェックで最後。2026-10-31）。登録の無い画面を頼んだときに今の画面のまま
+## にすることは、ScreenSwitcher のテスト（test_unknown_screen_keeps_current_screen）で確かめる
+func test_every_screen_is_registered() -> void:
+	for screen: int in AppScreens.Id.values():
+		assert_bool(MainShell.has_screen(screen as AppScreens.Id)) \
+				.override_failure_message(str(AppScreens.Id.find_key(screen))).is_true()
+		assert_bool(ResourceLoader.exists(MainShell.SCREEN_SCENES[screen] as String)) \
+				.override_failure_message(str(AppScreens.Id.find_key(screen))).is_true()
 
 
 func test_a_corrupted_suspended_match_at_startup_is_reported_after_the_title_opens() -> void:

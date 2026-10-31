@@ -14,9 +14,10 @@ func _real_data() -> Dictionary:
 	return JSON.parse_string(text) as Dictionary
 
 
-## 陣形以外の静的データ（単純化・チュートリアル）は本物を写す（陣形の誤りだけを確かめるため）。
+## 陣形以外の静的データ（単純化・チュートリアル・原則・場面問題）は本物を写す（陣形の誤りだけを確かめるため）。
 func _copy_other_real_files(dir: String) -> void:
-	for file_name: String in [ContentRepository.SIMPLIFICATIONS_FILE, ContentRepository.TUTORIAL_FILE]:
+	for file_name: String in [ContentRepository.SIMPLIFICATIONS_FILE, ContentRepository.TUTORIAL_FILE,
+			ContentRepository.PRINCIPLES_FILE, ContentRepository.QUIZ_FILE]:
 		var copied := FileAccess.open(dir.path_join(file_name), FileAccess.WRITE)
 		copied.store_string(FileAccess.get_file_as_string(REAL_CONTENT_DIR.path_join(file_name)))
 		copied.close()

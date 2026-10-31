@@ -114,7 +114,7 @@
 |---|---|:--:|---|---|
 | `format_version` | `int` | ○ | 1 | — |
 | `answers` | `array` | ○ | 0〜30,000件 | 回答の順に追記する。上限に達したら古いものから捨てて追記する（正答状況は問題ごとの最新の回答で数えるため、古い回答を捨てても実用上は変わらない。ある問題の回答がすべて捨てられたときだけ、その問題は未回答に戻る） |
-| `answers[].question_id` | `string` | ○ | — | 問題ID。`quiz.json` に無い ID（問題を削除した後の古い回答）は破損にせず、集計から外す |
+| `answers[].question_id` | `string` | ○ | ID の形（§3） | 問題ID。`quiz.json` に無い ID（問題を削除した後の古い回答）は破損にせず、集計から外す |
 | `answers[].correct` | `bool` | ○ | — | 正誤 |
 | `answers[].answered_at` | `datetime` | ○ | — | 回答日時 |
 
@@ -188,7 +188,7 @@
 | ファイル | キー | 型 | 必須 | 範囲・制約 |
 |---|---|---|:--:|---|
 | `principles.json` | `principles[].id` | `string` | ○ | `TP-NN`。`functional-overview.md`「戦術原則カタログ」と ID・件数が一致（NFR-17 ②） |
-| | `principles[].name` / `.content` / `.source` | `string` | ○ | 表示用の文。`source` は「未確定」を許す |
+| | `principles[].name` / `.content` / `.source` | `string` | ○ | 表示用の文（`name` 1〜40文字、`content`・`source` 1〜300文字）。`source` は「未確定」を許す |
 | | `principles[].status` | `enum<PrincipleStatus>` | ○ | カタログの照合状態と一致 |
 | `simplifications.json` | `simplifications[].id` | `string` | ○ | `SIM-NN`。「単純化カタログ」と ID・件数が一致（NFR-17 ②） |
 | | `simplifications[].name` / `.in_game` / `.in_real` | `string` | ○ | 単純化・ゲームでの扱い・実戦では |
@@ -205,12 +205,16 @@
 | `questions[].scene.counts` | `object` | ○ | 30エリアのキー → `[自分, 相手]`。各チームの合計が10 | 利用者の視点 |
 | `questions[].scene.ball` | `area` | ○ | — | — |
 | `questions[].scene.user_styles` / `.opponent_styles` | `object` | ○ | `{defense, attack}` | — |
-| `questions[].text` | `string` | ○ | 1〜200文字 | 問題文 |
+| `questions[].text` | `string` | ○ | 1〜200文字 | 問題文。エリアは `{M2-L1}` の形で書き、表示で試合の画面と同じ呼び名にする（下の注記） |
 | `questions[].choices` | `array` | ○ | 2〜4件 | 選択肢 |
-| `questions[].choices[].id` / `.text` | `string` | ○ | `id` は問題の中で一意 | — |
+| `questions[].choices[].id` / `.text` | `string` | ○ | `id` は問題の中で一意（ID の形）。`text` は1〜100文字 | — |
 | `questions[].answer` | `string` | ○ | `choices[].id` のどれか | 正解 |
 | `questions[].explanation` | `string` | ○ | 1〜400文字 | 解説 |
 | `questions[].principle_ids` | `array<string>` | ○ | 1件以上 | 根拠の原則 |
+
+- 2026-10-31（理解度チェックの作業）: 問題文・選択肢・解説の中のエリアは `{M2-L1}` の形で書く（表示は `QuizTexts.fill` が
+  「中盤（敵陣）・左HS」にする）。場面の人数は利用者の視点で、人数が0のエリアは書かなくてよい。問題の数の読み込みの上限は 200 件。
+  選択肢・解説に書いた人数が図と合うか、噛み合わせの場面がゲームの基本配置と同じかは、テスト（`tests/content/quiz_content_test.gd`）で確かめる
 
 ### 3.6 `tutorial.json`（チュートリアルの段階）
 
