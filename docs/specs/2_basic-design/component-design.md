@@ -543,6 +543,7 @@ func opponent_setup() -> TeamSetup               # 開示済みの相手の陣�
 func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）。試合の開始前は、suspended_status() が RESUMABLE のときに中断データの状態を返す（タイトルの再開カード用）
 func board_play_sec() -> float                   # 開示の1拍目（プレー。判定前 → 判定時）で駒とボールを動かす時間（PresentationConfig。2026-11-03）
 func board_settle_sec() -> float                  # 開示の2拍目（詰め直し。判定時 → 次のターン開始時）で駒を動かす時間（PresentationConfig。2026-10-22 に board_shift_sec として足し、2026-11-03 に2拍目の時間にして改名した）
+func board_result_sec() -> float                 # 開示の1拍目の終わりから結果の演出を出す時間（PresentationConfig。2026-11-03）
 func ball_style() -> Dictionary                  # 開示の1拍目のボールの軌道の値 {"loft", "touch", "touches"}（PresentationConfig。高さはボールの半径の何倍か。2026-11-03）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
@@ -829,7 +830,7 @@ func validation_errors() -> Array[String]
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数・アディショナルタイムの最大ターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty（2026-10-25）・マーク注意の減点 marked_penalty（2026-10-29） |
-| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・1拍目のボールの軌道（浮き球の高さ・ドリブルの弾みの高さと回数）・振り返りで遡るターン数 |
+| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・結果の演出を出す時間（秒）・1拍目のボールの軌道（浮き球の高さ・ドリブルの弾みの高さと回数）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
 ```gdscript
@@ -839,7 +840,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）は0より大きく2以下、浮き球の高さは0以上20以下・ドリブルの弾みの高さは0以上5以下（有限の値）・弾みの回数は1以上8以下、遡るターン数は
+値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）と結果の演出を出す時間は0より大きく2以下、浮き球の高さは0以上20以下・ドリブルの弾みの高さは0以上5以下（有限の値）・弾みの回数は1以上8以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -1075,7 +1076,7 @@ func route_back() -> bool
 > 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす
 > （2026-11-03 に2拍に分け、この時間は2拍目の `board_settle_sec()` に改名した。下の注記）。
 > 道筋（選手ごとの移動元と移動先の駒の列の位置）の計算は `BoardShift`（`board_shift.gd`）に置き、Tween はボードが持つ（描画は下の 2026-10-23 の注記のとおり `BoardPainter`）。
-> 画面の状態は増やさない（テロップ・矢印はすぐ出し、「次へ」も押せる）。次の盤面・重ね表示の消去で動きを止める。
+> 画面の状態は増やさない（テロップ・矢印はすぐ出し、「次へ」も押せる。テロップは 2026-11-03 に1拍目の後へ移した。下の注記）。次の盤面・重ね表示の消去で動きを止める。
 >
 > **2026-10-23**: ボールも駒と一緒に、判定前のエリア（`RevealView.ball_before`）から動かす。あわせて `TacticsBoard` を分けた。
 > 描画は `BoardPainter`（`board_painter.gd`。ボードの公開の問い合わせだけを読んで描く）、開示の動きの状態（駒とボールの
@@ -1087,6 +1088,13 @@ func route_back() -> bool
 > `TacticsBoard.start_shift` は拍の始まりの配置の並びを受け取る（screen-common.md）。動きの無い拍は飛ばす。
 > それまでの `board_shift_sec`（全体の時間）は、意味が2拍目の時間に変わったので `board_settle_sec` に改名した
 > （同じ型のまま意味だけが変わると、古い値が黙って使われるため）。
+>
+> **2026-11-03（結果の演出）**: 1拍目の終わりに、ターンの結果を盤面の動きで見せる。区分・場所・色の側は `ResultEffect`
+> （`ui/board2d/result_effect.gd`。UI 層）が `RevealView` から決める（得点・セーブ・ボールを奪った・オフサイド・膠着）。
+> 得点は1拍目のボールをゴールの口（`TacticsBoard.goal_mouth`。描画のゴールと同じ `goal_rect` から求める）へ向け、膠着は
+> 運ぶ先の方への跳ね返り（`BallFlight.Kind.BOUNCE`）にする（`ResultEffect.shape_ball_paths`。拍に keyframe の番号を持たせ、
+> 動きの無い拍を取り除いた後も1拍目を見分ける）。1拍目が終わると `TacticsBoard.play_landed` を出し、輪・ゴールの光・旗を
+> `MatchController.board_result_sec()` 秒出す。`MatchBoardPanel` はテロップを着地で出す（結果が分かる前の溜めを作る）。
 >
 > **2026-11-03（手ごとのボールの軌道）**: 1拍目のボールを、ボールを持つ側の手の種類で動かす（グラウンダー・浮き球・ドリブル・
 > 強いシュート。ほかはまっすぐ等速）。区分と形（道筋に沿った進み方と高さ）は `BallFlight`（`ui/board2d/ball_flight.gd`。

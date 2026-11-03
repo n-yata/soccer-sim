@@ -77,6 +77,7 @@ func bind(controller: MatchController, show_next: bool = true) -> void:
 	_show_next = show_next
 	_controller.turn_resolved.connect(_on_turn_resolved)
 	_board.set_ball_style(_controller.ball_style())
+	_board.set_result_sec(_controller.board_result_sec())
 
 
 ## コントローラーとのつながりを切る（画面の exit）。
@@ -350,7 +351,8 @@ func _hints_for(family: GameEnums.ChoiceFamily, action: int) -> Array[ChoiceHint
 
 # --- 開示と判定理由 ---
 
-## 開示（screen-03-match.md「開示」）。判定理由をすぐ出し、盤面の上で駒とボールを動かす。
+## 開示（screen-03-match.md「開示」）。盤面の上で駒とボールを動かし、1拍目が着地したら判定理由を出す
+## （1拍目が無ければすぐ。結果が分かる前の溜めを作る。2026-11-03）。「次へ」はすぐ押せる。
 func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	if _state != State.SUBMITTING:
 		return
@@ -359,18 +361,6 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	reveal_started.emit(reveal)
 	_board.clear_overlays()
 	_board.show_snapshot(snapshot)
-	# 2拍で動かす。1拍目（プレー）は判定前 → 判定時、2拍目（詰め直し）は判定時 → 次のターン開始時。
-	# どちらの拍も、位置が変わった全員を動かす（方式でずれた選手も。テロップ・矢印はすぐ出す）。
-	# 1拍目のボールは、ボールを持つ側の手の軌道で動く（グラウンダー・浮き球・ドリブル・シュート）
-	_board.start_shift([
-		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
-				"sec": _controller.board_play_sec(), "flight": BallFlight.kind_for(BallFlight.holder_choice(reveal))},
-		{"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
-				"ball": reveal.ball_after, "sec": _controller.board_settle_sec()},
-	])
-	_board.show_movements(reveal.movements)
-	if reveal.has_detail:
-		_board.show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)
 	_choice_panel.visible = false
 	_target_info.visible = false
 	_outcome_tag.text = MatchTexts.outcome_tag(reveal)
@@ -378,13 +368,34 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	_reason_label.text = JudgeReasonFormatter.format(reveal)
 	_judge_detail.text = JudgeReasonFormatter.detail(reveal)
 	_judge_detail.visible = not _judge_detail.text.is_empty()
-	_judge_telop.visible = true
+	_judge_telop.visible = false
 	_set_primary(NEXT_SUMMARY, NEXT, true)
+	# 着地は start_shift の中ですぐ届くことがあるので、テロップの中身と状態は先に作っておく
 	_state = State.SHOW_RESULT
+	# 2拍で動かす。1拍目（プレー）は判定前 → 判定時、2拍目（詰め直し）は判定時 → 次のターン開始時。
+	# どちらの拍も、位置が変わった全員を動かす（方式でずれた選手も。矢印はすぐ出す）。
+	# 1拍目のボールは、ボールを持つ側の手の軌道で動き、1拍目の終わりに結果の演出を出す
+	_board.start_shift([
+		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
+				"sec": _controller.board_play_sec(), "flight": BallFlight.kind_for(BallFlight.holder_choice(reveal))},
+		{"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
+				"ball": reveal.ball_after, "sec": _controller.board_settle_sec()},
+	], ResultEffect.for_reveal(reveal))
+	_board.show_movements(reveal.movements)
+	if reveal.has_detail:
+		_board.show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)
 	result_shown.emit(snapshot)
 	if not _show_next:
 		_primary_button.visible = false
 		turn_ready_to_leave.emit()
+
+
+## 1拍目の着地で、開示のテロップを出す。開示中でなければ出さない（「ターンを始める」は _reveal を空にしてから盤面を消すので、
+## 前のターンの動きを止めたときに届く着地では出ない）。
+func _on_play_landed() -> void:
+	if _reveal == null:
+		return
+	_judge_telop.visible = true
 
 
 func _set_primary(summary: String, action: String, enabled: bool) -> void:
@@ -407,6 +418,7 @@ func _build() -> void:
 	_board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_board.area_pressed.connect(_on_area_pressed)
+	_board.play_landed.connect(_on_play_landed)
 	columns.add_child(_board)
 
 	var side := VBoxContainer.new()

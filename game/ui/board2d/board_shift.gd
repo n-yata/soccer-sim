@@ -5,7 +5,8 @@
 class_name BoardShift
 extends RefCounted
 
-## 動かす拍の並び。各要素は {"piece_paths": Array[Dictionary], "ball_path": Dictionary, "sec": float}。
+## 動かす拍の並び。各要素は {"piece_paths": Array[Dictionary], "ball_path": Dictionary, "sec": float, "keyframe": int}
+## （keyframe は、その拍がどの keyframe から始まるか。動きの無い拍を取り除いた後も、1拍目かどうかを見分けるため）。
 ## 駒の道筋は {"player_id": String, "is_user": bool, "from": Vector2, "to": Vector2}、ボールの道筋は {"from", "to"}（動かなければ空）
 var beats: Array[Dictionary] = []
 ## いま動かしている拍の添字
@@ -124,7 +125,7 @@ static func build_beats(keyframes: Array[Dictionary], end: Dictionary, center: C
 		var ball_path: Dictionary = _ball_path(start["ball"] as String, finish["ball"] as String, ball_point)
 		if not ball_path.is_empty() and start.has("flight"):
 			ball_path["flight"] = start["flight"] as BallFlight.Kind
-		beats.append({"piece_paths": piece_paths, "ball_path": ball_path, "sec": start["sec"] as float})
+		beats.append({"piece_paths": piece_paths, "ball_path": ball_path, "sec": start["sec"] as float, "keyframe": index})
 	return beats
 
 

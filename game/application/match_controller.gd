@@ -353,6 +353,11 @@ func board_settle_sec() -> float:
 	return _config.presentation().board_settle_sec
 
 
+## 開示の1拍目の終わりから結果の演出を出す時間（秒。PresentationConfig）。
+func board_result_sec() -> float:
+	return _config.presentation().board_result_sec
+
+
 ## 開示の1拍目のボールの軌道の値（PresentationConfig）。{"loft": 浮き球の高さ, "touch": ドリブルの弾みの高さ,
 ## "touches": 弾みの回数}。高さはボールの半径の何倍か。
 func ball_style() -> Dictionary:

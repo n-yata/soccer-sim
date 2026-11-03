@@ -649,6 +649,172 @@ func test_the_second_beat_starts_after_the_first_and_both_end_by_themselves() ->
 	assert_int(_board.shift_beat_count()).is_equal(0)
 
 
+# --- 結果の演出 ---
+
+const Effect := ResultEffect.Kind
+
+
+## 盤面: 自分 p1 A1-C、相手 o1 A2-C、ボール ball_now。1拍目は判定前 → 判定時（ball_play → ball_judge）、2拍目はいまの盤面へ。
+## 駒は1拍目に p1 が M2-C から A1-C へ動く（1拍目の拍が残る）
+func _result_board(ball_play: String, ball_judge: String, ball_now: String, result: Dictionary,
+		play_sec: float = 1.0, p1_before: String = "M2-C") -> void:
+	_board.set_result_sec(0.8)
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "A1-C"})
+	snapshot.opponent_players = _players_of({"o1": "A2-C"})
+	snapshot.ball_area = ball_now
+	_board.show_snapshot(snapshot)
+	var at_judgement: Array[Dictionary] = _players_of({"p1": "A1-C"})
+	_board.start_shift([
+		_keyframe(_players_of({"p1": p1_before}), _players_of({"o1": "A2-C"}), ball_play, play_sec),
+		_keyframe(at_judgement, _players_of({"o1": "A2-C"}), ball_judge, 1.0),
+	], result)
+
+
+func _effect(kind: int, area: String, is_user: bool, toward: String = "") -> Dictionary:
+	return {"kind": kind, "area": area, "is_user": is_user, "toward": toward}
+
+
+func test_the_goal_mouths_are_inside_the_goals_at_the_top_and_bottom() -> void:
+	for is_top: bool in [true, false]:
+		var rect: Rect2 = _board.goal_rect(is_top)
+		assert_bool(rect.has_point(_board.goal_mouth(is_top))).override_failure_message(str(is_top)).is_true()
+		assert_float(rect.get_center().x).is_equal_approx(BOARD_SIZE.x / 2.0, 0.001)
+	# 上のゴールは上端、下のゴールは下端
+	assert_float(_board.goal_rect(true).position.y).is_equal(0.0)
+	assert_float(_board.goal_rect(false).end.y).is_equal_approx(BOARD_SIZE.y, 0.001)
+
+
+func test_a_goal_shoots_the_ball_into_the_goal_and_kicks_off_from_there() -> void:
+	# 決めたエリア A1-C（判定前も判定時も同じ）→ 上のゴール。2拍目はゴールからキックオフの位置 M1-C へ
+	_result_board("A1-C", "A1-C", "M1-C", _effect(Effect.GOAL, "A1-C", true))
+	var shot: Dictionary = _board.shift_beat_ball_path(0)
+	_assert_ball_in(shot["from"] as Vector2, "A1-C")
+	assert_vector(shot["to"] as Vector2).is_equal(_board.goal_mouth(true))
+	assert_int(shot["flight"] as int).is_equal(BallFlight.Kind.DRIVEN)
+	var kickoff: Dictionary = _board.shift_beat_ball_path(1)
+	assert_vector(kickoff["from"] as Vector2).is_equal(_board.goal_mouth(true))
+	_assert_ball_in(kickoff["to"] as Vector2, "M1-C")
+
+
+func test_a_goal_by_the_opponent_goes_into_the_bottom_goal() -> void:
+	_result_board("D1-C", "D1-C", "M1-C", _effect(Effect.GOAL, "D1-C", false))
+	assert_vector(_board.shift_beat_ball_path(0)["to"] as Vector2).is_equal(_board.goal_mouth(false))
+	assert_vector(_board.shift_beat_ball_path(1)["from"] as Vector2).is_equal(_board.goal_mouth(false))
+
+
+func test_a_goal_makes_a_kickoff_path_when_the_second_beat_had_no_ball_path() -> void:
+	# 判定時のボールが次のターンの位置と同じ M1-C（2拍目にボールの道筋が無い）でも、ゴールの口から M1-C へ戻す
+	_result_board("A1-C", "M1-C", "M1-C", _effect(Effect.GOAL, "A1-C", true))
+	var kickoff: Dictionary = _board.shift_beat_ball_path(1)
+	assert_vector(kickoff["from"] as Vector2).is_equal(_board.goal_mouth(true))
+	_assert_ball_in(kickoff["to"] as Vector2, "M1-C")
+
+
+func test_a_goal_with_one_beat_or_an_unreadable_start_keeps_to_what_it_can() -> void:
+	# 1拍だけなら、ゴールの口で終わる（2拍目を作らない）
+	_board.set_result_sec(0.8)
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "A1-C"})
+	snapshot.ball_area = "M1-C"
+	_board.show_snapshot(snapshot)
+	_board.start_shift([_keyframe(_players_of({"p1": "A1-C"}), [], "A1-C", 1.0)], _effect(Effect.GOAL, "A1-C", true))
+	assert_int(_board.shift_beat_count()).is_equal(1)
+	assert_vector(_board.shift_beat_ball_path(0)["to"] as Vector2).is_equal(_board.goal_mouth(true))
+	# 1拍目の始まりのボールが読めなければ、道筋を変えない（ボールは動かない）
+	_board.start_shift([_keyframe(_players_of({"p1": "A1-C"}), [], "X-9", 1.0)], _effect(Effect.GOAL, "A1-C", true))
+	assert_bool(_board.is_shifting()).is_false()
+
+
+func test_a_stall_bounces_the_ball_toward_the_target_and_back() -> void:
+	# ボールは M2-C のまま。運ぶ先 A1-C の方へ跳ね返る
+	_result_board("M2-C", "M2-C", "M2-C", _effect(Effect.STALL, "M2-C", false, "A1-C"))
+	var bounce: Dictionary = _board.shift_beat_ball_path(0)
+	_assert_ball_in(bounce["from"] as Vector2, "M2-C")
+	_assert_ball_in(bounce["to"] as Vector2, "A1-C")
+	assert_int(bounce["flight"] as int).is_equal(BallFlight.Kind.BOUNCE)
+	# 2拍目のボールは動かない
+	assert_dict(_board.shift_beat_ball_path(1)).is_empty()
+
+
+func test_the_play_lands_once_at_the_end_of_the_first_beat_and_shows_the_effect() -> void:
+	var landed: Array[int] = []
+	_board.play_landed.connect(func() -> void: landed.append(1))
+	var lost: Dictionary = _effect(Effect.WIN_BALL, "A1-C", false)
+	_result_board("M2-C", "A1-C", "A1-C", lost, 0.05)
+	assert_array(landed).is_empty()
+	assert_dict(_board.result_effect()).is_empty()
+	await await_millis(300)
+	# 1拍目が終わった（この場面は2拍目に動きが無いので、動きも止まっている）。着地は1回、演出が出ている
+	assert_bool(_board.is_shifting()).is_false()
+	assert_array(landed).has_size(1)
+	assert_dict(_board.result_effect()).is_equal(lost)
+	assert_float(_board.result_progress()).is_between(0.0, 1.0)
+	# 演出の時間（0.8 秒）が過ぎたら消える。着地は二重に出ない
+	await await_millis(900)
+	assert_dict(_board.result_effect()).is_empty()
+	assert_array(landed).has_size(1)
+	# 着地の後に盤面を消しても、次の盤面を出しても、着地はもう出ない
+	_board.clear_overlays()
+	_board.show_snapshot(BoardSnapshot.new())
+	assert_array(landed).has_size(1)
+
+
+func test_the_play_lands_at_once_without_a_first_beat() -> void:
+	var landed: Array[int] = []
+	_board.play_landed.connect(func() -> void: landed.append(1))
+	# 1拍目に駒もボールも動かない（p1 は判定前から A1-C、ボールも同じ）
+	_result_board("A1-C", "A1-C", "A1-C", _effect(Effect.NONE, "", false), 1.0, "A1-C")
+	assert_array(landed).has_size(1)
+	assert_dict(_board.result_effect()).is_empty()
+	# 1拍目は無いが2拍目はある（ボールだけが次のターンの位置 M1-C へ動く）ときも、すぐ着地する
+	_result_board("A1-C", "A1-C", "M1-C", _effect(Effect.NONE, "", false), 1.0, "A1-C")
+	assert_int(_board.shift_beat_count()).is_equal(1)
+	assert_bool(_board.is_shifting()).is_true()
+	assert_array(landed).has_size(2)
+
+
+func test_stopping_before_the_landing_still_lands_but_shows_no_effect() -> void:
+	var landed: Array[int] = []
+	_board.play_landed.connect(func() -> void: landed.append(1))
+	_result_board("M2-C", "A1-C", "A1-C", _effect(Effect.WIN_BALL, "A1-C", false))
+	_board.clear_overlays()
+	assert_array(landed).has_size(1)
+	assert_dict(_board.result_effect()).is_empty()
+	# もう一度消しても、二重に出ない
+	_board.clear_overlays()
+	assert_array(landed).has_size(1)
+
+
+func test_the_effect_is_cleared_with_the_overlays_and_the_next_snapshot() -> void:
+	_result_board("M2-C", "A1-C", "A1-C", _effect(Effect.OFFSIDE, "A1-C", false), 0.05)
+	await await_millis(300)
+	assert_dict(_board.result_effect()).is_not_empty()
+	_board.clear_overlays()
+	assert_dict(_board.result_effect()).is_empty()
+	_result_board("M2-C", "A1-C", "A1-C", _effect(Effect.OFFSIDE, "A1-C", false), 0.05)
+	await await_millis(300)
+	_board.show_snapshot(BoardSnapshot.new())
+	assert_dict(_board.result_effect()).is_empty()
+
+
+func test_without_a_result_time_the_landing_shows_no_effect() -> void:
+	# 時間を入れていない盤面（振り返りなど）では、着地しても演出を出さない
+	var landed: Array[int] = []
+	_board.play_landed.connect(func() -> void: landed.append(1))
+	_result_board("M2-C", "A1-C", "A1-C", _effect(Effect.WIN_BALL, "A1-C", false), 0.05)
+	_board.set_result_sec(0.0)
+	await await_millis(300)
+	assert_array(landed).has_size(1)
+	assert_dict(_board.result_effect()).is_empty()
+
+
+func test_a_stall_or_no_effect_draws_nothing_on_landing() -> void:
+	_result_board("M2-C", "M2-C", "M2-C", _effect(Effect.STALL, "M2-C", false, "A1-C"), 0.05)
+	await await_millis(300)
+	assert_dict(_board.result_effect()).is_empty()
+
+
 # --- 1拍目のボールの軌道 ---
 
 func test_the_first_beat_carries_the_flight_of_its_keyframe_and_the_ball_is_drawn_at_its_lift() -> void:

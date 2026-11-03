@@ -14,8 +14,13 @@ extends Control
 
 ## 選べるエリアを押して、同じエリアの中で離した
 signal area_pressed(area_key: String)
+## 開示の1拍目（プレー）が終わった（1拍目が無ければ start_shift の中ですぐ、途中で止めたらそのとき）。1回の開示で1回だけ
+signal play_landed
 
 const THEME_TYPE: StringName = &"TacticsBoard"
+## ゴールの幅（盤面の幅の何倍か）と奥行き（平面図の px）
+const GOAL_WIDTH_RATE: float = 0.16
+const GOAL_DEPTH: float = 8.0
 ## 平面図での1エリアの最小の大きさ（screen-common.md §1.1）。画面でいちばん小さい奥の行でも、押せる範囲が 48dp（96px）
 ## 以上になる値（幅 136 × 奥の縮み 0.72 ≒ 98px。6列の高さは 100 × 6 = 600 で、上の余白 4% を除いて1行 96px。
 ## 行の高さは奥でも詰めない（BoardProjection.NEAR_WEIGHT = 1.0。2026-10-25）
@@ -63,6 +68,15 @@ var _pressed_key: String = ""
 ## 開示の動きの状態（道筋と進み具合）と、それを進める Tween
 var _shift := BoardShift.new()
 var _shift_tween: Tween
+## 開示の結果（ResultEffect.for_reveal の値）と、1拍目がまだ着地していないか
+var _result: Dictionary = {}
+var _landing_pending: bool = false
+## 出している結果の演出（出していなければ空）と、その進み具合（0〜1）・時間（秒）・Tween
+var _effect: Dictionary = {}
+var _effect_progress: float = 0.0
+## 0 以下なら演出を出さない（時間を入れない利用者、振り返りの盤面など）
+var _result_sec: float = 0.0
+var _effect_tween: Tween
 
 
 func _init() -> void:
@@ -76,6 +90,7 @@ func _init() -> void:
 
 func show_snapshot(snapshot: BoardSnapshot) -> void:
 	_stop_shift()
+	_clear_effect()
 	_user_players = snapshot.user_players.duplicate()
 	_opponent_players = snapshot.opponent_players.duplicate()
 	_ball_area = snapshot.ball_area
@@ -140,6 +155,7 @@ func show_tally(tally: Dictionary) -> void:
 ## 盤面（駒・記号・ボール）以外の重ね表示をすべて消す。
 func clear_overlays() -> void:
 	_stop_shift()
+	_clear_effect()
 	_selectable.clear()
 	_selected = ""
 	_hints.clear()
@@ -161,17 +177,72 @@ func clear_overlays() -> void:
 ## （show_snapshot の後の次のターン開始時の配置）へ動く。開示では、判定前（1拍目 = プレー）と判定時（2拍目 = 詰め直し）を渡す。
 ## 各拍では、位置が変わった選手の駒を、ルールの動き（手・方式・保持者）を区別せず同時に動かす。ボールは、拍の始まりと
 ## 終わりのエリアが違うときだけ動かす（空文字・読めないキーなら動かさない）。動きの無い拍・時間が 0 以下の拍は飛ばす。
-func start_shift(keyframes: Array[Dictionary]) -> void:
+## result（ResultEffect.for_reveal の値。省略可）があれば、ボールの道筋を結果に合わせ（得点はゴールへ・膠着は跳ね返り）、
+## 1拍目が終わったとき（play_landed）から結果の演出を出す。
+func start_shift(keyframes: Array[Dictionary], result: Dictionary = {}) -> void:
 	_stop_shift()
+	_clear_effect()
 	var end: Dictionary = {"user": _user_players, "opponent": _opponent_players, "ball": _ball_area}
-	_shift.start(BoardShift.build_beats(keyframes, end, slot_center, _ball_point))
+	var beats: Array[Dictionary] = BoardShift.build_beats(keyframes, end, slot_center, _ball_point)
+	ResultEffect.shape_ball_paths(beats, keyframes, result, _ball_area, _ball_point, goal_mouth)
+	_shift.start(beats)
+	_result = result.duplicate()
+	_landing_pending = true
+	if not _shift.is_active() or (_shift.beats[0]["keyframe"] as int) != 0:
+		_land()
 	if not _shift.is_active():
 		return
 	_shift_tween = create_tween()
 	for index: int in range(_shift.beats.size()):
 		_shift_tween.tween_callback(_begin_shift_beat.bind(index))
 		_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, _shift.beats[index]["sec"] as float)
+		if (_shift.beats[index]["keyframe"] as int) == 0:
+			_shift_tween.tween_callback(_land)
 	_shift_tween.finished.connect(_stop_shift)
+
+
+## 1拍目の着地。結果の演出を始め、play_landed を出す（1回の開示で1回だけ）。
+func _land() -> void:
+	if not _landing_pending:
+		return
+	_landing_pending = false
+	if ResultEffect.draws_mark(_result) and _result_sec > 0.0 and is_inside_tree():
+		_effect = _result.duplicate()
+		_effect_progress = 0.0
+		_effect_tween = create_tween()
+		_effect_tween.tween_method(_set_effect_progress, 0.0, 1.0, _result_sec)
+		_effect_tween.finished.connect(_clear_effect)
+	play_landed.emit()
+
+
+func _set_effect_progress(progress: float) -> void:
+	_effect_progress = progress
+	queue_redraw()
+
+
+func _clear_effect() -> void:
+	if _effect_tween != null:
+		_effect_tween.kill()
+		_effect_tween = null
+	_effect = {}
+	_effect_progress = 0.0
+	queue_redraw()
+
+
+## 出している結果の演出（ResultEffect.for_reveal の値）。出していなければ空。
+func result_effect() -> Dictionary:
+	return _effect.duplicate()
+
+
+## 結果の演出の進み具合（0〜1。描画が薄くするのに使う）。
+func result_progress() -> float:
+	return _effect_progress
+
+
+## 結果の演出を出す時間（秒。MatchController.board_result_sec()）。パネルが bind で入れる。
+## 有限でない値は 0（演出を出さない）として扱う（無限大だと演出が消えなくなる）。
+func set_result_sec(sec: float) -> void:
+	_result_sec = sec if is_finite(sec) else 0.0
 
 
 ## 開示で駒かボールを動かしている途中か。
@@ -230,15 +301,31 @@ func _set_shift_progress(progress: float) -> void:
 
 
 ## 動きを止め、いまの盤面の描き方（エリアごとの列と「+N」）に戻す。次の盤面・重ね表示の消去で呼ぶ（前のターンの動きを残さない）。
+## 1拍目の前に止めたら、着地だけを知らせる（テロップを出し忘れない。演出は出さない）。
 func _stop_shift() -> void:
 	if _shift_tween != null:
 		_shift_tween.kill()
 		_shift_tween = null
 	_shift.clear()
+	if _landing_pending:
+		_landing_pending = false
+		play_landed.emit()
 	queue_redraw()
 
 
 # --- 位置の計算 ---
+
+## ゴールの四角（平面図）。is_top なら上（利用者が攻めるゴール）、そうでなければ下。描画とボールの行き先で共有する。
+func goal_rect(is_top: bool) -> Rect2:
+	var goal := Vector2(size.x * GOAL_WIDTH_RATE, GOAL_DEPTH)
+	var y: float = 0.0 if is_top else size.y - goal.y
+	return Rect2(Vector2((size.x - goal.x) / 2.0, y), goal)
+
+
+## ゴールの口の中央（平面図）。得点のボールの行き先。
+func goal_mouth(is_top: bool) -> Vector2:
+	return goal_rect(is_top).get_center()
+
 
 ## 平面図での1エリアの大きさ（横 = レーン 5、縦 = 列 6）。
 func cell_size() -> Vector2:

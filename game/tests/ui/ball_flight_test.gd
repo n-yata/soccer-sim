@@ -62,10 +62,20 @@ func test_the_flight_follows_the_hand_of_the_side_holding_the_ball() -> void:
 
 # --- 軌道の形 ---
 
+## 道筋の終わりまで進む種類（跳ね返り BOUNCE は元の位置へ戻るので除く）
+func _reaching_kinds() -> Array[int]:
+	var kinds: Array[int] = []
+	for kind: int in Kind.values():
+		if kind != Kind.BOUNCE:
+			kinds.append(kind)
+	return kinds
+
+
 func test_every_flight_starts_and_ends_on_the_ground_at_the_ends_of_the_path() -> void:
 	for kind: int in Kind.values():
 		assert_float(BallFlight.along(kind, 0.0)).override_failure_message(str(kind)).is_equal(0.0)
-		assert_float(BallFlight.along(kind, 1.0)).override_failure_message(str(kind)).is_equal(1.0)
+		if kind != Kind.BOUNCE:
+			assert_float(BallFlight.along(kind, 1.0)).override_failure_message(str(kind)).is_equal(1.0)
 		assert_float(BallFlight.lift(kind, 0.0, STYLE)).override_failure_message(str(kind)).is_equal_approx(0.0, 0.0001)
 		assert_float(BallFlight.lift(kind, 1.0, STYLE)).override_failure_message(str(kind)).is_equal_approx(0.0, 0.0001)
 
@@ -106,10 +116,21 @@ func test_a_carried_ball_bounces_as_many_times_as_the_touches() -> void:
 	assert_float(BallFlight.lift(Kind.CARRIED, 0.25, twice)).is_equal_approx(0.5, 0.0001)
 
 
+func test_a_stalled_ball_goes_partway_toward_the_target_and_comes_back() -> void:
+	# 膠着の跳ね返り: 運ぶ先の方へ4割まで進んで、元の位置へ戻る。地面を転がる
+	assert_float(BallFlight.along(Kind.BOUNCE, 0.5)).is_equal_approx(0.4, 0.0001)
+	assert_float(BallFlight.along(Kind.BOUNCE, 1.0)).is_equal_approx(0.0, 0.0001)
+	assert_float(BallFlight.along(Kind.BOUNCE, 0.25)).is_between(0.1, 0.39)
+	assert_float(BallFlight.along(Kind.BOUNCE, 0.25)).is_equal_approx(BallFlight.along(Kind.BOUNCE, 0.75), 0.0001)
+	assert_float(BallFlight.lift(Kind.BOUNCE, 0.5, STYLE)).is_equal(0.0)
+
+
 func test_progress_outside_zero_to_one_is_held_at_the_ends() -> void:
 	# Tween の端数で範囲をわずかに外れても、道筋の外へ出ず、地面より下へも行かない
 	for kind: int in Kind.values():
 		assert_float(BallFlight.along(kind, -0.1)).is_equal(0.0)
+		assert_float(BallFlight.along(kind, 1.1)).is_equal(BallFlight.along(kind, 1.0))
+	for kind: int in _reaching_kinds():
 		assert_float(BallFlight.along(kind, 1.1)).is_equal(1.0)
 		assert_float(BallFlight.lift(kind, 1.1, STYLE)).is_greater_equal(0.0)
 		assert_float(BallFlight.lift(kind, -0.1, STYLE)).is_greater_equal(0.0)

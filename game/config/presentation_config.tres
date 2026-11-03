@@ -6,6 +6,7 @@
 script = ExtResource("1")
 board_play_sec = 0.6
 board_settle_sec = 0.6
+board_result_sec = 0.8
 ball_loft_height = 6.0
 ball_touch_height = 1.0
 ball_dribble_touches = 3

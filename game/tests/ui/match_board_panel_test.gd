@@ -140,7 +140,20 @@ func test_submitting_shows_the_result_and_the_reason() -> void:
 	assert_int(_panel.state()).is_equal(State.SHOW_RESULT)
 	var reveal: RevealView = _controller.last_reveal()
 	assert_array(shown).is_equal([reveal])
+	# 判定理由は、1拍目（ボールを運ぶプレー）が着地してから出す。「次へ」はすぐ押せる
+	assert_bool(_panel.board().is_shifting()).is_true()
+	assert_bool(_panel.telop_visible()).is_false()
+	assert_bool(_panel.primary_button().disabled).is_false()
+	await _await_landing()
 	assert_bool(_panel.telop_visible()).is_true()
+	# 着地で、この開示の結果の演出を盤面に出す（結果ごとの種類・場所・色は result_effect_test で固定する。ここはつなぎ込み）。
+	# 盤面に印を描くのは得点・セーブ・ロスト・奪回成功・オフサイドだけ
+	var marked: Array[int] = [GameEnums.TurnOutcome.GOAL, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.LOSS,
+			GameEnums.TurnOutcome.REGAIN, GameEnums.TurnOutcome.OFFSIDE]
+	if reveal.outcome in marked:
+		assert_dict(_panel.board().result_effect()).is_equal(ResultEffect.for_reveal(reveal))
+	else:
+		assert_dict(_panel.board().result_effect()).is_empty()
 	assert_bool(_panel.choice_panel().visible).is_false()
 	assert_str(_panel.outcome_text()).is_equal(MatchTexts.outcome_tag(reveal))
 	# 結果の札は、成功した側の色（自分は水色、相手はオレンジ。駒と同じ）。判定なしは元の札
@@ -153,6 +166,11 @@ func test_submitting_shows_the_result_and_the_reason() -> void:
 		assert_str(_panel.board().compare_tag()).is_equal("%d対%d" % [reveal.user_count, reveal.opponent_count])
 	assert_int(_panel.board().movement_count()).is_equal(reveal.movements.size())
 	assert_str(_panel.primary_summary()).is_equal("次のターンへ")
+
+
+## 1拍目の着地まで待つ（1拍目の時間と少しの余裕）
+func _await_landing() -> void:
+	await await_millis(int(_controller.board_play_sec() * 1000.0) + 300)
 
 
 func test_the_outcome_tag_color_follows_the_side_that_succeeded() -> void:
@@ -221,6 +239,10 @@ func test_the_next_turn_starts_clean() -> void:
 	assert_bool(_panel.telop_visible()).is_false()
 	assert_bool(_panel.choice_panel().visible).is_true()
 	assert_str(_panel.primary_summary()).is_empty()
+	# 前のターンの1拍目が着地する前に次のターンへ進んだ。前のターンのテロップは後からも出ない
+	await _await_landing()
+	assert_bool(_panel.telop_visible()).is_false()
+	assert_dict(_panel.board().result_effect()).is_empty()
 
 
 func test_the_user_defends_with_the_board_in_the_user_view() -> void:
@@ -413,6 +435,21 @@ func test_binding_gives_the_board_the_ball_style_from_the_settings() -> void:
 	# 同梱の浮き球の高さ（半径の6倍）の弧の途中。値が入っていなければ 0
 	assert_float(board.ball_lift()).is_greater(1.0)
 	assert_float(board.ball_lift()).is_less_equal(_controller.ball_style()["loft"] as float)
+
+
+func test_binding_gives_the_board_the_result_time_from_the_settings() -> void:
+	# bind で設定の演出の時間を盤面に入れる。入れないと、着地しても演出が出ない
+	_start(true)
+	var board: TacticsBoard = _panel.board()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var from_key: String = "D1-C" if snapshot.ball_area != "D1-C" else "D2-C"
+	board.start_shift([{"user": snapshot.user_players, "opponent": snapshot.opponent_players, "ball": from_key,
+			"sec": 0.05}], {"kind": ResultEffect.Kind.WIN_BALL, "area": snapshot.ball_area, "is_user": true, "toward": ""})
+	await await_millis(300)
+	assert_int(board.result_effect()["kind"] as int).is_equal(ResultEffect.Kind.WIN_BALL)
+	# 同梱の 0.8 秒が過ぎたら消える
+	await await_millis(int(_controller.board_result_sec() * 1000.0) + 200)
+	assert_dict(board.result_effect()).is_empty()
 
 
 func test_the_reveal_shifts_the_play_then_the_reshape_and_the_next_turn_stops_it() -> void:

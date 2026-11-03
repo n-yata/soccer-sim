@@ -4,8 +4,11 @@ class_name BallFlight
 extends RefCounted
 
 ## STRAIGHT はまっすぐ等速（手が無い・ボールを運ばない手、2拍目）。GROUND はグラウンダー（蹴り出しが速く、着くときに緩む）、
-## LOFTED は浮き球（弧を描く）、CARRIED はドリブル（駒と同じ速さで、小さく弾む）、DRIVEN は強いシュート（はじめに一気に進む）
-enum Kind { STRAIGHT, GROUND, LOFTED, CARRIED, DRIVEN }
+## LOFTED は浮き球（弧を描く）、CARRIED はドリブル（駒と同じ速さで、小さく弾む）、DRIVEN は強いシュート（はじめに一気に進む）、
+## BOUNCE は膠着の跳ね返り（運ぶ先の方へ少し進んで元の位置へ戻る。ResultEffect の STALL）
+enum Kind { STRAIGHT, GROUND, LOFTED, CARRIED, DRIVEN, BOUNCE }
+## 膠着の跳ね返りで、運ぶ先の方へ進む割合（道筋の何割まで）
+const BOUNCE_REACH: float = 0.4
 
 const PLAY_KINDS: Dictionary = {
 	GameEnums.PlayType.SHORT_PASS: Kind.GROUND,
@@ -37,6 +40,7 @@ static func holder_choice(reveal: RevealView) -> TurnChoice:
 
 
 ## 拍の進み具合 t（0〜1）のときの、道筋に沿った進み具合（0〜1）。範囲の外の t は端に留める（Tween の端数で道筋の外へ出ない）。
+## BOUNCE だけは終わりに元の位置（0）へ戻る。
 static func along(kind: Kind, t: float) -> float:
 	var x: float = clampf(t, 0.0, 1.0)
 	match kind:
@@ -44,6 +48,8 @@ static func along(kind: Kind, t: float) -> float:
 			return 1.0 - pow(1.0 - x, 2.0)
 		Kind.DRIVEN:
 			return 1.0 - pow(1.0 - x, 3.0)
+		Kind.BOUNCE:
+			return BOUNCE_REACH * sin(PI * x)
 	return x
 
 

@@ -102,6 +102,10 @@ func _load_presentation() -> PresentationConfig:
 	if not _is_board_sec_valid(settle_sec):
 		push_error("ConfigRepository: %s の値が範囲外（board_settle_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, settle_sec])
 		return PresentationConfig.new()
+	var result_sec: float = loaded.board_result_sec
+	if not _is_board_sec_valid(result_sec):
+		push_error("ConfigRepository: %s の値が範囲外（board_result_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, result_sec])
+		return PresentationConfig.new()
 	var play_sec: float = loaded.board_play_sec
 	if not _is_board_sec_valid(play_sec):
 		push_error("ConfigRepository: %s の値が範囲外（board_play_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, play_sec])

@@ -332,6 +332,41 @@ func test_negative_review_lookback_falls_back_to_the_initial_value_with_an_error
 	assert_int(repository.presentation().review_lookback_turns).is_equal(PresentationConfig.new().review_lookback_turns)
 
 
+func test_bundled_board_result_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の、結果の演出を出す時間の初期値 0.8 秒
+	assert_float(ConfigRepository.new().presentation().board_result_sec).is_equal(0.8)
+	assert_float(PresentationConfig.new().board_result_sec).is_equal(0.8)
+	assert_str(FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)).contains("board_result_sec = ")
+
+
+func _board_result_with(case_name: String, result_sec: float) -> ConfigRepository:
+	var dir: String = create_temp_dir("config_repository/board_result_" + case_name)
+	var presentation := PresentationConfig.new()
+	presentation.board_result_sec = result_sec
+	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
+	return ConfigRepository.new(dir)
+
+
+func test_board_result_inside_the_range_is_read_including_the_upper_bound() -> void:
+	for result_sec: float in [0.01, 1.2, 2.0]:
+		var repository: ConfigRepository = _board_result_with("ok_%s" % result_sec, result_sec)
+		assert_float(repository.presentation().board_result_sec).override_failure_message(str(result_sec)).is_equal(result_sec)
+
+
+func test_out_of_range_board_result_falls_back_to_the_initial_value() -> void:
+	# 拍の長さと同じ範囲（0 より大きく 2 以下の有限の値）
+	for result_sec: float in [0.0, -0.5, 2.01, NAN, INF]:
+		var repository: ConfigRepository = _board_result_with("bad_%s" % result_sec, result_sec)
+		assert_float(repository.presentation().board_result_sec).override_failure_message(str(result_sec)) \
+				.is_equal(PresentationConfig.new().board_result_sec)
+
+
+func test_out_of_range_board_result_reports_an_error() -> void:
+	var repository: ConfigRepository = _board_result_with("error", 3.0)
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_result_sec=3.0）のため、初期値を使う")
+
+
 ## ボールの軌道の値（浮き球の高さ loft・ドリブルの弾みの高さ touch・弾みの回数 touches）だけを変えた設定
 func _ball_style_with(case_name: String, loft: float, touch: float, touches: int) -> ConfigRepository:
 	var dir: String = create_temp_dir("config_repository/ball_style_" + case_name)
