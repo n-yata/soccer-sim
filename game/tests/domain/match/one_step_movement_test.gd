@@ -4,7 +4,8 @@
 ## 手は CPU の選び方と、選べる手からの一様な選び方の2通りで回す（CPU の癖で通らない経路も確かめるため）。
 extends GdUnitTestSuite
 
-const MATCHES: int = 20
+## 全体テストを3分以内に収めるため 20 から絞った（2026-11-03）。一様な選び方で全種類の手を通ることは下のテストで確かめる
+const MATCHES: int = 4
 const MAX_STEPS: int = 200
 
 var _catalog: ContentCatalog

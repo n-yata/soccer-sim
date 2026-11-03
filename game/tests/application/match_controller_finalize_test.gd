@@ -106,17 +106,18 @@ func test_the_last_turn_records_the_match_and_saves_it_as_finished() -> void:
 	assert_int(records[0].timeline.size()).is_greater_equal(2)
 	assert_int(store.load().state.status).is_equal(GameEnums.MatchStatus.FINISHED)
 	assert_array(_failures).is_empty()
-
-
-func test_final_record_has_the_score_and_the_timeline() -> void:
-	var controller: MatchController = _controller_at(null, null, ScreenTestHelper.Stop.OVER)
+	# 記録した戦績（final_record）の区切りは前半から後半まで、最初の区切りは利用者の陣形
+	# （試合を最後まで回すのに時間がかかるので、同じ試合で確かめる。2026-11-03 に別のテストから寄せた）
 	var record: MatchRecord = controller.final_record()
-	var snapshot: BoardSnapshot = controller.snapshot()
 	assert_array([record.score_user, record.score_cpu]).is_equal([snapshot.score_user, snapshot.score_opponent])
 	assert_int(record.timeline[0].half).is_equal(1)
 	assert_int(record.timeline.back().half).is_equal(2)
 	assert_str(record.timeline[0].user_setup.formation_id).is_equal(ScreenTestHelper.user_setup().formation_id)
 	assert_str(record.finished_at).is_not_empty()
+	# 最終ターンの判定理由からは中断しない（同じく別のテストから寄せた）
+	assert_bool(controller.suspend_to_title()).is_false()
+	assert_array(_requests).is_empty()
+	assert_bool(controller.is_match_over()).is_true()
 
 
 func test_final_record_before_the_end_is_null() -> void:
@@ -244,17 +245,6 @@ func test_startup_retry_does_not_record_the_same_match_twice() -> void:
 	assert_int(_controller(store, _user_data(records_dir), 5).inspect_suspended()) \
 			.is_equal(AppScreens.StartupResult.FINALIZED)
 	assert_int(_saved_records(records_dir).size()).is_equal(1)
-
-
-# --- 最終ターンの判定理由からは中断しない ---
-
-func test_suspend_after_the_last_turn_is_refused() -> void:
-	var store: SuspendedMatchStore = _store()
-	var records_dir: String = _records_dir(false)
-	var controller: MatchController = _controller_at(store, _user_data(records_dir), ScreenTestHelper.Stop.OVER)
-	assert_bool(controller.suspend_to_title()).is_false()
-	assert_array(_requests).is_empty()
-	assert_bool(controller.is_match_over()).is_true()
 
 
 # --- 再開した試合の振り返り（中断・再開の作業からの申し送り） ---

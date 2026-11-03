@@ -4,7 +4,8 @@
 ## 範囲外: 正しい中断データを1か所ずつ壊して、読み込みが null になる。
 extends GdUnitTestSuite
 
-const SEEDS: Array[int] = [0, 1, 2]
+## 1試合で約40の状態（ハーフタイム・得点後の選び直しを含む）を往復させる。全体テストを3分以内に収めるため1試合に絞った（2026-11-03）
+const SEEDS: Array[int] = [0]
 
 var _catalog: ContentCatalog
 var _rules: MatchRuleConfig

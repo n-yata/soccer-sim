@@ -3,6 +3,8 @@
 extends GdUnitTestSuite
 
 const State := MatchBoardPanel.State
+## 失ったトランジションに数ターンで届くシード（_start_in_a_lost_transition が最初に試す）
+const LOST_TRANSITION_SEED: int = 67
 
 var _catalog: ContentCatalog
 var _panel: MatchBoardPanel
@@ -337,7 +339,9 @@ func test_press_and_cover_explain_which_areas_can_be_chosen() -> void:
 
 ## 利用者が喪失側のトランジションで、リトリートで誰かが動く場面まで、両者に選べる手の先頭を選ばせて進める
 func _start_in_a_lost_transition() -> void:
-	for seed_value: int in range(100):
+	# 0 から探すと条件に合うまで数十試合を回す（約10秒）ので、2026-11-03 に見つかったシードから試す。
+	# 規則や CPU が変わってそのシードで合わなくなっても、続けて 0 から探す
+	for seed_value: int in [LOST_TRANSITION_SEED] + range(100):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		var config := ConfigRepository.new()

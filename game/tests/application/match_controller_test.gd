@@ -7,6 +7,8 @@ const HOME := GameEnums.TeamSide.HOME
 const AWAY := GameEnums.TeamSide.AWAY
 const ATTACK := GameEnums.ChoiceFamily.ATTACK
 const DEFENSE := GameEnums.ChoiceFamily.DEFENSE
+## CPU と最後まで戦う試合の数（固定シード 0〜）
+const FULL_MATCH_SEEDS: int = 4
 
 
 ## 選べる手の先頭（invalid が真なら選べない手）を返す相手。陣形は最初が 4-3-3・ゾーン・カウンター、
@@ -465,7 +467,8 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 	# 選べる手の先頭。得点のたびに、方式の選び直しの画面を頼み、選び直しで CPU の方式が入れ替わることを確かめる
 	var style_changes: int = 0
 	var cpu_styles_changed: bool = false
-	for seed_value: int in range(20):
+	# 全体テストを3分以内に収めるため 20 試合から絞った（2026-11-03）。得点と CPU の方式の入れ替わりは下の確認で必ず通す
+	for seed_value: int in range(FULL_MATCH_SEEDS):
 		var rng: RandomNumberGenerator = _rng(seed_value)
 		var opponent := AlternatingStylesOpponent.new(CpuOpponent.new(_catalog, CpuConfig.new(), rng))
 		var controller := MatchController.new(_catalog, ConfigRepository.new(), rng, opponent, _record_request, true)
@@ -511,7 +514,7 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 		assert_int(controller.state().turn_records.size()).is_between(rules.turns_per_half * 2,
 				(rules.turns_per_half + rules.max_additional_turns) * 2)
 		assert_int(_requests.count(AppScreens.Id.S04_STYLE_CHANGE)).is_equal(stages.count(GameEnums.MatchStage.STYLE_CHANGE))
-	# 20試合のどこかで得点（方式の選び直し）が起き、CPU の方式が入れ替わる経路も通っていることを確かめる
+	# どこかの試合で得点（方式の選び直し）が起き、CPU の方式が入れ替わる経路も通っていることを確かめる
 	assert_int(style_changes).is_greater(0)
 	assert_bool(cpu_styles_changed).is_true()
 
