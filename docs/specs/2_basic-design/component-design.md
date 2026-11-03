@@ -451,6 +451,11 @@ const KNOWN: Array[String]                                     # 導出するタ
 > 頭に付けた3件で、陣形の特徴は `description`。`style_profile` は方式1件ごと（守備・攻撃をまとめるのは `LibraryService.style_notes`）。
 
 `MatchupNote.simplification_ids` に単純化 ID があれば、UI は単純化カタログの「実戦では」を添える（FR-23）。
+ID は静的データ（`styles.json`・`matchup_rules.json` の `simplification_ids`）に、文の内容とゲームでの扱いが直接重なるものだけを書く
+（2026-11-03。保持型と保持型が関わる方式ルール S01・S03・S05・S06 に SIM-02、最終ラインとの間・背後を突く R07・R12 に SIM-01、
+サイドの1対1の R02・R13 に SIM-03、挟み込むプレッシングの R14 に SIM-08。ゾーン・マンツーマンは SIM-07。
+守備的MF の脇・背後を突く R10 は最終ラインの調整ではないので付けない）。
+S-04 は解説の欄が2つ（直前の噛み合わせ・選んだ方式）あり、同じ「実戦では」の重なりは欄ごとに除く（欄をまたいでは除かない）。
 
 ### 2.8 振り返り集計（`review/`。アルゴリズム10）
 
@@ -1120,7 +1125,7 @@ func route_back() -> bool
 | `class_name` | 役割 |
 |---|---|
 | `JudgeReasonFormatter` | `RevealView` から判定理由の文（`functional-overview.md`「表示仕様」の形式）を作る。主語は `user_role` で決める（例: `NO_CONTEST` は、利用者が奪取側なら「判定なし（相手は撤退、こちらは保持）」、喪失側なら「判定なし（こちらは撤退、相手は保持）」） |
-| `NotesView` | `MatchupNote` の一覧を、続く同じ見出し（`label`）を1つにまとめて表示する。単純化 ID があれば「実戦では」を添える（FR-23 の作業で足す） |
+| `NotesView` | `MatchupNote` の一覧を、続く同じ見出し（`label`）を1つにまとめて表示する。単純化 ID があれば、その項目の下に「実戦では」を添える（FR-23。同じ単純化は欄の中で1回だけ） |
 | `ConfirmDialog` | 確認ダイアログ（中断データが上書きされることの確認など） |
 | `ToastView` | 保存エラーなどの短い通知 |
 | `ScreenHeader` | 画面のヘッダー（戻る・画面名） |

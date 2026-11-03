@@ -5,7 +5,9 @@ extends GdUnitTestSuite
 const CONTENT_DIR: String = "res://content"
 const PRINCIPLE_IDS: Array[String] = ["TP-01", "TP-02", "TP-03", "TP-04", "TP-05", "TP-06", "TP-07", "TP-08", "TP-09",
 		"TP-10"]
-const SIMPLIFICATION_IDS: Array[String] = ["SIM-07"]
+## 単純化カタログ（functional-overview.md「単純化カタログ」）の ID。未知の ID の検査には SIM-99 を使う
+const SIMPLIFICATION_IDS: Array[String] = ["SIM-01", "SIM-02", "SIM-03", "SIM-04", "SIM-05", "SIM-06", "SIM-07",
+		"SIM-08", "SIM-09", "SIM-10", "SIM-11", "SIM-12"]
 
 
 func _real(file_name: String) -> Dictionary:

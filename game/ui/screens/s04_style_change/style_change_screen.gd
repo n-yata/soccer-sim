@@ -34,7 +34,8 @@ func enter(_params: Dictionary) -> void:
 	_opponent_label.text = "◆ CPU %s" % MatchTexts.setup_text(controller.opponent_setup())
 	_current = snapshot.user_setup.styles.duplicate_deep()
 	_picker.set_styles(_current)
-	_matchup_notes.show_notes(App.library.style_notes(_current, controller.opponent_setup().styles))
+	_matchup_notes.show_notes(App.library.style_notes(_current, controller.opponent_setup().styles),
+			App.library.simplifications())
 	_refresh_picked_notes(_current)
 	_set_state(State.EDITING)
 
@@ -102,7 +103,7 @@ func _refresh_picked_notes(picked: TeamStyles) -> void:
 		notes.append_array(App.library.defense_style_notes(picked.defense))
 	if picked.attack != _current.attack:
 		notes.append_array(App.library.attack_style_notes(picked.attack))
-	_picked_notes.show_notes(notes)
+	_picked_notes.show_notes(notes, App.library.simplifications())
 	_picked_notes.visible = not notes.is_empty()
 
 

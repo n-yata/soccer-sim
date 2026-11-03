@@ -29,7 +29,7 @@
       "strengths": "前の方の大外に人数が増え、外から前進しやすい。ボールを失っても周りに味方が多く、即時奪回が成功しやすい",
       "weaknesses": "大外の選手が前に出ているぶん、ボールを失うと自陣の大外が空き、カウンターを受けやすい",
       "principle_ids": ["TP-09", "TP-07"],
-      "simplification_ids": []
+      "simplification_ids": ["SIM-02"]
     },
     {
       "id": "COUNTER",

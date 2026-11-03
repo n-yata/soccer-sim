@@ -142,7 +142,7 @@ func _refresh_notes() -> void:
 	if notes.is_empty():
 		_notes_view.show_message(GUIDE_TEXT)
 	else:
-		_notes_view.show_notes(notes)
+		_notes_view.show_notes(notes, App.library.simplifications())
 
 
 ## 試合を作る。二重に作らないよう STARTING にしてから呼ぶ。false（陣形が無い。開発時の誤り）なら選び直せる状態に戻す。

@@ -118,6 +118,19 @@ func test_notes_show_only_the_selected_items_in_order() -> void:
 	assert_int(expected.size()).is_equal(9)
 
 
+## 単純化に関わる方式を選ぶと、解説の下に単純化カタログの「実戦では」が出る（FR-23。保持型は SIM-02、マンツーマンは SIM-07）
+func test_notes_add_in_real_for_styles_tied_to_a_simplification() -> void:
+	var in_real: Dictionary[String, String] = {}
+	for simplification: SimplificationDef in App.library.simplifications():
+		in_real[simplification.id] = SimplificationList.IN_REAL_PREFIX + simplification.in_real
+	_button("CounterButton").pressed.emit()
+	assert_array(_notes().in_real_texts()).is_empty()
+	_button("PossessionButton").pressed.emit()
+	assert_array(_notes().in_real_texts()).is_equal([in_real["SIM-02"]])
+	_button("ManButton").pressed.emit()
+	assert_array(_notes().in_real_texts()).is_equal([in_real["SIM-07"], in_real["SIM-02"]])
+
+
 func test_style_toggles_select_one_of_two() -> void:
 	_button("ZoneButton").pressed.emit()
 	assert_bool(_button("ZoneButton").button_pressed).is_true()

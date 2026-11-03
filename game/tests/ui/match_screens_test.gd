@@ -329,6 +329,10 @@ func test_style_change_shows_the_last_style_matchup_and_the_changed_style() -> v
 	(screen.picker().find_child(buttons[other_defense] as String, true, false) as Button).pressed.emit()
 	assert_bool(screen.picked_notes().visible).is_true()
 	assert_array(screen.picked_notes().texts()).is_equal(_bulleted(App.library.defense_style_notes(other_defense)))
+	# 守備方式の解説は SIM-07（ゾーンとマンツーマンの併用）に関わるので「実戦では」が添わる（FR-23。カタログを渡しているか）
+	var sim_07: Array[SimplificationDef] = App.library.simplifications().filter(
+			func(simplification: SimplificationDef) -> bool: return simplification.id == "SIM-07")
+	assert_array(screen.picked_notes().in_real_texts()).is_equal([SimplificationList.IN_REAL_PREFIX + sim_07[0].in_real])
 	var other_attack: String = "CounterButton" if current.attack == GameEnums.AttackStyle.POSSESSION \
 			else "PossessionButton"
 	(screen.picker().find_child(other_attack, true, false) as Button).pressed.emit()

@@ -13,6 +13,37 @@ func _view() -> NotesView:
 	return view
 
 
+func _note_with(text: String, simplification_ids: Array[String]) -> MatchupNote:
+	return MatchupNote.new(text, ["TP-10"] as Array[String], simplification_ids)
+
+
+## 欄に並んだラベルの文と型（上から順）
+func _lines(view: NotesView) -> Array[String]:
+	var lines: Array[String] = []
+	for child: Node in view.get_children():
+		var label := child as Label
+		lines.append("%s|%s" % [label.theme_type_variation, label.text])
+	return lines
+
+
+## 単純化 ID を持つ項目のすぐ下に「実戦では」を出す（FR-23）。同じ ID は欄の中で最初の1回だけ。
+## ID を持たない項目と、カタログに無い ID には何も出さない
+func test_in_real_notes_follow_the_first_note_citing_each_simplification() -> void:
+	var catalog: Array[SimplificationDef] = [SimplificationDef.new("SIM-01", "a", "b", "背後が変わる"),
+			SimplificationDef.new("SIM-07", "c", "d", "併用する")]
+	var view: NotesView = _view()
+	view.show_notes([_note_with("1", ["SIM-07"] as Array[String]), _note_with("2", [] as Array[String]),
+			_note_with("3", ["SIM-07", "SIM-01", "SIM-99"] as Array[String])] as Array[MatchupNote], catalog)
+	assert_array(_lines(view)).is_equal(["PanelLabel|・1", "CautionLabel|実戦では: 併用する", "PanelLabel|・2",
+			"PanelLabel|・3", "CautionLabel|実戦では: 背後が変わる"])
+	assert_array(view.in_real_texts()).is_equal(["実戦では: 併用する", "実戦では: 背後が変わる"])
+	# texts() は本文だけ（「実戦では」を含めない）
+	assert_array(view.texts()).is_equal(["・1", "・2", "・3"])
+	# カタログを渡さなければ「実戦では」は出ない
+	view.show_notes([_note_with("1", ["SIM-07"] as Array[String])] as Array[MatchupNote])
+	assert_array(view.in_real_texts()).is_empty()
+
+
 func test_consecutive_notes_with_the_same_label_share_one_heading() -> void:
 	var view: NotesView = _view()
 	view.show_notes([_note("陣形 4-4-2", "特徴: a"), _note("陣形 4-4-2", "強み: b"), _note("守備方式 ゾーン", "特徴: c")]

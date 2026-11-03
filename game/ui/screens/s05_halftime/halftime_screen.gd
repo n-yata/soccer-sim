@@ -133,7 +133,7 @@ func _redraw_matchup() -> void:
 	_matchup_pitch.show_matchup(user_counts, opponent_counts)
 	var notes: Array[MatchupNote] = App.library.formation_notes(picked.formation_id, _opponent.formation_id)
 	notes.append_array(App.library.style_notes(picked.styles, _opponent.styles))
-	_matchup_notes.show_notes(notes)
+	_matchup_notes.show_notes(notes, App.library.simplifications())
 	var is_first_half: bool = picked.formation_id == _first_half.formation_id \
 			and picked.styles.defense == _first_half.styles.defense and picked.styles.attack == _first_half.styles.attack
 	_matchup_title.text = FIRST_HALF_TITLE if is_first_half else SECOND_HALF_TITLE
