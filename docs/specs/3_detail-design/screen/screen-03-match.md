@@ -66,7 +66,8 @@ MatchScreen (Control)
 
 - **画面の向き**: 横向きだけ（要件定義書 §6.1）。端末の横の長さの違い（16:9〜21:9）は、操作の列の幅（上限 640px）と
   `BoardArea` の幅で吸収する（横に長い端末ほどピッチが横に伸びる。高さは 600px で一定。screen-common.md §1.1）
-- **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から次のターン開始時の位置へ駒とボールを動かして見せる。
+- **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から判定時の位置へ（プレー）、続けて次のターン開始時の位置へ
+  （詰め直し）、駒とボールを2拍で動かして見せる（2026-11-03 に2拍にした）。
   盤面は縦向きのピッチを斜めから見せ、利用者の攻撃方向は上（2026-10-23 に、3D 演出の表示場所 `ReplayLayer` から置き換えた）
 - **盤面と操作の列の部品**: `BoardPanel`（`MatchBoardPanel`）の中身は S-08 と共用する。画面ごとの違いは
   `SideTopSlot`・`SideBottomSlot` に置く（[`screen-08-tutorial.md`](./screen-08-tutorial.md)）
@@ -169,9 +170,11 @@ MatchScreen (Control)
 1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「あなた: …／CPU: …」を出す（手とエリアの名前は `screen-design.md` の
    要約と同じ形）
 2. `ChoicePanel`・`TargetInfo` を隠す
-3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift(reveal.user_players_before,
-   reveal.opponent_players_before, reveal.ball_before, match_controller.board_shift_sec())` で、判定前の配置から次のターン開始時の
-   配置へ全選手の駒とボールを動かす（方式でずれた選手も動き、チーム全体がボールに合わせて動くことが見える）。
+3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift` で駒とボールを2拍で動かす（2026-11-03）。
+   1拍目（プレー）は判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 判定時（`reveal.*_players_at_judgement`・
+   `reveal.ball_after`）を `match_controller.board_play_sec()` 秒、2拍目（詰め直し）は判定時 → 次のターン開始時を
+   `match_controller.board_settle_sec()` 秒。どちらの拍も、位置が変わった全選手を動かす（方式でずれた選手も動き、
+   手で動いた後にチーム全体がボールに合わせて組み直ることが見える）。
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
 4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功・オフサイド（2026-10-25）、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が

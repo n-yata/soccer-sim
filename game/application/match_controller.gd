@@ -342,10 +342,15 @@ func review() -> ReviewView:
 	return view
 
 
-## 開示で、ターン前の配置から次のターン開始時の配置へ駒を動かす時間（秒。PresentationConfig）。
+## 開示の1拍目（プレー）で、ターン前の配置から判定時の配置へ駒とボールを動かす時間（秒。PresentationConfig）。
 ## 画面が使うときに初めて読む（試合を進めるだけの呼び出し側に、表示の設定ファイルを求めないため）。
-func board_shift_sec() -> float:
-	return _config.presentation().board_shift_sec
+func board_play_sec() -> float:
+	return _config.presentation().board_play_sec
+
+
+## 開示の2拍目（詰め直し）で、判定時の配置から次のターン開始時の配置へ駒を動かす時間（秒。PresentationConfig）。
+func board_settle_sec() -> float:
+	return _config.presentation().board_settle_sec
 
 
 ## 開示済みの相手の陣形・方式（FR-16・21）。試合前は null。

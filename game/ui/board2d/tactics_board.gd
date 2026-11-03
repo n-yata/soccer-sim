@@ -155,26 +155,46 @@ func clear_overlays() -> void:
 	queue_redraw()
 
 
-## 開示で、動く前の配置（user_before・opponent_before。RevealView の判定前）から、いまの盤面（show_snapshot の後の
-## 次のターン開始時の配置）へ、位置が変わった選手の駒を duration_sec 秒で動かす。ルールの動き（手・方式・保持者）を
-## 区別せず全員を動かし、チーム全体がボールに合わせて動いていることを、矢印を増やさずに見せる。0 以下なら動かさない。
-## ボールも、動く前のエリア（ball_before。空文字・読めないキーなら動かさない）から、いまのエリアへ一緒に動かす。
-func start_shift(user_before: Array[Dictionary], opponent_before: Array[Dictionary], ball_before: String,
-		duration_sec: float) -> void:
+## 開示で、駒とボールを拍に分けて順に動かす。keyframes の各要素は、拍の始まりの配置とその拍の時間
+## {"user": Array[Dictionary], "opponent": Array[Dictionary], "ball": String, "sec": float}（配置は BoardSnapshot.user_players と
+## 同じ形、ボールはエリアのキー）。i 番目の拍は keyframes[i] から keyframes[i + 1] へ、最後の拍はいまの盤面
+## （show_snapshot の後の次のターン開始時の配置）へ動く。開示では、判定前（1拍目 = プレー）と判定時（2拍目 = 詰め直し）を渡す。
+## 各拍では、位置が変わった選手の駒を、ルールの動き（手・方式・保持者）を区別せず同時に動かす。ボールは、拍の始まりと
+## 終わりのエリアが違うときだけ動かす（空文字・読めないキーなら動かさない）。動きの無い拍・時間が 0 以下の拍は飛ばす。
+func start_shift(keyframes: Array[Dictionary]) -> void:
 	_stop_shift()
-	if not duration_sec > 0.0:
-		return
-	var piece_paths: Array[Dictionary] = BoardShift.paths(user_before, _user_players, true, slot_center)
-	piece_paths.append_array(BoardShift.paths(opponent_before, _opponent_players, false, slot_center))
-	var ball_path: Dictionary = {}
-	if PitchArea.from_key(ball_before) != null and PitchArea.from_key(_ball_area) != null and ball_before != _ball_area:
-		ball_path = {"from": _ball_point(ball_before), "to": _ball_point(_ball_area)}
-	_shift.start(piece_paths, ball_path)
+	var beats: Array[Dictionary] = []
+	for index: int in range(keyframes.size()):
+		var start: Dictionary = keyframes[index]
+		var is_last: bool = index == keyframes.size() - 1
+		var user_end: Array[Dictionary] = _user_players if is_last else _players_in(keyframes[index + 1], "user")
+		var opponent_end: Array[Dictionary] = _opponent_players if is_last else _players_in(keyframes[index + 1], "opponent")
+		var ball_end: String = _ball_area if is_last else keyframes[index + 1]["ball"] as String
+		var piece_paths: Array[Dictionary] = BoardShift.paths(_players_in(start, "user"), user_end, true, slot_center)
+		piece_paths.append_array(BoardShift.paths(_players_in(start, "opponent"), opponent_end, false, slot_center))
+		beats.append({"piece_paths": piece_paths, "ball_path": _ball_path(start["ball"] as String, ball_end),
+				"sec": start["sec"] as float})
+	_shift.start(beats)
 	if not _shift.is_active():
 		return
 	_shift_tween = create_tween()
-	_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, duration_sec)
+	for index: int in range(_shift.beats.size()):
+		_shift_tween.tween_callback(_begin_shift_beat.bind(index))
+		_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, _shift.beats[index]["sec"] as float)
 	_shift_tween.finished.connect(_stop_shift)
+
+
+static func _players_in(keyframe: Dictionary, key: String) -> Array[Dictionary]:
+	var players: Array[Dictionary] = []
+	players.assign(keyframe[key] as Array)
+	return players
+
+
+## from_key のエリアから to_key のエリアへのボールの道筋。どちらかが読めないか、同じエリアなら空。
+func _ball_path(from_key: String, to_key: String) -> Dictionary:
+	if PitchArea.from_key(from_key) == null or PitchArea.from_key(to_key) == null or from_key == to_key:
+		return {}
+	return {"from": _ball_point(from_key), "to": _ball_point(to_key)}
 
 
 ## 開示で駒かボールを動かしている途中か。
@@ -182,24 +202,49 @@ func is_shifting() -> bool:
 	return _shift.is_active()
 
 
-## 開示で駒を動かしている途中か（このときだけ、駒を選手ごとに描く。ボールだけが動くときは、いつもの描き方のまま）。
+## 開示で、どれかの拍で駒が動くか（このときだけ、駒を選手ごとに描く。ボールだけが動くときは、いつもの描き方のまま）。
 func is_shifting_pieces() -> bool:
-	return not _shift.piece_paths.is_empty()
+	return _shift.has_pieces()
 
 
-## 動かしている駒の道筋（{"player_id", "is_user", "from", "to"}）。描画とテストで共有する。動いていなければ空。
+## 動かす拍の数（動きの無い拍は数えない）。動いていなければ 0。
+func shift_beat_count() -> int:
+	return _shift.beats.size()
+
+
+## いま動かしている拍の添字（0 始まり）。
+func shift_beat_index() -> int:
+	return _shift.beat_index
+
+
+## いまの拍で動かしている駒の道筋（{"player_id", "is_user", "from", "to"}）。描画とテストで共有する。動いていなければ空。
 func shift_paths() -> Array[Dictionary]:
-	return _shift.piece_paths.duplicate()
+	return _shift.piece_paths_of(_shift.beat_index)
 
 
-## 動かしているボールの道筋（{"from", "to"}）。描画とテストで共有する。ボールが動いていなければ空。
+## いまの拍で動かしているボールの道筋（{"from", "to"}）。ボールが動いていなければ空。
 func shift_ball_path() -> Dictionary:
-	return _shift.ball_path.duplicate()
+	return _shift.ball_path_of(_shift.beat_index).duplicate()
 
 
-## player_id の駒を描く位置。開示で動いていれば道筋の途中、そうでなければ rest（駒の列の位置）。
+## beat 番目の拍の駒の道筋。範囲外なら空。
+func shift_beat_paths(beat: int) -> Array[Dictionary]:
+	return _shift.piece_paths_of(beat)
+
+
+## beat 番目の拍のボールの道筋。範囲外か、その拍でボールが動かなければ空。
+func shift_beat_ball_path(beat: int) -> Dictionary:
+	return _shift.ball_path_of(beat).duplicate()
+
+
+## player_id の駒を描く位置。開示で動いていれば道筋の途中、後の拍で動くならその拍の始まり、そうでなければ rest（駒の列の位置）。
 func shifting_piece_center(player_id: String, rest: Vector2) -> Vector2:
 	return _shift.piece_position(player_id, rest)
+
+
+func _begin_shift_beat(index: int) -> void:
+	_shift.begin_beat(index)
+	queue_redraw()
 
 
 func _set_shift_progress(progress: float) -> void:

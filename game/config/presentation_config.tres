@@ -4,5 +4,6 @@
 
 [resource]
 script = ExtResource("1")
-board_shift_sec = 0.6
+board_play_sec = 0.6
+board_settle_sec = 0.6
 review_lookback_turns = 3

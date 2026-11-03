@@ -531,7 +531,8 @@ func submit_style_change(user_styles: TeamStyles) -> void
 func submit_halftime(user_setup: TeamSetup) -> void
 func opponent_setup() -> TeamSetup               # 開示済みの相手の陣形・方式（FR-16・21）
 func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）。試合の開始前は、suspended_status() が RESUMABLE のときに中断データの状態を返す（タイトルの再開カード用）
-func board_shift_sec() -> float                  # 開示で駒を動かす時間（PresentationConfig。2026-10-22）
+func board_play_sec() -> float                   # 開示の1拍目（プレー。判定前 → 判定時）で駒とボールを動かす時間（PresentationConfig。2026-11-03）
+func board_settle_sec() -> float                  # 開示の2拍目（詰め直し。判定時 → 次のターン開始時）で駒を動かす時間（PresentationConfig。2026-10-22 に board_shift_sec として足し、2026-11-03 に2拍目の時間にして改名した）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
 ## 試合中のメニューから中断してタイトルへ。直前の保存に失敗していれば保存をやり直す（保存の時点④）
@@ -749,7 +750,7 @@ func mark_tutorial_completed() -> bool
 | `outcome` | ターン結果（`TurnOutcome`） |
 | `compare_area` / `user_count` / `opponent_count` / `cover` / `read` | 判定の内訳（`NO_CONTEST` では空。`read` は判定理由の「読まれて」「隣を読まれて」に使う） |
 | `ball_before` / `ball_after` | 判定前後のボール位置 |
-| `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。各要素は `BoardSnapshot.user_players` と同じ形（`player_id`・`number`・`area`。利用者の視点）。開示の動き（判定前の位置）と、振り返りのミニピッチ（判定時の人数はエリアごとに数えるだけ）に使う |
+| `players_before` / `players_at_judgement` | 両チームの選手単位の配置（判定前・判定時）。各要素は `BoardSnapshot.user_players` と同じ形（`player_id`・`number`・`area`。利用者の視点）。開示の動き（1拍目の判定前 → 判定時、2拍目の判定時 → 次のターン開始時）と、振り返りのミニピッチ（判定時の人数はエリアごとに数えるだけ）に使う |
 | `movements` | 選手の動き（方式の動き → 守備の手 → 攻撃の手の順） |
 | `simplification_ids` | 判定に関わる単純化 ID（「実戦では」の表示に使う） |
 
@@ -806,7 +807,7 @@ func validation_errors() -> Array[String]
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数・アディショナルタイムの最大ターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty（2026-10-25）・マーク注意の減点 marked_penalty（2026-10-29） |
-| `PresentationConfig` | `presentation_config.tres` | 開示で駒を動かす時間（秒）・振り返りで遡るターン数 |
+| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
 ```gdscript
@@ -816,7 +817,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間は0より大きく2以下、遡るターン数は
+値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）は0より大きく2以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -824,7 +825,8 @@ func presentation() -> PresentationConfig
 > 初期値の Resource を返して `push_error` する（エラーハンドリング「設定値が不正」: 利用者には表示しない）。範囲は
 > 内側にあることを肯定形で確かめ、`is_finite` で NaN・無限大を拒否する。同梱の `.tres` が範囲内であることはテストで確かめる
 >
-> 2026-10-22 に `presentation()` を足した。`PresentationConfig` は、駒を動かす時間（`board_shift_sec`）と、
+> 2026-10-22 に `presentation()` を足した。`PresentationConfig` は、開示で駒を動かす時間（1拍目 `board_play_sec`・2拍目 `board_settle_sec`。
+> 2026-11-03 に2拍にした）と、
 > 振り返りで遡るターン数（`review_lookback_turns`。2026-10-29 に足した。0 以上）を持つ。3D 演出の上限は、3D 演出をやめたので持たない（2026-10-23）。
 
 ### 4.3 端末内保存
@@ -1048,7 +1050,8 @@ func route_back() -> bool
 > ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバー・スルーパスでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
 >
 > **2026-10-22（開示で駒を動かす）**: 開示では、`TacticsBoard.start_shift` で、判定前の配置（`RevealView` の判定前の選手）から
-> 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす。
+> 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす
+> （2026-11-03 に2拍に分け、この時間は2拍目の `board_settle_sec()` に改名した。下の注記）。
 > 道筋（選手ごとの移動元と移動先の駒の列の位置）の計算は `BoardShift`（`board_shift.gd`）に置き、Tween はボードが持つ（描画は下の 2026-10-23 の注記のとおり `BoardPainter`）。
 > 画面の状態は増やさない（テロップ・矢印はすぐ出し、「次へ」も押せる）。次の盤面・重ね表示の消去で動きを止める。
 >
@@ -1077,6 +1080,13 @@ func route_back() -> bool
 | `NotesView` | `MatchupNote` の一覧を表示し、単純化 ID があれば「実戦では」を添える |
 | `ConfirmDialog` | 確認ダイアログ（中断データが上書きされることの確認など） |
 | `ToastView` | 保存エラーなどの短い通知 |
+> **2026-11-03（開示を2拍にする）**: 開示の動きを、1拍目（プレー。判定前 → 判定時、`board_play_sec()` 秒）と
+> 2拍目（詰め直し。判定時 → 次のターン開始時、`board_settle_sec()` 秒）に分けて順に動かす。手で動いた選手と、方式で組み直る
+> チーム全体を時間で分け、何が起点で全体が動いたかを見せる。`BoardShift` は拍の並びと、いまの拍・その中の進み具合を持ち、
+> `TacticsBoard.start_shift` は拍の始まりの配置の並びを受け取る（screen-common.md）。動きの無い拍は飛ばす。
+> それまでの `board_shift_sec`（全体の時間）は、意味が2拍目の時間に変わったので `board_settle_sec` に改名した
+> （同じ型のまま意味だけが変わると、古い値が黙って使われるため）。
+>
 | `ScreenHeader` | 画面のヘッダー（戻る・画面名） |
 | `ScoreBug` | 中継風のスコア表示（試合画面・方式の選び直し・ハーフタイム・試合結果） |
 | `FormationCard` | 陣形のカード（陣形名・`MiniPitch`・選択中の印） |

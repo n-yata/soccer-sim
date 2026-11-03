@@ -11,7 +11,7 @@ const MATCH_RULE_FILE: String = "match_rule_config.tres"
 const CPU_FILE: String = "cpu_config.tres"
 const PRESENTATION_FILE: String = "presentation_config.tres"
 ## 駒を動かす時間の上限（秒）。範囲の正本は functional-overview.md「設定値として外部化する値」
-const MAX_BOARD_SHIFT_SEC: float = 2.0
+const MAX_BOARD_BEAT_SEC: float = 2.0
 
 var _config_dir: String
 var _match_rules: MatchRuleConfig
@@ -84,14 +84,23 @@ static func _is_bonus_valid(bonus: float) -> bool:
 	return is_finite(bonus) and bonus >= 0.0
 
 
+## 開示の拍の長さは 0 より大きく MAX_BOARD_BEAT_SEC 以下の有限の値（NaN でも偽になるよう、肯定形で確かめる）。
+static func _is_board_sec_valid(sec: float) -> bool:
+	return is_finite(sec) and sec > 0.0 and sec <= MAX_BOARD_BEAT_SEC
+
+
 func _load_presentation() -> PresentationConfig:
 	var loaded: PresentationConfig = _load(PRESENTATION_FILE) as PresentationConfig
 	if loaded == null:
 		push_error("ConfigRepository: %s を読めないため、初期値を使う" % PRESENTATION_FILE)
 		return PresentationConfig.new()
-	var shift_sec: float = loaded.board_shift_sec
-	if not (is_finite(shift_sec) and shift_sec > 0.0 and shift_sec <= MAX_BOARD_SHIFT_SEC):
-		push_error("ConfigRepository: %s の値が範囲外（board_shift_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, shift_sec])
+	var settle_sec: float = loaded.board_settle_sec
+	if not _is_board_sec_valid(settle_sec):
+		push_error("ConfigRepository: %s の値が範囲外（board_settle_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, settle_sec])
+		return PresentationConfig.new()
+	var play_sec: float = loaded.board_play_sec
+	if not _is_board_sec_valid(play_sec):
+		push_error("ConfigRepository: %s の値が範囲外（board_play_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE, play_sec])
 		return PresentationConfig.new()
 	if not loaded.review_lookback_turns >= 0:
 		push_error("ConfigRepository: %s の値が範囲外（review_lookback_turns=%d）のため、初期値を使う" % [PRESENTATION_FILE,

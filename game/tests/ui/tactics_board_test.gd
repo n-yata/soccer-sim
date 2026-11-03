@@ -357,6 +357,16 @@ func _players_of(spec: Dictionary) -> Array[Dictionary]:
 	return players
 
 
+## 1拍だけで、動く前（user_before・opponent_before・ball_before）からいまの盤面へ動かす。
+func _start_one(user_before: Array[Dictionary], opponent_before: Array[Dictionary], ball_before: String,
+		duration_sec: float) -> void:
+	_board.start_shift([_keyframe(user_before, opponent_before, ball_before, duration_sec)])
+
+
+func _keyframe(user: Array[Dictionary], opponent: Array[Dictionary], ball: String, sec: float) -> Dictionary:
+	return {"user": user, "opponent": opponent, "ball": ball, "sec": sec}
+
+
 ## 動いた後の盤面: 自分 p1 D1-C・p2 A1-C・p3 A1-L1・p4 A2-C、相手 o1 A1-C
 func _shift_board(duration_sec: float) -> void:
 	var snapshot := BoardSnapshot.new()
@@ -364,7 +374,7 @@ func _shift_board(duration_sec: float) -> void:
 	snapshot.opponent_players = _players_of({"o1": "A1-C"})
 	_board.show_snapshot(snapshot)
 	# 動く前: p2 は D1-C（p1 の次）、o1 は A2-C。p1・p3 は動かない。p4 は動く前に居ない（動かさない）
-	_board.start_shift(_players_of({"p1": "D1-C", "p2": "D1-C", "p3": "A1-L1"}), _players_of({"o1": "A2-C"}), "", duration_sec)
+	_start_one(_players_of({"p1": "D1-C", "p2": "D1-C", "p3": "A1-L1"}), _players_of({"o1": "A2-C"}), "", duration_sec)
 
 
 func _path_of(player_id: String) -> Dictionary:
@@ -414,7 +424,7 @@ func test_a_player_who_only_moves_along_the_row_is_shifted_too() -> void:
 	var snapshot := BoardSnapshot.new()
 	snapshot.user_players = _players_of({"p1": "A1-C", "p2": "D1-C"})
 	_board.show_snapshot(snapshot)
-	_board.start_shift(_players_of({"p1": "D1-C", "p2": "D1-C"}), [], "", 1.0)
+	_start_one(_players_of({"p1": "D1-C", "p2": "D1-C"}), [], "", 1.0)
 	assert_vector(_path_of("p2")["from"] as Vector2).is_equal(_board.piece_center("D1-C", true, 1))
 	assert_vector(_path_of("p2")["to"] as Vector2).is_equal(_board.piece_center("D1-C", true, 0))
 	assert_int(_board.shift_paths().size()).is_equal(2)
@@ -444,7 +454,7 @@ func _ball_board(ball_after: String, ball_before: String, user_before: Dictionar
 	snapshot.user_players = _players_of({"p1": "A1-C"})
 	snapshot.ball_area = ball_after
 	_board.show_snapshot(snapshot)
-	_board.start_shift(_players_of(user_before), [], ball_before, duration_sec)
+	_start_one(_players_of(user_before), [], ball_before, duration_sec)
 
 
 func test_the_ball_moves_with_the_pieces_from_its_area_before_the_turn() -> void:
@@ -499,6 +509,144 @@ func test_the_ball_is_drawn_where_it_now_is_after_the_shift_stops() -> void:
 	_ball_board("A2-C", "A1-C", {"p1": "D1-C"})
 	_board.show_snapshot(BoardSnapshot.new())
 	assert_dict(_board.shift_ball_path()).is_empty()
+
+
+# --- 開示を2拍で動かす（1拍目 = 判定前 → 判定時、2拍目 = 判定時 → いまの盤面） ---
+
+## 判定前: 自分 p1 M2-C・p2 M1-C、相手 o1 M2-C、ボール M2-C
+func _before() -> Dictionary:
+	return {"user": _players_of({"p1": "M2-C", "p2": "M1-C"}), "opponent": _players_of({"o1": "M2-C"}), "ball": "M2-C"}
+
+
+## 判定時: p1 だけが A1-C へ運び、ボールも A1-C へ
+func _at_judgement() -> Dictionary:
+	return {"user": _players_of({"p1": "A1-C", "p2": "M1-C"}), "opponent": _players_of({"o1": "M2-C"}), "ball": "A1-C"}
+
+
+## いまの盤面（次のターン開始時）: p2 が M2-C へ、o1 が A1-C へ詰め直す。ボールは A1-C のまま
+func _two_beat_board(before: Dictionary, at_judgement: Dictionary, play_sec: float, settle_sec: float) -> void:
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "A1-C", "p2": "M2-C"})
+	snapshot.opponent_players = _players_of({"o1": "A1-C"})
+	snapshot.ball_area = "A1-C"
+	_board.show_snapshot(snapshot)
+	_board.start_shift([
+		_keyframe(before["user"], before["opponent"], before["ball"], play_sec),
+		_keyframe(at_judgement["user"], at_judgement["opponent"], at_judgement["ball"], settle_sec),
+	])
+
+
+func _ids_of(paths: Array[Dictionary]) -> Array[String]:
+	var ids: Array[String] = []
+	for path: Dictionary in paths:
+		ids.append(path["player_id"] as String)
+	return ids
+
+
+func test_the_first_beat_moves_the_play_and_the_second_beat_moves_the_reshape() -> void:
+	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
+	assert_int(_board.shift_beat_count()).is_equal(2)
+	assert_int(_board.shift_beat_index()).is_equal(0)
+	assert_array(_ids_of(_board.shift_beat_paths(0))).contains_exactly(["p1"])
+	assert_array(_ids_of(_board.shift_beat_paths(1))).contains_exactly_in_any_order(["p2", "o1"])
+	# いまの拍の問い合わせは、1拍目と同じ
+	assert_array(_ids_of(_board.shift_paths())).contains_exactly(["p1"])
+	var p1: Dictionary = _board.shift_beat_paths(0)[0]
+	assert_vector(p1["from"] as Vector2).is_equal(_board.piece_center("M2-C", true, 0))
+	assert_vector(p1["to"] as Vector2).is_equal(_board.piece_center("A1-C", true, 0))
+	# 2拍目は判定時の位置から出る
+	for path: Dictionary in _board.shift_beat_paths(1):
+		if path["player_id"] == "p2":
+			assert_vector(path["from"] as Vector2).is_equal(_board.piece_center("M1-C", true, 0))
+			assert_vector(path["to"] as Vector2).is_equal(_board.piece_center("M2-C", true, 0))
+		else:
+			assert_vector(path["from"] as Vector2).is_equal(_board.piece_center("M2-C", false, 0))
+			assert_vector(path["to"] as Vector2).is_equal(_board.piece_center("A1-C", false, 0))
+
+
+func test_the_ball_moves_in_the_first_beat_and_stays_in_the_second() -> void:
+	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
+	var path: Dictionary = _board.shift_beat_ball_path(0)
+	_assert_ball_in(path["from"] as Vector2, "M2-C")
+	_assert_ball_in(path["to"] as Vector2, "A1-C")
+	assert_dict(_board.shift_beat_ball_path(1)).is_empty()
+	assert_vector(_board.ball_center()).is_equal(path["from"] as Vector2)
+
+
+func test_the_ball_moves_in_the_second_beat_when_the_next_turn_puts_it_elsewhere() -> void:
+	# 判定時のボールが A2-C でも、次のターンは A1-C から（得点後のキックオフのように、置き直されるとき）
+	var at_judgement: Dictionary = _at_judgement()
+	at_judgement["ball"] = "A2-C"
+	_two_beat_board(_before(), at_judgement, 1.0, 1.0)
+	_assert_ball_in(_board.shift_beat_ball_path(0)["to"] as Vector2, "A2-C")
+	var second: Dictionary = _board.shift_beat_ball_path(1)
+	_assert_ball_in(second["from"] as Vector2, "A2-C")
+	_assert_ball_in(second["to"] as Vector2, "A1-C")
+
+
+func test_during_the_first_beat_players_who_move_later_wait_where_the_play_left_them() -> void:
+	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
+	# p2・o1 は2拍目で動く。1拍目の間は、いまの盤面の位置へ飛ばず、判定時の位置（= 判定前と同じ）に描く
+	assert_vector(_board.shifting_piece_center("p2", _board.piece_center("M2-C", true, 0))) \
+			.is_equal(_board.piece_center("M1-C", true, 0))
+	assert_vector(_board.shifting_piece_center("o1", _board.piece_center("A1-C", false, 0))) \
+			.is_equal(_board.piece_center("M2-C", false, 0))
+	# 駒は選手ごとに描く（1拍目に動く駒があり、2拍目にもある）
+	assert_bool(_board.is_shifting_pieces()).is_true()
+
+
+func test_pieces_are_drawn_one_by_one_when_only_a_later_beat_moves_them() -> void:
+	# 1拍目はボールだけが動き、駒は2拍目で動く。1拍目の間も、2拍目で動く駒を判定時の位置に描くため、選手ごとに描く
+	var at_judgement: Dictionary = _at_judgement()
+	at_judgement["user"] = _players_of({"p1": "M2-C", "p2": "M1-C"})
+	_two_beat_board(_before(), at_judgement, 1.0, 1.0)
+	assert_array(_board.shift_paths()).is_empty()
+	assert_dict(_board.shift_ball_path()).is_not_empty()
+	assert_bool(_board.is_shifting_pieces()).is_true()
+
+
+func test_a_beat_without_movement_is_skipped() -> void:
+	# 判定時が判定前と同じ（1拍目に動きが無い）なら、2拍目だけ
+	_two_beat_board(_before(), _before(), 1.0, 1.0)
+	assert_int(_board.shift_beat_count()).is_equal(1)
+	assert_array(_ids_of(_board.shift_paths())).contains_exactly_in_any_order(["p1", "p2", "o1"])
+	_board.clear_overlays()
+	# 判定時がいまの盤面と同じ（2拍目に動きが無い）なら、1拍目だけ
+	var settled: Dictionary = {"user": _players_of({"p1": "A1-C", "p2": "M2-C"}),
+			"opponent": _players_of({"o1": "A1-C"}), "ball": "A1-C"}
+	_two_beat_board(_before(), settled, 1.0, 1.0)
+	assert_int(_board.shift_beat_count()).is_equal(1)
+	assert_array(_ids_of(_board.shift_paths())).contains_exactly_in_any_order(["p1", "p2", "o1"])
+
+
+func test_a_beat_with_no_time_is_skipped() -> void:
+	_two_beat_board(_before(), _at_judgement(), 0.0, 1.0)
+	assert_int(_board.shift_beat_count()).is_equal(1)
+	assert_array(_ids_of(_board.shift_paths())).contains_exactly_in_any_order(["p2", "o1"])
+	_two_beat_board(_before(), _at_judgement(), 0.0, 0.0)
+	assert_bool(_board.is_shifting()).is_false()
+	assert_int(_board.shift_beat_count()).is_equal(0)
+	# 時間が負・NaN の拍も飛ばす（NaN との比較は偽になるので、肯定形の「0 より大きい」で落ちる）
+	_two_beat_board(_before(), _at_judgement(), -1.0, NAN)
+	assert_bool(_board.is_shifting()).is_false()
+	_two_beat_board(_before(), _at_judgement(), NAN, 1.0)
+	assert_int(_board.shift_beat_count()).is_equal(1)
+	assert_array(_ids_of(_board.shift_paths())).contains_exactly_in_any_order(["p2", "o1"])
+
+
+func test_the_second_beat_starts_after_the_first_and_both_end_by_themselves() -> void:
+	_two_beat_board(_before(), _at_judgement(), 0.05, 1.0)
+	await await_millis(300)
+	# 1拍目が終わり、2拍目の途中。p1 は動き終わりの位置
+	assert_bool(_board.is_shifting()).is_true()
+	assert_int(_board.shift_beat_index()).is_equal(1)
+	assert_array(_ids_of(_board.shift_paths())).contains_exactly_in_any_order(["p2", "o1"])
+	var p1_rest: Vector2 = _board.piece_center("A1-C", true, 0)
+	assert_vector(_board.shifting_piece_center("p1", p1_rest)).is_equal(p1_rest)
+	_two_beat_board(_before(), _at_judgement(), 0.05, 0.05)
+	await await_millis(400)
+	assert_bool(_board.is_shifting()).is_false()
+	assert_int(_board.shift_beat_count()).is_equal(0)
 
 
 # --- 立っているもの（駒・プレビューの駒・ボール・「+N」）を描く順 ---

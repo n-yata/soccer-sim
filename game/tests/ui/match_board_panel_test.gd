@@ -377,7 +377,7 @@ func test_a_move_without_a_target_previews_as_soon_as_it_is_chosen() -> void:
 
 # --- 開示で駒を動かす ---
 
-## 判定前と次のターン開始時で、エリアが変わった選手の ID（両チーム）
+## before と after で、エリアが変わった選手の ID
 func _moved_ids(before: Array[Dictionary], after: Array[Dictionary]) -> Array[String]:
 	var before_areas: Dictionary = {}
 	for player: Dictionary in before:
@@ -389,31 +389,45 @@ func _moved_ids(before: Array[Dictionary], after: Array[Dictionary]) -> Array[St
 	return moved
 
 
-func test_the_reveal_shifts_every_player_whose_area_changed_and_the_next_turn_stops_it() -> void:
+func _path_ids(paths: Array[Dictionary]) -> Array[String]:
+	var ids: Array[String] = []
+	for path: Dictionary in paths:
+		ids.append(path["player_id"] as String)
+	return ids
+
+
+func test_the_reveal_shifts_the_play_then_the_reshape_and_the_next_turn_stops_it() -> void:
 	_start(false)
 	_press(GameEnums.DefenseAction.PRESS)
 	_panel.board().area_pressed.emit(_panel.board().selectable_areas()[0])
 	_panel.primary_button().pressed.emit()
 	var reveal: RevealView = _controller.last_reveal()
 	var snapshot: BoardSnapshot = _controller.snapshot()
-	var expected: Array[String] = _moved_ids(reveal.user_players_before, snapshot.user_players)
-	expected.append_array(_moved_ids(reveal.opponent_players_before, snapshot.opponent_players))
-	# プレスで1人は必ず動く（空振りしない）
-	assert_array(expected).is_not_empty()
-	# エリアが変わった選手はすべて動く。ほかに動くのは、同じエリアで列の位置だけが変わった選手で、どの道筋も位置が変わっている
-	var moved: Array[String] = []
-	for path: Dictionary in _panel.board().shift_paths():
-		moved.append(path["player_id"] as String)
-		assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
-	assert_array(moved).contains(expected)
-	assert_bool(_panel.board().is_shifting()).is_true()
-	# ボールも、判定前の位置から次のターン開始時の位置へ動く（同じ位置なら動かない）
-	# この場面（守備でプレス）ではボールの位置が変わる（空振りしない）
-	assert_str(reveal.ball_before).is_not_equal(snapshot.ball_area)
-	var ball_path: Dictionary = _panel.board().shift_ball_path()
-	assert_str(_panel.board().plan_area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
-	assert_str(_panel.board().plan_area_at(ball_path["to"] as Vector2)).is_equal(snapshot.ball_area)
+	var board: TacticsBoard = _panel.board()
+	# 1拍目（プレー）: 判定前 → 判定時。プレスで1人は必ず動く（空振りしない）
+	var play: Array[String] = _moved_ids(reveal.user_players_before, reveal.user_players_at_judgement)
+	play.append_array(_moved_ids(reveal.opponent_players_before, reveal.opponent_players_at_judgement))
+	assert_array(play).is_not_empty()
+	assert_array(_path_ids(board.shift_beat_paths(0))).contains(play)
+	# 2拍目（詰め直し）: 判定時 → 次のターン開始時。この場面（固定シード）では、奪ったボールに合わせて組み直す選手がいる
+	# （動きの無い拍を飛ばすことは tactics_board_test で確かめる）
+	var reshape: Array[String] = _moved_ids(reveal.user_players_at_judgement, snapshot.user_players)
+	reshape.append_array(_moved_ids(reveal.opponent_players_at_judgement, snapshot.opponent_players))
+	assert_array(reshape).is_not_empty()
+	assert_int(board.shift_beat_count()).is_equal(2)
+	assert_array(_path_ids(board.shift_beat_paths(1))).contains(reshape)
+	# エリアが変わった選手のほかに動くのは、同じエリアで列の位置だけが変わった選手で、どの道筋も位置が変わっている
+	for beat: int in range(board.shift_beat_count()):
+		for path: Dictionary in board.shift_beat_paths(beat):
+			assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
+	assert_bool(board.is_shifting()).is_true()
+	assert_int(board.shift_beat_index()).is_equal(0)
+	# ボールは1拍目で、判定前の位置から判定後の位置へ動く（この場面ではボールの位置が変わる。空振りしない）
+	assert_str(reveal.ball_before).is_not_equal(reveal.ball_after)
+	var ball_path: Dictionary = board.shift_beat_ball_path(0)
+	assert_str(board.plan_area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
+	assert_str(board.plan_area_at(ball_path["to"] as Vector2)).is_equal(reveal.ball_after)
 	_panel.primary_button().pressed.emit()
 	_controller.continue_after_reveal()
 	_panel.start_turn()
-	assert_bool(_panel.board().is_shifting()).is_false()
+	assert_bool(board.is_shifting()).is_false()

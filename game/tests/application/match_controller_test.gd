@@ -91,7 +91,8 @@ func _config(turns: int, additional: int = 0) -> ConfigRepository:
 	ResourceSaver.save(rules, dir.path_join("match_rule_config.tres"))
 	ResourceSaver.save(CpuConfig.new(), dir.path_join("cpu_config.tres"))
 	var presentation := PresentationConfig.new()
-	presentation.board_shift_sec = 1.5
+	presentation.board_settle_sec = 1.5
+	presentation.board_play_sec = 0.9
 	ResourceSaver.save(presentation, dir.path_join("presentation_config.tres"))
 	return ConfigRepository.new(dir)
 
@@ -210,9 +211,14 @@ func test_user_hints_match_the_user_options() -> void:
 
 # --- 表示の調整値 ---
 
-func test_board_shift_sec_comes_from_the_presentation_settings() -> void:
+func test_board_settle_sec_comes_from_the_presentation_settings() -> void:
 	# テストの設定ファイルは 1.5 秒（同梱の 0.6 秒と違う値で、設定から読んでいることを確かめる）
-	assert_float(_controller(1).board_shift_sec()).is_equal(1.5)
+	assert_float(_controller(1).board_settle_sec()).is_equal(1.5)
+
+
+func test_board_play_sec_comes_from_the_presentation_settings() -> void:
+	# テストの設定ファイルは 0.9 秒（同梱の 0.6 秒とも、2拍目の 1.5 秒とも違う値で、取り違えを見分ける）
+	assert_float(_controller(1).board_play_sec()).is_equal(0.9)
 
 
 # --- 決定前のプレビュー ---

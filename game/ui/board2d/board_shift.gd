@@ -1,49 +1,97 @@
-## 開示で駒を動かすときの、動きの状態（道筋と進み具合）と道筋の計算（screen-common.md §5 の TacticsBoard）。
-## 状態はボードが1つ持ち、Tween で進み具合を進める（Tween はノードが作るため、ボードが持つ）。
+## 開示で駒を動かすときの、動きの状態（拍の並びと進み具合）と道筋の計算（screen-common.md §5 の TacticsBoard）。
+## 状態はボードが1つ持ち、Tween で拍と進み具合を進める（Tween はノードが作るため、ボードが持つ）。
+## 拍は順に動く（開示では、1拍目 = 判定前 → 判定時のプレー、2拍目 = 判定時 → 次のターン開始時の詰め直し。2026-11-03）。
 ## 駒の位置は、エリアの自分の側の駒の列で、配置の選手の順の添字（slot）から、ボードの slot_center で求める。
 class_name BoardShift
 extends RefCounted
 
-## 動かしている駒の道筋。各要素は {"player_id": String, "is_user": bool, "from": Vector2, "to": Vector2}
-var piece_paths: Array[Dictionary] = []
-## ボールの道筋 {"from": Vector2, "to": Vector2}。ボールが動かなければ空
-var ball_path: Dictionary = {}
-## 進み具合（0〜1）。動いていなければ 1
+## 動かす拍の並び。各要素は {"piece_paths": Array[Dictionary], "ball_path": Dictionary, "sec": float}。
+## 駒の道筋は {"player_id": String, "is_user": bool, "from": Vector2, "to": Vector2}、ボールの道筋は {"from", "to"}（動かなければ空）
+var beats: Array[Dictionary] = []
+## いま動かしている拍の添字
+var beat_index: int = 0
+## いまの拍の中の進み具合（0〜1）。動いていなければ 1
 var progress: float = 1.0
 
 
-## 駒かボールのどちらかが動いているか。
+## 駒かボールのどれかが動いているか。
 func is_active() -> bool:
-	return not piece_paths.is_empty() or not ball_path.is_empty()
+	return not beats.is_empty()
 
 
-## 動きを始める（道筋を入れ、進み具合を始めに戻す）。どちらも空なら動かない（is_active が偽）。
-func start(p_piece_paths: Array[Dictionary], p_ball_path: Dictionary) -> void:
-	piece_paths = p_piece_paths.duplicate()
-	ball_path = p_ball_path.duplicate()
+## どれかの拍で駒が動くか（動かない拍の間も、後の拍で動く駒を拍の始まりの位置に描くため、拍を問わない）。
+func has_pieces() -> bool:
+	for beat: Dictionary in beats:
+		if not (beat["piece_paths"] as Array).is_empty():
+			return true
+	return false
+
+
+## 動きを始める（拍を入れ、1拍目の始めに戻す）。駒もボールも動かない拍と、時間が 0 以下の拍は取り除く
+## （待ち時間を作らない）。残りが空なら動かない（is_active が偽）。
+func start(p_beats: Array[Dictionary]) -> void:
+	beats.clear()
+	for beat: Dictionary in p_beats:
+		var moves: bool = not (beat["piece_paths"] as Array).is_empty() or not (beat["ball_path"] as Dictionary).is_empty()
+		if moves and (beat["sec"] as float) > 0.0:
+			beats.append(beat.duplicate(true))
+	beat_index = 0
 	progress = 0.0 if is_active() else 1.0
 
 
-## 動きを止める（道筋を消し、進み具合を終わりにする）。
+## index の拍を始める（Tween が拍の変わり目で呼ぶ）。
+func begin_beat(index: int) -> void:
+	beat_index = index
+	progress = 0.0
+
+
+## 動きを止める（拍を消し、進み具合を終わりにする）。
 func clear() -> void:
-	piece_paths.clear()
-	ball_path = {}
+	beats.clear()
+	beat_index = 0
 	progress = 1.0
 
 
-## player_id の駒を描く位置。動いていれば道筋の途中、そうでなければ rest（駒の列の位置）。
+## index の拍の駒の道筋。範囲外なら空。
+func piece_paths_of(index: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if index >= 0 and index < beats.size():
+		result.assign(beats[index]["piece_paths"] as Array)
+	return result
+
+
+## index の拍のボールの道筋。範囲外か、その拍でボールが動かなければ空。
+func ball_path_of(index: int) -> Dictionary:
+	if index >= 0 and index < beats.size():
+		return beats[index]["ball_path"] as Dictionary
+	return {}
+
+
+## player_id の駒を描く位置。いまの拍で動いていれば道筋の途中。まだ動いていなければ、後の拍で最初に動く道筋の元
+## （その拍の始まりの位置）。どちらでもなければ rest（駒の列の位置。動き終えた駒と動かない駒）。
+## 前の拍の行き先を見ないのは、前の拍の行き先は後の拍の元と同じ位置で、後の拍に出てこなければ rest と同じ位置だから。
 func piece_position(player_id: String, rest: Vector2) -> Vector2:
-	for path: Dictionary in piece_paths:
-		if path["player_id"] == player_id:
-			return (path["from"] as Vector2).lerp(path["to"] as Vector2, progress)
+	for index: int in range(beat_index, beats.size()):
+		for path: Dictionary in beats[index]["piece_paths"] as Array:
+			if path["player_id"] == player_id:
+				return _point_on(path, index)
 	return rest
 
 
-## ボールを描く位置。動いていれば道筋の途中、そうでなければ rest（いまのエリアの位置）。
+## ボールを描く位置。駒と同じ決め方で、rest はいまのエリアの位置。
 func ball_position(rest: Vector2) -> Vector2:
-	if ball_path.is_empty():
-		return rest
-	return (ball_path["from"] as Vector2).lerp(ball_path["to"] as Vector2, progress)
+	for index: int in range(beat_index, beats.size()):
+		var path: Dictionary = beats[index]["ball_path"] as Dictionary
+		if not path.is_empty():
+			return _point_on(path, index)
+	return rest
+
+
+## index の拍の道筋の上で、いまの位置。いまの拍なら進み具合の分、後の拍なら元。
+func _point_on(path: Dictionary, index: int) -> Vector2:
+	if index != beat_index:
+		return path["from"] as Vector2
+	return (path["from"] as Vector2).lerp(path["to"] as Vector2, progress)
 
 
 ## players（BoardSnapshot.user_players と同じ形）の各選手の、そのエリアの中での添字（配置の選手の順）。

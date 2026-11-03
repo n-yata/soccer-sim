@@ -358,9 +358,14 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	reveal_started.emit(reveal)
 	_board.clear_overlays()
 	_board.show_snapshot(snapshot)
-	# 判定前の配置から次のターン開始時の配置へ、全員の駒とボールを動かす（方式でずれた選手も。テロップ・矢印はすぐ出す）
-	_board.start_shift(reveal.user_players_before, reveal.opponent_players_before, reveal.ball_before,
-			_controller.board_shift_sec())
+	# 2拍で動かす。1拍目（プレー）は判定前 → 判定時、2拍目（詰め直し）は判定時 → 次のターン開始時。
+	# どちらの拍も、位置が変わった全員を動かす（方式でずれた選手も。テロップ・矢印はすぐ出す）
+	_board.start_shift([
+		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
+				"sec": _controller.board_play_sec()},
+		{"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
+				"ball": reveal.ball_after, "sec": _controller.board_settle_sec()},
+	])
 	_board.show_movements(reveal.movements)
 	if reveal.has_detail:
 		_board.show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)

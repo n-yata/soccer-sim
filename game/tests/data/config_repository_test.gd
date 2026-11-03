@@ -236,41 +236,80 @@ func test_out_of_range_marked_penalty_falls_back_to_the_initial_values() -> void
 const PRESENTATION_FILE: String = "presentation_config.tres"
 
 
-func _presentation_with(case_name: String, shift_sec: float, lookback_turns: int = 3) -> ConfigRepository:
+func _presentation_with(case_name: String, settle_sec: float, lookback_turns: int = 3, play_sec: float = 0.6) -> ConfigRepository:
 	var dir: String = create_temp_dir("config_repository/presentation_" + case_name)
 	var presentation := PresentationConfig.new()
-	presentation.board_shift_sec = shift_sec
+	presentation.board_settle_sec = settle_sec
 	presentation.review_lookback_turns = lookback_turns
+	presentation.board_play_sec = play_sec
 	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
 	return ConfigRepository.new(dir)
 
 
 func test_bundled_presentation_matches_the_initial_value() -> void:
 	# functional-overview.md「設定値として外部化する値」の初期値 0.6 秒
-	assert_float(ConfigRepository.new().presentation().board_shift_sec).is_equal(0.6)
-	assert_float(PresentationConfig.new().board_shift_sec).is_equal(0.6)
+	assert_float(ConfigRepository.new().presentation().board_settle_sec).is_equal(0.6)
+	assert_float(PresentationConfig.new().board_settle_sec).is_equal(0.6)
 
 
-func test_board_shift_inside_the_range_is_read_including_the_upper_bound() -> void:
-	for shift_sec: float in [0.01, 1.2, 2.0]:
-		var repository: ConfigRepository = _presentation_with("ok_%s" % shift_sec, shift_sec)
-		assert_float(repository.presentation().board_shift_sec).override_failure_message(str(shift_sec)).is_equal(shift_sec)
+func test_bundled_presentation_file_uses_the_current_keys() -> void:
+	# Godot は .tres の知らないキーを黙って無視し、その値を既定値で読む。同梱値が既定値と同じ間は、上の確認では
+	# 古いキー（2026-11-03 に board_shift_sec から board_settle_sec へ改名）の取りこぼしに気づけないため、文字列で確かめる
+	var text: String = FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)
+	assert_str(text).contains("board_play_sec = ")
+	assert_str(text).contains("board_settle_sec = ")
+	assert_str(text).not_contains("board_shift_sec")
+
+
+func test_board_settle_inside_the_range_is_read_including_the_upper_bound() -> void:
+	for settle_sec: float in [0.01, 1.2, 2.0]:
+		var repository: ConfigRepository = _presentation_with("ok_%s" % settle_sec, settle_sec)
+		assert_float(repository.presentation().board_settle_sec).override_failure_message(str(settle_sec)).is_equal(settle_sec)
 	var cached: ConfigRepository = _presentation_with("cached", 1.0)
 	assert_object(cached.presentation()).is_same(cached.presentation())
 
 
-func test_out_of_range_board_shift_falls_back_to_the_initial_value() -> void:
+func test_out_of_range_board_settle_falls_back_to_the_initial_value() -> void:
 	# 0 より大きく 2 以下の有限の値。0・負・2 超・NaN・無限大は範囲外
-	for shift_sec: float in [0.0, -0.5, 2.01, NAN, INF]:
-		var repository: ConfigRepository = _presentation_with("bad_%s" % shift_sec, shift_sec)
-		assert_float(repository.presentation().board_shift_sec).override_failure_message(str(shift_sec)) \
-				.is_equal(PresentationConfig.new().board_shift_sec)
+	for settle_sec: float in [0.0, -0.5, 2.01, NAN, INF]:
+		var repository: ConfigRepository = _presentation_with("bad_%s" % settle_sec, settle_sec)
+		assert_float(repository.presentation().board_settle_sec).override_failure_message(str(settle_sec)) \
+				.is_equal(PresentationConfig.new().board_settle_sec)
 
 
-func test_out_of_range_board_shift_reports_an_error() -> void:
+func test_out_of_range_board_settle_reports_an_error() -> void:
 	var repository: ConfigRepository = _presentation_with("error", 3.0)
 	await assert_error(func() -> void: repository.presentation()) \
-			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_shift_sec=3.0）のため、初期値を使う")
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_settle_sec=3.0）のため、初期値を使う")
+
+
+func test_bundled_board_play_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の、開示の1拍目（プレー）の初期値 0.6 秒
+	assert_float(ConfigRepository.new().presentation().board_play_sec).is_equal(0.6)
+	assert_float(PresentationConfig.new().board_play_sec).is_equal(0.6)
+
+
+func test_board_play_inside_the_range_is_read_including_the_upper_bound() -> void:
+	for play_sec: float in [0.01, 1.2, 2.0]:
+		var repository: ConfigRepository = _presentation_with("play_ok_%s" % play_sec, 0.6, 3, play_sec)
+		assert_float(repository.presentation().board_play_sec).override_failure_message(str(play_sec)).is_equal(play_sec)
+
+
+func test_out_of_range_board_play_falls_back_to_the_initial_value() -> void:
+	# 2拍目と同じ範囲（0 より大きく 2 以下の有限の値）
+	for play_sec: float in [0.0, -0.5, 2.01, NAN, INF]:
+		var repository: ConfigRepository = _presentation_with("play_bad_%s" % play_sec, 1.0, 3, play_sec)
+		assert_float(repository.presentation().board_play_sec).override_failure_message(str(play_sec)) \
+				.is_equal(PresentationConfig.new().board_play_sec)
+		# 1つでも範囲外なら、ファイル全体を初期値に戻す（ほかの値と同じ扱い）
+		assert_float(repository.presentation().board_settle_sec).override_failure_message(str(play_sec)) \
+				.is_equal(PresentationConfig.new().board_settle_sec)
+
+
+func test_out_of_range_board_play_reports_an_error() -> void:
+	var repository: ConfigRepository = _presentation_with("play_error", 0.6, 3, 3.0)
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_play_sec=3.0）のため、初期値を使う")
 
 
 func test_bundled_review_lookback_matches_the_initial_value() -> void:
@@ -297,4 +336,4 @@ func test_missing_presentation_falls_back_to_the_initial_value_with_an_error() -
 	var repository := ConfigRepository.new(create_temp_dir("config_repository/presentation_missing"))
 	await assert_error(func() -> void: repository.presentation()) \
 			.is_push_error("ConfigRepository: presentation_config.tres を読めないため、初期値を使う")
-	assert_float(repository.presentation().board_shift_sec).is_equal(PresentationConfig.new().board_shift_sec)
+	assert_float(repository.presentation().board_settle_sec).is_equal(PresentationConfig.new().board_settle_sec)
