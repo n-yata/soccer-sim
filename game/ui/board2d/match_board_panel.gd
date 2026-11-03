@@ -20,7 +20,8 @@ signal reveal_started(reveal: RevealView)
 ## 判定理由を出した（画面側がスコアを描き直す。得点を開示より先に見せないため、ここで初めて新しい盤面を渡す）
 signal result_shown(snapshot: BoardSnapshot)
 
-enum State { IDLE, SELECT_ACTION, SELECT_TARGET, READY, SUBMITTING, SHOW_RESULT, LEAVING }
+## 運ぶ先を選ぶ状態（SELECT_TARGET）は 2026-11-03 にやめた（行き先はゲームが決め、手を押すとすぐ決定できる）
+enum State { IDLE, SELECT_ACTION, READY, SUBMITTING, SHOW_RESULT, LEAVING }
 
 const SIDE_WIDTH: float = 480.0
 const PRIMARY_HEIGHT: float = 112.0
@@ -101,7 +102,8 @@ func start_turn() -> void:
 	_reveal = null
 	_board.clear_overlays()
 	_board.show_snapshot(_snapshot)
-	_choice_panel.show_options(_options, _snapshot.turn_kind, _snapshot.user_has_ball)
+	_choice_panel.show_options(_options, _snapshot.turn_kind, _snapshot.user_has_ball, _hints)
+	_show_destinations()
 	# 選べる手が1つもないことは起きない（トランジション・守備の手は常に1つ以上選べる。アルゴリズム3）。
 	# 起きたら開発時の誤りとして止める（screen-03-match.md「例外・エラー表示」）
 	assert(_choice_panel.has_available(), "MatchBoardPanel: 選べる手が1つもない")
@@ -142,21 +144,20 @@ func side_bottom_slot() -> VBoxContainer:
 	return _side_bottom_slot
 
 
-## ヒント表示を切り替える（試合中のメニューの設定から）。手を選んでいる間なら、選んだ手と運ぶ先のまま描き直す
+## ヒント表示を切り替える（試合中のメニューの設定から）。手を選んでいる間なら、選んだ手のまま描き直す
 ## （screen-03-match.md「メニュー」の 2.）。
 func set_show_hints(is_on: bool) -> void:
 	if is_on == _show_hints:
 		return
 	_show_hints = is_on
-	if _state not in [State.SELECT_ACTION, State.SELECT_TARGET, State.READY]:
+	if _state not in [State.SELECT_ACTION, State.READY]:
 		return
 	_hints = _current_hints()
-	if _state == State.SELECT_ACTION:
-		return
-	var target: String = _selected_target
-	_on_action_selected(_selected_family, _selected_action)
-	if not target.is_empty():
-		_on_area_pressed(target)
+	_choice_panel.show_options(_options, _snapshot.turn_kind, _snapshot.user_has_ball, _hints)
+	_choice_panel.set_enabled(true)
+	_show_destinations()
+	if _state == State.READY:
+		_on_action_selected(_selected_family, _selected_action)
 
 
 # --- 部品（画面とテストが使う） ---
@@ -177,7 +178,7 @@ func primary_summary() -> String:
 	return _button_summary.text
 
 
-## 攻撃の手は6つあり、運ぶ先の説明が手のボタンの下ではみ出すので、説明が見える所までスクロールする（2026-10-25）。
+## 手のボタンの下の説明がはみ出すことがあるので、説明が見える所までスクロールする（2026-10-25）。
 ## 折り返す説明の高さは、幅が決まってから次の並べ直しで決まるため、2フレーム待ってから位置を測る
 ## （遅らせて呼ぶだけでは、試合画面の入れ子の並べ直しより先に走り、スクロールしなかった）。
 func _scroll_to_target_info() -> void:
@@ -230,71 +231,95 @@ func setup_texts() -> Array[String]:
 
 # --- 手の選択 ---
 
+## 自分の手の行き先を、盤面にすべて出す（2026-11-03）。選べるエリアの枠と、手の番号の札（ヒントが ON なら人数差の札も添える）。
+## 相手の手の行き先は出さない（同時選択の読み合いを守るため）。同じエリアを行き先にする手が複数あれば、番号を並べる。
+func _show_destinations() -> void:
+	var keys: Array[String] = []
+	var tags: Dictionary = {}
+	var even_keys: Array[String] = []
+	var family: GameEnums.ChoiceFamily = _choice_panel.family()
+	# 行き先ごとの番号（「①③」）と、先の手（ボタンの並び）のヒントの札。番号を先に、札を後ろに置く
+	var numbers: Dictionary = {}
+	var hint_texts: Dictionary = {}
+	for action: int in _choice_panel.actions():
+		var key: String = _target_key_of(family, action)
+		if key.is_empty():
+			continue
+		if numbers.has(key):
+			numbers[key] = "%s%s" % [numbers[key], _choice_panel.number_of(action)]
+			continue
+		keys.append(key)
+		numbers[key] = _choice_panel.number_of(action)
+		var hint: ChoiceHint = _hint_of(family, action)
+		hint_texts[key] = "" if hint == null else MatchTexts.hint_tag(hint)
+		if hint != null and MatchTexts.is_hint_muted(hint):
+			even_keys.append(key)
+	for key: String in keys:
+		var hint_text: String = hint_texts[key] as String
+		tags[key] = numbers[key] if hint_text.is_empty() else "%s %s" % [numbers[key], hint_text]
+	_board.set_selectable(keys)
+	_board.set_hints(tags, even_keys)
+
+
+## 手を選ぶ。行き先はゲームが決めたもの（画面に出す手の運ぶ先）なので、すぐ決定できる（2026-11-03）。
 func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
-	if _state not in [State.SELECT_ACTION, State.SELECT_TARGET, State.READY]:
+	if _state not in [State.SELECT_ACTION, State.READY]:
 		return
 	_selected_family = family
 	_selected_action = action
-	_selected_target = ""
+	_selected_target = _target_key_of(family, action)
 	_choice_panel.select_action(action)
-	_board.set_selected("")
-	_board.show_intent("", "")
-	_board.show_preview([])
-	if MoveOptions.needs_target(family, action):
-		var keys: Array[String] = []
-		for target: PitchArea in _options.targets(family, action):
-			keys.append(target.to_key())
-		var tags: Dictionary = {}
-		var even_keys: Array[String] = []
-		for hint: ChoiceHint in _hints_for(family, action):
-			if hint.target != null:
-				tags[hint.target.to_key()] = MatchTexts.hint_tag(hint)
-				if MatchTexts.is_hint_muted(hint):
-					even_keys.append(hint.target.to_key())
-		_board.set_selectable(keys)
-		_board.set_hints(tags, even_keys)
-		_target_info.text = MatchTexts.target_rule(family, action)
-		_target_info.visible = not _target_info.text.is_empty()
-		if _target_info.visible:
-			_scroll_to_target_info()
-		_state = State.SELECT_TARGET
-		_set_primary(MatchTexts.action_name(family, action), LOCK_IN, false)
-		return
-	# 運ぶ先を持たない手: その手のヒント（比べる人数）を説明に出し、すぐ決定できる
-	_board.set_selectable([])
-	_board.set_hints({})
-	var info: String = ""
-	for hint: ChoiceHint in _hints_for(family, action):
-		# 人数を比べるヒントの最初の1件を出す（後の比べないヒントで空に上書きしない）
-		var counts: String = MatchTexts.hint_counts(hint)
-		if not counts.is_empty():
-			info = "比べる人数 %s" % counts
-			break
-	_target_info.text = info
-	_target_info.visible = not info.is_empty()
+	_board.set_selected(_selected_target)
+	# ボールから行き先への矢印は、ボールを運ぶ手（攻撃・カウンター）だけ。守備の手の行き先は守る位置で、ボールはそこへ動かない。
+	# 動く選手はプレビューで見せる
+	var carries_ball: bool = family in [GameEnums.ChoiceFamily.ATTACK, GameEnums.ChoiceFamily.POS_TRANS] \
+			and not _selected_target.is_empty()
+	_board.show_intent(_snapshot.ball_area if carries_ball else "", _selected_target if carries_ball else "")
 	_board.show_preview(_controller.user_preview(_current_choice()))
-	_state = State.READY
-	_set_primary(MatchTexts.action_name(family, action), LOCK_IN, true)
-
-
-func _on_area_pressed(area_key: String) -> void:
-	if _state not in [State.SELECT_TARGET, State.READY] or not _board.selectable_areas().has(area_key):
-		return
-	_selected_target = area_key
-	_board.set_selected(area_key)
-	# ボールから運ぶ先への矢印は、ボールを運ぶ手（攻撃・カウンター）だけ。守備の手で選ぶのは「相手が来ると読んだエリア」で、
-	# ボールはそこへ動かない。動く選手はプレビューで見せる
-	var carries_ball: bool = _selected_family in [GameEnums.ChoiceFamily.ATTACK, GameEnums.ChoiceFamily.POS_TRANS]
-	_board.show_intent(_snapshot.ball_area if carries_ball else "", area_key if carries_ball else "")
-	_board.show_preview(_controller.user_preview(_current_choice()))
-	var info: String = MatchTexts.area_name(area_key)
-	for hint: ChoiceHint in _hints_for(_selected_family, _selected_action):
-		if hint.target != null and hint.target.to_key() == area_key:
-			info = "%s　%s　%s" % [info, MatchTexts.hint_tag(hint), MatchTexts.hint_counts(hint)]
-	_target_info.text = info.strip_edges()
-	_target_info.visible = true
+	var lines: Array[String] = []
+	var rule: String = MatchTexts.target_rule(family, action)
+	if not rule.is_empty():
+		lines.append(rule)
+	var info: String = _target_info_line(family, action)
+	if not info.is_empty():
+		lines.append(info)
+	_target_info.text = "\n".join(lines)
+	_target_info.visible = not lines.is_empty()
+	if _target_info.visible:
+		_scroll_to_target_info()
 	_state = State.READY
 	_set_primary(MatchTexts.choice_summary(_current_choice()), LOCK_IN, true)
+
+
+## 盤面の行き先を押したら、そこを行き先にする手を選ぶ（同じエリアの手が複数あれば、ボタンの並びで先の手）。
+func _on_area_pressed(area_key: String) -> void:
+	if _state not in [State.SELECT_ACTION, State.READY] or not _board.selectable_areas().has(area_key):
+		return
+	var family: GameEnums.ChoiceFamily = _choice_panel.family()
+	for action: int in _choice_panel.actions():
+		if _target_key_of(family, action) == area_key:
+			_on_action_selected(family, action)
+			return
+
+
+## 説明の2行目: 行き先の名前と、その手のヒント（「中盤（敵陣）・中央　+1　1対0」）。行き先の無い手は比べる人数だけ。
+func _target_info_line(family: GameEnums.ChoiceFamily, action: int) -> String:
+	var hint: ChoiceHint = _hint_of(family, action)
+	if _selected_target.is_empty():
+		var counts: String = "" if hint == null else MatchTexts.hint_counts(hint)
+		return "" if counts.is_empty() else "比べる人数 %s" % counts
+	var info: String = MatchTexts.area_name(_selected_target)
+	if hint != null:
+		info = "%s　%s　%s" % [info, MatchTexts.hint_tag(hint), MatchTexts.hint_counts(hint)]
+	return info.strip_edges()
+
+
+## 画面に出す手の行き先（利用者の視点のキー）。行き先の無い手は空。
+func _target_key_of(family: GameEnums.ChoiceFamily, action: int) -> String:
+	if not MoveOptions.needs_target(family, action):
+		return ""
+	var targets: Array[PitchArea] = _options.targets(family, action)
+	return "" if targets.is_empty() else targets[0].to_key()
 
 
 func _on_primary_pressed() -> void:
@@ -321,7 +346,8 @@ func _current_choice() -> TurnChoice:
 	return TurnChoice.new(_selected_family, _selected_action, target)
 
 
-## 絞り込み（set_options_filter）があれば、その局面の手のうち名前が合う手だけを残す（手を足すことはない）。
+## 絞り込み（set_options_filter）があれば、その局面の手のうち名前が合う手と同じ枠の手だけを残す（手を足すことはない）。
+## 枠で効かせるのは、ショートパスの枠の中身がスルーパスになることがあるため（MoveMenu.slot_actions。2026-11-03）。
 func _filtered(options: MoveOptions) -> MoveOptions:
 	if _options_filter.is_empty():
 		return options
@@ -330,7 +356,9 @@ func _filtered(options: MoveOptions) -> MoveOptions:
 	var actions: Array[int] = []
 	for action_name: String in _options_filter:
 		if names.has(action_name):
-			actions.append(names[action_name] as int)
+			for action: int in MoveMenu.slot_actions(family, names[action_name] as int):
+				if action not in actions:
+					actions.append(action)
 	return options.restricted_to(family, actions)
 
 
@@ -341,12 +369,12 @@ func _current_hints() -> Array[ChoiceHint]:
 	return []
 
 
-func _hints_for(family: GameEnums.ChoiceFamily, action: int) -> Array[ChoiceHint]:
-	var result: Array[ChoiceHint] = []
+## 手のヒント（画面に出す手は手ごとに1件）。ヒントが OFF か、無ければ null。
+func _hint_of(family: GameEnums.ChoiceFamily, action: int) -> ChoiceHint:
 	for hint: ChoiceHint in _hints:
 		if hint.family == family and hint.action == action:
-			result.append(hint)
-	return result
+			return hint
+	return null
 
 
 # --- 開示と判定理由 ---
@@ -452,7 +480,7 @@ func _build_setup_card(side: VBoxContainer) -> void:
 		label.clip_text = true
 
 
-## 操作の列の中ほど（縦にスクロール）: 手のボタン・運ぶ先の説明・判定理由のテロップ
+## 操作の列の中ほど（縦にスクロール）: 手のボタン・選んだ手の説明・判定理由のテロップ
 func _build_side_body(side: VBoxContainer) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = "SideScroll"

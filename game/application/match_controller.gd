@@ -45,6 +45,10 @@ var _finalizer: MatchFinalizer
 var _is_finalized: bool = false
 ## 今の試合の戦績の終了日時（最初に終了処理をした時刻。まだなら空）
 var _finished_at: String = ""
+## 利用者の画面に出す手（MoveMenu。ドメインの視点）と、それを作った時の状態。状態は進むたびに丸ごと差し替わるので、
+## 同じ状態の間は作り直さない（手のボタン・ヒント・プレビュー・決定の確かめで何度も引き、守備の手は攻撃側の手も数えるため。2026-11-03）
+var _menu: MoveOptions
+var _menu_state: MatchState
 
 
 ## request_screen は画面の切り替えを頼む関数（App.request_screen。テストでは記録用の関数）。
@@ -175,18 +179,18 @@ func is_match_over() -> bool:
 	return _state != null and MatchRules.is_play_complete(_state, _rules)
 
 
-## 利用者の選べる手（利用者の視点）。試合前は null。
+## 利用者の選べる手（画面に出す手。MoveMenu。手ごとに運ぶ先は0か1件。利用者の視点）。試合前は null。
 func user_options() -> MoveOptions:
 	if not _is_started_or_error("user_options"):
 		return null
-	return ViewConverter.options_to_user(MoveRules.options_for(_state, USER), _state.possession)
+	return ViewConverter.options_to_user(_user_menu(), _state.possession)
 
 
 ## 利用者のヒント（利用者の視点）。設定でヒントが OFF なら UI は呼ばない。試合前は空。
 func user_hints() -> Array[ChoiceHint]:
 	if not _is_started_or_error("user_hints"):
 		return []
-	var hints: Array[ChoiceHint] = MoveHints.evaluate(_state, USER, MoveRules.options_for(_state, USER))
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(_state, USER, _user_menu())
 	return ViewConverter.hints_to_user(hints, _state.possession)
 
 
@@ -199,7 +203,7 @@ func user_preview(user_choice: TurnChoice) -> Array[Movement]:
 	if user_choice == null or _awaiting_continue or _state.stage != GameEnums.MatchStage.TURN or is_match_over():
 		return []
 	var domain_choice: TurnChoice = ViewConverter.choice_to_domain(user_choice, _state.possession)
-	if not MoveRules.is_allowed(MoveRules.options_for(_state, USER), domain_choice):
+	if not MoveRules.is_allowed(_user_menu(), domain_choice):
 		push_error("MatchController: 選べない手のプレビューは出せない")
 		return []
 	return ViewConverter.movements_to_user(MovePreview.own_movements(_state, USER, domain_choice))
@@ -212,7 +216,7 @@ func submit_turn(user_choice: TurnChoice) -> bool:
 			or is_match_over():
 		return false
 	var domain_choice: TurnChoice = ViewConverter.choice_to_domain(user_choice, _state.possession)
-	if not MoveRules.is_allowed(MoveRules.options_for(_state, USER), domain_choice):
+	if not MoveRules.is_allowed(_user_menu(), domain_choice):
 		push_error("MatchController: 選べない手は受け付けない")
 		return false
 	var cpu_choice: TurnChoice = _cpu_choice()
@@ -447,6 +451,14 @@ func _is_started_or_error(caller: String) -> bool:
 		return true
 	push_error("MatchController: 試合が始まる前に %s は呼べない" % caller)
 	return false
+
+
+## 利用者の画面に出す手（ドメインの視点）。同じ状態の間は作り直さない。
+func _user_menu() -> MoveOptions:
+	if _menu_state != _state:
+		_menu = MoveMenu.options_for(_state, USER)
+		_menu_state = _state
+	return _menu
 
 
 ## CPU の手。選べない手は開発時の誤りなので、開発時は assert で止める。書き出し版では push_error して、

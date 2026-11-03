@@ -36,14 +36,18 @@ func _step(kind: TutorialStepDef.Kind, step_id: String = "") -> TutorialStepDef:
 	return null
 
 
-## 選べる手（段階で絞った手）の最初の手と、その運ぶ先の最初
+## 選べる手（段階で絞った最初の手の枠。ショートパスの枠の中身はスルーパスのこともある）のうち、画面に出ている手と、その運ぶ先
 func _first_allowed_choice(controller: MatchController, step: TutorialStepDef) -> TurnChoice:
 	var options: MoveOptions = controller.user_options()
 	var family: GameEnums.ChoiceFamily = TurnChoice.family_for(step.turn_kind, step.possession == GameEnums.TeamSide.HOME)
-	var action: int = TurnChoice.ACTION_ENUMS[family][step.allowed_actions[0]]
-	if MoveOptions.needs_target(family, action):
-		return TurnChoice.new(family, action, options.targets(family, action)[0])
-	return TurnChoice.new(family, action)
+	var named: int = TurnChoice.ACTION_ENUMS[family][step.allowed_actions[0]]
+	for action: int in MoveMenu.slot_actions(family, named):
+		if not options.is_available(family, action):
+			continue
+		if MoveOptions.needs_target(family, action):
+			return TurnChoice.new(family, action, options.targets(family, action)[0])
+		return TurnChoice.new(family, action)
+	return null
 
 
 func test_the_library_returns_the_steps_and_the_simplifications() -> void:
@@ -66,6 +70,27 @@ func test_a_step_builds_its_board_and_the_opponent_plays_the_script() -> void:
 	assert_int(revealed.size()).is_equal(1)
 	var opponent_choice: TurnChoice = ViewConverter.choice_to_user(step.opponent_choice, step.possession)
 	assert_int(revealed[0].opponent_choice.action).is_equal(opponent_choice.action)
+
+
+## 守備の段階で、相手の決め打ちのパス（ショートパスの枠）の行き先と、利用者の「パスコースを切る」の行き先（ゲームが予測する）が
+## 一致する（説明文どおりにショートパスを読めば、読みが当たる。2026-11-03）
+func test_cutting_the_passing_lane_in_a_tutorial_step_meets_the_scripted_pass() -> void:
+	var checked: int = 0
+	for step: TutorialStepDef in _steps():
+		var scripted: TurnChoice = step.opponent_choice
+		if step.kind != TutorialStepDef.Kind.OPERATE or scripted == null \
+				or scripted.family != GameEnums.ChoiceFamily.ATTACK \
+				or MoveMenu.slot_index(GameEnums.ChoiceFamily.ATTACK, scripted.action) != 0:
+			continue
+		var controller: MatchController = _controller()
+		assert_bool(controller.start_tutorial_step(step)).is_true()
+		var press: Array[PitchArea] = controller.user_options().targets(GameEnums.ChoiceFamily.DEFENSE,
+				GameEnums.DefenseAction.PRESS)
+		var expected: String = ViewConverter.choice_to_user(scripted, step.possession).target.to_key()
+		assert_int(press.size()).override_failure_message(step.id).is_equal(1)
+		assert_str(press[0].to_key()).override_failure_message(step.id).is_equal(expected)
+		checked += 1
+	assert_int(checked).is_greater(0)
 
 
 ## チュートリアルでは中断データ・戦績を保存せず、画面の切り替えも頼まない（本番の試合の状態にも触れない）

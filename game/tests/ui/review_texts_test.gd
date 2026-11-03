@@ -65,7 +65,7 @@ func test_turn_heading_and_choices_name_the_turn_the_phase_and_both_moves() -> v
 			PitchArea.from_key("M1-C"))
 	assert_str(ReviewTexts.turn_heading(reveal, 15)).is_equal("前半 5ターン目　守備")
 	assert_str(ReviewTexts.choices_text(reveal)) \
-			.is_equal("● 自分: プレス → 中盤（自陣）・中央\n◆ 相手: ショートパス → 中盤（自陣）・中央")
+			.is_equal("● 自分: パスコースを切る → 中盤（自陣）・中央\n◆ 相手: ショートパス → 中盤（自陣）・中央")
 
 
 func test_no_goals_text_uses_the_minus_sign() -> void:

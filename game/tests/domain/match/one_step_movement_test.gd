@@ -35,19 +35,26 @@ func test_every_player_moves_at_most_one_area_per_turn_with_uniformly_random_mov
 		if choice != null:
 			picked[_choice_key(choice)] = picked.get(_choice_key(choice), 0) + 1
 		return choice)
-	# 一様に選んでいれば、攻撃・守備・トランジションの手のすべての種類を通るはず（CPU の選び方に偏っていないこと）。
-	# 2026-10-24 の実測では、いちばん少ない種類（LONG_BEHIND）でも 13 回選ばれた
+	# 一様に選んでいれば、攻撃・守備・トランジションの手のすべての種類を通るはず（CPU の選び方に偏っていないこと）
 	var all_kinds: int = GameEnums.PlayType.size() + GameEnums.DefenseAction.size() \
 			+ GameEnums.NegTransAction.size() + GameEnums.PosTransAction.size()
 	assert_int(picked.size()).override_failure_message("picked kinds %s" % picked).is_equal(all_kinds)
 
 
-## 選べる手（運ぶ先ごとに1つ）から一様に1つ選ぶ。選べる手が無ければ null（resolve_turn が拒否し、テストが落ちる）。
+## ルール上選べる手から、手の種類を一様に選び、その運ぶ先を一様に選ぶ。選べる手が無ければ null（resolve_turn が拒否し、テストが落ちる）。
+## 種類を先に選ぶのは、運ぶ先が1つしかない手（ボールに寄せる・シュートコースを塞ぐ。2026-11-03）も通るようにするため
 func _uniform_choice(state: MatchState, side: GameEnums.TeamSide, rng: RandomNumberGenerator) -> TurnChoice:
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, MoveRules.options_for(state, side))
 	if hints.is_empty():
 		return null
-	var hint: ChoiceHint = hints[rng.randi_range(0, hints.size() - 1)]
+	var by_kind: Dictionary[int, Array] = {}
+	for candidate: ChoiceHint in hints:
+		if not by_kind.has(candidate.action):
+			by_kind[candidate.action] = []
+		by_kind[candidate.action].append(candidate)
+	var kinds: Array = by_kind.keys()
+	var same_kind: Array = by_kind[kinds[rng.randi_range(0, kinds.size() - 1)] as int]
+	var hint: ChoiceHint = same_kind[rng.randi_range(0, same_kind.size() - 1)] as ChoiceHint
 	return TurnChoice.new(hint.family, hint.action, null if hint.target == null else hint.target.duplicate_deep())
 
 

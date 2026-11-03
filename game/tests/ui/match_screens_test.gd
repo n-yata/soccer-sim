@@ -54,13 +54,12 @@ func _open(path: String) -> AppScreen:
 	return screen
 
 
-## ScreenTestHelper.forward_choice と同じ手を、画面の操作（手のボタン・選べるエリアの最後）で選んで決定する
+## ScreenTestHelper.forward_choice と同じ手を、画面の操作（手のボタン）で選んで決定する
 func _play_turn(screen: MatchScreen) -> void:
 	var panel: MatchBoardPanel = screen.board_panel()
 	var choice: TurnChoice = ScreenTestHelper.forward_choice(App.match_controller.user_options())
+	# 行き先はゲームが決めるので、手を押せばすぐ決定できる（2026-11-03）
 	panel.choice_panel().button_for(choice.action).pressed.emit()
-	if choice.target != null:
-		panel.board().area_pressed.emit(panel.board().selectable_areas().back())
 	panel.primary_button().pressed.emit()
 
 
@@ -137,16 +136,21 @@ func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() 
 	assert_float(panel.get_global_rect().end.y).is_less_equal(720.0 - MatchScreen.VERTICAL_MARGIN + 0.5)
 
 
-func test_the_through_pass_rule_is_scrolled_into_view_on_the_match_screen() -> void:
-	# 試合画面の実寸（1280×720）で、6つの手のボタンの下にはみ出すスルーパスの説明が、見える所までスクロールされる
-	# （2026-10-25。パネル単体では入れ子の並べ直しの順が違い、遅らせて呼ぶだけの実装でも通ってしまうため、画面で確かめる）
-	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
+func test_the_move_rule_is_scrolled_into_view_on_the_match_screen() -> void:
+	# 試合画面の実寸（1280×720）で、手のボタンの下にはみ出す手の説明が、見える所までスクロールされる
+	# （2026-10-25。パネル単体では入れ子の並べ直しの順が違い、遅らせて呼ぶだけの実装でも通ってしまうため、画面で確かめる）。
+	# 説明のある手（スルーパス・バックパスなど）のうち、ボタンの並びで最後の手を選ぶ（説明がいちばん下に出る）
+	_match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
 	await get_tree().process_frame
-	assert_bool(controller.user_options().is_available(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
-			.override_failure_message("キックオフでスルーパスを選べる場面であること").is_true()
 	var panel: MatchBoardPanel = screen.board_panel()
-	panel.choice_panel().button_for(GameEnums.PlayType.THROUGH_PASS).pressed.emit()
+	var family: GameEnums.ChoiceFamily = panel.choice_panel().family()
+	var explained: int = -1
+	for action: int in panel.choice_panel().actions():
+		if not MatchTexts.target_rule(family, action).is_empty():
+			explained = action
+	assert_int(explained).override_failure_message("キックオフで説明のある手を選べる場面であること").is_not_equal(-1)
+	panel.choice_panel().button_for(explained).pressed.emit()
 	for _frame: int in range(4):
 		await get_tree().process_frame
 	var scroll: ScrollContainer = panel.find_child("SideScroll", true, false) as ScrollContainer

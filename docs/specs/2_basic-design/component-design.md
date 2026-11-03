@@ -76,8 +76,8 @@ enum Zone { D1, D2, M1, M2, A1, A2 }                         # 列（自陣ゴ�
 enum DefenseStyle { ZONE, MAN }
 enum AttackStyle { POSSESSION, COUNTER }
 enum TurnKind { OPEN_PLAY, TRANSITION }
-enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT }   # 並びは手のボタンの並び（THROUGH_PASS は 2026-10-25）
-enum DefenseAction { PRESS, COVER }
+enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT, BACK_PASS }   # THROUGH_PASS は 2026-10-25、BACK_PASS は 2026-11-03（末尾に足す）
+enum DefenseAction { PRESS, COVER, CLOSE_DOWN, BLOCK_SHOT }   # CLOSE_DOWN・BLOCK_SHOT はボールのエリアへの寄せ（2026-11-03）
 enum NegTransAction { COUNTER_PRESS, RETREAT }
 enum PosTransAction { COUNTER, SECURE }
 enum TurnOutcome { ADVANCE, STALL, LOSS, GOAL, SAVE, REGAIN, REGAIN_FAILED, NO_CONTEST, OFFSIDE }   # OFFSIDE は 2026-10-25
@@ -247,11 +247,19 @@ static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOpti
 static func is_allowed(options: MoveOptions, choice: TurnChoice) -> bool
 ## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
 static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
-## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 30 エリアのすべてが候補
-static func defense_options(pair: LayoutPair) -> MoveOptions
+## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 30 エリアのすべてが候補。ball を渡すと、ボールのエリアへの寄せ
+## （CLOSE_DOWN。ペナルティエリアでは BLOCK_SHOT も）を足す
+static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOptions
 static func neg_transition_options() -> MoveOptions
 ## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）
 static func pos_transition_options(winner: TeamLayout, ball: PitchArea) -> MoveOptions
+
+class_name MoveMenu extends RefCounted   # 2026-11-03。アルゴリズム3「画面に出す手」
+## side に出す手。MoveRules.options_for から枠ごとに手と行き先を1つずつ選ぶ（手ごとに運ぶ先は0か1件）。利用者の手と CPU の候補
+static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOptions
+## action と同じ枠の手（チュートリアルの絞り込みを枠で効かせる）・枠の位置（ボタンの並び）
+static func slot_actions(family: GameEnums.ChoiceFamily, action: int) -> Array[int]
+static func slot_index(family: GameEnums.ChoiceFamily, action: int) -> int
 
 class_name OffsideRule extends RefCounted   # 2026-10-25。判定・ヒント・盤面のラインで共有する
 ## 実効のオフサイドライン（攻撃側の視点の列。0 始まり）。守備側のいちばん自陣ゴールに近い選手の列か、ボールの列のうち前の方。
@@ -403,9 +411,10 @@ static func finish(state: MatchState) -> MatchState
 ```gdscript
 class_name CpuPlanner extends RefCounted
 ## ターンの手を選ぶ。引数に相手（利用者）のそのターンの手を含めない（同時手番の公平性。FR-11）
-## 選べる手が無ければ null。陣形データを使わないため catalog 引数は持たない
+## 選べる手が無ければ null。陣形データを使わないため catalog 引数は持たない。
+## 候補 options を省くと、利用者と同じ画面に出す手（MoveMenu.options_for。2026-11-03）
 static func choose_turn(state: MatchState, side: GameEnums.TeamSide,
-        cpu: CpuConfig, rng: RandomNumberGenerator) -> TurnChoice
+        cpu: CpuConfig, rng: RandomNumberGenerator, options: MoveOptions = null) -> TurnChoice
 ## 評価値。守備の手は脅威度（攻撃側 − 守備側）、人数を比べない手（リトリート・保持・スルーパス）は 0、それ以外は 自分 − 相手
 static func score(hint: ChoiceHint) -> float
 ## 方式の癖の加点。CPU の方式が好む手なら cpu.style_bonus、そうでなければ 0（好む手の表はアルゴリズム8）
@@ -1058,7 +1067,7 @@ func route_back() -> bool
 | `TacticsBoard` | 30エリアの盤面（5レーン×6列）。`BoardSnapshot` を受けて描く。ピッチを縦に置いて斜めから見せ（半3D）、利用者の攻撃方向を画面の上にする（2026-10-23 に横向き・右から変えた） |
 | `AreaCell` | 1エリア。両チームの人数（駒）・ボール・選択可否・ヒントを表示し、タップ／クリックを受ける |
 | `MoveArrowLayer` | `movements` を移動元から移動先への矢印で描く。理由（`MovementReason`）ごとに線種を変える |
-| `ChoicePanel` | 局面に応じた手のボタン。`MoveOptions` で選べない手を選択不可にする |
+| `ChoicePanel` | 局面に応じた手のボタン。画面に出す手（`MoveMenu`）のうち選べる手だけを、番号・行き先・ヒントの3行で並べる（2026-11-03） |
 | `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号）。作戦ボードと同じ向き（上が敵陣・左が左大外）で、遠近は付けない |
 | `MatchBoardPanel` | 試合画面の盤面と手の選択の部分（左の `TacticsBoard`、右の操作の列の `ChoicePanel`・判定理由）。試合画面とチュートリアルで共用する |
 
@@ -1076,6 +1085,11 @@ func route_back() -> bool
 > 盤面に重ねる。移動先は自分の色の輪（中抜き）、動く選手の駒から輪へ点線の曲線の矢印。開示後の動き（実線）と線の種類で区別する。
 > プレビューは理由で絞らない（リトリート・カウンターの飛び出し・マークの付け直しも出す）。ボールから運ぶ先への矢印は、
 > ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバー・スルーパスでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
+>
+> **2026-11-03（手の選択の簡素化）**: 行き先はゲームが決め（`MoveMenu`）、手を押すとすぐ `READY` になる（運ぶ先を選ぶ状態をやめた）。
+> 自分の手の行き先はターンの頭から `set_selectable`・`set_hints` で盤面に出し（札は手の番号。ヒントが ON なら人数差も）、
+> エリアを押すとその行き先の手を選ぶ。手の一言（`target_rule`）は、スルーパス・バックパス・守備の手で、誰が動くか・何を読む手かを言う。
+> `MatchController` は画面に出す手を状態ごとに1回だけ作る（`user_options`・`user_hints`・`user_preview`・`submit_turn` で共有）。
 >
 > **2026-10-22（開示で駒を動かす）**: 開示では、`TacticsBoard.start_shift` で、判定前の配置（`RevealView` の判定前の選手）から
 > 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす

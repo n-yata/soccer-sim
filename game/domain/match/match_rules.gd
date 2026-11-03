@@ -202,13 +202,20 @@ static func _kickoff(state: MatchState, side: GameEnums.TeamSide) -> void:
 ## 保持したまま動かない結果は判定前の位置。
 static func _ball_after(state: MatchState, output: JudgeOutput, holder_choice: TurnChoice) -> PitchArea:
 	match output.outcome:
-		GameEnums.TurnOutcome.ADVANCE, GameEnums.TurnOutcome.LOSS:
+		GameEnums.TurnOutcome.ADVANCE:
 			return holder_choice.target.duplicate_deep()
+		GameEnums.TurnOutcome.LOSS:
+			# 奪われた所（比較エリア）。ふつうは運ぶ先と同じで、ボールに寄せてドリブルを読んだときだけボールのエリア（2026-11-03）
+			return output.detail.compare_area.duplicate_deep()
 		GameEnums.TurnOutcome.SAVE:
 			return PitchArea.new(GameEnums.Lane.C, GameEnums.Zone.A2)
 		GameEnums.TurnOutcome.OFFSIDE:
 			return output.detail.compare_area.duplicate_deep()
-	# STALL・GOAL（攻守ターン）、REGAIN・REGAIN_FAILED・NO_CONTEST・カウンターの STALL（トランジションの X）
+		GameEnums.TurnOutcome.NO_CONTEST:
+			# バックパス（2026-11-03）は判定せずに運ぶ先へ戻す。トランジションの判定なし（保持 × リトリート）は運ぶ先が無く、動かない
+			if holder_choice.target != null:
+				return holder_choice.target.duplicate_deep()
+	# STALL・GOAL（攻守ターン）、REGAIN・REGAIN_FAILED・トランジションの NO_CONTEST・カウンターの STALL（トランジションの X）
 	return state.ball_area.duplicate_deep()
 
 

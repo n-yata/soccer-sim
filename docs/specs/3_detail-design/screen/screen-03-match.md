@@ -81,20 +81,19 @@ MatchScreen (Control)
 
 | 状態 | 意味 | 見えるもの | 押せるもの |
 |---|---|---|---|
-| `SELECT_ACTION` | 手を選んでいない | ボード・手のボタン | 手のボタン、メニュー |
-| `SELECT_TARGET` | 運ぶ先を持つ手を選び、エリアを選んでいない | ＋選べるエリアの点線の枠・ヒントの札（ON のとき）・プレス／カバー／スルーパスの選べる条件の一言（スルーパスは手のボタンの下にはみ出すので、見える所までスクロールする。2026-10-25） | 手のボタン（選び直し）、選べるエリア、メニュー |
-| `READY` | 手（と必要なエリア）を選び終えた | ＋選んだエリアの塗り・ボールから運ぶ先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・決定ボタンの要約 | 手のボタン、選べるエリア、「決定」、メニュー |
+| `SELECT_ACTION` | 手を選んでいない | ボード・手のボタン・自分の手の行き先の点線の枠と番号の札（ヒントが ON なら人数差も） | 手のボタン、行き先のエリア、メニュー |
+| `READY` | 手を選び終えた（行き先はゲームが決めたもの） | ＋選んだ行き先の塗り・ボールから行き先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・手の一言と行き先の説明・決定ボタンの要約 | 手のボタン（選び直し）、行き先のエリア、「決定」、メニュー |
 | `SUBMITTING` | 「決定」を押し、結果を待っている | そのまま | なし（二重送信を防ぐ） |
 | `SHOW_RESULT` | 判定理由を表示している | 両者の選択の帯・ボード（駒とボールの動き・動きの矢印・比較エリアの人数の札）・判定理由のテロップ | 「次へ」、メニュー |
 | `LEAVING` | 「次へ」の後、画面の切り替えを待っている | そのまま | なし |
 
 **状態遷移図**: [`screen-03-match-states.drawio`](./screen-03-match-states.drawio)。上の表の状態の間の遷移と、
 そのきっかけ（手の選択・「決定」・`turn_resolved`・「次へ」・`state_changed`）を示す。3D 演出の状態 `REPLAYING` は 2026-10-23 にやめた（`turn_resolved` で `SUBMITTING` から `SHOW_RESULT` へ進む）。
+運ぶ先を選ぶ状態 `SELECT_TARGET` は 2026-11-03 にやめた（行き先はゲームが決め、手を押すとすぐ `READY` になる）。
 `submit_turn` が `false` のときだけ、`SUBMITTING` から `SELECT_ACTION` へ戻る（例外の経路。破線）。
 
-- 「運ぶ先を持つ手」は、`MoveOptions` でその手の運ぶ先の一覧が1件以上あり、かつ手の種類が運ぶ先を伴うもの
-  （`SHORT_PASS`・`DRIBBLE`・`LONG_BEHIND`・`SWITCH`・`PRESS`・`COVER`・`COUNTER`）。`SHOT`・`COUNTER_PRESS`・
-  `RETREAT`・`SECURE` は運ぶ先を持たない
+- `user_options()` は画面に出す手（`functional-overview.md` アルゴリズム3「画面に出す手」）で、運ぶ先を持つ手の行き先は1件だけ。
+  `SHOT`・`COUNTER_PRESS`・`RETREAT`・`SECURE` は運ぶ先を持たない
 - メニュー・設定・確認ダイアログを開いている間は、上の状態を変えずに、下の画面の入力を止める
   （重ねたパネルの外側を押しても閉じない。閉じるのはパネルの「閉じる」とメニューの選択肢だけ）
 
@@ -103,10 +102,10 @@ MatchScreen (Control)
 | 変数 | 型 | 内容 |
 |---|---|---|
 | `_state` | `State`（上の enum。スクリプト内に置く） | 現在の状態 |
-| `_options` | `MoveOptions` | このターンの選べる手（`user_options()` の結果） |
+| `_options` | `MoveOptions` | このターンの画面に出す手（`user_options()` の結果。手ごとに行き先は1件） |
 | `_hints` | `Array[ChoiceHint]` | ヒント。設定が OFF なら空 |
 | `_selected_family` / `_selected_action` | `GameEnums.ChoiceFamily` / `int` | 選んだ手 |
-| `_selected_target` | `String` | 選んだエリアのキー（`"M2-C"` など）。未選択・不要なら空文字 |
+| `_selected_target` | `String` | 選んだ手の行き先のキー（`"M2-C"` など）。未選択・行き先の無い手なら空文字 |
 | `_reveal` | `RevealView` | 直前の開示の値（`SHOW_RESULT` で使う） |
 | `_snapshot` | `BoardSnapshot` | `turn_resolved` で受けた判定後の盤面（次のターン開始時の配置） |
 
@@ -123,8 +122,11 @@ MatchScreen (Control)
 
 ### ターンを始める
 
-1. `_options = user_options()`。`ChoicePanel.show_options(_options, snapshot.turn_kind, snapshot.user_has_ball)`
-2. `App.user_data.settings().show_hints` が真なら `_hints = user_hints()`、偽なら空
+1. `_options = user_options()`。`App.user_data.settings().show_hints` が真なら `_hints = user_hints()`、偽なら空
+2. `ChoicePanel.show_options(_options, snapshot.turn_kind, snapshot.user_has_ball, _hints)`。選べる手だけを枠の並びで1列に並べ、
+   各ボタンを「番号と手の名前」「行き先」「ヒントの札」の3行にする（`screen-common.md` §5 の `ChoicePanel`）。
+   自分の手の行き先を `TacticsBoard.set_selectable(行き先の一覧)` で枠にし、`set_hints({行き先: 札})` で手の番号の札を出す
+   （ヒントが ON なら `① +1` のように人数差を添える。同じ行き先の手が複数あれば番号を並べる。相手の手の行き先は出さない）
 3. `TacticsBoard.clear_overlays()`、`RevealBanner`・`JudgeTelop` を隠し、`PhaseTag`・`ChoicePanel` を出す。`PossessionLabel` をそのターンの保持で描き直す。`SetupCard` を描き直す。`TargetInfo` は空にして隠す
 4. `PrimaryButton` の要約を空、操作を「LOCK IN」にして押せなくする。`_state = SELECT_ACTION`
 5. `snapshot.turn_number` が 1（前半・後半のキックオフ）なら、笛を鳴らす（`Sfx.play(WHISTLE)`。再開した試合の1ターン目でも鳴らす。
@@ -132,29 +134,20 @@ MatchScreen (Control)
 
 ### 手のボタンを押す（`ChoicePanel.action_selected`）
 
-1. `_selected_family`・`_selected_action` を記録し、`_selected_target` を空にする。選んだエリアの塗り・意図の矢印・
-   決定前のプレビューを消す（`show_preview([])`）
-2. 運ぶ先を持つ手なら
-   1. `_options` からその手の運ぶ先の一覧を取り、`TacticsBoard.set_selectable(一覧)`
-   2. `_hints` からその手の分を取り出し、`TacticsBoard.set_hints({エリアのキー: 表示文})`。表示文は
-      人数差（`+1`・`±0`・`−1`）とカバーの有無を並べたもの（`CoverKind` が `DEFENDER` なら `カバーあり`、`NONE` なら空。例: `+1`、`±0 カバーあり`。スルーパスは `読み次第`（相手が何もしなくてもマンツーマンの付け直しで守備が入ってくる運ぶ先は `マーク注意`。確定ではない。2026-10-28）。今の配置のままオフサイドになる運ぶ先は、ほかより先に `オフサイド`（2026-10-25）。`functional-overview.md`「表示仕様」のヒントの札）
-   3. プレス・カバー・スルーパスなら、選べる条件の一言（`MatchTexts.target_rule`。誰が動くか・どのエリアを選べるか）を `TargetInfo` に出し、
-      2フレーム待ってから `TargetInfo` が見える所まで `SideScroll` をスクロールする（攻撃の手は6つで、説明が手のボタンの下にはみ出すため。2026-10-25）
-   4. `_state = SELECT_TARGET`。「決定」は押せない
-3. 運ぶ先を持たない手なら、ボードの枠とヒントを消し、その手のヒントを `TargetInfo` に出す
-   （例: 即時奪回 `周辺 2対4`）。決定前のプレビュー（`user_preview` → `show_preview`）を出す。
-   `_state = READY`、「決定」を押せるようにする
-4. `PrimaryButton` の要約（`ButtonSummary`）を更新する
+1. `_state` が `SELECT_ACTION`・`READY` のときだけ受け付ける
+2. `_selected_family`・`_selected_action` を記録し、`_selected_target` をその手の行き先（`_options` の1件。行き先の無い手は空）にする
+3. 行き先を塗り（`TacticsBoard.set_selected`）、ボールを運ぶ手（攻撃・カウンター）なら `TacticsBoard.show_intent(ボールのエリア, 行き先)` で
+   ボールから行き先への矢印を描く。守備の手では描かない（行き先は守る位置で、ボールはそこへ動かない）。
+   `MatchController.user_preview(手)` の動きを `TacticsBoard.show_preview` で重ねる（決定前のプレビュー。自分の選手だけ。相手の駒は動かさない）
+4. `TargetInfo` に、手の一言（`MatchTexts.target_rule`。スルーパス・バックパス・守備の手。誰が動くか・何を読む手か）と、
+   行き先の名前とその手のヒント（ヒントが ON のとき。例「中盤（敵陣）・中央　+1　1対0」。行き先の無い手は「比べる人数 2対4」）を出し、
+   2フレーム待ってから `TargetInfo` が見える所まで `SideScroll` をスクロールする（説明が手のボタンの下にはみ出すことがあるため）
+5. `_state = READY`、「決定」を押せるようにする。決定ボタンの要約を「ショートパス → 中盤（敵陣）・中央」の形にする
 
-### エリアを押す（`TacticsBoard.area_pressed`）
+### 行き先のエリアを押す（`TacticsBoard.area_pressed`）
 
-1. `_state` が `SELECT_TARGET`・`READY` で、押したエリアが選べるエリアのときだけ受け付ける（それ以外は何もしない）
-2. `_selected_target` を記録し、そのエリアを塗る。ボールを運ぶ手（攻撃・カウンター）なら、`TacticsBoard.show_intent(ボールのエリア, 運ぶ先)` で
-   ボールから運ぶ先への矢印を描く。守備の手では描かない（選ぶのは相手が来ると読んだエリアで、ボールはそこへ動かない）。
-   `MatchController.user_preview(手)` の動きを `TacticsBoard.show_preview` で重ねる（決定前のプレビュー。自分の選手だけ。
-   相手の駒は動かさない）。
-   決定ボタンの要約を「ショートパス → 中盤（敵陣）・中央」の形にする。`TargetInfo` に運ぶ先の名前と、そのエリアのヒントの札の文（ヒントが ON のとき。例「中盤（敵陣）・中央　+1　1対0」）を出す
-3. `_state = READY`、「決定」を押せるようにする
+1. `_state` が `SELECT_ACTION`・`READY` で、押したエリアが自分の手の行き先のときだけ受け付ける（それ以外は何もしない）
+2. そのエリアを行き先にする手（同じ行き先の手が複数あれば、ボタンの並びで先の手）を選ぶ（「手のボタンを押す」と同じ）
 
 ### 「決定」を押す
 
@@ -201,7 +194,7 @@ MatchScreen (Control)
 
 ### メニュー
 
-1. 「≡」を押す（`SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` のときだけ押せる。ただし試合を終えた後の
+1. 「≡」を押す（`SELECT_ACTION`・`READY`・`SHOW_RESULT` のときだけ押せる。ただし試合を終えた後の
    `SHOW_RESULT`（`is_match_over()` が真。最終ターンの判定理由）は押せない。中断で結果画面と終了処理を飛ばさないため。2026-10-29）と、
    `MatchMenu.open(match_controller.has_unsaved_progress())`
 2. 「設定」: `SettingsOverlay` を出し、`SettingsPanel.show_settings(App.user_data.settings())`。音量は `SettingsPanel` がその場で反映する。`committed` を受けたら
@@ -216,7 +209,7 @@ MatchScreen (Control)
 | 状態 | 動き |
 |---|---|
 | メニュー・設定・確認ダイアログを開いている | いちばん上のものを閉じる |
-| `SELECT_ACTION`・`SELECT_TARGET`・`READY`・`SHOW_RESULT` | メニューを開く（試合を終えた後の `SHOW_RESULT` は開かない） |
+| `SELECT_ACTION`・`READY`・`SHOW_RESULT` | メニューを開く（試合を終えた後の `SHOW_RESULT` は開かない） |
 | `SUBMITTING`・`LEAVING` | 何もしない |
 
 いずれも `true` を返す（試合画面からアプリを閉じない）。
@@ -236,4 +229,4 @@ MatchScreen (Control)
 |---|---|
 | 中断データの保存に失敗（ターンの確定時など） | 本画面では何も出さない。`MainShell` の通知で出る（文言は `functional-overview.md`「エラーハンドリング」）。試合は続ける |
 | `submit_turn` が `false` | 通知は出さず、手の選択からやり直す |
-| 選べる手が1つもない | 起きない（トランジションの手・守備の手は常に1つ以上選べる。`functional-overview.md` アルゴリズム3）。起きた場合は開発時の誤りとして `assert` で止める |
+| 選べる手が1つもない | 起きない（トランジションの手は常に選べ、守備の手も、守備側に選手がいればパスコースを切るが残る。`functional-overview.md` アルゴリズム3）。起きた場合は開発時の誤りとして `assert` で止める |

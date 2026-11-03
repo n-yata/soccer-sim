@@ -26,7 +26,7 @@
     {
       "id": "attack",
       "kind": "OPERATE",
-      "text": "手は CPU と同時に選び、同時に明かします。相手の手は見えません。ショートパスかドリブルで、ボールを運ぶエリアを選んで「決定」しましょう。判定は、運ぶ先の人数と、相手の読みとカバーで決まります。",
+      "text": "手は CPU と同時に選び、同時に明かします。相手の手は見えません。行き先はゲームが決めて、ボタンと盤面の番号で示します。ショートパスかドリブルを選んで「決定」しましょう。判定は、行き先の人数と、相手の読みとカバーで決まります。",
       "covers": ["SIMULTANEOUS", "JUDGEMENT"],
       "setup": {
         "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
@@ -39,15 +39,15 @@
     {
       "id": "defense",
       "kind": "OPERATE",
-      "text": "今度は守備です。相手がどこへ運ぶかを読み、そのエリアへ寄せる（プレス）か、背後へ下がる（カバー）かを選びます。読みが当たれば、ボールを奪いやすくなります。",
+      "text": "今度は守備です。相手が何をしてくるかを読みます。ショートパス（スルーパスを含む）を読むならパスコースを切る、ロングパスを読むなら背後を埋める、ドリブルを読むならボールに寄せる。読みが当たれば、ボールを奪いやすくなります。",
       "covers": ["JUDGEMENT"],
       "setup": {
         "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},
         "away": {"formation_id": "4-4-2", "defense": "ZONE", "attack": "COUNTER"},
         "turn_kind": "OPEN_PLAY", "possession": "AWAY", "ball_area": "M1-C"
       },
-      "allowed_actions": ["PRESS", "COVER"],
-      "opponent_choice": {"family": "ATTACK", "action": "SHORT_PASS", "target": "M2-L1"}
+      "allowed_actions": ["PRESS", "COVER", "CLOSE_DOWN"],
+      "opponent_choice": {"family": "ATTACK", "action": "THROUGH_PASS", "target": "A1-C"}
     },
     {
       "id": "styles",
@@ -89,7 +89,7 @@
     {
       "id": "shot",
       "kind": "OPERATE",
-      "text": "相手ゴール前のペナルティエリア（白線の中の3マス）からはシュートが打てます。人数で上回れば得点、下回れば止められます。同数のときは、相手にぴったり読まれていなければ得点です。",
+      "text": "相手ゴール前のペナルティエリア（白線の中の3マス）からはシュートが打てます。人数で上回れば得点、下回れば止められます。同数のときは、相手にシュートコースを塞がれていなければ得点です。",
       "covers": ["SHOT"],
       "setup": {
         "home": {"formation_id": "4-3-3", "defense": "ZONE", "attack": "POSSESSION"},

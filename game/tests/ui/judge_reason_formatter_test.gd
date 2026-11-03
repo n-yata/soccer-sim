@@ -198,6 +198,37 @@ func test_no_contest_depends_on_the_user_role() -> void:
 	assert_str(JudgeReasonFormatter.detail(loser)).is_empty()
 
 
+func test_a_dribble_won_by_closing_down_is_explained_by_the_read() -> void:
+	# ボールに寄せてドリブルを読んだロスト（2026-11-03）は人数に関係なく決まるので、攻撃側が少なくても原因は読み
+	var attacker: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M2-C", 1, 2)
+	attacker.turn_kind = GameEnums.TurnKind.OPEN_PLAY
+	attacker.user_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M2-L1"))
+	attacker.opponent_choice = TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN,
+			PitchArea.from_key("M2-C"))
+	attacker.read = GameEnums.ReadKind.EXACT
+	assert_str(JudgeReasonFormatter.format(attacker)).is_equal("中盤（敵陣）・中央で 1対2。読まれてロスト")
+	var defender: RevealView = _reveal(GameEnums.Phase.DEFENSE, GameEnums.TurnOutcome.LOSS, "M1-C", 2, 1)
+	defender.turn_kind = GameEnums.TurnKind.OPEN_PLAY
+	defender.user_choice = attacker.opponent_choice
+	defender.opponent_choice = attacker.user_choice
+	defender.read = GameEnums.ReadKind.EXACT
+	assert_str(JudgeReasonFormatter.format(defender)).is_equal("中盤（自陣）・中央で 2対1。読み切ってロスト")
+
+
+func test_a_back_pass_is_not_judged() -> void:
+	# 攻守ターンの判定なしはバックパス（2026-11-03）。ボールを持つ側から見るか、相手側から見るかで主語が変わる
+	var attacker := RevealView.new()
+	attacker.user_role = GameEnums.Phase.ATTACK
+	attacker.outcome = GameEnums.TurnOutcome.NO_CONTEST
+	attacker.has_detail = false
+	assert_str(JudgeReasonFormatter.format(attacker)).is_equal("判定なし（バックパスで作り直し）")
+	var defender := RevealView.new()
+	defender.user_role = GameEnums.Phase.DEFENSE
+	defender.outcome = GameEnums.TurnOutcome.NO_CONTEST
+	defender.has_detail = false
+	assert_str(JudgeReasonFormatter.format(defender)).is_equal("判定なし（相手がバックパスで作り直し）")
+
+
 func test_detail_lists_the_area_both_counts_and_the_cover() -> void:
 	var reveal: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.ADVANCE, "M1-C", 1, 0)
 	assert_str(JudgeReasonFormatter.detail(reveal)).is_equal("比較エリア 中盤（自陣）・中央／● 自分 1 対 0 相手 ◆／カバー なし")

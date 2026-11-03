@@ -17,6 +17,7 @@ const PLAY_KINDS: Dictionary = {
 	GameEnums.PlayType.SWITCH: Kind.LOFTED,
 	GameEnums.PlayType.DRIBBLE: Kind.CARRIED,
 	GameEnums.PlayType.SHOT: Kind.DRIVEN,
+	GameEnums.PlayType.BACK_PASS: Kind.GROUND,
 }
 
 

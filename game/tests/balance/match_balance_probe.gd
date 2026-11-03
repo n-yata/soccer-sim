@@ -139,6 +139,9 @@ func _count(record: TurnRecord) -> void:
 	if attack.action == GameEnums.PlayType.SHOT:
 		shots += 1
 		return
+	# バックパス（2026-11-03）は判定しない（内訳が無い）ので、読みの集計に入れない
+	if record.judge == null:
+		return
 	var lost_count: int = 1 if record.outcome == GameEnums.TurnOutcome.LOSS else 0
 	if record.judge.read != GameEnums.ReadKind.NONE:
 		read_moves += 1

@@ -7,11 +7,11 @@ class_name CpuPlanner
 extends RefCounted
 
 
-## ターンの手を選ぶ。選べる手（MoveRules.options_for）だけを候補に、評価値（score）から選択確率（probabilities）を出し、
-## rng で1つ選ぶ。選べる手が1つも無ければ null を返す（呼び出し側の誤り。通常は起きない）。
+## ターンの手を選ぶ。候補（options。省略したら画面に出す手 MoveMenu.options_for。利用者と同じ手。2026-11-03）の手から、
+## 評価値（score）から選択確率（probabilities）を出し、rng で1つ選ぶ。選べる手が1つも無ければ null を返す（呼び出し側の誤り。通常は起きない）。
 static func choose_turn(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig,
-		rng: RandomNumberGenerator) -> TurnChoice:
-	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, MoveRules.options_for(state, side))
+		rng: RandomNumberGenerator, options: MoveOptions = null) -> TurnChoice:
+	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, _candidates(state, side, options))
 	if hints.is_empty():
 		return null
 	var picked: ChoiceHint = hints[_draw(_probabilities_of(hints, state, side, cpu), rng)]
@@ -19,10 +19,15 @@ static func choose_turn(state: MatchState, side: GameEnums.TeamSide, cpu: CpuCon
 	return TurnChoice.new(picked.family, picked.action, target)
 
 
-## 選べる手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点と局面の加点を足し、
-## オフサイドの減点とマーク注意の減点を引いて（両方当てはまれば両方引く）probabilities を通す。
-static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig) -> Array[float]:
-	return _probabilities_of(MoveHints.evaluate(state, side, MoveRules.options_for(state, side)), state, side, cpu)
+## 候補の手（MoveHints.evaluate の並び）ごとの選択確率。評価値に方式の癖の加点と局面の加点を足し、
+## オフサイドの減点とマーク注意の減点を引いて（両方当てはまれば両方引く）probabilities を通す。options は choose_turn と同じ。
+static func turn_probabilities(state: MatchState, side: GameEnums.TeamSide, cpu: CpuConfig,
+		options: MoveOptions = null) -> Array[float]:
+	return _probabilities_of(MoveHints.evaluate(state, side, _candidates(state, side, options)), state, side, cpu)
+
+
+static func _candidates(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions) -> MoveOptions:
+	return MoveMenu.options_for(state, side) if options == null else options
 
 
 static func _probabilities_of(hints: Array[ChoiceHint], state: MatchState, side: GameEnums.TeamSide,
@@ -83,7 +88,8 @@ static func _is_preferred(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea)
 		GameEnums.ChoiceFamily.POS_TRANS:
 			return is_counter == (hint.action == GameEnums.PosTransAction.COUNTER)
 		GameEnums.ChoiceFamily.DEFENSE:
-			return is_man == (hint.action == GameEnums.DefenseAction.PRESS)
+			# ボールに寄せる・シュートコースを塞ぐもプレス（2026-11-03）
+			return is_man == (hint.action != GameEnums.DefenseAction.COVER)
 		GameEnums.ChoiceFamily.NEG_TRANS:
 			return is_man == (hint.action == GameEnums.NegTransAction.COUNTER_PRESS)
 	return false

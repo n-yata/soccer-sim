@@ -202,11 +202,12 @@ func test_settings_from_the_menu_stack_on_top_and_back_closes_them_in_order() ->
 	assert_array(_requested).is_empty()
 
 
-## ヒントの札が出ているエリアの数（選べるエリアのうち、札の文があるもの）
+## ヒントの札が出ているエリアの数（行き先のうち、手の番号のほかにヒントの文を添えた札。番号だけの札は「①」「①③」で空白を含まない。
+## 2026-11-03）
 func _hint_tag_count(panel: MatchBoardPanel) -> int:
 	var count: int = 0
 	for area_key: String in panel.board().selectable_areas():
-		if not panel.board().hint_of(area_key).is_empty():
+		if panel.board().hint_of(area_key).contains(" "):
 			count += 1
 	return count
 
@@ -216,15 +217,14 @@ func test_turning_hints_off_in_the_match_redraws_without_hint_tags() -> void:
 	_match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
 	var panel: MatchBoardPanel = screen.board_panel()
-	var choice: TurnChoice = _choice_with_target(App.match_controller.user_options())
-	panel.choice_panel().button_for(choice.action).pressed.emit()
-	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_TARGET)
+	# 手を選ぶ前から、自分の手の行き先に札が出ている（2026-11-03）
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_ACTION)
 	assert_int(_hint_tag_count(panel)).is_greater(0)
 	var host: MatchMenuHost = screen.menu_host()
 	host.menu_button().pressed.emit()
 	host.menu().settings_button().pressed.emit()
 	host.settings_overlay().panel().hint_toggle().button_pressed = false
-	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_TARGET)
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_ACTION)
 	assert_int(_hint_tag_count(panel)).is_equal(0)
 	assert_bool(App.user_data.settings().show_hints).is_false()
 	host.settings_overlay().panel().hint_toggle().button_pressed = true
@@ -239,8 +239,6 @@ func test_turning_hints_off_after_choosing_a_target_keeps_the_choice() -> void:
 	var panel: MatchBoardPanel = screen.board_panel()
 	var choice: TurnChoice = _choice_with_target(App.match_controller.user_options())
 	panel.choice_panel().button_for(choice.action).pressed.emit()
-	var target: String = panel.board().selectable_areas()[0]
-	panel.board().area_pressed.emit(target)
 	assert_int(panel.state()).is_equal(MatchBoardPanel.State.READY)
 	var summary: String = panel.primary_summary()
 	var host: MatchMenuHost = screen.menu_host()
@@ -285,8 +283,6 @@ func test_match_screen_menu_does_not_open_while_the_move_is_being_submitted() ->
 	var panel: MatchBoardPanel = screen.board_panel()
 	var choice: TurnChoice = ScreenTestHelper.forward_choice(App.match_controller.user_options())
 	panel.choice_panel().button_for(choice.action).pressed.emit()
-	if choice.target != null:
-		panel.board().area_pressed.emit(panel.board().selectable_areas().back())
 	# 判定理由を出している間は開ける
 	panel.primary_button().pressed.emit()
 	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SHOW_RESULT)

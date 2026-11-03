@@ -100,7 +100,8 @@ func test_a_restored_state_plays_the_next_turn_exactly_like_the_original() -> vo
 					state.turn_records.size(), holder, other]) \
 					.is_equal(SuspendedMatchEncoder.to_json(original.next_state))
 			checked += 1
-	assert_int(checked).is_greater(30)
+	# 1試合は（1ハーフのターン数 × 2）ターン以上。それより少なければ試合が回っていない
+	assert_int(checked).is_greater_equal(_rules.turns_per_half * 2)
 
 
 func test_the_written_shape_follows_the_data_definition() -> void:

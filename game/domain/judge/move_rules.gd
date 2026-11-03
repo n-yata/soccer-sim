@@ -26,6 +26,8 @@ const _PENALTY_AREA_ZONE: GameEnums.Zone = GameEnums.Zone.A2
 const _PENALTY_AREA_LANES: Array[GameEnums.Lane] = [GameEnums.Lane.L1, GameEnums.Lane.C, GameEnums.Lane.R1]
 ## COUNTER で運べる、ボール位置から前の列数（1〜この値）
 const _COUNTER_MAX_ZONES_AHEAD: int = 4
+## BACK_PASS で戻せる、ボール位置から後ろの列数（1〜この値。2026-11-03）
+const _BACK_PASS_MAX_ROWS_BACK: int = 2
 
 
 ## side が今のターンで選べる手（局面に応じて下位の関数を呼ぶ）。運ぶ先は判定時の攻撃側（トランジションは奪取側）の視点。
@@ -40,7 +42,7 @@ static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOpti
 				state.transition_origin.attacker, state.setup_of(side).styles)
 		return pos_transition_options(counter, state.ball_area)
 	var pair: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
-	return attack_options(pair, state.ball_area) if is_holder else defense_options(pair)
+	return attack_options(pair, state.ball_area) if is_holder else defense_options(pair, state.ball_area)
 
 
 ## 攻撃の手。ball と運ぶ先は攻撃側から見た座標。味方の人数は攻撃側の現在配置で数える。
@@ -66,21 +68,37 @@ static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions:
 			options.add_target(family, GameEnums.PlayType.LONG_BEHIND, target)
 		if has_teammate and target.zone == ball.zone and lane_gap >= _SWITCH_MIN_LANE_GAP:
 			options.add_target(family, GameEnums.PlayType.SWITCH, target)
-	if ball.zone == _PENALTY_AREA_ZONE and ball.lane in _PENALTY_AREA_LANES:
+		# バックパスは1〜2列後ろの、ショートパスの届くレーンの味方へ。ペナルティエリアでは出さない（4つ目の枠をシュートと分け合う。2026-11-03）
+		var rows_back: int = ball.zone - target.zone
+		if has_teammate and not is_penalty_area(ball) and rows_back >= 1 and rows_back <= _BACK_PASS_MAX_ROWS_BACK \
+				and lane_gap <= _SHORT_PASS_REACH:
+			options.add_target(family, GameEnums.PlayType.BACK_PASS, target)
+	if is_penalty_area(ball):
 		options.allow(family, GameEnums.PlayType.SHOT)
 	return options
+
+
+## シュートを打てるエリア（ペナルティエリア）か。ball は攻撃側の視点。
+static func is_penalty_area(ball: PitchArea) -> bool:
+	return ball.zone == _PENALTY_AREA_ZONE and ball.lane in _PENALTY_AREA_LANES
 
 
 ## 守備の手。運ぶ先（制限するエリア）は攻撃側から見た座標で返す（DefenseMover.apply の target と同じ）。
 ## 条件を変えたら、画面に出す選べる条件の一言（MatchTexts.target_rule）の文言も直す。
 ## 守備側の人数は、守備側から見た座標（T_d = target.mirrored()）で数える。
-static func defense_options(pair: LayoutPair) -> MoveOptions:
+## ball（攻撃側の視点）を渡すと、ボールのエリアへのプレス（ボールに寄せる。ペナルティエリアではシュートコースを塞ぐも）を足す
+## （2026-11-03）。条件はプレスと同じで、ボールの隣に味方がいて寄せが届くときだけ。届かない寄せでは相手の手を読めないため。
+static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOptions:
 	var options := MoveOptions.new()
 	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.DEFENSE
 	for target: PitchArea in PitchArea.all():
 		var restricted: PitchArea = target.mirrored()
 		if _has_player_in(pair.defender, restricted.neighbors4()):
 			options.add_target(family, GameEnums.DefenseAction.PRESS, target)
+			if ball != null and target.equals(ball):
+				options.add_target(family, GameEnums.DefenseAction.CLOSE_DOWN, target)
+				if is_penalty_area(ball):
+					options.add_target(family, GameEnums.DefenseAction.BLOCK_SHOT, target)
 		# カバーで下がる選手は、T_d の背後まで1マスで届く選手（T_d・横・背後。前方は除く。DefenseMover.cover_neighbors）
 		var can_cover: bool = pair.defender.count_at(restricted) >= 1 \
 				or _has_player_in(pair.defender, DefenseMover.cover_neighbors(restricted))

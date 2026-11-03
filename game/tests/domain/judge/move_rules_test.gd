@@ -166,6 +166,35 @@ func test_cover_needs_a_defender_within_one_area_of_the_area_behind() -> void:
 	assert_array(_keys(options.targets(DEFENSE, COVER))).is_equal(["D1-L1", "D1-C", "D1-R1"])
 
 
+func test_closing_down_and_blocking_the_shot_press_the_ball_area() -> void:
+	# 守備側から見て D2-C に1人。ボールが攻撃側の視点で A2-C（守備側の D1-C。D2-C の隣）なら、ボールに寄せる・
+	# シュートコースを塞ぐ（ペナルティエリア）の両方を選べる（2026-11-03）
+	var in_box: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("A2-C"))
+	assert_array(_keys(in_box.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["A2-C"])
+	assert_array(_keys(in_box.targets(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT))).is_equal(["A2-C"])
+	# ボールが M2-C（守備側の M1-C。D2-C の隣）なら、ボールに寄せるだけ
+	var midfield: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("M2-C"))
+	assert_array(_keys(midfield.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["M2-C"])
+	assert_bool(midfield.is_available(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_false()
+	# ボールの隣に守備側がいなければ（ボール M1-C = 守備側の M2-C）、寄せが届かないので選べない
+	var far: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("M1-C"))
+	assert_bool(far.is_available(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_false()
+	# ボールを渡さなければ、どちらも足さない
+	var no_ball: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]))
+	assert_bool(no_ball.is_available(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_false()
+
+
+func test_back_pass_goes_one_or_two_rows_back_to_a_teammate_within_reach() -> void:
+	# ボール M2-C。1列後ろの M1-L1（レーン差1）・M1-R2（レーン差2）、2列後ろの D2-C は戻せる。3列後ろの D1-C と、
+	# 横の M2-L2 は戻せない（2026-11-03）
+	var options: MoveOptions = MoveRules.attack_options(
+			_pair(["M2-C", "M1-L1", "M1-R2", "D2-C", "D1-C", "M2-L2"], []), _area("M2-C"))
+	assert_array(_keys(options.targets(ATTACK, GameEnums.PlayType.BACK_PASS))).is_equal(["D2-C", "M1-L1", "M1-R2"])
+	# ペナルティエリアではシュートの枠なので、後ろに味方がいても戻せない
+	var in_box: MoveOptions = MoveRules.attack_options(_pair(["A2-C", "A1-C"], []), _area("A2-C"))
+	assert_bool(in_box.is_available(ATTACK, GameEnums.PlayType.BACK_PASS)).is_false()
+
+
 func test_defense_moves_are_unavailable_without_defenders() -> void:
 	var options: MoveOptions = MoveRules.defense_options(_pair(["M1-C"], []))
 	assert_bool(options.is_available(DEFENSE, PRESS)).is_false()

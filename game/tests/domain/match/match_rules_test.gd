@@ -210,6 +210,33 @@ func test_open_play_advance_moves_the_ball_and_keeps_fixes() -> void:
 	assert_str(next.away_players[0].fixed_area.to_key()).is_equal("M2-L1")
 
 
+func test_a_dribble_read_by_closing_down_is_lost_where_the_ball_was() -> void:
+	# ボールに寄せてドリブルを読むと、運ばれる前にボールのエリア M2-C で奪う（2026-11-03）。相手 a2 は守備側の視点 D2-C
+	# （攻撃側の視点 A1-C）にいて、ボールのエリア（守備側の M1-C）の隣
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a2", "D2-C", "D2-C"], _back()], "M2-C")
+	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "M2-L1"),
+			_choice(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN, "M2-C"))
+	var next: MatchState = resolution.next_state
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.LOSS)
+	assert_int(next.possession).is_equal(AWAY)
+	# 判定後のボール位置（攻撃側の視点）はボールのエリア。奪った側の視点では M1-C
+	assert_str(resolution.record.ball_after.to_key()).is_equal("M2-C")
+	assert_str(next.ball_area.to_key()).is_equal("M1-C")
+
+
+func test_back_pass_moves_the_ball_back_without_a_judgement() -> void:
+	# バックパス（2026-11-03）は判定しない。ボールは1列後ろの h3（M1-L1 に固定）へ戻り、攻守は入れ替わらない
+	var state: MatchState = _open_state(HOME, _holder_spec(), [["a1", "M2-L2", ""], _back()], "M2-C")
+	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.BACK_PASS, "M1-L1"), _press_far())
+	var next: MatchState = resolution.next_state
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.NO_CONTEST)
+	assert_object(resolution.record.judge).is_null()
+	assert_int(next.possession).is_equal(HOME)
+	assert_str(next.ball_area.to_key()).is_equal("M1-L1")
+	assert_int(next.turn_kind).is_equal(OPEN_PLAY)
+	assert_int(next.turn_number).is_equal(2)
+
+
 func test_open_play_stall_keeps_the_ball_in_place() -> void:
 	# M2-L1 へのパスは h2 と相手の a2 で1対1。背後の A1-L1 に相手の a3 がいて（攻撃側は0人）守備のカバーがあり膠着
 	var holder_spec: Array = [["h1", "M2-C", ""], ["h2", "M2-L1", ""], ["h3", "M1-C", "M1-L1"]]
@@ -268,10 +295,10 @@ func test_open_play_goal_scores_and_goes_to_the_style_change_with_the_conceding_
 
 
 func test_open_play_save_gives_the_defender_the_ball_in_front_of_their_own_goal() -> void:
-	# 守備がボールのエリア（A2-C。相手から見て D1-C）へプレスしてシュートを読み、隣の a2 が寄せて1対1で阻止。
+	# 守備がシュートコースを塞いで（ボールのエリア A2-C。相手から見て D1-C）シュートを読み、隣の a2 が寄せて1対1で阻止。
 	# 守備側がゴール前の D1-C（ゴールキーパーのキャッチ）で持ち、トランジションへ
 	var state: MatchState = _open_state(HOME, [["h1", "A2-C", ""]], [["a1", "M2-L2", ""], ["a2", "D1-L1", ""]], "A2-C")
-	var resolution: TurnResolution = _resolve(state, _shot(), _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "A2-C"))
+	var resolution: TurnResolution = _resolve(state, _shot(), _choice(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT, "A2-C"))
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.SAVE)
 	assert_int(next.possession).is_equal(AWAY)

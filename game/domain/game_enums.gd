@@ -15,8 +15,11 @@ enum DefenseStyle { ZONE, MAN }
 enum AttackStyle { POSSESSION, COUNTER }
 enum TurnKind { OPEN_PLAY, TRANSITION }
 ## 攻撃の手。並びは手のボタンの並び（THROUGH_PASS は 2026-10-25 に足した。保存は enum の名前で持つので、位置を変えても読み方は変わらない）
-enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT }
-enum DefenseAction { PRESS, COVER }
+## BACK_PASS（2026-11-03。手の選択の簡素化）はボールより後ろの味方へ戻す手で、判定しない（末尾に足した）
+enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT, BACK_PASS }
+## CLOSE_DOWN（ボールに寄せる）と BLOCK_SHOT（シュートコースを塞ぐ）は、ボールのエリアへのプレス。読みの扱いだけが PRESS と違う
+## （2026-11-03。末尾に足した）
+enum DefenseAction { PRESS, COVER, CLOSE_DOWN, BLOCK_SHOT }
 enum NegTransAction { COUNTER_PRESS, RETREAT }
 enum PosTransAction { COUNTER, SECURE }
 ## OFFSIDE は前へのパスの受け手がオフサイドで、守備側のボールになる（2026-10-25。末尾に足し、既存の値の番号を変えない）

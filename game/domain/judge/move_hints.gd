@@ -9,7 +9,8 @@ extends RefCounted
 
 
 ## options の選べる手ごと（運ぶ先を持つ手は運ぶ先ごと）のヒント。並びは手の enum の順、運ぶ先は options の順。
-## 人数は side（その手を選ぶ側）から見た値。リトリート・保持・スルーパス（人数でなく読みで決まる）は比べない（is_compared = false）。
+## 人数は side（その手を選ぶ側）から見た値。リトリート・保持・スルーパス（人数でなく読みで決まる）・バックパス（判定しない）は
+## 比べない（is_compared = false）。比べない手も人数は入れる（MoveMenu が行き先を選ぶのに使う）。
 ## state は MatchRules が作った試合中の状態であること（ボール位置があり、トランジションでは起点がある）を前提とする。
 static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions) -> Array[ChoiceHint]:
 	var hints: Array[ChoiceHint] = []
@@ -38,8 +39,9 @@ static func _add_attack_hints(hints: Array[ChoiceHint], state: MatchState, start
 			var pair: LayoutPair = step.pair
 			var compare: PitchArea = state.ball_area if is_shot else choice.target
 			var detail: JudgeDetail = OpenPlayJudge.detail_at(pair, compare, is_shot)
-			# スルーパスは人数に関係なく、読みだけで通るかが決まる（アルゴリズム5）ので、人数を比べない手にする
-			var is_compared: bool = action != GameEnums.PlayType.THROUGH_PASS
+			# スルーパスは人数に関係なく、読みだけで通るかが決まる（アルゴリズム5）ので、人数を比べない手にする。
+			# バックパスは判定しない（2026-11-03）ので比べない
+			var is_compared: bool = action != GameEnums.PlayType.THROUGH_PASS and action != GameEnums.PlayType.BACK_PASS
 			var hint := ChoiceHint.new(family, action, choice.target, is_compared,
 					detail.attacker_count, detail.defender_count, detail.cover)
 			# 今の配置（守備の手の前）のラインで、受け手がオフサイドになるか（2026-10-25）

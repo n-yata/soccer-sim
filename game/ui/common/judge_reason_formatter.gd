@@ -32,6 +32,9 @@ static func _cause(reveal: RevealView) -> String:
 	var is_attacker: bool = reveal.user_role == GameEnums.Phase.ATTACK
 	if _is_through_pass(reveal, is_attacker):
 		return _through_pass_cause(reveal, is_attacker)
+	# ボールに寄せてドリブルを読んだ（2026-11-03）は、人数に関係なく運ぶ前に奪うので、原因は読みだけで言う
+	if _is_closed_down_dribble(reveal, is_attacker):
+		return "読まれて" if is_attacker else "読み切って"
 	var attackers: int = reveal.user_count if is_attacker else reveal.opponent_count
 	var defenders: int = reveal.opponent_count if is_attacker else reveal.user_count
 	var is_stopped: bool = reveal.outcome == GameEnums.TurnOutcome.LOSS or reveal.outcome == GameEnums.TurnOutcome.SAVE
@@ -65,6 +68,17 @@ static func _is_through_pass(reveal: RevealView, is_attacker: bool) -> bool:
 			and attack.action == GameEnums.PlayType.THROUGH_PASS
 
 
+## 攻守ターンで、攻撃側のドリブルを守備側がボールに寄せて読んだか（判定は人数に関係なくロスト。2026-11-03）。
+static func _is_closed_down_dribble(reveal: RevealView, is_attacker: bool) -> bool:
+	if reveal.turn_kind != GameEnums.TurnKind.OPEN_PLAY:
+		return false
+	var attack: TurnChoice = reveal.user_choice if is_attacker else reveal.opponent_choice
+	var defense: TurnChoice = reveal.opponent_choice if is_attacker else reveal.user_choice
+	return attack != null and defense != null and attack.family == GameEnums.ChoiceFamily.ATTACK \
+			and attack.action == GameEnums.PlayType.DRIBBLE and defense.family == GameEnums.ChoiceFamily.DEFENSE \
+			and defense.action == GameEnums.DefenseAction.CLOSE_DOWN
+
+
 ## スルーパスは人数に関係なく読みで決まる（アルゴリズム5。2026-10-25）ので、原因は読みだけで言う。
 ## ぴったり読まれたらロスト、守備が運ぶ先へ入ってきたらロスト（2026-10-28）、それ以外（隣の読み・外れ）は前進。
 static func _through_pass_cause(reveal: RevealView, is_attacker: bool) -> String:
@@ -78,8 +92,13 @@ static func _through_pass_cause(reveal: RevealView, is_attacker: bool) -> String
 	return "読まれず" if is_attacker else "読めず"
 
 
-## 判定なし（リトリート×保持）。奪取側（ポジティブトランジション）から見るか、喪失側から見るかで主語が変わる。
+## 判定なし（リトリート×保持、攻守ターンのバックパス）。ボールを持つ側から見るか、相手側から見るかで主語が変わる。
 static func _no_contest(reveal: RevealView) -> String:
+	if reveal.user_role in [GameEnums.Phase.ATTACK, GameEnums.Phase.DEFENSE]:
+		# 攻守ターンの判定なしはバックパス（2026-11-03）。読めない手なので、守備側の手の当たり外れは言わない
+		if reveal.user_role == GameEnums.Phase.ATTACK:
+			return "判定なし（バックパスで作り直し）"
+		return "判定なし（相手がバックパスで作り直し）"
 	if reveal.user_role == GameEnums.Phase.POS_TRANSITION:
 		return "判定なし（相手は撤退、こちらは保持）"
 	return "判定なし（こちらは撤退、相手は保持）"

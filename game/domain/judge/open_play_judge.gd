@@ -26,6 +26,15 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	if step == null:
 		return null
 	movements.append_array(step.movements)
+	# バックパス（2026-11-03）は判定しない。守備の手の動きは残し、ボールは試合進行が運ぶ先へ移す
+	if attack.action == GameEnums.PlayType.BACK_PASS:
+		return JudgeOutput.new(GameEnums.TurnOutcome.NO_CONTEST, null, step.pair, movements)
+	# ボールに寄せてドリブルを読んだ（2026-11-03）: 運ばれる前にボールのエリアで奪う。スルーパスと同じく、読まれたら人数に関係なく
+	# 奪われる。ドリブルは適用しない（運ぶ前に止めた）。比較エリアはボールのエリアで、試合進行はそこで守備側のボールにする
+	if attack.action == GameEnums.PlayType.DRIBBLE and defense.action == GameEnums.DefenseAction.CLOSE_DOWN:
+		var tackled: JudgeDetail = detail_at(step.pair, ball, false)
+		tackled.read = GameEnums.ReadKind.EXACT
+		return JudgeOutput.new(GameEnums.TurnOutcome.LOSS, tackled, step.pair, movements)
 	# 手順2.5: オフサイド（2026-10-25）。守備の手を適用した後のラインで、人数・読みより先に見る。
 	# オフサイドならプレーが止まるので、攻撃の手（スルーパスの走り込み・ドリブル）は適用しない
 	if OffsideRule.is_offside(step.pair, ball, attack):
@@ -39,7 +48,7 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	# 手順4〜6
 	var compare: PitchArea = ball if attack.action == GameEnums.PlayType.SHOT else attack.target
 	var detail: JudgeDetail = detail_at(step.pair, compare, attack.action == GameEnums.PlayType.SHOT)
-	detail.read = read_of(defense.target, compare, ball)
+	detail.read = read_for(attack, defense, compare, ball)
 	var outcome: GameEnums.TurnOutcome
 	if attack.action == GameEnums.PlayType.THROUGH_PASS:
 		outcome = through_pass_outcome(detail, defender_entered(movements, pair.attacker_side, attack.target))
@@ -143,6 +152,20 @@ static func through_pass_runner(attacker: TeamLayout, ball: PitchArea, target: P
 			runner = player
 			runner_steps = steps
 	return runner
+
+
+## 両者の手から守備の読みの段階を決める（2026-11-03）。ボールに寄せる・シュートコースを塞ぐ（どちらもボールのエリアへの寄せ）は、
+## 手の種類だけで読んだ相手の手が決まる（ボールに寄せるはドリブル、シュートコースを塞ぐはシュートをぴったり読む。ほかの手は外れ）。
+## ボールに寄せてドリブルを読んだときは、judge が先に奪う。シュートを読めるのはシュートコースを塞ぐだけ。それ以外はエリアで比べる（read_of）。
+static func read_for(attack: TurnChoice, defense: TurnChoice, compare: PitchArea, ball: PitchArea) -> GameEnums.ReadKind:
+	match defense.action:
+		GameEnums.DefenseAction.CLOSE_DOWN:
+			return GameEnums.ReadKind.EXACT if attack.action == GameEnums.PlayType.DRIBBLE else GameEnums.ReadKind.NONE
+		GameEnums.DefenseAction.BLOCK_SHOT:
+			return GameEnums.ReadKind.EXACT if attack.action == GameEnums.PlayType.SHOT else GameEnums.ReadKind.NONE
+	if attack.action == GameEnums.PlayType.SHOT:
+		return GameEnums.ReadKind.NONE
+	return read_of(defense.target, compare, ball)
 
 
 ## 守備の読みの段階。restricted は守備の手で制限したエリア、compare は比較エリア（運ぶ先。シュートはボールのエリア）。

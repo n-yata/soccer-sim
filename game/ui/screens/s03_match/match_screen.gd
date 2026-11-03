@@ -199,8 +199,8 @@ func _build() -> void:
 func _can_open_menu() -> bool:
 	if _controller.is_match_over():
 		return false
-	return _board_panel.state() in [MatchBoardPanel.State.SELECT_ACTION, MatchBoardPanel.State.SELECT_TARGET,
-			MatchBoardPanel.State.READY, MatchBoardPanel.State.SHOW_RESULT]
+	return _board_panel.state() in [MatchBoardPanel.State.SELECT_ACTION, MatchBoardPanel.State.READY,
+			MatchBoardPanel.State.SHOW_RESULT]
 
 
 func _banner_label(node_name: String, variation: StringName) -> Label:

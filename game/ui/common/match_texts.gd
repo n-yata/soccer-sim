@@ -7,10 +7,16 @@ extends RefCounted
 const ZONE_NAMES: Array[String] = ["自陣ゴール前", "自陣", "中盤（自陣）", "中盤（敵陣）", "敵陣", "敵陣ゴール前"]
 const LANE_NAMES: Array[String] = ["左大外", "左HS", "中央", "右HS", "右大外"]
 const ACTION_NAMES: Dictionary = {
-	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ドリブル", "スルーパス", "背後へのロングボール", "サイドチェンジ", "シュート"],
-	GameEnums.ChoiceFamily.DEFENSE: ["プレス", "カバー"],
+	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ドリブル", "スルーパス", "背後へのロングボール", "サイドチェンジ", "シュート", "バックパス"],
+	# 守備の手は、何を読んで守るかが分かる名前にする（2026-11-03。行き先はゲームが決め、手のボタンだけで選ぶため）
+	GameEnums.ChoiceFamily.DEFENSE: ["パスコースを切る", "背後を埋める", "ボールに寄せる", "シュートコースを塞ぐ"],
 	GameEnums.ChoiceFamily.NEG_TRANS: ["即時奪回", "リトリート"],
 	GameEnums.ChoiceFamily.POS_TRANS: ["カウンター", "保持"],
+}
+## 手のボタンの枠の名前（MoveMenu.SLOTS の並び。2026-11-03）。攻撃は距離で分けた枠の名前で、中身の手（スルーパス・
+## サイドチェンジなど）はボタンの2行目に添える。4つ目の枠と、守備・トランジションの手は手の名前のまま
+const SLOT_NAMES: Dictionary = {
+	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ロングパス", "ドリブル", ""],
 }
 ## 判定で手が成功した側（利用者から見た値）。NONE は奪い合いの無い結果（NO_CONTEST）
 enum TurnWinner { USER, OPPONENT, NONE }
@@ -38,19 +44,53 @@ static func action_name(family: GameEnums.ChoiceFamily, action: int) -> String:
 	return (ACTION_NAMES[family] as Array)[action] as String
 
 
-## 運ぶ先を選ぶ間に添える一言（誰が動くか・どのエリアを選べるか）。条件は MoveRules.defense_options・attack_options と同じ。
-## プレス・カバー（違いが盤面から読みにくく、選べないエリアがある理由が分かりにくいため）と、スルーパス（空いたエリアにも
-## 出せ、人数に関係なく読みで決まる、ほかの手と違う規則のため）。ほかの手は空。
+## 手のボタンの1行目の名前（枠の名前。枠の名前が無ければ手の名前）。
+static func slot_name(family: GameEnums.ChoiceFamily, action: int) -> String:
+	var index: int = MoveMenu.slot_index(family, action)
+	if SLOT_NAMES.has(family) and index >= 0:
+		var name: String = (SLOT_NAMES[family] as Array)[index] as String
+		if not name.is_empty():
+			return name
+	return action_name(family, action)
+
+
+## 手のボタンの2行目（行き先）。「→ 中盤（敵陣）・左HS」。中身の手が枠の名前と違えば手の名前を添える（「スルーパス → 敵陣・中央」）。
+## 守備は守る位置（「中盤（自陣）・中央」）。行き先の無い手は空。target_key は利用者の視点のキー。
+static func choice_target_line(family: GameEnums.ChoiceFamily, action: int, target_key: String) -> String:
+	if target_key.is_empty():
+		return ""
+	var area: String = area_name(target_key)
+	if family == GameEnums.ChoiceFamily.DEFENSE:
+		return area
+	var name: String = action_name(family, action)
+	if name != slot_name(family, action):
+		return "%s → %s" % [name, area]
+	return "→ %s" % area
+
+
+## 手を選んだときに添える一言（誰が動くか・何を読む手か。2026-11-03 に、行き先を選ばない操作に合わせて書き直した）。
+## スルーパス（人数に関係なく読みで決まる、ほかの手と違う規則）・バックパス（判定しない）と、守備の手（違いが盤面から読みにくいため）。
+## ほかの手は空。
 static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
-	if family == GameEnums.ChoiceFamily.ATTACK and action == GameEnums.PlayType.THROUGH_PASS:
-		return "スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれるか相手が入ってくれば奪われ、そうでなければ通る"
+	if family == GameEnums.ChoiceFamily.ATTACK:
+		match action:
+			GameEnums.PlayType.THROUGH_PASS:
+				return "スルーパス: 味方が相手の背後へ走り込む。人数に関係なく、読まれるか相手が入ってくれば奪われ、そうでなければ通る"
+			GameEnums.PlayType.BACK_PASS:
+				return "バックパス: 後ろの味方へ戻して作り直す。相手は読めず必ず通るが、前には進めない"
+		return ""
 	if family != GameEnums.ChoiceFamily.DEFENSE:
 		return ""
-	if action == GameEnums.DefenseAction.PRESS:
-		return "プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる"
-	if action != GameEnums.DefenseAction.COVER:
-		return ""
-	return "カバー: 味方1人が、選んだエリアの背後へ下がる。自陣ゴール前の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）"
+	match action:
+		GameEnums.DefenseAction.PRESS:
+			return "パスコースを切る: 相手のショートパスの行き先を読み、隣の味方1人がそのエリアへ寄せる"
+		GameEnums.DefenseAction.COVER:
+			return "背後を埋める: 相手のロングパスの行き先を読み、味方1人がそのエリアの背後へ下がる"
+		GameEnums.DefenseAction.CLOSE_DOWN:
+			return "ボールに寄せる: 隣の味方1人がボールを持つ選手へ寄せる。相手のドリブルを読めば、運ばれる前に奪う"
+		GameEnums.DefenseAction.BLOCK_SHOT:
+			return "シュートコースを塞ぐ: 隣の味方1人がボールを持つ選手へ寄せ、シュートを止めに行く。相手のシュートを読む手"
+	return ""
 
 
 ## 「ショートパス → 中盤（敵陣）・中央」。運ぶ先を持たない手は手の名前だけ。

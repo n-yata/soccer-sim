@@ -198,7 +198,7 @@ func test_user_options_are_mirrored_when_the_user_defends() -> void:
 	var controller: MatchController = _controller(_seed_for_kickoff(AWAY))
 	controller.start_match(_user_setup())
 	var user_options: MoveOptions = controller.user_options()
-	var domain_options: MoveOptions = MoveRules.options_for(controller.state(), HOME)
+	var domain_options: MoveOptions = MoveMenu.options_for(controller.state(), HOME)
 	var expected: Array[String] = []
 	for target: PitchArea in domain_options.targets(DEFENSE, GameEnums.DefenseAction.PRESS):
 		expected.append(target.mirrored().to_key())

@@ -201,7 +201,7 @@ func test_zero_style_bonus_keeps_the_probabilities_of_the_scores_alone() -> void
 	for hint: ChoiceHint in hints:
 		scores.append(CpuPlanner.score(hint))
 	var plain: Array[float] = CpuPlanner.probabilities(scores, _bonus_cpu(0.0))
-	var actual: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0))
+	var actual: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0), MoveRules.options_for(state, HOME))
 	assert_int(actual.size()).is_equal(plain.size())
 	for index: int in range(plain.size()):
 		assert_float(actual[index]).is_equal_approx(plain[index], 0.000001)
@@ -213,8 +213,8 @@ func test_style_bonus_raises_the_preferred_moves_probability() -> void:
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, HOME, MoveRules.options_for(state, HOME))
 	var forward: int = _dribble_index(hints, "A1-C")
 	var side: int = _dribble_index(hints, "M2-L1")
-	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0))
-	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(2.0))
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(0.0), MoveRules.options_for(state, HOME))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _bonus_cpu(2.0), MoveRules.options_for(state, HOME))
 	assert_float(none[forward]).is_equal_approx(none[side], 0.000001)
 	assert_float(biased[forward]).is_greater(none[forward])
 	assert_float(biased[forward]).is_greater(biased[side])
@@ -230,7 +230,7 @@ func test_choose_turn_follows_the_style_bonus() -> void:
 	var side_key: String = "%d:%d:M2-L1" % [ATTACK, GameEnums.PlayType.DRIBBLE]
 	var counts: Dictionary = {}
 	for seed_value: int in range(500):
-		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _bonus_cpu(3.0), _rng(seed_value)))
+		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _bonus_cpu(3.0), _rng(seed_value), MoveRules.options_for(state, HOME)))
 		counts[key] = (counts.get(key, 0) as int) + 1
 	assert_int(counts.get(forward_key, 0) as int).is_greater((counts.get(side_key, 0) as int) * 3)
 
@@ -300,8 +300,8 @@ func test_anticipation_bonus_raises_the_press_ahead_of_the_ball() -> void:
 			behind = index
 	assert_int(ahead).is_not_equal(-1)
 	assert_int(behind).is_not_equal(-1)
-	var none: Array[float] = CpuPlanner.turn_probabilities(state, AWAY, _goal_cpu(0.0, 0.0, 0.0))
-	var biased: Array[float] = CpuPlanner.turn_probabilities(state, AWAY, _goal_cpu(0.0, 0.0, 2.0))
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, AWAY, _goal_cpu(0.0, 0.0, 0.0), MoveRules.options_for(state, AWAY))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, AWAY, _goal_cpu(0.0, 0.0, 2.0), MoveRules.options_for(state, AWAY))
 	assert_float(biased[ahead]).is_greater(none[ahead])
 	assert_float(biased[behind]).is_less(none[behind])
 
@@ -314,9 +314,9 @@ func test_forward_bonus_raises_the_forward_moves_probability() -> void:
 	var side: int = _dribble_index(hints, "M2-L1")
 	assert_int(forward).is_not_equal(-1)
 	assert_int(side).is_not_equal(-1)
-	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0))
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0), MoveRules.options_for(state, HOME))
 	assert_float(none[forward]).is_equal_approx(none[side], 0.000001)
-	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(2.0, 0.0))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(2.0, 0.0), MoveRules.options_for(state, HOME))
 	assert_float(biased[forward]).is_greater(biased[side])
 	assert_float(_sum(biased)).is_equal_approx(1.0, 0.000001)
 
@@ -335,8 +335,8 @@ func test_offside_penalty_lowers_the_probability_of_an_offside_pass() -> void:
 	none.offside_penalty = 0.0
 	var penalized := _cpu()
 	penalized.offside_penalty = 3.0
-	var plain: Array[float] = CpuPlanner.turn_probabilities(state, HOME, none)
-	var avoided: Array[float] = CpuPlanner.turn_probabilities(state, HOME, penalized)
+	var plain: Array[float] = CpuPlanner.turn_probabilities(state, HOME, none, MoveRules.options_for(state, HOME))
+	var avoided: Array[float] = CpuPlanner.turn_probabilities(state, HOME, penalized, MoveRules.options_for(state, HOME))
 	assert_float(avoided[offside]).is_less(plain[offside])
 
 
@@ -364,8 +364,8 @@ func test_marked_penalty_lowers_only_the_marked_through_pass() -> void:
 	none.marked_penalty = 0.0
 	var penalized := _cpu()
 	penalized.marked_penalty = 3.0
-	var plain: Array[float] = CpuPlanner.turn_probabilities(state, HOME, none)
-	var avoided: Array[float] = CpuPlanner.turn_probabilities(state, HOME, penalized)
+	var plain: Array[float] = CpuPlanner.turn_probabilities(state, HOME, none, MoveRules.options_for(state, HOME))
+	var avoided: Array[float] = CpuPlanner.turn_probabilities(state, HOME, penalized, MoveRules.options_for(state, HOME))
 	# 減点が無ければ、どちらのスルーパスも評価値 0 で同じ確率。減点でマーク注意の手だけが下がる
 	assert_float(plain[marked]).is_equal_approx(plain[free], 0.000001)
 	assert_float(avoided[marked]).is_less(plain[marked])
@@ -386,17 +386,18 @@ func test_shot_bonus_raises_the_shot_probability() -> void:
 		if hints[index].family == ATTACK and hints[index].action == GameEnums.PlayType.SHOT:
 			shot = index
 	assert_int(shot).is_not_equal(-1)
-	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0))
-	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 3.0))
+	var none: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 0.0), MoveRules.options_for(state, HOME))
+	var biased: Array[float] = CpuPlanner.turn_probabilities(state, HOME, _goal_cpu(0.0, 3.0), MoveRules.options_for(state, HOME))
 	assert_float(biased[shot]).is_greater(none[shot])
 
 
 # --- 手の選択 ---
 
-func test_choose_turn_only_picks_selectable_moves() -> void:
+func test_choose_turn_only_picks_the_moves_on_the_menu() -> void:
+	# 候補を渡さなければ、利用者と同じ画面に出す手（MoveMenu。2026-11-03）からだけ選ぶ
 	for state: MatchState in [_scene(), _transition_scene()]:
 		for side: GameEnums.TeamSide in [HOME, AWAY]:
-			var options: MoveOptions = MoveRules.options_for(state, side)
+			var options: MoveOptions = MoveMenu.options_for(state, side)
 			for seed_value: int in range(200):
 				var choice: TurnChoice = CpuPlanner.choose_turn(state, side, _cpu(), _rng(seed_value))
 				assert_bool(MoveRules.is_allowed(options, choice)) \
@@ -406,8 +407,8 @@ func test_choose_turn_only_picks_selectable_moves() -> void:
 func test_choose_turn_is_reproducible_with_a_fixed_seed() -> void:
 	var state: MatchState = _scene()
 	for seed_value: int in [1, 7, 42]:
-		var first: TurnChoice = CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value))
-		var second: TurnChoice = CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value))
+		var first: TurnChoice = CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value), MoveRules.options_for(state, HOME))
+		var second: TurnChoice = CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value), MoveRules.options_for(state, HOME))
 		assert_str(_key(second)).is_equal(_key(first))
 
 
@@ -416,7 +417,7 @@ func test_choose_turn_picks_better_moves_more_often_but_keeps_every_move() -> vo
 	var state: MatchState = _scene()
 	var counts: Dictionary = {}
 	for seed_value: int in range(1000):
-		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value)))
+		var key: String = _key(CpuPlanner.choose_turn(state, HOME, _cpu(), _rng(seed_value), MoveRules.options_for(state, HOME)))
 		counts[key] = (counts.get(key, 0) as int) + 1
 	var pass_key: String = "%d:%d:A1-C" % [ATTACK, GameEnums.PlayType.SHORT_PASS]
 	# 選べる手はパス1つ・ドリブル8つ（周り8エリア。2026-10-24）・スルーパス6つ（2026-10-25）。どれも1回以上選ばれる

@@ -74,7 +74,7 @@ static func advance_until(controller: MatchController, stop: Stop) -> bool:
 
 
 ## シュートを選べればシュート。そうでなければ選べる最初の手（手の enum の順）で、運ぶ先は一覧の最後（いちばん前）。
-## 画面のテストは、同じ選び方を画面の操作（手のボタン・選べるエリアの最後）で行う。
+## 利用者の手（画面に出す手）では運ぶ先は1つだけ。画面のテストは、同じ選び方を画面の操作（手のボタン）で行う。
 static func forward_choice(options: MoveOptions) -> TurnChoice:
 	if options.is_available(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHOT):
 		return TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHOT)

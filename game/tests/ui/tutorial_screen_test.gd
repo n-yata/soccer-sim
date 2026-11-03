@@ -43,18 +43,17 @@ func _steps() -> Array[TutorialStepDef]:
 func _play_current_step(screen: TutorialScreen) -> void:
 	var step: TutorialStepDef = _steps()[screen.step_index()]
 	var panel: MatchBoardPanel = screen.board_panel()
-	var action: int = _allowed_actions(step)[0]
-	panel.choice_panel().button_for(action).pressed.emit()
-	if panel.state() == MatchBoardPanel.State.SELECT_TARGET:
-		panel.board().area_pressed.emit(panel.board().selectable_areas()[0])
+	# 行き先はゲームが決めるので、手を押せばすぐ決定できる（2026-11-03）
+	panel.choice_panel().button_for(panel.choice_panel().actions()[0]).pressed.emit()
 	panel.primary_button().pressed.emit()
 
 
+## 段階で選べる手（名前の手と同じ枠の手。ショートパスの枠の中身はスルーパスのこともある。2026-11-03）
 func _allowed_actions(step: TutorialStepDef) -> Array[int]:
 	var family: GameEnums.ChoiceFamily = TurnChoice.family_for(step.turn_kind, step.possession == GameEnums.TeamSide.HOME)
 	var actions: Array[int] = []
 	for action_name: String in step.allowed_actions:
-		actions.append(TurnChoice.ACTION_ENUMS[family][action_name] as int)
+		actions.append_array(MoveMenu.slot_actions(family, TurnChoice.ACTION_ENUMS[family][action_name] as int))
 	return actions
 
 
@@ -90,10 +89,12 @@ func test_an_operate_step_allows_only_its_actions_and_shows_next_after_the_resul
 	screen.next_button().pressed.emit()
 	assert_int(screen.step_index()).is_equal(index_before)
 	var panel: MatchBoardPanel = screen.board_panel()
+	# 絞った手だけをボタンに出す（選べない手は出さない。2026-11-03）
 	var allowed: Array[int] = _allowed_actions(step)
-	for action: int in range(panel.choice_panel().button_count()):
-		assert_bool(panel.choice_panel().button_for(action).disabled) \
-				.override_failure_message("%s の手 %d" % [step.id, action]).is_equal(not allowed.has(action))
+	assert_int(panel.choice_panel().button_count()).is_greater(0)
+	for action: int in panel.choice_panel().actions():
+		assert_bool(allowed.has(action)).override_failure_message("%s の手 %d" % [step.id, action]).is_true()
+		assert_bool(panel.choice_panel().button_for(action).disabled).is_false()
 	_play_current_step(screen)
 	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SHOW_RESULT)
 	assert_bool(panel.primary_button().visible).is_false()

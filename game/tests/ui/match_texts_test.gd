@@ -39,12 +39,40 @@ func test_action_names_cover_every_family() -> void:
 	assert_str(MatchTexts.action_name(ATTACK, GameEnums.PlayType.LONG_BEHIND)).is_equal("背後へのロングボール")
 	assert_str(MatchTexts.action_name(ATTACK, GameEnums.PlayType.SWITCH)).is_equal("サイドチェンジ")
 	assert_str(MatchTexts.action_name(ATTACK, GameEnums.PlayType.SHOT)).is_equal("シュート")
-	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.PRESS)).is_equal("プレス")
-	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.COVER)).is_equal("カバー")
+	assert_str(MatchTexts.action_name(ATTACK, GameEnums.PlayType.BACK_PASS)).is_equal("バックパス")
+	# 守備の手は、何を読んで守るかが分かる名前（2026-11-03）
+	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.PRESS)).is_equal("パスコースを切る")
+	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.COVER)).is_equal("背後を埋める")
+	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_equal("ボールに寄せる")
+	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_equal("シュートコースを塞ぐ")
 	assert_str(MatchTexts.action_name(NEG, GameEnums.NegTransAction.COUNTER_PRESS)).is_equal("即時奪回")
 	assert_str(MatchTexts.action_name(NEG, GameEnums.NegTransAction.RETREAT)).is_equal("リトリート")
 	assert_str(MatchTexts.action_name(POS, GameEnums.PosTransAction.COUNTER)).is_equal("カウンター")
 	assert_str(MatchTexts.action_name(POS, GameEnums.PosTransAction.SECURE)).is_equal("保持")
+
+
+func test_slot_names_group_the_attacking_plays_by_distance() -> void:
+	# 手のボタンの1行目（2026-11-03）。スルーパスはショートパスの枠、ロングボールとサイドチェンジはロングパスの枠
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.SHORT_PASS)).is_equal("ショートパス")
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.THROUGH_PASS)).is_equal("ショートパス")
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.LONG_BEHIND)).is_equal("ロングパス")
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.SWITCH)).is_equal("ロングパス")
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.DRIBBLE)).is_equal("ドリブル")
+	# 4つ目の枠と、守備・トランジションの手は手の名前のまま
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.SHOT)).is_equal("シュート")
+	assert_str(MatchTexts.slot_name(ATTACK, GameEnums.PlayType.BACK_PASS)).is_equal("バックパス")
+	assert_str(MatchTexts.slot_name(DEFENSE, GameEnums.DefenseAction.COVER)).is_equal("背後を埋める")
+	assert_str(MatchTexts.slot_name(POS, GameEnums.PosTransAction.COUNTER)).is_equal("カウンター")
+
+
+func test_choice_target_line_names_the_play_only_when_it_differs_from_the_slot() -> void:
+	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.SHORT_PASS, "M2-L1")).is_equal("→ 中盤（敵陣）・左HS")
+	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.THROUGH_PASS, "A1-C")).is_equal("スルーパス → 敵陣・中央")
+	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.SWITCH, "M1-R2")) \
+			.is_equal("サイドチェンジ → 中盤（自陣）・右大外")
+	# 守備は守る位置だけ。行き先の無い手は空
+	assert_str(MatchTexts.choice_target_line(DEFENSE, GameEnums.DefenseAction.PRESS, "M1-C")).is_equal("中盤（自陣）・中央")
+	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.SHOT, "")).is_empty()
 
 
 func test_choice_summary_has_the_target_only_when_the_move_has_one() -> void:
@@ -196,20 +224,26 @@ func test_clock_text_shows_additional_time_as_plus_turns() -> void:
 	assert_str(MatchTexts.clock_text(snapshot)).is_equal("前半 15＋2")
 
 
-func test_target_rule_explains_who_moves_and_which_areas_can_be_chosen_for_press_and_cover() -> void:
-	# シャビの「カバーで選べないマスがあるのはなぜ？」への一言（MoveRules.defense_options の条件と同じ内容）
+func test_target_rule_explains_who_moves_and_what_each_defense_reads() -> void:
+	# 守備の手は、誰が動くかと、どの相手の手を読む手かを一言で（2026-11-03。行き先はゲームが決める）
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS)) \
-			.is_equal("プレス: 隣のエリアの味方1人が、選んだエリアへ寄せる。隣に味方がいるエリアだけ選べる")
+			.is_equal("パスコースを切る: 相手のショートパスの行き先を読み、隣の味方1人がそのエリアへ寄せる")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.COVER)) \
-			.is_equal("カバー: 味方1人が、選んだエリアの背後へ下がる。自陣ゴール前の列と、その場にも横にも背後にも味方がいないエリアは選べない（前にいる味方は届かない）")
+			.is_equal("背後を埋める: 相手のロングパスの行き先を読み、味方1人がそのエリアの背後へ下がる")
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)) \
+			.is_equal("ボールに寄せる: 隣の味方1人がボールを持つ選手へ寄せる。相手のドリブルを読めば、運ばれる前に奪う")
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)) \
+			.is_equal("シュートコースを塞ぐ: 隣の味方1人がボールを持つ選手へ寄せ、シュートを止めに行く。相手のシュートを読む手")
+	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.BACK_PASS)) \
+			.is_equal("バックパス: 後ろの味方へ戻して作り直す。相手は読めず必ず通るが、前には進めない")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE)).is_empty()
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_empty()
 
 
 func test_target_rule_explains_the_through_pass() -> void:
-	# スルーパス（2026-10-25）は、出せる先と、人数に関係なく読みで決まることを一言で（MoveRules・OpenPlayJudge と同じ内容）
+	# スルーパス（2026-10-25）は、人数に関係なく読みで決まることを一言で（OpenPlayJudge と同じ内容）
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.THROUGH_PASS)) \
-			.is_equal("スルーパス: 1〜2列前の、味方が走り込めるエリアへ出す（空いていてもよい）。人数に関係なく、読まれるか相手が入ってくれば奪われ、そうでなければ通る")
+			.is_equal("スルーパス: 味方が相手の背後へ走り込む。人数に関係なく、読まれるか相手が入ってくれば奪われ、そうでなければ通る")
 
 
 func test_offside_hint_tag_warns_before_anything_else() -> void:

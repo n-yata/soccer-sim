@@ -23,6 +23,7 @@ func test_each_attacking_play_has_its_own_flight() -> void:
 		GameEnums.PlayType.SWITCH: Kind.LOFTED,
 		GameEnums.PlayType.DRIBBLE: Kind.CARRIED,
 		GameEnums.PlayType.SHOT: Kind.DRIVEN,
+		GameEnums.PlayType.BACK_PASS: Kind.GROUND,
 	}
 	# 攻撃の手をすべて当てる（手を足したら、このテストで軌道を決め忘れに気づく）
 	assert_int(expected.size()).is_equal(GameEnums.PlayType.size())
