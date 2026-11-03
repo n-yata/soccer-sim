@@ -332,6 +332,58 @@ func test_negative_review_lookback_falls_back_to_the_initial_value_with_an_error
 	assert_int(repository.presentation().review_lookback_turns).is_equal(PresentationConfig.new().review_lookback_turns)
 
 
+## ボールの軌道の値（浮き球の高さ loft・ドリブルの弾みの高さ touch・弾みの回数 touches）だけを変えた設定
+func _ball_style_with(case_name: String, loft: float, touch: float, touches: int) -> ConfigRepository:
+	var dir: String = create_temp_dir("config_repository/ball_style_" + case_name)
+	var presentation := PresentationConfig.new()
+	presentation.ball_loft_height = loft
+	presentation.ball_touch_height = touch
+	presentation.ball_dribble_touches = touches
+	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
+	return ConfigRepository.new(dir)
+
+
+func test_bundled_ball_style_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の初期値（浮き球 6.0・弾み 1.0・3回）
+	var bundled: PresentationConfig = ConfigRepository.new().presentation()
+	var initial := PresentationConfig.new()
+	for config: PresentationConfig in [bundled, initial]:
+		assert_float(config.ball_loft_height).is_equal(6.0)
+		assert_float(config.ball_touch_height).is_equal(1.0)
+		assert_int(config.ball_dribble_touches).is_equal(3)
+	var text: String = FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)
+	for key: String in ["ball_loft_height = ", "ball_touch_height = ", "ball_dribble_touches = "]:
+		assert_str(text).contains(key)
+
+
+func test_ball_style_inside_the_range_is_read_including_the_bounds() -> void:
+	# 下限（0・0・1）と上限（20・5・8）を含む
+	for values: Array in [[0.0, 0.0, 1], [20.0, 5.0, 8], [3.5, 0.5, 2]]:
+		var repository: ConfigRepository = _ball_style_with("ok_%s_%s_%s" % values, values[0], values[1], values[2])
+		var config: PresentationConfig = repository.presentation()
+		assert_float(config.ball_loft_height).override_failure_message(str(values)).is_equal(values[0] as float)
+		assert_float(config.ball_touch_height).override_failure_message(str(values)).is_equal(values[1] as float)
+		assert_int(config.ball_dribble_touches).override_failure_message(str(values)).is_equal(values[2] as int)
+
+
+func test_out_of_range_ball_style_falls_back_to_the_initial_value() -> void:
+	var initial := PresentationConfig.new()
+	# どれか1つが範囲外（負・上限超え・NaN・無限大・回数 0 と 9）なら、ファイル全体を初期値に戻す
+	for values: Array in [[-0.1, 1.0, 3], [20.01, 1.0, 3], [NAN, 1.0, 3], [INF, 1.0, 3],
+			[6.0, -0.1, 3], [6.0, 5.01, 3], [6.0, NAN, 3], [6.0, 1.0, 0], [6.0, 1.0, 9]]:
+		var repository: ConfigRepository = _ball_style_with("bad_%s_%s_%s" % values, values[0], values[1], values[2])
+		var config: PresentationConfig = repository.presentation()
+		assert_float(config.ball_loft_height).override_failure_message(str(values)).is_equal(initial.ball_loft_height)
+		assert_float(config.ball_touch_height).override_failure_message(str(values)).is_equal(initial.ball_touch_height)
+		assert_int(config.ball_dribble_touches).override_failure_message(str(values)).is_equal(initial.ball_dribble_touches)
+
+
+func test_out_of_range_ball_style_reports_an_error() -> void:
+	var repository: ConfigRepository = _ball_style_with("error", 6.0, 1.0, 0)
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（ball_loft_height=6.0, ball_touch_height=1.0, ball_dribble_touches=0）のため、初期値を使う")
+
+
 func test_missing_presentation_falls_back_to_the_initial_value_with_an_error() -> void:
 	var repository := ConfigRepository.new(create_temp_dir("config_repository/presentation_missing"))
 	await assert_error(func() -> void: repository.presentation()) \

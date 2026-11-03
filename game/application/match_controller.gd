@@ -353,6 +353,14 @@ func board_settle_sec() -> float:
 	return _config.presentation().board_settle_sec
 
 
+## 開示の1拍目のボールの軌道の値（PresentationConfig）。{"loft": 浮き球の高さ, "touch": ドリブルの弾みの高さ,
+## "touches": 弾みの回数}。高さはボールの半径の何倍か。
+func ball_style() -> Dictionary:
+	var presentation: PresentationConfig = _config.presentation()
+	return {"loft": presentation.ball_loft_height, "touch": presentation.ball_touch_height,
+			"touches": presentation.ball_dribble_touches}
+
+
 ## 開示済みの相手の陣形・方式（FR-16・21）。試合前は null。
 func opponent_setup() -> TeamSetup:
 	if not _is_started_or_error("opponent_setup"):

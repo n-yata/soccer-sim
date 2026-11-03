@@ -148,7 +148,7 @@ static func _draw_standing_things(board: TacticsBoard) -> void:
 			"piece":
 				_draw_chess_piece(board, foot, radius * scale, thing["is_user"] as bool, 0.38 if thing["is_preview"] else 1.0)
 			"ball":
-				_draw_lifted_ball(board, foot, scale)
+				_draw_lifted_ball(board, foot, scale, thing["lift"] as float)
 			"tag":
 				_draw_overflow_tag(board, foot + Vector2(0, -radius * scale), thing["text"] as String)
 
@@ -191,11 +191,12 @@ static func _draw_overflow_tag(board: TacticsBoard, center: Vector2, text: Strin
 	_draw_centered_text(board, center, text, tag_size, _color(board, &"text"))
 
 
-## ボールは少し浮かせて、地面に影を落とす。
-static func _draw_lifted_ball(board: TacticsBoard, foot: Vector2, scale: float) -> void:
+## ボールは少し浮かせて、地面に影を落とす。lift（ボールの半径の何倍か）の分だけさらに持ち上げる（浮き球・ドリブルの弾み）。
+## 影は地面の位置のまま。
+static func _draw_lifted_ball(board: TacticsBoard, foot: Vector2, scale: float, lift: float) -> void:
 	var r: float = TacticsBoard.BALL_RADIUS * scale
 	_ellipse(board, foot, r, r * 0.38, Color(0, 0, 0, 0.35))
-	var center: Vector2 = foot + Vector2(0, -r * 1.6)
+	var center: Vector2 = foot + Vector2(0, -r * (1.6 + lift))
 	board.draw_circle(center, r, _color(board, &"ball"))
 	board.draw_arc(center, r, 0.0, TAU, 24, _color(board, &"bg"), 2.0)
 

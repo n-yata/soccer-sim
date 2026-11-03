@@ -649,6 +649,39 @@ func test_the_second_beat_starts_after_the_first_and_both_end_by_themselves() ->
 	assert_int(_board.shift_beat_count()).is_equal(0)
 
 
+# --- 1拍目のボールの軌道 ---
+
+func test_the_first_beat_carries_the_flight_of_its_keyframe_and_the_ball_is_drawn_at_its_lift() -> void:
+	_board.set_ball_style({"loft": 6.0, "touch": 1.0, "touches": 3})
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "A1-C"})
+	snapshot.ball_area = "A1-C"
+	_board.show_snapshot(snapshot)
+	var before: Dictionary = _before()
+	var first: Dictionary = _keyframe(before["user"], before["opponent"], before["ball"], 1.0)
+	first["flight"] = BallFlight.Kind.LOFTED
+	_board.start_shift([first])
+	assert_int(_board.shift_ball_path()["flight"] as int).is_equal(BallFlight.Kind.LOFTED)
+	# 動き始めは地面
+	assert_float(_board.ball_lift()).is_equal_approx(0.0, 0.0001)
+	# 浮き球の途中で、ボールが浮き、描くボールの高さも同じだけ浮く
+	await await_millis(500)
+	var lift: float = _board.ball_lift()
+	assert_float(lift).is_greater(1.0)
+	assert_array(_drawn_ball_lifts()).is_equal([lift])
+	_board.clear_overlays()
+	assert_float(_board.ball_lift()).is_equal(0.0)
+	assert_array(_drawn_ball_lifts()).is_equal([0.0])
+
+
+func _drawn_ball_lifts() -> Array[float]:
+	var lifts: Array[float] = []
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "ball":
+			lifts.append(thing["lift"] as float)
+	return lifts
+
+
 # --- 立っているもの（駒・プレビューの駒・ボール・「+N」）を描く順 ---
 
 func test_standing_things_are_drawn_from_the_far_side_to_the_near_side() -> void:

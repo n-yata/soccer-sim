@@ -12,6 +12,10 @@ const CPU_FILE: String = "cpu_config.tres"
 const PRESENTATION_FILE: String = "presentation_config.tres"
 ## 駒を動かす時間の上限（秒）。範囲の正本は functional-overview.md「設定値として外部化する値」
 const MAX_BOARD_BEAT_SEC: float = 2.0
+## ボールの軌道の上限（浮き球の高さ・ドリブルの弾みの高さはボールの半径の何倍か、弾みは回数）。範囲の正本は同じ表
+const MAX_BALL_LOFT_HEIGHT: float = 20.0
+const MAX_BALL_TOUCH_HEIGHT: float = 5.0
+const MAX_BALL_DRIBBLE_TOUCHES: int = 8
 
 var _config_dir: String
 var _match_rules: MatchRuleConfig
@@ -106,7 +110,20 @@ func _load_presentation() -> PresentationConfig:
 		push_error("ConfigRepository: %s の値が範囲外（review_lookback_turns=%d）のため、初期値を使う" % [PRESENTATION_FILE,
 				loaded.review_lookback_turns])
 		return PresentationConfig.new()
+	if not _is_ball_style_valid(loaded):
+		push_error("ConfigRepository: %s の値が範囲外（ball_loft_height=%s, ball_touch_height=%s, ball_dribble_touches=%d）のため、初期値を使う"
+				% [PRESENTATION_FILE, loaded.ball_loft_height, loaded.ball_touch_height, loaded.ball_dribble_touches])
+		return PresentationConfig.new()
 	return loaded
+
+
+## ボールの軌道の値の範囲（functional-overview.md「設定値として外部化する値」）。NaN でも偽になるよう、肯定形で確かめる。
+static func _is_ball_style_valid(config: PresentationConfig) -> bool:
+	var loft: float = config.ball_loft_height
+	var touch: float = config.ball_touch_height
+	var loft_ok: bool = is_finite(loft) and loft >= 0.0 and loft <= MAX_BALL_LOFT_HEIGHT
+	var touch_ok: bool = is_finite(touch) and touch >= 0.0 and touch <= MAX_BALL_TOUCH_HEIGHT
+	return loft_ok and touch_ok and config.ball_dribble_touches >= 1 and config.ball_dribble_touches <= MAX_BALL_DRIBBLE_TOUCHES
 
 
 ## ファイルが無ければ null（ResourceLoader.load は無いファイルでエンジンのエラーを出すため、先に存在を確かめる）。

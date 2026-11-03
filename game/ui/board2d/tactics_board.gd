@@ -163,18 +163,8 @@ func clear_overlays() -> void:
 ## 終わりのエリアが違うときだけ動かす（空文字・読めないキーなら動かさない）。動きの無い拍・時間が 0 以下の拍は飛ばす。
 func start_shift(keyframes: Array[Dictionary]) -> void:
 	_stop_shift()
-	var beats: Array[Dictionary] = []
-	for index: int in range(keyframes.size()):
-		var start: Dictionary = keyframes[index]
-		var is_last: bool = index == keyframes.size() - 1
-		var user_end: Array[Dictionary] = _user_players if is_last else _players_in(keyframes[index + 1], "user")
-		var opponent_end: Array[Dictionary] = _opponent_players if is_last else _players_in(keyframes[index + 1], "opponent")
-		var ball_end: String = _ball_area if is_last else keyframes[index + 1]["ball"] as String
-		var piece_paths: Array[Dictionary] = BoardShift.paths(_players_in(start, "user"), user_end, true, slot_center)
-		piece_paths.append_array(BoardShift.paths(_players_in(start, "opponent"), opponent_end, false, slot_center))
-		beats.append({"piece_paths": piece_paths, "ball_path": _ball_path(start["ball"] as String, ball_end),
-				"sec": start["sec"] as float})
-	_shift.start(beats)
+	var end: Dictionary = {"user": _user_players, "opponent": _opponent_players, "ball": _ball_area}
+	_shift.start(BoardShift.build_beats(keyframes, end, slot_center, _ball_point))
 	if not _shift.is_active():
 		return
 	_shift_tween = create_tween()
@@ -182,19 +172,6 @@ func start_shift(keyframes: Array[Dictionary]) -> void:
 		_shift_tween.tween_callback(_begin_shift_beat.bind(index))
 		_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, _shift.beats[index]["sec"] as float)
 	_shift_tween.finished.connect(_stop_shift)
-
-
-static func _players_in(keyframe: Dictionary, key: String) -> Array[Dictionary]:
-	var players: Array[Dictionary] = []
-	players.assign(keyframe[key] as Array)
-	return players
-
-
-## from_key のエリアから to_key のエリアへのボールの道筋。どちらかが読めないか、同じエリアなら空。
-func _ball_path(from_key: String, to_key: String) -> Dictionary:
-	if PitchArea.from_key(from_key) == null or PitchArea.from_key(to_key) == null or from_key == to_key:
-		return {}
-	return {"from": _ball_point(from_key), "to": _ball_point(to_key)}
 
 
 ## 開示で駒かボールを動かしている途中か。
@@ -345,6 +322,16 @@ func ball_center() -> Vector2:
 	return _shift.ball_position(_ball_point(_ball_area))
 
 
+## ボールの高さ（ボールの半径の何倍か。開示の1拍目の浮き球・ドリブルの弾み）。動いていなければ 0。
+func ball_lift() -> float:
+	return _shift.ball_lift()
+
+
+## 開示の1拍目のボールの軌道の値 {"loft", "touch", "touches"}（MatchController.ball_style()）。パネルが bind で入れる。
+func set_ball_style(style: Dictionary) -> void:
+	_shift.ball_style = style.duplicate()
+
+
 ## エリアのボールの位置（平面図）。エリアの上側の中央（駒の段と札に重ならない位置）。
 func _ball_point(key: String) -> Vector2:
 	var rect: Rect2 = area_rect(key)
@@ -432,7 +419,7 @@ func standing_order() -> Array[Dictionary]:
 	for index: int in range(_preview.size()):
 		things.append({"kind": "piece", "is_user": true, "is_preview": true, "plan": preview_center(index)})
 	if not _ball_area.is_empty():
-		things.append({"kind": "ball", "plan": ball_center()})
+		things.append({"kind": "ball", "plan": ball_center(), "lift": ball_lift()})
 	things.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a["plan"] as Vector2).y < (b["plan"] as Vector2).y)
 	return things
 

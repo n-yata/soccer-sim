@@ -12,6 +12,8 @@ var beats: Array[Dictionary] = []
 var beat_index: int = 0
 ## いまの拍の中の進み具合（0〜1）。動いていなければ 1
 var progress: float = 1.0
+## ボールの軌道の値 {"loft", "touch", "touches"}（BallFlight.lift。MatchController.ball_style()）。空なら高さは 0
+var ball_style: Dictionary = {}
 
 
 ## 駒かボールのどれかが動いているか。
@@ -78,7 +80,8 @@ func piece_position(player_id: String, rest: Vector2) -> Vector2:
 	return rest
 
 
-## ボールを描く位置。駒と同じ決め方で、rest はいまのエリアの位置。
+## ボールを描く位置（地面の位置。影もここに描く）。駒と同じ決め方で、rest はいまのエリアの位置。
+## いまの拍では、道筋の軌道（"flight"。無ければまっすぐ）の進み方で進む。
 func ball_position(rest: Vector2) -> Vector2:
 	for index: int in range(beat_index, beats.size()):
 		var path: Dictionary = beats[index]["ball_path"] as Dictionary
@@ -87,11 +90,54 @@ func ball_position(rest: Vector2) -> Vector2:
 	return rest
 
 
+## ボールの高さ（ボールの半径の何倍か）。いまの拍でボールが動いていなければ 0（地面）。
+func ball_lift() -> float:
+	var path: Dictionary = ball_path_of(beat_index)
+	if path.is_empty():
+		return 0.0
+	return BallFlight.lift(_flight_of(path), progress, ball_style)
+
+
+static func _flight_of(path: Dictionary) -> BallFlight.Kind:
+	return path.get("flight", BallFlight.Kind.STRAIGHT) as BallFlight.Kind
+
+
 ## index の拍の道筋の上で、いまの位置。いまの拍なら進み具合の分、後の拍なら元。
+## 駒とボールで同じ決め方にするため、1か所に置く（駒の道筋は "flight" を持たないので、まっすぐ等速になる）。
 func _point_on(path: Dictionary, index: int) -> Vector2:
 	if index != beat_index:
 		return path["from"] as Vector2
-	return (path["from"] as Vector2).lerp(path["to"] as Vector2, progress)
+	return (path["from"] as Vector2).lerp(path["to"] as Vector2, BallFlight.along(_flight_of(path), progress))
+
+
+## 拍の始まりの配置の並び（keyframes。TacticsBoard.start_shift）から拍を組み立てる。i 番目の拍は keyframes[i] から
+## keyframes[i + 1] へ、最後の拍は end（いまの盤面 {"user", "opponent", "ball"}）へ。各拍の駒の道筋は paths、ボールの道筋は
+## 始まりと終わりのエリアが違うときだけ（どちらかが読めなければ空）。keyframe に "flight"（BallFlight.Kind）があれば、
+## その拍のボールの軌道にする。center は slot_center、ball_point はエリアのキー → ボールの位置。
+static func build_beats(keyframes: Array[Dictionary], end: Dictionary, center: Callable, ball_point: Callable) -> Array[Dictionary]:
+	var beats: Array[Dictionary] = []
+	for index: int in range(keyframes.size()):
+		var start: Dictionary = keyframes[index]
+		var finish: Dictionary = end if index == keyframes.size() - 1 else keyframes[index + 1]
+		var piece_paths: Array[Dictionary] = paths(_players_in(start, "user"), _players_in(finish, "user"), true, center)
+		piece_paths.append_array(paths(_players_in(start, "opponent"), _players_in(finish, "opponent"), false, center))
+		var ball_path: Dictionary = _ball_path(start["ball"] as String, finish["ball"] as String, ball_point)
+		if not ball_path.is_empty() and start.has("flight"):
+			ball_path["flight"] = start["flight"] as BallFlight.Kind
+		beats.append({"piece_paths": piece_paths, "ball_path": ball_path, "sec": start["sec"] as float})
+	return beats
+
+
+static func _players_in(keyframe: Dictionary, key: String) -> Array[Dictionary]:
+	var players: Array[Dictionary] = []
+	players.assign(keyframe[key] as Array)
+	return players
+
+
+static func _ball_path(from_key: String, to_key: String, ball_point: Callable) -> Dictionary:
+	if PitchArea.from_key(from_key) == null or PitchArea.from_key(to_key) == null or from_key == to_key:
+		return {}
+	return {"from": ball_point.call(from_key) as Vector2, "to": ball_point.call(to_key) as Vector2}
 
 
 ## players（BoardSnapshot.user_players と同じ形）の各選手の、そのエリアの中での添字（配置の選手の順）。

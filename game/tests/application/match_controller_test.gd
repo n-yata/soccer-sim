@@ -93,6 +93,9 @@ func _config(turns: int, additional: int = 0) -> ConfigRepository:
 	var presentation := PresentationConfig.new()
 	presentation.board_settle_sec = 1.5
 	presentation.board_play_sec = 0.9
+	presentation.ball_loft_height = 4.5
+	presentation.ball_touch_height = 0.5
+	presentation.ball_dribble_touches = 2
 	ResourceSaver.save(presentation, dir.path_join("presentation_config.tres"))
 	return ConfigRepository.new(dir)
 
@@ -219,6 +222,11 @@ func test_board_settle_sec_comes_from_the_presentation_settings() -> void:
 func test_board_play_sec_comes_from_the_presentation_settings() -> void:
 	# テストの設定ファイルは 0.9 秒（同梱の 0.6 秒とも、2拍目の 1.5 秒とも違う値で、取り違えを見分ける）
 	assert_float(_controller(1).board_play_sec()).is_equal(0.9)
+
+
+func test_ball_style_comes_from_the_presentation_settings() -> void:
+	# テストの設定ファイルの値（同梱の 6.0・1.0・3 と違う値で、設定から読んでいることを確かめる）
+	assert_dict(_controller(1).ball_style()).is_equal({"loft": 4.5, "touch": 0.5, "touches": 2})
 
 
 # --- 決定前のプレビュー ---

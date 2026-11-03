@@ -76,6 +76,7 @@ func bind(controller: MatchController, show_next: bool = true) -> void:
 	_controller = controller
 	_show_next = show_next
 	_controller.turn_resolved.connect(_on_turn_resolved)
+	_board.set_ball_style(_controller.ball_style())
 
 
 ## コントローラーとのつながりを切る（画面の exit）。
@@ -359,10 +360,11 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	_board.clear_overlays()
 	_board.show_snapshot(snapshot)
 	# 2拍で動かす。1拍目（プレー）は判定前 → 判定時、2拍目（詰め直し）は判定時 → 次のターン開始時。
-	# どちらの拍も、位置が変わった全員を動かす（方式でずれた選手も。テロップ・矢印はすぐ出す）
+	# どちらの拍も、位置が変わった全員を動かす（方式でずれた選手も。テロップ・矢印はすぐ出す）。
+	# 1拍目のボールは、ボールを持つ側の手の軌道で動く（グラウンダー・浮き球・ドリブル・シュート）
 	_board.start_shift([
 		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
-				"sec": _controller.board_play_sec()},
+				"sec": _controller.board_play_sec(), "flight": BallFlight.kind_for(BallFlight.holder_choice(reveal))},
 		{"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
 				"ball": reveal.ball_after, "sec": _controller.board_settle_sec()},
 	])

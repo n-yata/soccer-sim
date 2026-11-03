@@ -34,4 +34,4 @@
 - [x] 実装レビュー（review-implementation）を行い、指摘を直す（sonnet、4.6/5、[必須] 0件。[推奨] board_shift_sec の改名（board_settle_sec へ。MAX_BOARD_BEAT_SEC も）とパネルのテストの分岐の固定を直した。[提案] NaN の時間のテストと仕様書の古い注記への一言を足した。tactics_board.gd の行数（551 行）は次の作業の前に検討する積み残し、keyframe の型は呼び出し元が1か所なので見送り。規約は coding-gdscript・coding-common を要点で渡し、testing は要旨。4スイート 123 件）
 - [x] コミット前レビュー（review-pre-commit）を行い、新たな Critical / High が無くなるまで直す（opus、第1回で Critical / High / Medium 0、Low 2件。2件とも直した）
 - [x] 振り返りを `retrospective.md` に記録する
-- [ ] シャビに報告し、main へコミットする（ファイルを名指しでステージする）
+- [x] シャビに報告し、main へコミットする（ファイルを名指しでステージする）（74cfc8d。並行セッションと共有の4ファイルは、この作業の hunk だけをステージした）

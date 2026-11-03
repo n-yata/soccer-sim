@@ -8,5 +8,12 @@ extends Resource
 ## 開示の2拍目（詰め直し）で、判定時の配置から次のターン開始時の配置へ駒を動かす時間（秒）。0 より大きく 2 以下
 ## （毎ターン見る動きなので、長いとテンポが落ちる。範囲外の値はデータ層が初期値に戻す）
 @export var board_settle_sec: float = 0.6
+## 開示の1拍目で、浮き球（ロングボール・サイドチェンジ）がいちばん高く上がるときの高さ（ボールの半径の何倍か）。0 以上 20 以下
+## （高すぎると盤面の上へはみ出す）
+@export var ball_loft_height: float = 6.0
+## 開示の1拍目で、ドリブルのボールが弾む高さ（同じ単位）。0 以上 5 以下
+@export var ball_touch_height: float = 1.0
+## 開示の1拍目で、ドリブルのボールが弾む回数（タッチの数）。1 以上 8 以下（多いと震えて見える）
+@export var ball_dribble_touches: int = 3
 ## 振り返り（FR-18）で、得点のターンの直前に遡る最大のターン数。0 以上（0 なら得点のターンだけを出す）
 @export var review_lookback_turns: int = 3

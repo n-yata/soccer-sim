@@ -396,6 +396,21 @@ func _path_ids(paths: Array[Dictionary]) -> Array[String]:
 	return ids
 
 
+func test_binding_gives_the_board_the_ball_style_from_the_settings() -> void:
+	# bind で設定の軌道の値を盤面に入れる。入れないと、浮き球が高さ 0 のまま静かに動く
+	_start(true)
+	var board: TacticsBoard = _panel.board()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var ball_area: String = snapshot.ball_area
+	var from_key: String = "D1-C" if ball_area != "D1-C" else "D2-C"
+	board.start_shift([{"user": snapshot.user_players, "opponent": snapshot.opponent_players, "ball": from_key,
+			"sec": 1.0, "flight": BallFlight.Kind.LOFTED}])
+	await await_millis(500)
+	# 同梱の浮き球の高さ（半径の6倍）の弧の途中。値が入っていなければ 0
+	assert_float(board.ball_lift()).is_greater(1.0)
+	assert_float(board.ball_lift()).is_less_equal(_controller.ball_style()["loft"] as float)
+
+
 func test_the_reveal_shifts_the_play_then_the_reshape_and_the_next_turn_stops_it() -> void:
 	_start(false)
 	_press(GameEnums.DefenseAction.PRESS)
@@ -427,6 +442,9 @@ func test_the_reveal_shifts_the_play_then_the_reshape_and_the_next_turn_stops_it
 	var ball_path: Dictionary = board.shift_beat_ball_path(0)
 	assert_str(board.plan_area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
 	assert_str(board.plan_area_at(ball_path["to"] as Vector2)).is_equal(reveal.ball_after)
+	# 1拍目のボールの軌道は、ボールを持つ側（この場面では CPU の攻撃）の手で決まる
+	assert_int(reveal.opponent_choice.family).is_equal(GameEnums.ChoiceFamily.ATTACK)
+	assert_int(ball_path["flight"] as int).is_equal(BallFlight.kind_for(reveal.opponent_choice))
 	_panel.primary_button().pressed.emit()
 	_controller.continue_after_reveal()
 	_panel.start_turn()
