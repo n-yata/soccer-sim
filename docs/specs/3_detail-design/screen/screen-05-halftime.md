@@ -28,9 +28,8 @@ HalftimeScreen (Control)
 │   │       ├── HalftimeBanner (Label)      # 「HALF TIME」タグ＋「前半終了」
 │   │       ├── OpponentSetupLabel (Label)  # 「◆ CPU 4-4-2／マンツーマン／カウンター型」（前半）
 │   │       ├── MatchupTitle (Label)        # 「前半の噛み合わせ（基本配置）」／選び直し中は「後半の噛み合わせ（予測）」
-│   │       └── MatchupRow (HBoxContainer)
-│   │           ├── MatchupPitch            # MiniPitch（両チームの人数 `自分−相手` と優劣記号。横5レーン×縦6列、上が敵陣）
-│   │           └── MatchupNotes            # NotesView（陣形と方式の噛み合わせの解説）
+│   │       ├── MatchupPitch                # MiniPitch（両チームの人数 `自分−相手` と優劣記号。横5レーン×縦6列、上が敵陣。1マス 76×40）
+│   │       └── MatchupNotes                # NotesView（陣形と方式の噛み合わせの解説。ミニピッチの下）
 │   └── SideColumn (VBoxContainer)          # 操作の列（screen-common.md §1.1 の3段）
 │       ├── SideScroll (ScrollContainer)    # 入りきらないときだけ縦にスクロール
 │       │   └── SideBody (VBoxContainer)    # 間隔 12px。見出しは 24px の小さい文字
@@ -43,6 +42,9 @@ HalftimeScreen (Control)
 ├── SettingsOverlay (PanelContainer) └── SettingsPanel
 └── ConfirmDialog
 ```
+
+- ミニピッチの下に解説を置く（基本設計の「その下に解説」。2026-11-03 までは横並びの `MatchupRow` だったが、本体の幅 約 730px では
+  解説の幅が 330px ほどに詰まるため縦に並べた）
 
 ## 画面の状態
 

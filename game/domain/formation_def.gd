@@ -4,7 +4,12 @@ extends RefCounted
 
 var id: String
 var name: String
+## 特徴（FR-17 の単独の解説の「特徴」も兼ねる）
 var description: String
+## 単独の解説の強み・弱み（FR-17。アルゴリズム9）と、その根拠の原則 ID。作った後に読み込み側が入れる
+var strengths: String = ""
+var weaknesses: String = ""
+var principle_ids: Array[String] = []
 ## 座標から導出できない特徴タグ（移植元の extraTags）
 var extra_tags: Array[String]
 ## GK を含む11人
@@ -25,4 +30,8 @@ func duplicate_deep() -> FormationDef:
 	var copied_players: Array[PlayerSlotDef] = []
 	for slot: PlayerSlotDef in players:
 		copied_players.append(slot.duplicate_deep())
-	return FormationDef.new(id, name, description, extra_tags.duplicate(), copied_players)
+	var copied := FormationDef.new(id, name, description, extra_tags.duplicate(), copied_players)
+	copied.strengths = strengths
+	copied.weaknesses = weaknesses
+	copied.principle_ids = principle_ids.duplicate()
+	return copied

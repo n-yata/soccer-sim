@@ -307,6 +307,42 @@ func test_style_change_starts_from_the_current_styles_and_kicks_off_once() -> vo
 	assert_int(screen.state()).is_equal(StyleChangeScreen.State.SUBMITTING)
 
 
+func _bulleted(notes: Array[MatchupNote]) -> Array[String]:
+	var result: Array[String] = []
+	for note: MatchupNote in notes:
+		result.append(NotesView.BULLET + note.text)
+	return result
+
+
+## 直前の噛み合わせ（両者の今の方式）を出す。方式を変えたら変えた項目の単独の解説を出し、元に戻したら隠す（screen-04-style-change.md）
+func test_style_change_shows_the_last_style_matchup_and_the_changed_style() -> void:
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.STYLE_CHANGE)
+	var screen: StyleChangeScreen = _open("res://ui/screens/s04_style_change/style_change_screen.tscn") as StyleChangeScreen
+	var current: TeamStyles = controller.snapshot().user_setup.styles
+	var opponent: TeamStyles = controller.opponent_setup().styles
+	assert_array(screen.matchup_notes().texts()).is_equal(_bulleted(App.library.style_notes(current, opponent)))
+	assert_array(screen.matchup_notes().headings()).is_equal(["方式の噛み合わせ"])
+	assert_bool(screen.picked_notes().visible).is_false()
+	var other_defense: GameEnums.DefenseStyle = GameEnums.DefenseStyle.MAN \
+			if current.defense == GameEnums.DefenseStyle.ZONE else GameEnums.DefenseStyle.ZONE
+	var buttons: Dictionary = {GameEnums.DefenseStyle.ZONE: "ZoneButton", GameEnums.DefenseStyle.MAN: "ManButton"}
+	(screen.picker().find_child(buttons[other_defense] as String, true, false) as Button).pressed.emit()
+	assert_bool(screen.picked_notes().visible).is_true()
+	assert_array(screen.picked_notes().texts()).is_equal(_bulleted(App.library.defense_style_notes(other_defense)))
+	var other_attack: String = "CounterButton" if current.attack == GameEnums.AttackStyle.POSSESSION \
+			else "PossessionButton"
+	(screen.picker().find_child(other_attack, true, false) as Button).pressed.emit()
+	assert_int(screen.picked_notes().headings().size()).is_equal(2)
+	(screen.picker().find_child(buttons[current.defense] as String, true, false) as Button).pressed.emit()
+	assert_int(screen.picked_notes().headings().size()).is_equal(1)
+	assert_str(screen.picked_notes().headings()[0]).starts_with("攻撃方式 ")
+	var original_attack: String = "PossessionButton" if other_attack == "CounterButton" else "CounterButton"
+	(screen.picker().find_child(original_attack, true, false) as Button).pressed.emit()
+	assert_bool(screen.picked_notes().visible).is_false()
+	# 直前の噛み合わせは、選んでいる方式で変わらない
+	assert_array(screen.matchup_notes().texts()).is_equal(_bulleted(App.library.style_notes(current, opponent)))
+
+
 func test_goal_text_names_the_scorer() -> void:
 	assert_str(StyleChangeScreen.goal_text(GameEnums.TeamSide.HOME)).is_equal("あなたが得点しました")
 	assert_str(StyleChangeScreen.goal_text(GameEnums.TeamSide.AWAY)).is_equal("CPU が得点しました")
@@ -330,6 +366,48 @@ func test_halftime_starts_from_the_first_half_setup_and_starts_the_second_half_o
 	assert_array(_requested).is_equal([AppScreens.Id.S03_MATCH] as Array[int])
 	assert_int(controller.snapshot().half).is_equal(2)
 	assert_str(controller.snapshot().user_setup.formation_id).is_equal("3-5-2")
+
+
+## 前半の噛み合わせ（基本配置の人数と優劣記号・陣形と方式の解説）。選び直すと「後半の噛み合わせ（予測）」に描き直す
+func test_halftime_shows_the_first_half_matchup_and_redraws_when_picking() -> void:
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.HALFTIME)
+	var screen: HalftimeScreen = _open("res://ui/screens/s05_halftime/halftime_screen.tscn") as HalftimeScreen
+	var user: TeamSetup = controller.snapshot().user_setup
+	var opponent: TeamSetup = controller.opponent_setup()
+	_assert_halftime_matchup(screen, user.formation_id, user.styles, opponent)
+	assert_str(screen.matchup_title()).is_equal("前半の噛み合わせ（基本配置）")
+	var other_formation: String = "4-4-2" if user.formation_id != "4-4-2" else "3-5-2"
+	(screen.card_for(other_formation).find_child("CardButton", true, false) as Button).pressed.emit()
+	assert_str(screen.matchup_title()).is_equal("後半の噛み合わせ（予測）")
+	_assert_halftime_matchup(screen, other_formation, user.styles, opponent)
+	(screen.card_for(user.formation_id).find_child("CardButton", true, false) as Button).pressed.emit()
+	assert_str(screen.matchup_title()).is_equal("前半の噛み合わせ（基本配置）")
+	var other_attack: String = "CounterButton" if user.styles.attack == GameEnums.AttackStyle.POSSESSION \
+			else "PossessionButton"
+	(screen.picker().find_child(other_attack, true, false) as Button).pressed.emit()
+	assert_str(screen.matchup_title()).is_equal("後半の噛み合わせ（予測）")
+	_assert_halftime_matchup(screen, user.formation_id, screen.picker().styles(), opponent)
+
+
+func _assert_halftime_matchup(screen: HalftimeScreen, formation_id: String, styles: TeamStyles,
+		opponent: TeamSetup) -> void:
+	var counts: Dictionary = App.library.matchup_counts(formation_id, opponent.formation_id)
+	var pitch: MiniPitch = screen.matchup_pitch()
+	for key: String in counts:
+		assert_int(pitch.counts().get(key, 0) as int).override_failure_message(key).is_equal((counts[key] as Array)[0] as int)
+		assert_int(pitch.opponent_counts().get(key, 0) as int).override_failure_message(key) \
+				.is_equal((counts[key] as Array)[1] as int)
+	# 人数のあるマスには優劣記号が付く
+	var marked: int = 0
+	for key: String in counts:
+		var text: String = pitch.count_text(key)
+		if not text.is_empty():
+			assert_bool(text.right(1) in ["▲", "＝", "▼"]).override_failure_message(key + ": " + text).is_true()
+			marked += 1
+	assert_int(marked).is_greater(0)
+	var expected: Array[MatchupNote] = App.library.formation_notes(formation_id, opponent.formation_id)
+	expected.append_array(App.library.style_notes(styles, opponent.styles))
+	assert_array(screen.matchup_notes().texts()).is_equal(_bulleted(expected))
 
 
 func test_halftime_cards_are_compact_but_large_enough_to_press() -> void:

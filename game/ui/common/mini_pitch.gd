@@ -4,6 +4,7 @@
 ## 1チームの人数（show_counts。陣形カード）と、1ターンの両チームの人数・動きの矢印・ボール（show_turn。振り返りの
 ## 得失点の流れ。2026-10-29）を描く。2チームでは、各マスに「自分−相手」の人数（例 `1−0`。判定理由の「1対0」と
 ## 同じく自分が先）を出す。どちらかが1人以上いるマスだけ。矢印はチームの色で、自分は少し左・相手は少し右にずらす。
+## 噛み合わせ（show_matchup。S-05）は、2チームの人数に優劣記号（▲・＝・▼）を続ける（色に頼らない。NFR-20）。
 class_name MiniPitch
 extends Control
 
@@ -11,11 +12,16 @@ extends Control
 ## 6列にしたとき、陣形カードの大きさ（220×180）を変えないよう、縦を 60 から 30 にした（2026-10-25）
 const CELL_SIZE: Vector2 = Vector2(44, 30)
 const THEME_TYPE: StringName = &"MiniPitch"
+## 優劣記号（screen-common.md §3。自分が多い・同数・少ない）
+const ADVANTAGE_MARK: String = "▲"
+const EVEN_MARK: String = "＝"
+const DISADVANTAGE_MARK: String = "▼"
 
 var _cell_size: Vector2
 var _counts: Dictionary = {}
 var _opponent_counts: Dictionary = {}
 var _two_teams: bool = false
+var _shows_marks: bool = false
 var _movements: Array[Movement] = []
 var _ball_area: String = ""
 
@@ -37,6 +43,7 @@ func show_counts(counts: Dictionary) -> void:
 	_counts = counts.duplicate()
 	_opponent_counts.clear()
 	_two_teams = false
+	_shows_marks = false
 	_movements.clear()
 	_ball_area = ""
 	queue_redraw()
@@ -48,9 +55,16 @@ func show_turn(user_counts: Dictionary, opponent_counts: Dictionary, movements: 
 	_counts = user_counts.duplicate()
 	_opponent_counts = opponent_counts.duplicate()
 	_two_teams = true
+	_shows_marks = false
 	_movements = movements.duplicate()
 	_ball_area = ball_key
 	queue_redraw()
+
+
+## 両チームの基本配置の人数（利用者の視点のキー → 人数）を、優劣記号つきで（S-05 の噛み合わせ）。動きとボールは描かない。
+func show_matchup(user_counts: Dictionary, opponent_counts: Dictionary) -> void:
+	show_turn(user_counts, opponent_counts, [] as Array[Movement], "")
+	_shows_marks = true
 
 
 ## 表示している人数（PitchArea のキー → 人数）の写し。2チームでは利用者の人数。
@@ -92,7 +106,7 @@ func _draw() -> void:
 	draw_rect(board, get_theme_color("pitch_line", THEME_TYPE), false, 2.0)
 
 
-## マスに出す文字。1チームは人数（0 なら空）、2チームは「自分−相手」（両方 0 なら空）。
+## マスに出す文字。1チームは人数（0 なら空）、2チームは「自分−相手」（両方 0 なら空。噛み合わせでは優劣記号を続ける）。
 func count_text(key: String) -> String:
 	var user_count: int = _counts.get(key, 0) as int
 	if not _two_teams:
@@ -100,7 +114,12 @@ func count_text(key: String) -> String:
 	var opponent_count: int = _opponent_counts.get(key, 0) as int
 	if user_count <= 0 and opponent_count <= 0:
 		return ""
-	return "%d%s%d" % [user_count, MatchTexts.MINUS_SIGN, opponent_count]
+	var text: String = "%d%s%d" % [user_count, MatchTexts.MINUS_SIGN, opponent_count]
+	if not _shows_marks:
+		return text
+	if user_count > opponent_count:
+		return text + ADVANTAGE_MARK
+	return text + (EVEN_MARK if user_count == opponent_count else DISADVANTAGE_MARK)
 
 
 func _draw_centered(center: Vector2, text: String) -> void:

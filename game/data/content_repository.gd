@@ -1,7 +1,8 @@
 ## 静的データ（game/content/*.json）を読み、検証して ContentCatalog に変換する（component-design.md §4.1）。
-## 陣形（formations.json）・単純化カタログ（simplifications.json）・チュートリアルの段階（tutorial.json）・
-## 戦術原則カタログ（principles.json）・場面問題（quiz.json）を扱う。ほかの静的データは、それを使う機能の作業で足す。
-## 単純化とチュートリアルの形・範囲は TutorialContentReader、原則と場面問題は QuizContentReader が確かめる。
+## 陣形（formations.json）・方式（styles.json）・噛み合わせルール（matchup_rules.json）・単純化カタログ（simplifications.json）・
+## チュートリアルの段階（tutorial.json）・戦術原則カタログ（principles.json）・場面問題（quiz.json）を扱う。
+## 単純化とチュートリアルの形・範囲は TutorialContentReader、原則と場面問題は QuizContentReader、方式とルールは
+## CommentaryContentReader が確かめる。
 ##
 ## 静的データはアプリに同梱するため、誤りは開発時の誤りとして扱う（data-definition.md §4）。
 ## 誤りが1件でもあれば、何も持たない空の ContentCatalog を返す（一部だけ正しいデータで動き続けないため）。
@@ -13,6 +14,8 @@ const SIMPLIFICATIONS_FILE: String = "simplifications.json"
 const TUTORIAL_FILE: String = "tutorial.json"
 const PRINCIPLES_FILE: String = "principles.json"
 const QUIZ_FILE: String = "quiz.json"
+const STYLES_FILE: String = "styles.json"
+const MATCHUP_RULES_FILE: String = "matchup_rules.json"
 
 # 以下の値は data-definition.md §3・§3.1 の範囲・制約の写し。正本を変えたらここも合わせる
 const FORMAT_VERSION: int = 1
@@ -23,6 +26,8 @@ const NAME_LENGTH_MIN: int = 1
 const NAME_LENGTH_MAX: int = 20
 const DESCRIPTION_LENGTH_MIN: int = 1
 const DESCRIPTION_LENGTH_MAX: int = 200
+## 陣形の強み・弱み（data-definition.md §3.1）
+const PROFILE_LENGTH_MAX: int = 300
 const PLAYER_COUNT: int = 11
 const PLAYER_TYPES: Array[String] = ["GK", "DF", "MF", "FW"]
 const LABEL_LENGTH_MIN: int = 1
@@ -63,11 +68,21 @@ func load_catalog() -> ContentCatalog:
 		principle_ids.append(principle.id)
 	var questions: Array[QuizQuestionDef] = quiz_reader.read_quiz(_read_json(QUIZ_FILE), principle_ids)
 	_add_reader_errors(QUIZ_FILE, quiz_reader.errors())
+	_check_formation_principles(formations, principle_ids)
+	var simplification_ids: Array[String] = []
+	for simplification: SimplificationDef in simplifications:
+		simplification_ids.append(simplification.id)
+	var commentary_reader := CommentaryContentReader.new(principle_ids, simplification_ids)
+	var styles: Array[StyleDef] = commentary_reader.read_styles(_read_json(STYLES_FILE))
+	_add_reader_errors(STYLES_FILE, commentary_reader.errors())
+	var rules: Array[MatchupRuleDef] = commentary_reader.read_rules(_read_json(MATCHUP_RULES_FILE))
+	_add_reader_errors(MATCHUP_RULES_FILE, commentary_reader.errors())
 	if not _errors.is_empty():
 		for message: String in _errors:
 			push_error(message)
 		return ContentCatalog.new()
-	return ContentCatalog.new(formations, simplifications, steps, principles, questions)
+	return ContentCatalog.new(formations, simplifications, steps, principles, questions, styles, rules,
+			commentary_reader.fallback())
 
 
 ## 直前の load_catalog() で見つかった誤り。まだ読んでいなければ読む。空なら正常。
@@ -124,7 +139,16 @@ func _parse_formation(entry: Variant, location: String, formation_ids: Dictionar
 	var formation_name: String = _require_text(fields, "name", location, NAME_LENGTH_MIN, NAME_LENGTH_MAX)
 	var description: String = _require_text(fields, "description", location,
 			DESCRIPTION_LENGTH_MIN, DESCRIPTION_LENGTH_MAX)
+	var strengths: String = _require_text(fields, "strengths", location, DESCRIPTION_LENGTH_MIN, PROFILE_LENGTH_MAX)
+	var weaknesses: String = _require_text(fields, "weaknesses", location, DESCRIPTION_LENGTH_MIN, PROFILE_LENGTH_MAX)
+	# 原則 ID がカタログにあるかは、原則を読んだ後に確かめる（_check_formation_principles）
+	var principle_ids: Array[String] = _require_string_array(fields, "principle_ids", location)
+	if typeof(fields.get("principle_ids")) == TYPE_ARRAY and principle_ids.is_empty():
+		_error(location + ".principle_ids", "1件以上でない")
 	var tags: Array[String] = _require_string_array(fields, "extra_tags", location)
+	for i: int in tags.size():
+		if not FormationTags.KNOWN.has(tags[i]):
+			_error("%s.extra_tags[%d]" % [location, i], "既知の特徴タグでない: %s" % tags[i])
 	var players: Array[PlayerSlotDef] = []
 	if typeof(fields.get("players")) != TYPE_ARRAY:
 		_error(location + ".players", "配列でない")
@@ -132,7 +156,19 @@ func _parse_formation(entry: Variant, location: String, formation_ids: Dictionar
 		players = _parse_players(fields["players"], location + ".players", player_ids)
 	if _errors.size() != error_count:
 		return null
-	return FormationDef.new(formation_id, formation_name, description, tags, players)
+	var formation := FormationDef.new(formation_id, formation_name, description, tags, players)
+	formation.strengths = strengths
+	formation.weaknesses = weaknesses
+	formation.principle_ids = principle_ids
+	return formation
+
+
+## 陣形の根拠の原則 ID が、原則カタログにあること（NFR-17 ①）。
+func _check_formation_principles(formations: Array[FormationDef], principle_ids: Array[String]) -> void:
+	for formation: FormationDef in formations:
+		for principle_id: String in formation.principle_ids:
+			if not principle_ids.has(principle_id):
+				_error("formations(%s).principle_ids" % formation.id, "原則カタログに無い: %s" % principle_id)
 
 
 func _parse_players(entries: Array, location: String, player_ids: Dictionary) -> Array[PlayerSlotDef]:

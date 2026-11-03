@@ -1,0 +1,470 @@
+{
+  "format_version": 1,
+  "fallback": {
+    "text": "陣形どうしの目立ったズレは無い。方式による動きと、毎ターンの読み合いで差がつく",
+    "principle_ids": [
+      "TP-10"
+    ]
+  },
+  "rules": [
+    {
+      "id": "R08",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "中盤実質5枚"
+        ],
+        "opponent_tags": [
+          "中盤フラット4枚"
+        ]
+      },
+      "text": "中盤の枚数で相手の4枚を上回り、ボールを持つ時間を長くしやすい",
+      "theme": "中盤の枚数",
+      "principle_ids": [
+        "TP-02",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R09",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "中盤実質5枚"
+        ],
+        "opponent_tags": [
+          "中盤3枚"
+        ]
+      },
+      "text": "中盤の実質的な人数で相手の中央3枚を上回り、数的優位を握りやすい",
+      "theme": "中盤の枚数",
+      "principle_ids": [
+        "TP-02",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R01",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "3バック"
+        ],
+        "opponent_tags": [
+          "2トップ"
+        ]
+      },
+      "text": "DF3枚に対して相手は2トップなので、最終ラインで数的優位を保てる",
+      "theme": "最終ラインの数的関係",
+      "principle_ids": [
+        "TP-02",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R03",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "1トップ"
+        ],
+        "opponent_tags": [
+          "4バック"
+        ]
+      },
+      "text": "1トップが相手のセンターバックをピン留めし、その周囲にスペースを作れる",
+      "theme": "前線のピン留め",
+      "principle_ids": [
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R05",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "3バック",
+          "ウイングバック有"
+        ],
+        "opponent_tags": [
+          "ウイング有"
+        ]
+      },
+      "text": "DF3枚とウイングバックによる5レーンの構成で、相手のウイングとサイドバックの連携を分断しやすい",
+      "theme": "レーンの分断",
+      "principle_ids": [
+        "TP-01",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R02",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "ウイング有"
+        ],
+        "opponent_tags": [
+          "4バック"
+        ]
+      },
+      "text": "ウイングが高い位置を取り、相手のサイドバックとの1対1を作れる",
+      "theme": "サイドの1対1",
+      "principle_ids": [
+        "TP-09",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R12",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "ウイング有"
+        ],
+        "opponent_tags": [
+          "ウイングバック有"
+        ]
+      },
+      "text": "ウイングが相手のウイングバックの背後のスペースを突きやすい",
+      "theme": "背後のスペース",
+      "principle_ids": [
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R18",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "ウイングバック有"
+        ],
+        "opponent_tags": [
+          "4バック"
+        ]
+      },
+      "text": "ウイングバックが高い位置を取り、ピッチの幅を制圧できる",
+      "theme": "ウイングバックの押し上げ",
+      "principle_ids": [
+        "TP-09",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R13",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "4バック"
+        ],
+        "opponent_tags": [
+          "ウイングバック有"
+        ]
+      },
+      "text": "サイドバックの攻撃参加で相手のウイングバックとの1対1を作れる",
+      "theme": "ウイングバックとの駆け引き",
+      "principle_ids": [
+        "TP-09",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R15",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "4バック",
+          "中盤フラット4枚"
+        ],
+        "opponent_tags": [
+          "ウイング有"
+        ]
+      },
+      "text": "サイドの守備がDFと中盤の2枚がかりになり、相手のウイングを封じ込めやすい",
+      "theme": "ウイングの封じ込め",
+      "principle_ids": [
+        "TP-03",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R20",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "中盤フラット4枚"
+        ],
+        "opponent_tags": [
+          "攻撃的MF3枚"
+        ]
+      },
+      "text": "中盤4枚が横並びで守備の陣形を保ちやすく、相手の攻撃的MF3枚に前を向かせにくい",
+      "theme": "中盤の陣形維持",
+      "principle_ids": [
+        "TP-04",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R06",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "ウイング有"
+        ],
+        "opponent_tags": [
+          "中盤フラット4枚"
+        ]
+      },
+      "text": "両翼のウイングが幅を使い、横並びの中盤4枚で守る相手を横へ引き伸ばせる",
+      "theme": "守備ブロックを広げる",
+      "principle_ids": [
+        "TP-09",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R04",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "守備的MF2枚"
+        ],
+        "opponent_tags": [
+          "2トップ"
+        ]
+      },
+      "text": "守備的MF2枚が相手の2トップに数的同数でマンツーマン気味に対応でき、数的な破綻を防ぎやすい",
+      "theme": "前線と守備的MFの噛み合わせ",
+      "principle_ids": [
+        "TP-05",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R14",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "中盤3枚"
+        ],
+        "opponent_tags": [
+          "守備的MF2枚"
+        ]
+      },
+      "text": "中央3枚のプレッシングで相手の守備的MF2枚を挟み込みやすい",
+      "theme": "プレッシング",
+      "principle_ids": [
+        "TP-02",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R36",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "守備的MF2枚"
+        ],
+        "opponent_tags": [
+          "3トップ"
+        ]
+      },
+      "text": "守備的MF2枚が中央を閉じ、相手の3トップの中央突破を受け止めやすい",
+      "theme": "前線と守備的MFの噛み合わせ",
+      "principle_ids": [
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R07",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "攻撃的MF3枚"
+        ],
+        "opponent_tags": [
+          "中盤フラット4枚"
+        ]
+      },
+      "text": "攻撃的MF3枚が相手の中盤と最終ラインのライン間でボールを受けやすい",
+      "theme": "ライン間で受ける",
+      "principle_ids": [
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R10",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "2トップ"
+        ],
+        "opponent_tags": [
+          "守備的MF2枚"
+        ]
+      },
+      "text": "2トップが相手の守備的MF2枚の脇や背後のスペースを突きやすい",
+      "theme": "前線と守備的MFの噛み合わせ",
+      "principle_ids": [
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "R16",
+      "kind": "FORMATION",
+      "condition": {
+        "viewer_tags": [
+          "2トップ"
+        ],
+        "opponent_tags": [
+          "中盤3枚"
+        ]
+      },
+      "text": "2トップが同じ高さで並ぶため連携が取りやすく、素早い縦への攻撃に転じやすい",
+      "theme": "速攻",
+      "principle_ids": [
+        "TP-08",
+        "TP-10"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S01",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "ZONE",
+        "opponent_style": "POSSESSION"
+      },
+      "text": "相手の保持型は、大外の選手を1列前に出してくる。ゾーンはボールサイドへ1レーン寄せてボールの周りの人数をそろえられるが、逆サイドの大外へ振られると手薄になる",
+      "theme": "ゾーン対保持型",
+      "principle_ids": [
+        "TP-04",
+        "TP-09"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S02",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "ZONE",
+        "opponent_style": "COUNTER"
+      },
+      "text": "相手のカウンター型はボールを持っても基本の位置から動かないので、スライドで空いた逆サイドを突かれる場面は少ない。気をつけるのはボールを奪われた直後で、相手の大外の選手が1列前へ飛び出してくる",
+      "theme": "ゾーン対カウンター型",
+      "principle_ids": [
+        "TP-04",
+        "TP-08"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S03",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "MAN",
+        "opponent_style": "POSSESSION"
+      },
+      "text": "マンツーマンでは、自陣側の4列（1〜4列目）にいる相手1人に1人がつく。相手の保持型が大外の選手を前に出すと、マーカーも外へ引っ張られて中央が空きやすい",
+      "theme": "マンツーマン対保持型",
+      "principle_ids": [
+        "TP-05",
+        "TP-09"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S04",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "MAN",
+        "opponent_style": "COUNTER"
+      },
+      "text": "相手のカウンター型は基本の位置を保つので、マークする相手が動きにくく、守備の人数がずれにくい。相手がドリブルで動いたり、スルーパスで走り込んだりすると、マーカーもついて動く",
+      "theme": "マンツーマン対カウンター型",
+      "principle_ids": [
+        "TP-05",
+        "TP-03"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S05",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "POSSESSION",
+        "opponent_style": "ZONE"
+      },
+      "text": "保持型では大外の選手が1列前に出て、幅と高さを取る。相手のゾーンはボールサイドへ1レーン寄るので、逆サイドの大外が手薄になりやすい",
+      "theme": "保持型対ゾーン",
+      "principle_ids": [
+        "TP-09",
+        "TP-04"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S06",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "POSSESSION",
+        "opponent_style": "MAN"
+      },
+      "text": "保持型で大外の選手を前に出すと、相手のマーカーも外へついてくる。中央に空いたエリアを探したい。ただし、マークされている受け手へのスルーパスは、マーカーも一緒に走り込んでくる",
+      "theme": "保持型対マンツーマン",
+      "principle_ids": [
+        "TP-09",
+        "TP-05"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S07",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "COUNTER",
+        "opponent_style": "ZONE"
+      },
+      "text": "カウンター型は、ボールを奪った直後のカウンターで大外の選手が1列前へ飛び出す。相手のゾーンがボールサイドへ寄っていれば、逆サイドの大外が空いていることが多い",
+      "theme": "カウンター型対ゾーン",
+      "principle_ids": [
+        "TP-08",
+        "TP-04"
+      ],
+      "simplification_ids": []
+    },
+    {
+      "id": "S08",
+      "kind": "STYLE",
+      "condition": {
+        "viewer_style": "COUNTER",
+        "opponent_style": "MAN"
+      },
+      "text": "カウンター型はボールを持っても基本の位置を保つので、相手のマーカーを動かしにくい。勝負はボールを奪った直後で、大外の選手が1列前へ飛び出し、1マスずつしか戻れない相手の背後を突く",
+      "theme": "カウンター型対マンツーマン",
+      "principle_ids": [
+        "TP-08",
+        "TP-05"
+      ],
+      "simplification_ids": []
+    }
+  ]
+}

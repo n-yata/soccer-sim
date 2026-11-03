@@ -39,7 +39,7 @@ soccer-game/
 │   ├── application/               # アプリケーション層（試合進行・画面遷移・保存の呼び出し）
 │   ├── data/                      # データ層（静的データの読み込み・端末内保存）
 │   ├── ui/                        # UI 層（画面・作戦ボード）
-│   ├── content/                   # 静的データ（JSON。今は formations.json だけ）
+│   ├── content/                   # 静的データ（JSON。陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアル）
 │   ├── config/                    # 調整値（Resource .tres。今は match_rule_config.tres・cpu_config.tres）
 │   ├── assets/                    # 素材（テクスチャ・音・フォント。ライセンス台帳 LICENSES.md を含む）
 │   │   ├── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt

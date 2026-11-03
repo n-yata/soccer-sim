@@ -145,8 +145,10 @@
 | `formations` | `array` | ○ | 4件（4-4-2・4-3-3・4-2-3-1・3-5-2） | — |
 | `formations[].id` | `string` | ○ | 一意 | 例 `4-4-2` |
 | `formations[].name` | `string` | ○ | 1〜20文字 | — |
-| `formations[].description` | `string` | ○ | 1〜200文字 | — |
-| `formations[].extra_tags` | `array<string>` | ○ | 0件以上 | 座標から導出できない特徴タグ（移植元の `extraTags`）。座標から導出するタグはアルゴリズム9 |
+| `formations[].description` | `string` | ○ | 1〜200文字 | 特徴（FR-17 の単独の解説の「特徴」を兼ねる） |
+| `formations[].strengths` / `.weaknesses` | `string` | ○ | 1〜300文字 | 強み・弱み（FR-17 の単独の解説。2026-11-03） |
+| `formations[].principle_ids` | `array<string>` | ○ | 1件以上。`principles.json` に存在する ID | 単独の解説の根拠の原則（NFR-17 ①。2026-11-03） |
+| `formations[].extra_tags` | `array<string>` | ○ | 0件以上。既知の特徴タグ（`FormationTags.KNOWN`） | 座標から導出できない特徴タグ（移植元の `extraTags`）。座標から導出するタグはアルゴリズム9 |
 | `formations[].players` | `array` | ○ | 11件。GK はちょうど1件 | 選手配置 |
 | `formations[].players[].id` | `string` | ○ | 全陣形で一意 | 例 `4-4-2-lb` |
 | `formations[].players[].type` | `string` | ○ | `GK`・`DF`・`MF`・`FW` | ポジション種別 |
@@ -176,12 +178,19 @@
 | `rules[].id` | `string` | ○ | 一意 | ルールID |
 | `rules[].kind` | `string` | ○ | `FORMATION`（陣形どうし）・`STYLE`（方式どうし） | — |
 | `rules[].condition` | `object` | ○ | 下記 | 条件 |
-| `rules[].condition.viewer_tags` / `.opponent_tags` | `array<string>` | △ | `kind` が `FORMATION` のとき。いずれかが1件以上 | 特徴タグの条件（移植元の考え方） |
+| `rules[].condition.viewer_tags` / `.opponent_tags` | `array<string>` | △ | `kind` が `FORMATION` のとき。両方のキーが必須（空の配列は可）で、いずれかが1件以上 | 特徴タグの条件（移植元の考え方） |
 | `rules[].condition.viewer_style` / `.opponent_style` | `string` | △ | `kind` が `STYLE` のとき。方式の ID | — |
 | `rules[].text` | `string` | ○ | 1〜300文字 | 解説文 |
 | `rules[].theme` | `string` | ○ | 1〜40文字 | テーマ（同一テーマから採用するのは1件。アルゴリズム9） |
 | `rules[].principle_ids` | `array<string>` | ○ | 1件以上。`principles.json` に存在する ID | NFR-17 ① |
-| `rules[].simplification_ids` | `array<string>` | ○ | 0件以上 | — |
+| `rules[].simplification_ids` | `array<string>` | ○ | 0件以上。`simplifications.json` に存在する ID | — |
+| `fallback` | `object` | ○ | `text`（1〜300文字）・`principle_ids`（1件以上） | 陣形どうしでルールが1件も当たらない側に出す文（2026-11-03。移植元は能力値から作っていたが、本プロダクトは能力値を持たないため） |
+
+- `rules` の配列の順が採用の順（同じテーマからは先の1件だけ）。`FORMATION` は移植元の `matchupRules.ts` の順のまま、
+  4陣形どうしで当たる18件だけを持つ。文は移植元の1つ目の言い回し（移植元は2つの言い回しをハッシュで選んでいた）
+- `rules[].text` は解説を見る側（viewer）から書き、相手チームは「相手」と書く。「こちら」は使わない（相手の狙いどころとして
+  出すときに「相手」を「こちら」に言い換えるため。`LibraryService.formation_notes`）
+- `condition` の `viewer_tags`・`opponent_tags` は既知の特徴タグだけ。`viewer_style`・`opponent_style` は守備方式と攻撃方式の組
 
 ### 3.4 `principles.json`・`simplifications.json`（カタログのアプリ内表示用）
 

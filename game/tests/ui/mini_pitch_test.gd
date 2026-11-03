@@ -76,6 +76,25 @@ func test_show_counts_after_a_turn_goes_back_to_one_team() -> void:
 	assert_str(pitch.ball_area()).is_empty()
 
 
+## 噛み合わせ（S-05）: 「自分−相手」に優劣記号（▲ 自分が多い・＝ 同数・▼ 少ない）を続ける。どちらも 0 のマスは空
+func test_show_matchup_adds_the_superiority_mark() -> void:
+	var pitch: MiniPitch = auto_free(MiniPitch.new(Vector2(76, 40))) as MiniPitch
+	pitch.show_matchup({"M2-C": 2, "M1-C": 1, "A2-C": 0}, {"M2-C": 1, "M1-C": 1, "D1-C": 1})
+	assert_str(pitch.count_text("M2-C")).is_equal("2−1▲")
+	assert_str(pitch.count_text("M1-C")).is_equal("1−1＝")
+	assert_str(pitch.count_text("D1-C")).is_equal("0−1▼")
+	assert_str(pitch.count_text("A2-C")).is_empty()
+	assert_str(pitch.ball_area()).is_empty()
+	assert_array(pitch.drawn_movements()).is_empty()
+
+
+func test_show_turn_after_a_matchup_has_no_marks() -> void:
+	var pitch: MiniPitch = auto_free(MiniPitch.new(Vector2(76, 40))) as MiniPitch
+	pitch.show_matchup({"M2-C": 2}, {"M2-C": 1})
+	pitch.show_turn({"M2-C": 2}, {"M2-C": 1}, [] as Array[Movement], "")
+	assert_str(pitch.count_text("M2-C")).is_equal("2−1")
+
+
 func test_minimum_size_fits_five_by_six_cells_of_one_team() -> void:
 	var pitch: MiniPitch = auto_free(MiniPitch.new()) as MiniPitch
 	assert_object(pitch.custom_minimum_size).is_equal(Vector2(220, 180))

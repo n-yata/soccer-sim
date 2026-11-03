@@ -14,10 +14,11 @@ func _real_data() -> Dictionary:
 	return JSON.parse_string(text) as Dictionary
 
 
-## 陣形以外の静的データ（単純化・チュートリアル・原則・場面問題）は本物を写す（陣形の誤りだけを確かめるため）。
+## 陣形以外の静的データ（単純化・チュートリアル・原則・場面問題・方式・噛み合わせルール）は本物を写す（陣形の誤りだけを確かめるため）。
 func _copy_other_real_files(dir: String) -> void:
 	for file_name: String in [ContentRepository.SIMPLIFICATIONS_FILE, ContentRepository.TUTORIAL_FILE,
-			ContentRepository.PRINCIPLES_FILE, ContentRepository.QUIZ_FILE]:
+			ContentRepository.PRINCIPLES_FILE, ContentRepository.QUIZ_FILE, ContentRepository.STYLES_FILE,
+			ContentRepository.MATCHUP_RULES_FILE]:
 		var copied := FileAccess.open(dir.path_join(file_name), FileAccess.WRITE)
 		copied.store_string(FileAccess.get_file_as_string(REAL_CONTENT_DIR.path_join(file_name)))
 		copied.close()
@@ -161,6 +162,61 @@ func test_extra_tags_must_be_strings() -> void:
 	var data: Dictionary = _real_data()
 	_formation(data, 0)["extra_tags"] = ["ライン間が空く", 3]
 	_assert_single_error_at(_repository_with(data, "tag_not_string"), "formations[0].extra_tags[1]")
+
+
+func test_extra_tags_must_be_known_tags() -> void:
+	var data: Dictionary = _real_data()
+	_formation(data, 0)["extra_tags"] = ["ライン間が空く", "5バック"]
+	_assert_single_error_at(_repository_with(data, "unknown_tag"), "formations[0].extra_tags[1]")
+
+
+func test_strengths_and_weaknesses_are_required_with_length_limits() -> void:
+	var data: Dictionary = _real_data()
+	_formation(data, 1)["strengths"] = ""
+	_assert_single_error_at(_repository_with(data, "empty_strengths"), "formations[1].strengths")
+	data = _real_data()
+	_formation(data, 1)["weaknesses"] = "あ".repeat(301)
+	_assert_single_error_at(_repository_with(data, "long_weaknesses"), "formations[1].weaknesses")
+	data = _real_data()
+	_formation(data, 1)["weaknesses"] = "あ".repeat(300)
+	var repository: ContentRepository = _repository_with(data, "longest_weaknesses")
+	repository.load_catalog()
+	assert_array(repository.validation_errors()).is_empty()
+
+
+func test_formation_principles_must_be_non_empty_and_in_the_catalog() -> void:
+	var data: Dictionary = _real_data()
+	_formation(data, 2)["principle_ids"] = []
+	_assert_single_error_at(_repository_with(data, "no_principles"), "formations[2].principle_ids")
+	data = _real_data()
+	_formation(data, 2)["principle_ids"] = ["TP-10", "TP-99"]
+	_assert_single_error_at(_repository_with(data, "unknown_principle"), "formations(4-2-3-1).principle_ids")
+
+
+func test_real_formations_carry_their_profile() -> void:
+	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
+	var raw: Dictionary = _formation(_real_data(), 3)
+	var formation: FormationDef = catalog.formation("3-5-2")
+	assert_str(formation.strengths).is_equal(raw["strengths"] as String)
+	assert_str(formation.weaknesses).is_equal(raw["weaknesses"] as String)
+	assert_array(formation.principle_ids).is_equal(raw["principle_ids"] as Array)
+	assert_str(formation.duplicate_deep().strengths).is_equal(formation.strengths)
+
+
+func test_broken_styles_or_rules_leave_the_catalog_empty() -> void:
+	var dir: String = create_temp_dir("content_repository/broken_rules")
+	_copy_other_real_files(dir)
+	var formations := FileAccess.open(dir.path_join(FORMATIONS_FILE), FileAccess.WRITE)
+	formations.store_string(JSON.stringify(_real_data()))
+	formations.close()
+	var rules := FileAccess.open(dir.path_join(ContentRepository.MATCHUP_RULES_FILE), FileAccess.WRITE)
+	rules.store_string("{\"format_version\": 1, \"fallback\": {\"text\": \"x\", \"principle_ids\": [\"TP-10\"]}, \"rules\": []}")
+	rules.close()
+	var repository := ContentRepository.new(dir)
+	var catalog: ContentCatalog = repository.load_catalog()
+	assert_array(repository.validation_errors()).is_equal(["matchup_rules.json: rules: 件数が 1〜200 でない: 0"])
+	assert_int(catalog.formations.size()).is_equal(0)
+	assert_int(catalog.styles.size()).is_equal(0)
 
 
 func test_player_count_must_be_eleven() -> void:

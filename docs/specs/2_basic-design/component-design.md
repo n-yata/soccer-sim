@@ -111,7 +111,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 |---|---|---|---|
 | `PitchArea` | `pitch_area.gd` | （エリア） | `lane`・`zone`。視点を持たない値で、どの視点かは持ち主が決める（§1.2） |
 | `FormationDef` / `PlayerSlotDef` | `formation_def.gd` / `player_slot_def.gd` | フォーメーション / 選手配置 | `PlayerSlotDef` はポジション種別を `position_type`（`"GK"` などの文字列。`type` は紛らわしいため避けた）で持ち、`is_goalkeeper()` を持つ（アルゴリズム1で GK を除くため） |
-| `StyleDef` | `style_def.gd` | 方式 | 解説の固定文 |
+| `StyleDef` | `style_def.gd` | 方式 | `id`（区分値の名前）・`kind`（`DEFENSE`・`ATTACK`）・`name`・解説の固定文（`summary`・`strengths`・`weaknesses`）・`principle_ids`・`simplification_ids`。`defense_id(style)`・`attack_id(style)` で区分値から ID を引く |
 | `TeamStyles` | `team_styles.gd` | （試合の方式） | `defense: DefenseStyle`・`attack: AttackStyle` |
 | `TeamSetup` | `team_setup.gd` | （試合の陣形と方式） | `formation_id`・`styles: TeamStyles` |
 | `PlayerState` | `player_state.gd` | （選手単位の配置状態） | `player_id`・`base_area`・`fixed_area`（固定されていなければ `null`）・`current_area`（今いるエリア。ターンをまたいで持ち越す）・`moved_in_turn`（前のターンの手などでターン開始の位置から動いたか）・`is_fixed()` |
@@ -125,9 +125,9 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣ゴール前 `D1-C`。攻撃側の視点で `A2-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
 | `TurnResolution` | `turn_resolution.gd` | — | 1ターンを解決した結果。`next_state: MatchState`・`record: TurnRecord` |
-| `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids` |
+| `MatchupNote` | `matchup_note.gd` | — | 解説の1項目。`text`・`principle_ids`・`simplification_ids`・`label`（画面で並べるときの見出し。ドメインは空のまま返し、`LibraryService` が付ける。2026-11-03）。`relabeled(label, text)` で写しを作る |
 | `ReviewSummary` | `review_summary.gd` | — | 振り返りの集計結果（アルゴリズム10）。`area_tallies`（エリアのキー → `[勝ち, 負け, 膠着]`。判定の無かったエリアは入らない）・`phase_tallies`（`Phase` → 同じ形。4局面とも入る）・`goals: Array[ReviewGoal]`（`seq`・`half`・`turn_number`・`scorer`・得点後の `home_score`・`away_score`・直前のターンの通し番号 `lead_up_seqs`（古い順。得点のターンは含めない））・`segments: Array[ReviewSegment]`（`half`・`from_turn`・`to_turn`・`home_setup`・`away_setup`）・`turn_count`。数の配列の位置は `JudgeTally` の WIN・LOSE・STALL（2026-10-29） |
-| `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる。`formation(id)`（無ければ `null`）。2026-10-29 時点では陣形・単純化（`simplifications: Array[SimplificationDef]`）・チュートリアルの段階（`tutorial_steps: Array[TutorialStepDef]`）を持ち、ほかは使う機能の作業で足す |
+| `ContentCatalog` | `content_catalog.gd` | 静的データ全体 | 陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアルを束ねる。`formation(id)`・`style(id)`・`principle(id)`（無ければ `null`）。方式は `styles`、ルールは `matchup_rules`（配列の順が採用の順）、陣形どうしでルールが当たらない側の文は `matchup_fallback`（2026-11-03） |
 | `MatchupRuleDef` / `PrincipleDef` / `SimplificationDef` / `QuizQuestionDef` / `TutorialStepDef` | 各 `*_def.gd` | 噛み合わせルール / 戦術原則 / 単純化項目 / 場面問題 / （チュートリアルの段階） | — |
 | `MatchRecord` / `QuizAnswer` / `UserSettings` | `match_record.gd` / `quiz_answer.gd` / `user_settings.gd` | 戦績 / 回答結果 / 設定 | — |
 
@@ -436,9 +436,19 @@ static func formation_matchup(viewer: FormationDef, opponent: FormationDef,
 static func style_matchup(viewer: TeamStyles, opponent: TeamStyles,
         catalog: ContentCatalog) -> Array[MatchupNote]
 ## 単独の陣形・方式の特徴・強み・弱み（FR-17。試合準備で相手が未定のときに使う）
-static func formation_profile(formation: FormationDef, catalog: ContentCatalog) -> Array[MatchupNote]
-static func style_profile(styles: TeamStyles, catalog: ContentCatalog) -> Array[MatchupNote]
+static func formation_profile(formation: FormationDef) -> Array[MatchupNote]
+static func style_profile(style_id: String, catalog: ContentCatalog) -> Array[MatchupNote]
+
+class_name FormationTags extends RefCounted
+static func derive(formation: FormationDef) -> Array[String]   # 座標から導くタグ（移植元の deriveTags）
+static func of(formation: FormationDef) -> Array[String]       # derive に extra_tags を足したもの（ルールの当てはめはこちら）
+const KNOWN: Array[String]                                     # 導出するタグと extra_tags に書けるタグ（静的データの検証）
 ```
+
+> 2026-11-03 に作った。`formation_matchup` は `FORMATION` ルールを配列の順に見て、viewer のタグが `viewer_tags` を、opponent のタグが
+> `opponent_tags` をすべて持つものを、同じテーマは先の1件だけ採る。0件なら `catalog.matchup_fallback`。`style_matchup` は
+> viewer の守備方式 × opponent の攻撃方式、viewer の攻撃方式 × opponent の守備方式の順。単独の解説は「特徴: 」「強み: 」「弱み: 」を
+> 頭に付けた3件で、陣形の特徴は `description`。`style_profile` は方式1件ごと（守備・攻撃をまとめるのは `LibraryService.style_notes`）。
 
 `MatchupNote.simplification_ids` に単純化 ID があれば、UI は単純化カタログの「実戦では」を添える（FR-23）。
 
@@ -702,6 +712,12 @@ func mark_tutorial_completed() -> bool
 > `save_quiz_answer()` は保存に失敗した回答を持っておき（画面の正答状況に含める）、次の回答のときに古いものから書き直す
 > （書き直さないと、次の保存が成功してファイルを読み直した時点で、失敗した回答が集計から黙って消えるため）。読み込み・保存の失敗の通知は戦績と同じ。
 > `LibraryService` には `principle()`・`quiz_questions()`（写し）を足した。
+>
+> 2026-11-03（戦術の解説の作業）に `matchup_counts()`・`formation_notes()`・`style_notes()`・`defense_style_notes()`・`attack_style_notes()` を
+> 足した。`matchup_counts` は30エリアすべてのキーを持つ（相手の基本配置は `PitchArea.mirrored()` で利用者の視点へ）。解説には見出し
+> （`MatchupNote.label`）を付ける: 単独の解説は「陣形 4-4-2」「守備方式 ゾーン」「攻撃方式 保持型」、相手との噛み合わせは
+> 「こちらの狙いどころ」「相手の狙いどころ」「方式の噛み合わせ」。相手の狙いどころは相手から見た文なので「相手」を「こちら」に
+> 言い換える。同じ陣形どうしは両側が同じになるので、相手の狙いどころを出さない。存在しない陣形は `push_error` して空。
 
 `bool` を返すメソッドは、保存に失敗したら `false` を返し、`App.storage_error` を出す（通知を出すのは
 `UserDataService` だけ。`append_record` を呼んだ `MatchController` は、`false` を受けても通知を重ねて出さない）。読み込みに失敗した
@@ -788,6 +804,11 @@ func validation_errors() -> Array[String]
 静的データはアプリに同梱するため、読み込みの失敗は開発時の誤りとして扱う。NFR-17 の自動テストが
 `validation_errors()` が空であることを確かめる。ファイルの一覧は `repository-structure.md`「game/content/」。
 
+> 2026-11-03 に `styles.json`・`matchup_rules.json` を足した。形・範囲（4方式・方式の種類・ルールの条件のタグと方式・原則と単純化が
+> カタログにある・代わりの文）は `CommentaryContentReader`（`data/commentary_content_reader.gd`）が確かめる。陣形の強み・弱み・原則 ID と、
+> `extra_tags` が既知のタグであることは `ContentRepository` が確かめる。16通りの両側に解説が出るか・移植したルールがどれも採用されうるかは、
+> テスト（`tests/content/commentary_content_test.gd`）で確かめる。
+>
 > 2026-10-31 に `principles.json`・`quiz.json` を足した。形・範囲（各チーム10人・学習目標ごとに2問以上・プレイテストの問題がちょうど2問・
 > 原則がカタログにある）は `QuizContentReader`（`data/quiz_content_reader.gd`）が確かめる。原則の ID と件数がカタログと一致するか、
 > 問題の文の人数・陣形が場面の図とゲームの基本配置と食い違わないかは、テスト（`tests/content/quiz_content_test.gd`）で確かめる。
@@ -1091,7 +1112,7 @@ func route_back() -> bool
 | `class_name` | 役割 |
 |---|---|
 | `JudgeReasonFormatter` | `RevealView` から判定理由の文（`functional-overview.md`「表示仕様」の形式）を作る。主語は `user_role` で決める（例: `NO_CONTEST` は、利用者が奪取側なら「判定なし（相手は撤退、こちらは保持）」、喪失側なら「判定なし（こちらは撤退、相手は保持）」） |
-| `NotesView` | `MatchupNote` の一覧を表示し、単純化 ID があれば「実戦では」を添える |
+| `NotesView` | `MatchupNote` の一覧を、続く同じ見出し（`label`）を1つにまとめて表示する。単純化 ID があれば「実戦では」を添える（FR-23 の作業で足す） |
 | `ConfirmDialog` | 確認ダイアログ（中断データが上書きされることの確認など） |
 | `ToastView` | 保存エラーなどの短い通知 |
 | `ScreenHeader` | 画面のヘッダー（戻る・画面名） |

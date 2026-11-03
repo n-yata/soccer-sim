@@ -1,10 +1,8 @@
 ## MatchSetupScreen（S-02。screen-02-match-setup.md）のテスト。
-## 解説欄の中身と試合開始は後の作業（.steering/20261018-match-setup/requirements.md）。
 extends GdUnitTestSuite
 
 const SCENE: String = "res://ui/screens/s02_match_setup/match_setup_screen.tscn"
 const GUIDE_TEXT: String = "陣形と方式を選ぶと、ここに解説が出ます"
-const PENDING_NOTES_TEXT: String = "解説は準備中"
 
 var _screen: MatchSetupScreen
 var _requested: Array[int] = []
@@ -61,8 +59,8 @@ func _start_button() -> Button:
 	return _button("StartButton")
 
 
-func _notes_text() -> String:
-	return (_screen.find_child("NotesLabel", true, false) as Label).text
+func _notes() -> NotesView:
+	return _screen.find_child("NotesView", true, false) as NotesView
 
 
 func _select_all() -> void:
@@ -89,7 +87,8 @@ func test_starts_with_nothing_selected_and_start_disabled() -> void:
 	for node_name: String in ["ZoneButton", "ManButton", "PossessionButton", "CounterButton"]:
 		assert_bool(_button(node_name).button_pressed).override_failure_message(node_name).is_false()
 	assert_bool(_start_button().disabled).is_true()
-	assert_str(_notes_text()).is_equal(GUIDE_TEXT)
+	assert_array(_notes().texts()).is_equal([GUIDE_TEXT])
+	assert_array(_notes().headings()).is_empty()
 
 
 func test_selecting_a_formation_marks_only_that_card() -> void:
@@ -98,7 +97,25 @@ func test_selecting_a_formation_marks_only_that_card() -> void:
 	(_card_by_name("3-5-2").find_child("CardButton", true, false) as Button).pressed.emit()
 	assert_bool(_is_marked(_card_by_name("3-5-2"))).is_true()
 	assert_bool(_is_marked(_card_by_name("4-3-3"))).is_false()
-	assert_str(_notes_text()).is_equal(PENDING_NOTES_TEXT)
+	assert_array(_notes().headings()).is_equal(["陣形 3-5-2"])
+
+
+## 解説欄は、選んだ項目の単独の解説だけを「陣形・守備方式・攻撃方式」の順に出す（screen-02-match-setup.md）
+func test_notes_show_only_the_selected_items_in_order() -> void:
+	_button("CounterButton").pressed.emit()
+	assert_array(_notes().headings()).is_equal(["攻撃方式 カウンター型"])
+	_button("ManButton").pressed.emit()
+	assert_array(_notes().headings()).is_equal(["守備方式 マンツーマン", "攻撃方式 カウンター型"])
+	(_card_by_name("4-3-3").find_child("CardButton", true, false) as Button).pressed.emit()
+	assert_array(_notes().headings()).is_equal(["陣形 4-3-3", "守備方式 マンツーマン", "攻撃方式 カウンター型"])
+	var expected: Array[String] = []
+	for note: MatchupNote in App.library.formation_notes("4-3-3", ""):
+		expected.append(NotesView.BULLET + note.text)
+	for note: MatchupNote in App.library.style_notes(
+			TeamStyles.new(GameEnums.DefenseStyle.MAN, GameEnums.AttackStyle.COUNTER), null):
+		expected.append(NotesView.BULLET + note.text)
+	assert_array(_notes().texts()).is_equal(expected)
+	assert_int(expected.size()).is_equal(9)
 
 
 func test_style_toggles_select_one_of_two() -> void:

@@ -1,6 +1,6 @@
 ## S-02 試合準備（screen-02-match-setup.md）。陣形・守備方式・攻撃方式を、未選択から選ぶ。
-## 解説欄の中身（方式の解説文・噛み合わせルール・解説の導出）は、それを作る作業で足す。今は解説欄に案内文と
-## 「解説は準備中」を出す。開始ボタンは試合画面（S-03）があるときだけ押せ、MatchController.start_match で試合を作る
+## 解説欄には、選んだ項目の単独の解説（FR-17。LibraryService）を「陣形・守備方式・攻撃方式」の順に出す。
+## 開始ボタンは試合画面（S-03）があるときだけ押せ、MatchController.start_match で試合を作る
 ## （S-03 への切り替えは MatchController が頼む）。
 class_name MatchSetupScreen
 extends AppScreen
@@ -10,7 +10,6 @@ enum State { EDITING, READY, STARTING }
 
 const FORMATION_CARD_SCENE: PackedScene = preload("res://ui/common/formation_card.tscn")
 const GUIDE_TEXT: String = "陣形と方式を選ぶと、ここに解説が出ます"
-const PENDING_NOTES_TEXT: String = "解説は準備中"
 
 @onready var _header: ScreenHeader = %Header
 @onready var _formation_grid: GridContainer = %FormationGrid
@@ -18,7 +17,7 @@ const PENDING_NOTES_TEXT: String = "解説は準備中"
 @onready var _man_button: Button = %ManButton
 @onready var _possession_button: Button = %PossessionButton
 @onready var _counter_button: Button = %CounterButton
-@onready var _notes_label: Label = %NotesLabel
+@onready var _notes_scroll: ScrollContainer = %NotesScroll
 @onready var _start_button: Button = %StartButton
 @onready var _start_pending_label: Label = %StartPendingLabel
 
@@ -31,10 +30,14 @@ var _can_start: bool = false
 var _cards: Dictionary = {}
 ## 陣形 ID → 基本配置の人数。画面を開いたときに1回だけ求める
 var _counts: Dictionary = {}
+var _notes_view: NotesView
 
 
 func _ready() -> void:
 	_header.set_title("試合準備")
+	_notes_view = NotesView.new()
+	_notes_view.name = "NotesView"
+	_notes_scroll.add_child(_notes_view)
 	_header.back_pressed.connect(_go_back)
 	_zone_button.pressed.connect(_on_defense_selected.bind(GameEnums.DefenseStyle.ZONE))
 	_man_button.pressed.connect(_on_defense_selected.bind(GameEnums.DefenseStyle.MAN))
@@ -120,12 +123,26 @@ func _refresh() -> void:
 	_man_button.set_pressed_no_signal(_defense == GameEnums.DefenseStyle.MAN)
 	_possession_button.set_pressed_no_signal(_attack == GameEnums.AttackStyle.POSSESSION)
 	_counter_button.set_pressed_no_signal(_attack == GameEnums.AttackStyle.COUNTER)
-	var has_any: bool = not _formation_id.is_empty() or _defense >= 0 or _attack >= 0
-	_notes_label.text = PENDING_NOTES_TEXT if has_any else GUIDE_TEXT
+	_refresh_notes()
 	var has_all: bool = not _formation_id.is_empty() and _defense >= 0 and _attack >= 0
 	_state = State.READY if has_all else State.EDITING
 	_start_button.disabled = not (is_ready() and _can_start)
 	_start_pending_label.visible = not _can_start
+
+
+## 選んだ項目の解説だけを、陣形・守備方式・攻撃方式の順に出す。何も選んでいなければ案内文。
+func _refresh_notes() -> void:
+	var notes: Array[MatchupNote] = []
+	if not _formation_id.is_empty():
+		notes.append_array(App.library.formation_notes(_formation_id, ""))
+	if _defense >= 0:
+		notes.append_array(App.library.defense_style_notes(_defense as GameEnums.DefenseStyle))
+	if _attack >= 0:
+		notes.append_array(App.library.attack_style_notes(_attack as GameEnums.AttackStyle))
+	if notes.is_empty():
+		_notes_view.show_message(GUIDE_TEXT)
+	else:
+		_notes_view.show_notes(notes)
 
 
 ## 試合を作る。二重に作らないよう STARTING にしてから呼ぶ。false（陣形が無い。開発時の誤り）なら選び直せる状態に戻す。

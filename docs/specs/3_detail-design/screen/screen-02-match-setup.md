@@ -32,8 +32,9 @@ MatchSetupScreen (Control)
         ├── DefenseToggle (HBoxContainer)   # 2択のボタン（ゾーン／マンツーマン）。高さ 96px
         ├── AttackTitle (Label)             # 「③ 攻撃方式」
         ├── AttackToggle (HBoxContainer)    # 2択のボタン（保持型／カウンター型）
+        ├── NotesTitle (Label)              # 「④ 解説」
         ├── NotesScroll (ScrollContainer)   # 残りの高さいっぱい。長い解説は中でスクロール
-        │   └── NotesView                   # common/notes_view.tscn（見出し「④ 解説」）
+        │   └── NotesView                   # common/notes_view.gd（_ready でコードから置く）
         └── StartButton (Button)            # 「この布陣で試合開始」。列の下端、高さ 112px
 ```
 
@@ -95,8 +96,9 @@ MatchSetupScreen (Control)
 
 試合準備の作業（`.steering/20261018-match-setup/`）では、次の部分を作った。
 - **作ったもの**: ヘッダー、陣形カード4枚（`FormationCard`・`MiniPitch`）、守備方式・攻撃方式の2択、状態 `EDITING`・`READY`、戻る操作
-- **解説欄**: 何も選んでいなければ案内文、何か選んでいれば「解説は準備中」を出す。方式の解説文（`styles.json`）・噛み合わせルール・解説の導出（アルゴリズム9）・`NotesView` を作る作業で、本来の解説に差し替える
-- **開始ボタン**: `READY` かつ試合画面（S-03）が `MainShell.SCREEN_SCENES` にあるときだけ押せる。今は S-03 が無いので「準備中」を出して押せない。
+- **解説欄**: 何も選んでいなければ案内文、何か選んでいれば「解説は準備中」を出していた。2026-11-03（戦術の解説の作業。
+  `.steering/20261103-tactics-notes/`）に、選んだ項目の単独の解説（上の「陣形・方式を選ぶ」）に差し替えた
+- **開始ボタン**: `READY` かつ試合画面（S-03）が `MainShell.SCREEN_SCENES` にあるときだけ押せる。S-03 が無い間は「準備中」を出して押せなかった（2026-10-19 に S-03 を足し、押せるようになった）。
   試合開始（`match_controller.start_match`）と状態 `STARTING` は、S-03・`MatchController` を作る作業で足す
 - 方式の2択と陣形カードの選択中の見た目は、トグルボタンの押した状態（黄色の縁）で示す。押したボタンが自分で切り替えた状態ではなく、
   画面が記録した値から決め直す
