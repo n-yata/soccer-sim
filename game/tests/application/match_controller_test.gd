@@ -7,8 +7,9 @@ const HOME := GameEnums.TeamSide.HOME
 const AWAY := GameEnums.TeamSide.AWAY
 const ATTACK := GameEnums.ChoiceFamily.ATTACK
 const DEFENSE := GameEnums.ChoiceFamily.DEFENSE
-## CPU と最後まで戦う試合の数（固定シード 0〜）
-const FULL_MATCH_SEEDS: int = 4
+## CPU と最後まで戦う試合の数（固定シード 0〜）。結合のシナリオとして、得点・方式の選び直し・ハーフタイム・結果を
+## 通る1試合に絞る（2026-11-05。局所の確かめは単体テストが持つ）
+const FULL_MATCH_SEEDS: int = 1
 
 
 ## 選べる手の先頭（invalid が真なら選べない手）を返す相手。陣形は最初が 4-3-3・ゾーン・カウンター、
@@ -528,15 +529,13 @@ func test_a_full_match_against_the_cpu_runs_to_the_result() -> void:
 # --- 振り返り ---
 
 ## 得点のある試合を最後まで進めた MatchController。config が null なら同梱の設定（ScreenTestHelper と同じ作り方）
+## 試合を回さず、ScreenTestHelper が覚えた試合（得点のあるシード）の最終ターンの直前から再開して終える
 func _finished_match_with_a_goal(config: ConfigRepository = null) -> MatchController:
-	var seed_value: int = ScreenTestHelper.seed_reaching(ScreenTestHelper.Stop.STYLE_CHANGE)
-	assert_int(seed_value).override_failure_message("得点の起きるシードが無い").is_not_equal(-1)
-	var used: ConfigRepository = ConfigRepository.new() if config == null else config
-	var rng: RandomNumberGenerator = _rng(seed_value)
-	var controller := MatchController.new(_catalog, used, rng, CpuOpponent.new(_catalog, used.cpu(), rng),
-			_record_request, true)
-	controller.start_match(ScreenTestHelper.user_setup())
-	assert_bool(ScreenTestHelper.advance_until(controller, ScreenTestHelper.Stop.OVER)).is_true()
+	var controller: MatchController = ScreenTestHelper.controller_at(ScreenTestHelper.Stop.OVER, _record_request, null,
+			null, true, config)
+	assert_object(controller).is_not_null()
+	assert_int(controller.snapshot().score_user + controller.snapshot().score_opponent) \
+			.override_failure_message("得点の無い試合").is_greater(0)
 	return controller
 
 

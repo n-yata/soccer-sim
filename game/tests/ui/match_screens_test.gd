@@ -33,14 +33,28 @@ func _on_screen_requested(screen: AppScreens.Id, _params: Dictionary) -> void:
 	_requested.append(screen)
 
 
-## stop に届くシードで試合を始め、advance が真なら stop まで進めて App に置く（画面の要求は App 経由）
+## stop の段階の試合を App に置く（画面の要求は App 経由）。START は新しく始め、ほかの段階は覚えた時点から再開する
+## （ScreenTestHelper.controller_at。試合を毎回回さない）。advance が偽なら、stop に届くシードで始めたところで止める
+## （試合の初めから画面で進める結合のテスト用）
 func _match_at(stop: ScreenTestHelper.Stop, advance: bool = true) -> MatchController:
-	var seed_value: int = ScreenTestHelper.seed_reaching(stop)
-	assert_int(seed_value).override_failure_message("stop に届くシードが無い").is_not_equal(-1)
-	var controller: MatchController = ScreenTestHelper.new_controller(seed_value, App.request_screen)
-	controller.start_match(ScreenTestHelper.user_setup())
-	if advance:
-		ScreenTestHelper.advance_until(controller, stop)
+	var controller: MatchController
+	if stop == ScreenTestHelper.Stop.START or not advance:
+		var seed_value: int = ScreenTestHelper.seed_reaching(stop)
+		assert_int(seed_value).override_failure_message("stop に届くシードが無い").is_not_equal(-1)
+		controller = ScreenTestHelper.new_controller(seed_value, App.request_screen)
+		controller.start_match(ScreenTestHelper.user_setup())
+	else:
+		controller = ScreenTestHelper.controller_at(stop, App.request_screen)
+	assert_object(controller).override_failure_message("段階から始められない").is_not_null()
+	App.match_controller = controller
+	_requested.clear()
+	return controller
+
+
+## stop に入る1手の直前の試合を App に置く（その1手を画面で進めるテスト用）
+func _match_before(stop: ScreenTestHelper.Stop) -> MatchController:
+	var controller: MatchController = ScreenTestHelper.controller_before(stop, App.request_screen)
+	assert_object(controller).override_failure_message("段階の直前から始められない").is_not_null()
 	App.match_controller = controller
 	_requested.clear()
 	return controller
@@ -159,8 +173,8 @@ func test_every_move_button_is_visible_without_scrolling_on_the_match_screen() -
 
 func test_reveal_shows_both_choices_and_the_score_only_after_the_result() -> void:
 	# 得点のターンで、開示の時点のスコアはまだ前のまま（得点を判定理由より先に見せない）。
-	# 得点が起きるシードで、試合の始めから画面で進める
-	var controller: MatchController = _match_at(ScreenTestHelper.Stop.STYLE_CHANGE, false)
+	# 得点のターンの直前から画面で進める（乱数も元の試合と同じなので、そのターンで得点が起きる）
+	var controller: MatchController = _match_before(ScreenTestHelper.Stop.STYLE_CHANGE)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
 	var scores_at_reveal: Array[String] = []
 	screen.board_panel().reveal_started.connect(func(_reveal: RevealView) -> void:

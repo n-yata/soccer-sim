@@ -46,13 +46,12 @@ func _on_screen_requested(screen: AppScreens.Id, _params: Dictionary) -> void:
 	_requested.append(screen)
 
 
-## 得点のある試合を最後まで進め、App に置く
+## 得点のある試合を App に置く。試合を回さず、ScreenTestHelper が覚えた試合の最終ターンの直前から再開して終える
 func _finished_match_with_a_goal() -> MatchController:
-	var seed_value: int = ScreenTestHelper.seed_reaching(ScreenTestHelper.Stop.STYLE_CHANGE)
-	assert_int(seed_value).override_failure_message("得点の起きるシードが無い").is_not_equal(-1)
-	var controller: MatchController = ScreenTestHelper.new_controller(seed_value, App.request_screen)
-	controller.start_match(ScreenTestHelper.user_setup())
-	assert_bool(ScreenTestHelper.advance_until(controller, ScreenTestHelper.Stop.OVER)).is_true()
+	var controller: MatchController = ScreenTestHelper.controller_at(ScreenTestHelper.Stop.OVER, App.request_screen)
+	assert_object(controller).is_not_null()
+	assert_int(controller.snapshot().score_user + controller.snapshot().score_opponent) \
+			.override_failure_message("得点の無い試合").is_greater(0)
 	App.match_controller = controller
 	_requested.clear()
 	return controller

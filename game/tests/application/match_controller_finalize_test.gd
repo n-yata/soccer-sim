@@ -78,14 +78,16 @@ func _controller(store: SuspendedMatchStore, user_data: UserDataService, seed_va
 	return controller
 
 
-## stop に届くシードで試合を始め、stop まで進めた MatchController
+## stop の段階から始め（ScreenTestHelper.controller_at）、OVER なら最終ターンを進めて試合を終えた MatchController。
+## 段階の状態は中断データとして store に置いてから再開する（store が null なら一時ディレクトリ）。
+## 保存の失敗（storage_failed）を拾うため、つないでから最終ターンを進める
 func _controller_at(store: SuspendedMatchStore, user_data: UserDataService,
 		stop: ScreenTestHelper.Stop) -> MatchController:
-	var seed_value: int = ScreenTestHelper.seed_reaching(stop)
-	assert_int(seed_value).is_not_equal(-1)
-	var controller: MatchController = _controller(store, user_data, seed_value)
-	controller.start_match(ScreenTestHelper.user_setup())
-	assert_bool(ScreenTestHelper.advance_until(controller, stop)).is_true()
+	var controller: MatchController = ScreenTestHelper.controller_at(stop, _record_request, store, user_data, false)
+	assert_object(controller).is_not_null()
+	controller.storage_failed.connect(_on_failed)
+	if stop == ScreenTestHelper.Stop.OVER:
+		assert_bool(ScreenTestHelper.advance_until(controller, stop)).is_true()
 	_requests.clear()
 	return controller
 
@@ -137,15 +139,20 @@ func test_a_failed_record_keeps_the_match_in_progress() -> void:
 
 
 ## 戦績は記録できたが FINISHED の保存に失敗したら、中断データは最後に保存できた状態のまま（やり直しで二重に記録しない）。
-## .tmp の名前にディレクトリを置き、試合の初めから中断データの保存を失敗させる
+## 最終ターンの直前の状態から再開した後で、.tmp の名前にディレクトリを置いて中断データの保存を失敗させる
+## （最後に保存できたのは最終ターンの直前の状態）
 func test_a_failed_finished_save_is_retried_without_recording_twice() -> void:
 	var dir: String = _suspend_dir()
-	DirAccess.make_dir_recursive_absolute(dir.path_join(SuspendedMatchStore.FILE_NAME + SaveFileIO.TMP_SUFFIX))
 	var store := SuspendedMatchStore.new(_catalog, _rules, dir)
 	var records_dir: String = _records_dir(false)
-	var controller: MatchController = _controller_at(store, _user_data(records_dir), ScreenTestHelper.Stop.OVER)
+	var controller: MatchController = ScreenTestHelper.controller_at(ScreenTestHelper.Stop.OVER, _record_request, store,
+			_user_data(records_dir), false)
+	controller.storage_failed.connect(_on_failed)
+	DirAccess.make_dir_recursive_absolute(dir.path_join(SuspendedMatchStore.FILE_NAME + SaveFileIO.TMP_SUFFIX))
+	assert_bool(ScreenTestHelper.advance_until(controller, ScreenTestHelper.Stop.OVER)).is_true()
 	assert_int(_saved_records(records_dir).size()).is_equal(1)
-	assert_int(store.load().status).is_equal(SuspendedLoad.Status.NONE)
+	# FINISHED にできず、最終ターンの直前の状態（IN_PROGRESS）のまま残る
+	assert_int(store.load().state.status).is_equal(GameEnums.MatchStatus.IN_PROGRESS)
 	assert_array(_failures).is_equal([AppScreens.StorageErrorKind.SUSPEND_SAVE] as Array[int])
 	DirAccess.remove_absolute(dir.path_join(SuspendedMatchStore.FILE_NAME + SaveFileIO.TMP_SUFFIX))
 	controller.leave_result()

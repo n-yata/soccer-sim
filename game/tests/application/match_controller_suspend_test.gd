@@ -42,12 +42,12 @@ func _play_turn(controller: MatchController) -> void:
 	controller.continue_after_reveal()
 
 
-## stop に届くシードで試合を始め、stop まで進めた MatchController（保存先は store）
+## stop に入る1手の直前の時点から再開し（ScreenTestHelper.controller_before）、その1手で stop まで進めた MatchController
+## （保存先は store）。段階に入るときの保存を確かめるため、段階の状態を直接置かずに、入る1手をこの MatchController で進める
 func _controller_at(store: SuspendedMatchStore, stop: ScreenTestHelper.Stop) -> MatchController:
-	var seed_value: int = ScreenTestHelper.seed_reaching(stop)
-	assert_int(seed_value).is_not_equal(-1)
-	var controller: MatchController = _controller(store, seed_value)
-	controller.start_match(ScreenTestHelper.user_setup())
+	var controller: MatchController = ScreenTestHelper.controller_before(stop, _record_request, store)
+	assert_object(controller).is_not_null()
+	controller.storage_failed.connect(func(kind: AppScreens.StorageErrorKind) -> void: _failures.append(kind))
 	assert_bool(ScreenTestHelper.advance_until(controller, stop)).is_true()
 	_requests.clear()
 	return controller

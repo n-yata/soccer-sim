@@ -171,11 +171,12 @@ func _leave_an_unrecorded_match() -> String:
 	file.close()
 	var user_data := UserDataService.new(RecordStore.new(ConfigRepository.new().match_rules(), records_dir),
 			SettingsStore.new(records_dir), QuizAnswerStore.new(records_dir), [])
-	var controller: MatchController = ScreenTestHelper.new_controller(ScreenTestHelper.seed_reaching(
-			ScreenTestHelper.Stop.OVER), App.request_screen, _store, user_data)
+	# 試合を回さず、最終ターンの直前から再開して終える（ScreenTestHelper.controller_at）
+	var controller: MatchController = ScreenTestHelper.controller_at(ScreenTestHelper.Stop.OVER, App.request_screen,
+			_store, user_data)
+	assert_object(controller).override_failure_message("試合の終わりから始められない").is_not_null()
 	App.match_controller = controller
-	controller.start_match(ScreenTestHelper.user_setup())
-	assert_bool(ScreenTestHelper.advance_until(controller, ScreenTestHelper.Stop.OVER)).is_true()
+	assert_bool(controller.is_match_over()).is_true()
 	controller.leave_result()
 	assert_int(controller.suspended_status()).is_equal(AppScreens.SuspendedStatus.FINALIZE_PENDING)
 	return records_dir

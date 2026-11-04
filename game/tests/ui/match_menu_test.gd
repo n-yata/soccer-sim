@@ -33,16 +33,20 @@ func _on_screen_requested(screen: AppScreens.Id, _params: Dictionary) -> void:
 	_requested.append(screen)
 
 
-## stop まで進めた試合を App に置く（保存先はテストごとの一時ディレクトリ）
+## stop の段階の試合を App に置く（保存先はテストごとの一時ディレクトリ）。START は新しく始め、ほかの段階は
+## 覚えた時点から再開する（ScreenTestHelper.controller_at。試合を毎回回さない）
 func _match_at(stop: ScreenTestHelper.Stop) -> MatchController:
 	_test_count += 1
 	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
 	var store := SuspendedMatchStore.new(catalog, ConfigRepository.new().match_rules(),
 			create_temp_dir("match_menu/save_%d" % _test_count))
-	var controller: MatchController = ScreenTestHelper.new_controller(ScreenTestHelper.seed_reaching(stop),
-			App.request_screen, store)
-	controller.start_match(ScreenTestHelper.user_setup())
-	ScreenTestHelper.advance_until(controller, stop)
+	var controller: MatchController
+	if stop == ScreenTestHelper.Stop.START:
+		controller = ScreenTestHelper.new_controller(ScreenTestHelper.seed_reaching(stop), App.request_screen, store)
+		controller.start_match(ScreenTestHelper.user_setup())
+	else:
+		controller = ScreenTestHelper.controller_at(stop, App.request_screen, store)
+	assert_object(controller).override_failure_message("段階から始められない").is_not_null()
 	App.match_controller = controller
 	_requested.clear()
 	return controller
