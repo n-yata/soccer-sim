@@ -25,7 +25,7 @@ static func paint(board: TacticsBoard) -> void:
 	_draw_intent(board)
 	_draw_preview_paths(board)
 	_draw_standing_things(board)
-	_draw_result_effect(board)
+	ResultEffectPainter.paint(board)
 	# 札は駒と矢印の上に描く（通り道のエリアの札の字を隠さないように）
 	for key: String in board.drawn_hint_keys():
 		_draw_hint(board, key)
@@ -42,8 +42,8 @@ static func _font_size(board: TacticsBoard, name: StringName) -> int:
 	return board.get_theme_font_size(name, TacticsBoard.THEME_TYPE)
 
 
-## 平面図の矩形の四隅を写した四角形（奥が狭い台形）。
-static func _quad(board: TacticsBoard, plan: Rect2) -> PackedVector2Array:
+## 平面図の矩形の四隅を写した四角形（奥が狭い台形）。ResultEffectPainter も使う。
+static func quad(board: TacticsBoard, plan: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([board.to_screen(plan.position), board.to_screen(Vector2(plan.end.x, plan.position.y)),
 			board.to_screen(plan.end), board.to_screen(Vector2(plan.position.x, plan.end.y))])
 
@@ -58,37 +58,37 @@ static func _draw_offside_line(board: TacticsBoard) -> void:
 
 
 static func _outline(board: TacticsBoard, plan: Rect2, color: Color, width: float) -> void:
-	var quad: PackedVector2Array = _quad(board, plan)
-	quad.append(quad[0])
-	board.draw_polyline(quad, color, width)
+	var corners: PackedVector2Array = quad(board, plan)
+	corners.append(corners[0])
+	board.draw_polyline(corners, color, width)
 
 
 ## 地面: 盤面の地・ピッチ・芝目（横の帯）・ハーフスペースの列。
 static func _draw_ground(board: TacticsBoard) -> void:
 	var size: Vector2 = board.size
 	board.draw_rect(Rect2(Vector2.ZERO, size), _color(board, &"bg"))
-	board.draw_colored_polygon(_quad(board, Rect2(Vector2.ZERO, size)), _color(board, &"pitch"))
+	board.draw_colored_polygon(quad(board, Rect2(Vector2.ZERO, size)), _color(board, &"pitch"))
 	var stripes: int = PitchArea.ZONE_COUNT * 2
 	for index: int in range(stripes):
 		if index % 2 == 1:
-			board.draw_colored_polygon(_quad(board, Rect2(Vector2(0, size.y * index / stripes), Vector2(size.x, size.y / stripes))),
+			board.draw_colored_polygon(quad(board, Rect2(Vector2(0, size.y * index / stripes), Vector2(size.x, size.y / stripes))),
 					_color(board, &"pitch_stripe"))
 	var cell: Vector2 = board.cell_size()
 	for lane: int in [GameEnums.Lane.L1, GameEnums.Lane.R1]:
-		board.draw_colored_polygon(_quad(board, Rect2(Vector2(lane * cell.x, 0), Vector2(cell.x, size.y))), _color(board, &"pitch_halfspace"))
+		board.draw_colored_polygon(quad(board, Rect2(Vector2(lane * cell.x, 0), Vector2(cell.x, size.y))), _color(board, &"pitch_halfspace"))
 
 
 ## ボールのあるエリアの薄い塗り・選んだエリアの塗り・選べるエリアの点線の枠。
 static func _draw_area_fill(board: TacticsBoard, key: String) -> void:
-	var quad: PackedVector2Array = _quad(board, board.area_rect(key).grow(-3.0))
+	var corners: PackedVector2Array = quad(board, board.area_rect(key).grow(-3.0))
 	if key == board.ball_area():
-		board.draw_colored_polygon(quad, _color(board, &"ball_area_fill"))
+		board.draw_colored_polygon(corners, _color(board, &"ball_area_fill"))
 	if key == board.selected_area():
-		board.draw_colored_polygon(quad, _color(board, &"selected_fill"))
+		board.draw_colored_polygon(corners, _color(board, &"selected_fill"))
 	if board.selectable_areas().has(key):
 		var accent: Color = _color(board, &"accent")
 		for index: int in range(4):
-			board.draw_dashed_line(quad[index], quad[(index + 1) % 4], accent, 3.0, 10.0)
+			board.draw_dashed_line(corners[index], corners[(index + 1) % 4], accent, 3.0, 10.0)
 
 
 ## 上下のペナルティエリアの平面図の矩形（上が相手のゴール側）。シュートを打てる3マス（6列目の L1・C・R1）に
@@ -115,7 +115,7 @@ static func _draw_lines(board: TacticsBoard) -> void:
 	for area: Rect2 in penalty_areas(board):
 		_outline(board, area, line, 2.0)
 	for is_top: bool in [true, false]:
-		board.draw_colored_polygon(_quad(board, board.goal_rect(is_top)), line)
+		board.draw_colored_polygon(quad(board, board.goal_rect(is_top)), line)
 	var zone: Color = _color(board, &"zone_line")
 	var cell: Vector2 = board.cell_size()
 	for lane_index: int in range(1, PitchArea.LANE_COUNT):
@@ -189,54 +189,6 @@ static func _draw_overflow_tag(board: TacticsBoard, center: Vector2, text: Strin
 	var height: float = TacticsBoard.HINT_HEIGHT
 	board.draw_rect(Rect2(center - Vector2(width, height) / 2.0, Vector2(width, height)), _color(board, &"tag_muted_bg"))
 	_draw_centered_text(board, center, text, tag_size, _color(board, &"text"))
-
-
-## 開示の結果の演出（TacticsBoard.result_effect）。進み具合 p で薄くし（α = 1 − p）、輪は広げる。
-## 得点はゴールを決めた側の色で塗って口から輪を広げ、セーブ・奪取はエリアの中央から輪を広げ、オフサイドはエリアの中央に旗を立てる。
-static func _draw_result_effect(board: TacticsBoard) -> void:
-	var effect: Dictionary = board.result_effect()
-	if effect.is_empty():
-		return
-	var p: float = board.result_progress()
-	var color: Color = _color(board, &"you" if (effect["is_user"] as bool) else &"opponent")
-	color.a = 1.0 - p
-	var reach: float = board.cell_size().x * (0.15 + 0.3 * p)
-	match effect["kind"] as ResultEffect.Kind:
-		ResultEffect.Kind.GOAL:
-			var is_top: bool = effect["is_user"] as bool
-			board.draw_colored_polygon(_quad(board, board.goal_rect(is_top)), color)
-			_draw_ring(board, board.goal_mouth(is_top), reach, color)
-		ResultEffect.Kind.SAVE, ResultEffect.Kind.WIN_BALL:
-			_draw_ring(board, board.area_rect(effect["area"] as String).get_center(), reach, color)
-		ResultEffect.Kind.OFFSIDE:
-			_draw_flag(board, effect["area"] as String, color)
-
-
-## 平面図の円を画面へ写した輪（奥ほど潰れて見える）。
-static func _draw_ring(board: TacticsBoard, center: Vector2, radius: float, color: Color) -> void:
-	var points: PackedVector2Array = []
-	for step: int in range(33):
-		var angle: float = TAU * step / 32.0
-		points.append(board.to_screen(center + Vector2(cos(angle), sin(angle)) * radius))
-	board.draw_polyline(points, color, 4.0)
-
-
-## 旗（ポールと三角）。key のエリアの下寄りに立てる（エリアの上側に描くボールと重ねない）。大きさはエリアに合わせ、奥ほど小さい。
-static func _draw_flag(board: TacticsBoard, key: String, color: Color) -> void:
-	var rect: Rect2 = board.area_rect(key)
-	var cell: Vector2 = board.cell_size()
-	var foot: Vector2 = board.to_screen(rect.get_center() + Vector2(0, cell.y * 0.35))
-	var scale: float = BoardProjection.scale_at(foot.y, board.size)
-	var top: Vector2 = foot + Vector2(0, -cell.y * 0.95 * scale)
-	var pole: Color = _color(board, &"text")
-	pole.a = color.a
-	board.draw_line(foot, top, pole, 4.0)
-	var flag := PackedVector2Array([top, top + Vector2(cell.x * 0.4, cell.y * 0.18) * scale, top + Vector2(0, cell.y * 0.36 * scale)])
-	board.draw_colored_polygon(flag, color)
-	var edge: Color = _color(board, &"bg")
-	edge.a = color.a
-	flag.append(top)
-	board.draw_polyline(flag, edge, 2.0)
 
 
 ## ボールは少し浮かせて、地面に影を落とす。lift（ボールの半径の何倍か）の分だけさらに持ち上げる（浮き球・ドリブルの弾み）。

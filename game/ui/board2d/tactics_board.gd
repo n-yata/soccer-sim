@@ -3,10 +3,9 @@
 ## すべて利用者の視点のキー（BoardSnapshot・RevealView の値）で、ボードはエリアを変換しない。
 ## 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
 ## BoardProjection の写し方を通す（2026-10-23）。
-## このクラスは、外から渡す値と状態・位置の計算・表示している値の問い合わせ・入力・開示の動きの Tween を持つ。
-## 描画は BoardPainter、開示の動きの状態は BoardShift、遠近の写し方は BoardProjection に分けた（2026-10-23）。
-## それでもファイルの目安 300 行を超えている。残りは平面図での位置の計算（エリア・駒の 2列×2段・ボール）と、描画とテストが
-## 読む公開の問い合わせ。次に増えるときは、平面図での位置の計算を BoardLayout のようなクラスへ分ける。
+## このクラスは、外から渡す値と状態・表示している値の問い合わせ・入力を持つ。
+## 描画は BoardPainter、開示の動きの状態は BoardShift（進行と Tween は子ノードの BoardReveal）、遠近の写し方は BoardProjection に分けた（2026-10-23）。
+## 平面図での位置の計算は BoardGeometry に分けた（2026-11-03）。ここには描画・テストが読む公開の面として中継だけを残す。
 ## 描画もテストも、同じ公開の問い合わせ（area_rect・pieces_in・drawn_movements など）を読むので、
 ## 「表示している値と描いている値が同じ」ことが保たれる。色はテーマの型 TacticsBoard。
 class_name TacticsBoard
@@ -18,34 +17,20 @@ signal area_pressed(area_key: String)
 signal play_landed
 
 const THEME_TYPE: StringName = &"TacticsBoard"
-## ゴールの幅（盤面の幅の何倍か）と奥行き（平面図の px）
-const GOAL_WIDTH_RATE: float = 0.16
-const GOAL_DEPTH: float = 8.0
 ## 平面図での1エリアの最小の大きさ（screen-common.md §1.1）。画面でいちばん小さい奥の行でも、押せる範囲が 48dp（96px）
 ## 以上になる値（幅 136 × 奥の縮み 0.72 ≒ 98px。6列の高さは 100 × 6 = 600 で、上の余白 4% を除いて1行 96px。
 ## 行の高さは奥でも詰めない（BoardProjection.NEAR_WEIGHT = 1.0。2026-10-25）
 const MIN_CELL: Vector2 = Vector2(136, 100)
-## 駒の直径と、同じ段の2つの駒の中心の間隔の上限。1チームは 2列×2段。セルの幅が狭いときは、エリアの半分に収まるよう縮める
-const PIECE_DIAMETER: float = 26.0
-const PIECE_STEP: float = 36.0
-## 2段の駒の縦の位置（エリアの高さに対する割合。上側はボール、下端はヒントの札）
-const PIECE_ROW_RATES: Array[float] = [0.50, 0.72]
-## 1チームの駒の列の数（段の数とは別に持つ。列 × 段 が MAX_PIECES 以上であること）
-const PIECE_COLUMNS: int = 2
-## エリアの中央から最初の駒までの余白（自分と相手の駒の列を分ける）と、エリアの端に残す余白
-const PIECE_CENTER_GAP: float = 6.0
-const PIECE_EDGE_MARGIN: float = 2.0
-## 1チームで描く駒の上限。これを超えると、駒を (上限 - 1) つと「+N」の札にする
-const MAX_PIECES: int = 4
+## 1チームで描く駒の上限（BoardGeometry.MAX_PIECES。描画とテストが TacticsBoard の名前で読む）
+const MAX_PIECES: int = BoardGeometry.MAX_PIECES
 ## 盤面に描く動き（ドリブル・スルーパスの走り込み・寄せ・カバー）。方式の動きと、保持者の動き（戻る・置かれる）は描かない
 const DRAWN_REASONS: Array[GameEnums.MovementReason] = [
 	GameEnums.MovementReason.PRESS, GameEnums.MovementReason.COVER, GameEnums.MovementReason.DRIBBLE,
 	GameEnums.MovementReason.THROUGH_RUN,
 ]
 const HINT_HEIGHT: float = 26.0
-## ボールの位置（エリアの上側の中央。エリアの高さに対する割合。駒の段と札に重ならない位置）と半径
-const BALL_TOP_RATE: float = 0.26
-const BALL_RADIUS: float = 11.0
+## ボールの半径（BoardGeometry.BALL_RADIUS。描画が TacticsBoard の名前で読む）
+const BALL_RADIUS: float = BoardGeometry.BALL_RADIUS
 
 var _user_players: Array[Dictionary] = []
 var _opponent_players: Array[Dictionary] = []
@@ -65,32 +50,25 @@ var _compare_tag: String = ""
 ## 振り返りの集計の札（エリアのキー → 「勝3 負1 膠1」）。選べるエリアに関係なく、札があるエリアにだけ描く
 var _tally: Dictionary = {}
 var _pressed_key: String = ""
-## 開示の動きの状態（道筋と進み具合）と、それを進める Tween
-var _shift := BoardShift.new()
-var _shift_tween: Tween
-## 開示の結果（ResultEffect.for_reveal の値）と、1拍目がまだ着地していないか
-var _result: Dictionary = {}
-var _landing_pending: bool = false
-## 出している結果の演出（出していなければ空）と、その進み具合（0〜1）・時間（秒）・Tween
-var _effect: Dictionary = {}
-var _effect_progress: float = 0.0
-## 0 以下なら演出を出さない（時間を入れない利用者、振り返りの盤面など）
-var _result_sec: float = 0.0
-var _effect_tween: Tween
-
+## 開示の進行（拍の Tween・着地・結果の演出）。子ノード
+var _reveal := BoardReveal.new()
 
 func _init() -> void:
-	assert(PIECE_COLUMNS * PIECE_ROW_RATES.size() >= MAX_PIECES, "TacticsBoard: 駒の列 × 段が MAX_PIECES に足りない")
+	assert(BoardGeometry.PIECE_COLUMNS * BoardGeometry.PIECE_ROW_RATES.size() >= MAX_PIECES, "TacticsBoard: 駒の列 × 段が MAX_PIECES に足りない")
 	custom_minimum_size = MIN_CELL * Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	resized.connect(queue_redraw)
+	_reveal.name = "Reveal"
+	add_child(_reveal)
+	_reveal.landed.connect(play_landed.emit)
+	_reveal.changed.connect(queue_redraw)
 
 
 # --- 外から渡す値 ---
 
 func show_snapshot(snapshot: BoardSnapshot) -> void:
-	_stop_shift()
-	_clear_effect()
+	_reveal.stop()
+	_reveal.clear_effect()
 	_user_players = snapshot.user_players.duplicate()
 	_opponent_players = snapshot.opponent_players.duplicate()
 	_ball_area = snapshot.ball_area
@@ -154,8 +132,8 @@ func show_tally(tally: Dictionary) -> void:
 
 ## 盤面（駒・記号・ボール）以外の重ね表示をすべて消す。
 func clear_overlays() -> void:
-	_stop_shift()
-	_clear_effect()
+	_reveal.stop()
+	_reveal.clear_effect()
 	_selectable.clear()
 	_selected = ""
 	_hints.clear()
@@ -180,146 +158,80 @@ func clear_overlays() -> void:
 ## result（ResultEffect.for_reveal の値。省略可）があれば、ボールの道筋を結果に合わせ（得点はゴールへ・膠着は跳ね返り）、
 ## 1拍目が終わったとき（play_landed）から結果の演出を出す。
 func start_shift(keyframes: Array[Dictionary], result: Dictionary = {}) -> void:
-	_stop_shift()
-	_clear_effect()
+	# 前の開示を止めてから、いまの盤面で拍を組む（止めたときの着地の受け手が盤面を書き換えても、新しい状態で組むため）
+	_reveal.stop()
+	_reveal.clear_effect()
 	var end: Dictionary = {"user": _user_players, "opponent": _opponent_players, "ball": _ball_area}
 	var beats: Array[Dictionary] = BoardShift.build_beats(keyframes, end, slot_center, _ball_point)
 	ResultEffect.shape_ball_paths(beats, keyframes, result, _ball_area, _ball_point, goal_mouth)
-	_shift.start(beats)
-	_result = result.duplicate()
-	_landing_pending = true
-	if not _shift.is_active() or (_shift.beats[0]["keyframe"] as int) != 0:
-		_land()
-	if not _shift.is_active():
-		return
-	_shift_tween = create_tween()
-	for index: int in range(_shift.beats.size()):
-		_shift_tween.tween_callback(_begin_shift_beat.bind(index))
-		_shift_tween.tween_method(_set_shift_progress, 0.0, 1.0, _shift.beats[index]["sec"] as float)
-		if (_shift.beats[index]["keyframe"] as int) == 0:
-			_shift_tween.tween_callback(_land)
-	_shift_tween.finished.connect(_stop_shift)
-
-
-## 1拍目の着地。結果の演出を始め、play_landed を出す（1回の開示で1回だけ）。
-func _land() -> void:
-	if not _landing_pending:
-		return
-	_landing_pending = false
-	if ResultEffect.draws_mark(_result) and _result_sec > 0.0 and is_inside_tree():
-		_effect = _result.duplicate()
-		_effect_progress = 0.0
-		_effect_tween = create_tween()
-		_effect_tween.tween_method(_set_effect_progress, 0.0, 1.0, _result_sec)
-		_effect_tween.finished.connect(_clear_effect)
-	play_landed.emit()
-
-
-func _set_effect_progress(progress: float) -> void:
-	_effect_progress = progress
-	queue_redraw()
-
-
-func _clear_effect() -> void:
-	if _effect_tween != null:
-		_effect_tween.kill()
-		_effect_tween = null
-	_effect = {}
-	_effect_progress = 0.0
-	queue_redraw()
+	_reveal.start(beats, result)
 
 
 ## 出している結果の演出（ResultEffect.for_reveal の値）。出していなければ空。
 func result_effect() -> Dictionary:
-	return _effect.duplicate()
+	return _reveal.effect.duplicate()
 
 
 ## 結果の演出の進み具合（0〜1。描画が薄くするのに使う）。
 func result_progress() -> float:
-	return _effect_progress
+	return _reveal.effect_progress
 
 
-## 結果の演出を出す時間（秒。MatchController.board_result_sec()）。パネルが bind で入れる。
-## 有限でない値は 0（演出を出さない）として扱う（無限大だと演出が消えなくなる）。
+## 結果の演出を出す時間（秒。MatchController.board_result_sec()）。パネルが bind で入れる。0 以下・有限でない値なら出さない。
 func set_result_sec(sec: float) -> void:
-	_result_sec = sec if is_finite(sec) else 0.0
+	_reveal.set_result_sec(sec)
 
 
 ## 開示で駒かボールを動かしている途中か。
 func is_shifting() -> bool:
-	return _shift.is_active()
+	return _reveal.shift.is_active()
 
 
 ## 開示で、どれかの拍で駒が動くか（このときだけ、駒を選手ごとに描く。ボールだけが動くときは、いつもの描き方のまま）。
 func is_shifting_pieces() -> bool:
-	return _shift.has_pieces()
+	return _reveal.shift.has_pieces()
 
 
 ## 動かす拍の数（動きの無い拍は数えない）。動いていなければ 0。
 func shift_beat_count() -> int:
-	return _shift.beats.size()
+	return _reveal.shift.beats.size()
 
 
 ## いま動かしている拍の添字（0 始まり）。
 func shift_beat_index() -> int:
-	return _shift.beat_index
+	return _reveal.shift.beat_index
 
 
 ## いまの拍で動かしている駒の道筋（{"player_id", "is_user", "from", "to"}）。描画とテストで共有する。動いていなければ空。
 func shift_paths() -> Array[Dictionary]:
-	return _shift.piece_paths_of(_shift.beat_index)
+	return _reveal.shift.piece_paths_of(_reveal.shift.beat_index)
 
 
 ## いまの拍で動かしているボールの道筋（{"from", "to"}）。ボールが動いていなければ空。
 func shift_ball_path() -> Dictionary:
-	return _shift.ball_path_of(_shift.beat_index).duplicate()
+	return _reveal.shift.ball_path_of(_reveal.shift.beat_index).duplicate()
 
 
 ## beat 番目の拍の駒の道筋。範囲外なら空。
 func shift_beat_paths(beat: int) -> Array[Dictionary]:
-	return _shift.piece_paths_of(beat)
+	return _reveal.shift.piece_paths_of(beat)
 
 
 ## beat 番目の拍のボールの道筋。範囲外か、その拍でボールが動かなければ空。
 func shift_beat_ball_path(beat: int) -> Dictionary:
-	return _shift.ball_path_of(beat).duplicate()
+	return _reveal.shift.ball_path_of(beat).duplicate()
 
 
 ## player_id の駒を描く位置。開示で動いていれば道筋の途中、後の拍で動くならその拍の始まり、そうでなければ rest（駒の列の位置）。
 func shifting_piece_center(player_id: String, rest: Vector2) -> Vector2:
-	return _shift.piece_position(player_id, rest)
+	return _reveal.shift.piece_position(player_id, rest)
 
 
-func _begin_shift_beat(index: int) -> void:
-	_shift.begin_beat(index)
-	queue_redraw()
+# --- 位置の計算（BoardGeometry。描画・テスト・ResultEffect が読む公開の面として残す） ---
 
-
-func _set_shift_progress(progress: float) -> void:
-	_shift.progress = progress
-	queue_redraw()
-
-
-## 動きを止め、いまの盤面の描き方（エリアごとの列と「+N」）に戻す。次の盤面・重ね表示の消去で呼ぶ（前のターンの動きを残さない）。
-## 1拍目の前に止めたら、着地だけを知らせる（テロップを出し忘れない。演出は出さない）。
-func _stop_shift() -> void:
-	if _shift_tween != null:
-		_shift_tween.kill()
-		_shift_tween = null
-	_shift.clear()
-	if _landing_pending:
-		_landing_pending = false
-		play_landed.emit()
-	queue_redraw()
-
-
-# --- 位置の計算 ---
-
-## ゴールの四角（平面図）。is_top なら上（利用者が攻めるゴール）、そうでなければ下。描画とボールの行き先で共有する。
+## ゴールの四角（平面図）。is_top なら上（利用者が攻めるゴール）。描画とボールの行き先で共有する。
 func goal_rect(is_top: bool) -> Rect2:
-	var goal := Vector2(size.x * GOAL_WIDTH_RATE, GOAL_DEPTH)
-	var y: float = 0.0 if is_top else size.y - goal.y
-	return Rect2(Vector2((size.x - goal.x) / 2.0, y), goal)
+	return BoardGeometry.goal_rect(is_top, size)
 
 
 ## ゴールの口の中央（平面図）。得点のボールの行き先。
@@ -329,16 +241,12 @@ func goal_mouth(is_top: bool) -> Vector2:
 
 ## 平面図での1エリアの大きさ（横 = レーン 5、縦 = 列 6）。
 func cell_size() -> Vector2:
-	return size / Vector2(PitchArea.LANE_COUNT, PitchArea.ZONE_COUNT)
+	return BoardGeometry.cell_size(size)
 
 
-## エリアの平面図の矩形。レーンは左から L2〜R2、列は上から A2〜D1（利用者は上へ攻める）。
+## エリアの平面図の矩形。レーンは左から L2〜R2、列は上から A2〜D1。読めないキーなら空の矩形。
 func area_rect(key: String) -> Rect2:
-	var area: PitchArea = PitchArea.from_key(key)
-	if area == null:
-		return Rect2()
-	var cell: Vector2 = cell_size()
-	return Rect2(Vector2(area.lane * cell.x, (PitchArea.ZONE_COUNT - 1 - area.zone) * cell.y), cell)
+	return BoardGeometry.area_rect(key, size)
 
 
 ## 平面図の点 → 画面の点。
@@ -356,14 +264,34 @@ func area_at(point: Vector2) -> String:
 	return plan_area_at(BoardProjection.to_plan(point, size))
 
 
-## 平面図の点のエリアのキー。ピッチの外なら空文字。
+## 平面図の点のエリアのキー（BoardGeometry.plan_area_at）。ピッチの外なら空文字。
 func plan_area_at(plan: Vector2) -> String:
-	if not Rect2(Vector2.ZERO, size).has_point(plan):
-		return ""
-	var cell: Vector2 = cell_size()
-	var lane: int = clampi(floori(plan.x / cell.x), 0, PitchArea.LANE_COUNT - 1)
-	var row: int = clampi(floori(plan.y / cell.y), 0, PitchArea.ZONE_COUNT - 1)
-	return PitchArea.new(lane as GameEnums.Lane, (PitchArea.ZONE_COUNT - 1 - row) as GameEnums.Zone).to_key()
+	return BoardGeometry.plan_area_at(plan, size)
+
+
+## 同じ段の駒の中心の間隔（BoardGeometry.piece_step）。描画とテストで共有する。
+func piece_step() -> float:
+	return BoardGeometry.piece_step(size)
+
+
+## 駒の半径（BoardGeometry.piece_radius）。
+func piece_radius() -> float:
+	return BoardGeometry.piece_radius(size)
+
+
+## index 番目の駒の平面図の中心（BoardGeometry.piece_center）。
+func piece_center(key: String, is_user: bool, index: int) -> Vector2:
+	return BoardGeometry.piece_center(key, is_user, index, size)
+
+
+## エリアの駒の列の slot 番目の中心（BoardGeometry.slot_center。5人目以降は最後の位置で止める）。
+func slot_center(key: String, is_user: bool, slot: int) -> Vector2:
+	return BoardGeometry.slot_center(key, is_user, slot, size)
+
+
+## エリアのボールの位置（BoardGeometry.ball_point。エリアの上側の中央）。
+func _ball_point(key: String) -> Vector2:
+	return BoardGeometry.ball_point(key, size)
 
 
 # --- 表示している値（テストと描画で使う） ---
@@ -406,23 +334,17 @@ func ball_area() -> String:
 
 ## ボールを描く位置。開示で動いていれば道筋の途中、そうでなければいまのエリアの位置。
 func ball_center() -> Vector2:
-	return _shift.ball_position(_ball_point(_ball_area))
+	return _reveal.shift.ball_position(_ball_point(_ball_area))
 
 
 ## ボールの高さ（ボールの半径の何倍か。開示の1拍目の浮き球・ドリブルの弾み）。動いていなければ 0。
 func ball_lift() -> float:
-	return _shift.ball_lift()
+	return _reveal.shift.ball_lift()
 
 
 ## 開示の1拍目のボールの軌道の値 {"loft", "touch", "touches"}（MatchController.ball_style()）。パネルが bind で入れる。
 func set_ball_style(style: Dictionary) -> void:
-	_shift.ball_style = style.duplicate()
-
-
-## エリアのボールの位置（平面図）。エリアの上側の中央（駒の段と札に重ならない位置）。
-func _ball_point(key: String) -> Vector2:
-	var rect: Rect2 = area_rect(key)
-	return Vector2(rect.get_center().x, rect.position.y + rect.size.y * BALL_TOP_RATE)
+	_reveal.shift.ball_style = style.duplicate()
 
 
 ## is_user のチームの選手（BoardSnapshot.user_players と同じ形）。
@@ -457,33 +379,6 @@ func drawn_tally_keys() -> Array[String]:
 		if not tally_of(area.to_key()).is_empty():
 			keys.append(area.to_key())
 	return keys
-
-
-## 同じ段の駒の中心の間隔（描画とテストで共有）。中央の余白から2列ぶんがエリアの半分に収まるよう、PIECE_STEP を上限に縮める。
-func piece_step() -> float:
-	var half_width: float = cell_size().x / 2.0
-	return minf(PIECE_STEP, (half_width - PIECE_EDGE_MARGIN - PIECE_CENTER_GAP) / PIECE_COLUMNS)
-
-
-## 駒の半径（平面図での台座の大きさ）。同じ段の隣の駒と重ならないよう、間隔に合わせて縮める。
-func piece_radius() -> float:
-	return minf(PIECE_DIAMETER / 2.0, piece_step() / 2.0 - 1.0)
-
-
-## index 番目の駒（上限を超えたときの「+N」の札の位置を含む）の平面図の中心。1チーム 2列×2段で、添字 0・1 が奥の段、
-## 2・3 が手前の段。自分はエリアの中央から左へ、相手は中央から右へ並べる。
-func piece_center(key: String, is_user: bool, index: int) -> Vector2:
-	var rect: Rect2 = area_rect(key)
-	var direction: float = -1.0 if is_user else 1.0
-	var offset: float = PIECE_CENTER_GAP + piece_step() * (index % PIECE_COLUMNS + 0.5)
-	var row_rate: float = PIECE_ROW_RATES[mini(floori(float(index) / PIECE_COLUMNS), PIECE_ROW_RATES.size() - 1)]
-	return Vector2(rect.get_center().x + direction * offset, rect.position.y + rect.size.y * row_rate)
-
-
-## エリアの駒の列の slot 番目の中心。列に収まらない添字（1エリアに5人以上）は最後の位置（MAX_PIECES - 1）で止める。
-## プレビューの輪・開示で動かす駒の道筋と描画で共有する（止め方を1か所で決める）。
-func slot_center(key: String, is_user: bool, slot: int) -> Vector2:
-	return piece_center(key, is_user, mini(slot, MAX_PIECES - 1))
 
 
 ## 立っているもの（駒・プレビューの駒・ボール・「+N」の札）を、奥（平面図の上）から手前の順に並べたもの。描画とテストで

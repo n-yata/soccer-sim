@@ -100,7 +100,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **配置ファイル**:
 - `screens/`: 画面ごとのシーンとスクリプト。ディレクトリ名は画面 ID と画面の英語名（例: `s03_match/`）
-- `board2d/`: 作戦ボードの部品（エリア・人数・ヒントの札・動きの矢印・開示で駒を動かす道筋の計算・開示のボールの軌道 `ball_flight.gd`・開示の結果の演出 `result_effect.gd`・描画・遠近の写し方 `board_projection.gd`）
+- `board2d/`: 作戦ボードの部品（エリア・人数・ヒントの札・動きの矢印・開示で駒を動かす道筋の計算・開示のボールの軌道 `ball_flight.gd`・開示の結果の演出 `result_effect.gd`・平面図での位置の計算 `board_geometry.gd`・開示の進行 `board_reveal.gd`・描画（結果の演出は `result_effect_painter.gd`）・遠近の写し方 `board_projection.gd`）
 - `common/`: 画面をまたいで使う部品
 
 **依存関係**:

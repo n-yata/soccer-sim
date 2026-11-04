@@ -1121,6 +1121,13 @@ func route_back() -> bool
 > （`tactics_board.gd` の行数を増やさないため）。高さ・弾みの値は `MatchController.ball_style()` から、パネルが bind で
 > `TacticsBoard.set_ball_style` に入れる。影は地面の位置に描き、ボールだけを持ち上げる。
 >
+> **2026-11-03（作戦ボードの分割）**: `TacticsBoard` の責務を分けた。外から見た形（公開の関数・シグナル）は変えていない。
+> 平面図での位置の計算（エリア・駒の列・ボール・ゴール。盤面の大きさだけから決まる）は `BoardGeometry`（`board_geometry.gd`。
+> 静的関数で大きさを受け取る）、開示の進行（拍の Tween・1拍目の着地・結果の演出の状態と Tween）はボードの子ノードの
+> `BoardReveal`（`board_reveal.gd`。Tween はノードが作るので状態の `BoardShift` と分けた）、結果の演出の描画は
+> `ResultEffectPainter`（`result_effect_painter.gd`）。ボードには、外から渡す値と状態・入力・描画とテストが読む問い合わせ、
+> 位置の計算と開示への中継を残す。拍の組み立て（いまの盤面と位置の計算が要る）はボードが行い、`BoardReveal.start` に渡す。
+>
 > **2026-10-23（縦向きの盤面）**: ピッチを縦に置き、斜めから見た半3Dで描く（利用者は上へ攻める。上が敵陣、左が左大外）。
 > 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
 > `BoardProjection`（`board_projection.gd`）の写し方（平面図 ⇔ 画面。奥 = 上を狭く。6列では縦は詰めない（`NEAR_WEIGHT` 1.0。2026-10-25））を通す。
