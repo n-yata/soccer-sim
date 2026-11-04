@@ -54,20 +54,6 @@ static func slot_name(family: GameEnums.ChoiceFamily, action: int) -> String:
 	return action_name(family, action)
 
 
-## 手のボタンの2行目（行き先）。「→ 中盤（敵陣）・左HS」。中身の手が枠の名前と違えば手の名前を添える（「スルーパス → 敵陣・中央」）。
-## 守備は守る位置（「中盤（自陣）・中央」）。行き先の無い手は空。target_key は利用者の視点のキー。
-static func choice_target_line(family: GameEnums.ChoiceFamily, action: int, target_key: String) -> String:
-	if target_key.is_empty():
-		return ""
-	var area: String = area_name(target_key)
-	if family == GameEnums.ChoiceFamily.DEFENSE:
-		return area
-	var name: String = action_name(family, action)
-	if name != slot_name(family, action):
-		return "%s → %s" % [name, area]
-	return "→ %s" % area
-
-
 ## 手を選んだときに添える一言（誰が動くか・何を読む手か。2026-11-03 に、行き先を選ばない操作に合わせて書き直した）。
 ## スルーパス（人数に関係なく読みで決まる、ほかの手と違う規則）・バックパス（判定しない）と、守備の手（違いが盤面から読みにくいため）。
 ## ほかの手は空。

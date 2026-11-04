@@ -33,21 +33,14 @@ func test_attack_shows_only_the_moves_on_the_menu_in_slot_order() -> void:
 			GameEnums.PlayType.BACK_PASS])
 	assert_object(_panel.button_for(GameEnums.PlayType.SHOT)).is_null()
 	assert_object(_panel.button_for(GameEnums.PlayType.SHORT_PASS)).is_null()
-	# 1行目は番号と枠の名前、2行目は行き先（中身の手が枠の名前と違えば手の名前を添える）
-	assert_str(_panel.button_for(GameEnums.PlayType.THROUGH_PASS).text).is_equal("① ショートパス\nスルーパス → 敵陣・中央")
-	assert_str(_panel.button_for(GameEnums.PlayType.DRIBBLE).text).is_equal("② ドリブル\n→ 中盤（敵陣）・左HS")
-	assert_str(_panel.button_for(GameEnums.PlayType.BACK_PASS).text).is_equal("③ バックパス\n→ 自陣・中央")
+	# ボタンは番号と行動の名前だけ（2026-11-05。中身の手がスルーパスでも枠の名前。行き先は「詳細」で見せる）
+	assert_str(_panel.button_for(GameEnums.PlayType.THROUGH_PASS).text).is_equal("① ショートパス")
+	assert_str(_panel.button_for(GameEnums.PlayType.DRIBBLE).text).is_equal("② ドリブル")
+	assert_str(_panel.button_for(GameEnums.PlayType.BACK_PASS).text).is_equal("③ バックパス")
 	assert_str(_panel.number_of(GameEnums.PlayType.BACK_PASS)).is_equal("③")
 	assert_str(_panel.number_of(GameEnums.PlayType.SHOT)).is_empty()
-
-
-func test_buttons_show_the_hint_tag_on_the_third_line() -> void:
-	var hints: Array[ChoiceHint] = [ChoiceHint.new(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M2-L1"), true,
-			2, 1, GameEnums.CoverKind.NONE)]
-	_panel.show_options(_attack_options(), GameEnums.TurnKind.OPEN_PLAY, true, hints)
-	assert_str(_panel.button_for(GameEnums.PlayType.DRIBBLE).text).is_equal("② ドリブル\n→ 中盤（敵陣）・左HS\n+1")
-	# ヒントの無い手は2行のまま
-	assert_str(_panel.button_for(GameEnums.PlayType.BACK_PASS).text).is_equal("③ バックパス\n→ 自陣・中央")
+	# 4つまでの手を2列に並べ、スクロールせずに選べる
+	assert_int(_panel.columns).is_equal(2)
 
 
 func test_each_phase_shows_its_own_moves() -> void:
@@ -57,8 +50,7 @@ func test_each_phase_shows_its_own_moves() -> void:
 	_panel.show_options(options, GameEnums.TurnKind.OPEN_PLAY, false)
 	assert_int(_panel.family()).is_equal(DEFENSE)
 	assert_array(_panel.actions()).is_equal([GameEnums.DefenseAction.PRESS, GameEnums.DefenseAction.CLOSE_DOWN])
-	# 守備の2行目は守る位置だけ
-	assert_str(_panel.button_for(GameEnums.DefenseAction.PRESS).text).is_equal("① パスコースを切る\n自陣・中央")
+	assert_str(_panel.button_for(GameEnums.DefenseAction.PRESS).text).is_equal("① パスコースを切る")
 	var transition := MoveOptions.new()
 	transition.allow(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS)
 	transition.allow(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT)
@@ -70,7 +62,7 @@ func test_each_phase_shows_its_own_moves() -> void:
 	winner.allow(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.SECURE)
 	_panel.show_options(winner, GameEnums.TurnKind.TRANSITION, true)
 	assert_int(_panel.family()).is_equal(GameEnums.ChoiceFamily.POS_TRANS)
-	assert_str(_panel.button_for(GameEnums.PosTransAction.COUNTER).text).is_equal("① カウンター\n→ 敵陣・中央")
+	assert_str(_panel.button_for(GameEnums.PosTransAction.COUNTER).text).is_equal("① カウンター")
 	assert_str(_panel.button_for(GameEnums.PosTransAction.SECURE).text).is_equal("② 保持")
 
 

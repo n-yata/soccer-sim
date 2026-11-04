@@ -1091,6 +1091,9 @@ func route_back() -> bool
 > エリアを押すとその行き先の手を選ぶ。手の一言（`target_rule`）は、スルーパス・バックパス・守備の手で、誰が動くか・何を読む手かを言う。
 > `MatchController` は画面に出す手を状態ごとに1回だけ作る（`user_options`・`user_hints`・`user_preview`・`submit_turn` で共有）。
 >
+> **2026-11-05（詳細のポップアップ）**: 手のボタンは番号と行動の名前だけにし、2列に並べてスクロールせずに選べるようにした。
+> 選んだ手の行き先・判断材料・説明は、「決定」の左の「詳細」で開く `MoveDetailView`（`ModalOverlay`）に出す（ボタンの下の説明はやめた）。
+>
 > **2026-10-22（開示で駒を動かす）**: 開示では、`TacticsBoard.start_shift` で、判定前の配置（`RevealView` の判定前の選手）から
 > 次のターン開始時の配置（`BoardSnapshot`）へ、位置が変わった全選手の駒を `MatchController.board_shift_sec()` 秒で動かす
 > （2026-11-03 に2拍に分け、この時間は2拍目の `board_settle_sec()` に改名した。下の注記）。

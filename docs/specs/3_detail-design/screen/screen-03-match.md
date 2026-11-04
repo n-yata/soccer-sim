@@ -46,17 +46,19 @@ MatchScreen (Control)
 │       │       ├── SideScroll (ScrollContainer)   # 中身が入りきらないときだけ縦にスクロールする（screen-common.md §1.1）
 │       │       │   └── SideBody (VBoxContainer)   # 間隔 16px
 │       │       │       ├── SideTopSlot (VBoxContainer) # 画面ごとに足す表示の置き場。S-03 では空、S-08 は説明文の吹き出し
-│       │       │       ├── ChoicePanel           # board2d/choice_panel.tscn。手のボタン（高さ 96px、2列。攻撃の手は6つで2列×3段。奇数個の局面は最後の1つを列の幅いっぱい）
-│       │       │       ├── TargetInfo (Label)    # 選んだ運ぶ先の名前と、ヒントの札の文（ヒントが ON のとき）。地 surface
-│       │       │       └── JudgeTelop (VBoxContainer) # 判定理由の表示中だけ（ChoicePanel・TargetInfo の代わりに出す）
+│       │       │       ├── ChoicePanel           # board2d/choice_panel.gd。手のボタン（高さ 96px、2列。手は4つまでで、スクロールせずに選べる。文字は番号と行動の名前だけ。2026-11-05）
+│       │       │       └── JudgeTelop (VBoxContainer) # 判定理由の表示中だけ（ChoicePanel の代わりに出す）
 │       │       │           ├── OutcomeTag (Label)     # 「● ADVANCE 前進」。地は成功した側の色（自分 水色・相手 オレンジ。判定なしは accent）
 │       │       │           ├── ReasonLabel (Label)    # JudgeReasonFormatter の文。地 telop_bg
 │       │       │           ├── JudgeDetail (Label)    # 判定の内訳「比較エリア 中盤（敵陣）・中央／● 自分 1 対 0 相手 ◆／カバー なし」。NO_CONTEST では隠す
 │       │       │           └── RealWorldNote (Label)  # 「実戦では: …」。該当するときだけ。文字 caution
-│       │       ├── PrimaryButton (Button)    # 列の下端に固定。高さ 112px、列の幅いっぱい。show_next が偽なら判定理由の表示中は隠す
-│       │       │   ├── ButtonSummary (Label) # 「ショートパス → 中盤（敵陣）・中央」／「次のターンへ」
-│       │       │   └── ButtonAction (Label)  # 「LOCK IN」／「NEXT」
+│       │       ├── PrimaryRow (HBoxContainer) # 列の下端に固定。間隔 12px（2026-11-05）
+│       │       │   ├── DetailButton (Button)  # 「詳細」。幅 128px・高さ 112px。手を選ぶと押せる。判定理由の表示中は隠す
+│       │       │   └── PrimaryButton (Button) # 高さ 112px、残りの幅いっぱい。show_next が偽なら判定理由の表示中は隠す
+│       │       │       ├── ButtonSummary (Label) # 「ショートパス → 中盤（敵陣）・中央」／「次のターンへ」
+│       │       │       └── ButtonAction (Label)  # 「LOCK IN」／「NEXT」
 │       │       └── SideBottomSlot (VBoxContainer) # 画面ごとに足すボタンの置き場。S-03 では空、S-08 は「次へ」
+│       ├── MoveDetailView（ModalOverlay）  # BoardPanel の最後の子。選んだ手の詳細のポップアップ（見出し・本文・「閉じる」。2026-11-05）
 │       （3D 演出の ReplayLayer は 2026-10-23 にやめた。開示は TacticsBoard の上で駒とボールを動かす）
 ├── MatchMenu                                 # common/match_menu.tscn。閉じているときは非表示
 ├── SettingsOverlay (PanelContainer)          # メニューの「設定」で重ねて開く
@@ -82,7 +84,7 @@ MatchScreen (Control)
 | 状態 | 意味 | 見えるもの | 押せるもの |
 |---|---|---|---|
 | `SELECT_ACTION` | 手を選んでいない | ボード・手のボタン・自分の手の行き先の点線の枠と番号の札（ヒントが ON なら人数差も） | 手のボタン、行き先のエリア、メニュー |
-| `READY` | 手を選び終えた（行き先はゲームが決めたもの） | ＋選んだ行き先の塗り・ボールから行き先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・手の一言と行き先の説明・決定ボタンの要約 | 手のボタン（選び直し）、行き先のエリア、「決定」、メニュー |
+| `READY` | 手を選び終えた（行き先はゲームが決めたもの） | ＋選んだ行き先の塗り・ボールから行き先への矢印（ボールを運ぶ手だけ）・決定前のプレビュー・決定ボタンの要約 | 手のボタン（選び直し）、行き先のエリア、「詳細」、「決定」、メニュー |
 | `SUBMITTING` | 「決定」を押し、結果を待っている | そのまま | なし（二重送信を防ぐ） |
 | `SHOW_RESULT` | 判定理由を表示している | 両者の選択の帯・ボード（駒とボールの動き・動きの矢印・比較エリアの人数の札）・判定理由のテロップ | 「次へ」、メニュー |
 | `LEAVING` | 「次へ」の後、画面の切り替えを待っている | そのまま | なし |
@@ -123,11 +125,11 @@ MatchScreen (Control)
 ### ターンを始める
 
 1. `_options = user_options()`。`App.user_data.settings().show_hints` が真なら `_hints = user_hints()`、偽なら空
-2. `ChoicePanel.show_options(_options, snapshot.turn_kind, snapshot.user_has_ball, _hints)`。選べる手だけを枠の並びで1列に並べ、
-   各ボタンを「番号と手の名前」「行き先」「ヒントの札」の3行にする（`screen-common.md` §5 の `ChoicePanel`）。
+2. `ChoicePanel.show_options(_options, snapshot.turn_kind, snapshot.user_has_ball)`。選べる手だけを枠の並びで並べ、
+   各ボタンは「番号と行動の名前」だけ（例「① ショートパス」。2026-11-05）で、2列に並べてスクロールせずに選べる（`screen-common.md` §5 の `ChoicePanel`）。
    自分の手の行き先を `TacticsBoard.set_selectable(行き先の一覧)` で枠にし、`set_hints({行き先: 札})` で手の番号の札を出す
    （ヒントが ON なら `① +1` のように人数差を添える。同じ行き先の手が複数あれば番号を並べる。相手の手の行き先は出さない）
-3. `TacticsBoard.clear_overlays()`、`RevealBanner`・`JudgeTelop` を隠し、`PhaseTag`・`ChoicePanel` を出す。`PossessionLabel` をそのターンの保持で描き直す。`SetupCard` を描き直す。`TargetInfo` は空にして隠す
+3. `TacticsBoard.clear_overlays()`、`RevealBanner`・`JudgeTelop` を隠し、`PhaseTag`・`ChoicePanel` を出す。`PossessionLabel` をそのターンの保持で描き直す。`SetupCard` を描き直す。「詳細」（`DetailButton`）を押せなくし、詳細のポップアップを閉じる
 4. `PrimaryButton` の要約を空、操作を「LOCK IN」にして押せなくする。`_state = SELECT_ACTION`
 5. `snapshot.turn_number` が 1（前半・後半のキックオフ）なら、笛を鳴らす（`Sfx.play(WHISTLE)`。再開した試合の1ターン目でも鳴らす。
    得点後の再開では鳴らさない。2026-10-30 の効果音の作業。鳴らすのは `MatchScreen` で、チュートリアルでは鳴らさない）
@@ -139,10 +141,19 @@ MatchScreen (Control)
 3. 行き先を塗り（`TacticsBoard.set_selected`）、ボールを運ぶ手（攻撃・カウンター）なら `TacticsBoard.show_intent(ボールのエリア, 行き先)` で
    ボールから行き先への矢印を描く。守備の手では描かない（行き先は守る位置で、ボールはそこへ動かない）。
    `MatchController.user_preview(手)` の動きを `TacticsBoard.show_preview` で重ねる（決定前のプレビュー。自分の選手だけ。相手の駒は動かさない）
-4. `TargetInfo` に、手の一言（`MatchTexts.target_rule`。スルーパス・バックパス・守備の手。誰が動くか・何を読む手か）と、
-   行き先の名前とその手のヒント（ヒントが ON のとき。例「中盤（敵陣）・中央　+1　1対0」。行き先の無い手は「比べる人数 2対4」）を出し、
-   2フレーム待ってから `TargetInfo` が見える所まで `SideScroll` をスクロールする（説明が手のボタンの下にはみ出すことがあるため）
+4. 詳細のポップアップの中身を作り、「詳細」を押せるようにする（ボタンの下には説明を出さない。2026-11-05）
 5. `_state = READY`、「決定」を押せるようにする。決定ボタンの要約を「ショートパス → 中盤（敵陣）・中央」の形にする
+
+### 「詳細」を押す（`DetailButton`。2026-11-05）
+
+1. `_state` が `READY` のときだけ受け付ける
+2. 詳細のポップアップ（`MoveDetailView`。`ModalOverlay` の上に、見出しと説明と「閉じる」）を開く。見出しは押したボタンと同じ番号と名前で、
+   中身の手が違えば添える（例「① ショートパス（スルーパス）」）。説明は次の行（空の行は出さない）:
+   1. 行き先（例「行き先: 敵陣・中央」。守備は「守る位置: 中盤（自陣）・中央」）
+   2. 判断材料（ヒントが ON のとき。例「判断材料: +1　1対0」。札も人数も無い手（バックパス）は出さない。行き先の無い手は「比べる人数 2対4」）
+   3. 手の説明（`MatchTexts.target_rule`。スルーパス・バックパス・守備の手。誰が動くか・何を読む手か）
+3. 「閉じる」か戻る操作で閉じ、フォーカスを「詳細」に戻す。選んだ手はそのまま。戻る操作は、メニューが開いていなければメニューより先に詳細を閉じる
+4. 開いたままメニューの設定でヒントを切り替えたら、判断材料の行を新しい設定で出し直す
 
 ### 行き先のエリアを押す（`TacticsBoard.area_pressed`）
 
@@ -162,7 +173,7 @@ MatchScreen (Control)
 
 1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「あなた: …／CPU: …」を出す（手とエリアの名前は `screen-design.md` の
    要約と同じ形）
-2. `ChoicePanel`・`TargetInfo` を隠す
+2. `ChoicePanel`・「詳細」を隠し、詳細のポップアップを閉じる
 3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift` で駒とボールを2拍で動かす（2026-11-03）。
    1拍目（プレー）は判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 判定時（`reveal.*_players_at_judgement`・
    `reveal.ball_after`）を `match_controller.board_play_sec()` 秒、2拍目（詰め直し）は判定時 → 次のターン開始時を

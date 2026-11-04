@@ -56,7 +56,11 @@ func exit() -> void:
 
 
 ## 戻る操作: メニュー・確認が開いていれば閉じ、閉じていればメニューを開く。アプリは閉じない。
+## 手の詳細のポップアップは盤面の上だけを覆うので、メニューが開いていなければ先に閉じる（2026-11-05）。
 func handle_back() -> bool:
+	if not _menu_host.is_open() and _board_panel.detail_view().is_open():
+		_board_panel.close_detail()
+		return true
 	return _menu_host.handle_back()
 
 

@@ -213,6 +213,22 @@ func _hint_tag_count(panel: MatchBoardPanel) -> int:
 
 
 ## ヒント表示を切り替えると、選んだ手のまま札が消える／出る（screen-03-match.md「メニュー」の 2.）
+## 手の詳細のポップアップを開いているときの戻る操作は、メニューを開かずにポップアップを閉じる（2026-11-05）
+func test_back_closes_the_move_detail_before_opening_the_menu() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var panel: MatchBoardPanel = screen.board_panel()
+	panel.choice_panel().button_for(panel.choice_panel().actions()[0]).pressed.emit()
+	panel.detail_button().pressed.emit()
+	assert_bool(panel.detail_view().is_open()).is_true()
+	assert_bool(screen.handle_back()).is_true()
+	assert_bool(panel.detail_view().is_open()).is_false()
+	assert_bool(screen.menu_host().is_open()).is_false()
+	# 閉じた後の戻る操作は、ふだんどおりメニューを開く
+	assert_bool(screen.handle_back()).is_true()
+	assert_bool(screen.menu_host().is_open()).is_true()
+
+
 func test_turning_hints_off_in_the_match_redraws_without_hint_tags() -> void:
 	_match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen

@@ -65,16 +65,6 @@ func test_slot_names_group_the_attacking_plays_by_distance() -> void:
 	assert_str(MatchTexts.slot_name(POS, GameEnums.PosTransAction.COUNTER)).is_equal("カウンター")
 
 
-func test_choice_target_line_names_the_play_only_when_it_differs_from_the_slot() -> void:
-	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.SHORT_PASS, "M2-L1")).is_equal("→ 中盤（敵陣）・左HS")
-	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.THROUGH_PASS, "A1-C")).is_equal("スルーパス → 敵陣・中央")
-	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.SWITCH, "M1-R2")) \
-			.is_equal("サイドチェンジ → 中盤（自陣）・右大外")
-	# 守備は守る位置だけ。行き先の無い手は空
-	assert_str(MatchTexts.choice_target_line(DEFENSE, GameEnums.DefenseAction.PRESS, "M1-C")).is_equal("中盤（自陣）・中央")
-	assert_str(MatchTexts.choice_target_line(ATTACK, GameEnums.PlayType.SHOT, "")).is_empty()
-
-
 func test_choice_summary_has_the_target_only_when_the_move_has_one() -> void:
 	var pass_choice := TurnChoice.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M1-C"))
 	assert_str(MatchTexts.choice_summary(pass_choice)).is_equal("ショートパス → 中盤（自陣）・中央")

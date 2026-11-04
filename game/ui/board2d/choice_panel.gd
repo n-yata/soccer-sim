@@ -1,6 +1,6 @@
-## 手のボタン（screen-common.md §5 の ChoicePanel）。画面に出す手（MoveMenu）のうち選べる手だけを、枠の並びで1列に並べる
-## （2026-11-03。行き先はゲームが決めるので、選べない手は出さない）。
-## ボタンは3行: 番号と枠の名前（「① ショートパス」）、行き先（「スルーパス → 敵陣・中央」）、ヒントの札（ヒントが ON のとき）。
+## 手のボタン（screen-common.md §5 の ChoicePanel）。画面に出す手（MoveMenu）のうち選べる手だけを、枠の並びで2列に並べる
+## （2026-11-03。行き先はゲームが決めるので、選べない手は出さない。手は4つまでで、スクロールせずに選べる）。
+## ボタンは番号と行動の名前だけ（「① ショートパス」。2026-11-05）。行き先・ヒント・説明は「詳細」のポップアップで見せる。
 ## 番号は盤面の行き先の札と同じ（MatchBoardPanel が number_of で引く）。
 ## 選んだ印（押した状態）は画面が select_action で付ける。押しただけでは付けない（選択の状態は画面が持つ）。
 class_name ChoicePanel
@@ -23,14 +23,13 @@ var _enabled: bool = true
 
 
 func _init() -> void:
-	columns = 1
+	columns = 2
+	add_theme_constant_override("h_separation", 12)
 	add_theme_constant_override("v_separation", 12)
 
 
-## 局面（攻守ターンかトランジションか、ボールを持っているか）の手を並べ直す。options は利用者の視点の画面に出す手、
-## hints はヒント（ヒントが OFF なら空）。
-func show_options(options: MoveOptions, turn_kind: GameEnums.TurnKind, user_has_ball: bool,
-		hints: Array[ChoiceHint] = []) -> void:
+## 局面（攻守ターンかトランジションか、ボールを持っているか）の手を並べ直す。options は利用者の視点の画面に出す手。
+func show_options(options: MoveOptions, turn_kind: GameEnums.TurnKind, user_has_ball: bool) -> void:
 	_family = family_of(turn_kind, user_has_ball)
 	for button: Button in _buttons:
 		remove_child(button)
@@ -41,7 +40,7 @@ func show_options(options: MoveOptions, turn_kind: GameEnums.TurnKind, user_has_
 	for slot: Array in MoveMenu.SLOTS[_family] as Array:
 		for action: int in slot:
 			if options.is_available(_family, action):
-				_add_button(action, _target_key(options, action), _hint_for(hints, action))
+				_add_button(action)
 
 
 ## 局面の手の種類（正本は TurnChoice.family_for。チュートリアルの静的データの検証もそれを使う）。
@@ -93,41 +92,20 @@ func number_of(action: int) -> String:
 	return "" if index < 0 or index >= NUMBERS.size() else NUMBERS[index]
 
 
-func _add_button(action: int, target_key: String, hint: ChoiceHint) -> void:
+func _add_button(action: int) -> void:
 	_actions.append(action)
-	var lines: Array[String] = ["%s %s" % [number_of(action), MatchTexts.slot_name(_family, action)]]
-	var target_line: String = MatchTexts.choice_target_line(_family, action, target_key)
-	if not target_line.is_empty():
-		lines.append(target_line)
-	var tag: String = "" if hint == null else MatchTexts.hint_tag(hint)
-	if not tag.is_empty():
-		lines.append(tag)
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, BUTTON_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.toggle_mode = true
-	button.text = "\n".join(lines)
+	button.text = "%s %s" % [number_of(action), MatchTexts.slot_name(_family, action)]
 	button.disabled = not _enabled
-	# 行き先の行が長いときは、ボタンの中で折り返す（左右の余白を詰めた ChoiceButton）
+	# 長い手の名前（シュートコースを塞ぐ）は、ボタンの中で折り返す（左右の余白を詰めた ChoiceButton）
 	button.theme_type_variation = &"ChoiceButton"
-	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	button.pressed.connect(_on_button_pressed.bind(action))
 	add_child(button)
 	_buttons.append(button)
-
-
-func _target_key(options: MoveOptions, action: int) -> String:
-	if not MoveOptions.needs_target(_family, action):
-		return ""
-	var targets: Array[PitchArea] = options.targets(_family, action)
-	return "" if targets.is_empty() else targets[0].to_key()
-
-
-func _hint_for(hints: Array[ChoiceHint], action: int) -> ChoiceHint:
-	for hint: ChoiceHint in hints:
-		if hint.family == _family and hint.action == action:
-			return hint
-	return null
 
 
 func _on_button_pressed(action: int) -> void:

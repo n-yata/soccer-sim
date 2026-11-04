@@ -136,27 +136,25 @@ func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() 
 	assert_float(panel.get_global_rect().end.y).is_less_equal(720.0 - MatchScreen.VERTICAL_MARGIN + 0.5)
 
 
-func test_the_move_rule_is_scrolled_into_view_on_the_match_screen() -> void:
-	# 試合画面の実寸（1280×720）で、手のボタンの下にはみ出す手の説明が、見える所までスクロールされる
-	# （2026-10-25。パネル単体では入れ子の並べ直しの順が違い、遅らせて呼ぶだけの実装でも通ってしまうため、画面で確かめる）。
-	# 説明のある手（スルーパス・バックパスなど）のうち、ボタンの並びで最後の手を選ぶ（説明がいちばん下に出る）
+func test_every_move_button_is_visible_without_scrolling_on_the_match_screen() -> void:
+	# 試合画面の実寸（1280×720）で、手のボタンはスクロールせずにすべて見え、手を選んでも説明でずれない（2026-11-05。
+	# 説明はボタンの下に出さず、「詳細」のポップアップへ移した）。パネル単体では入れ子の並べ直しの順が違うため、画面で確かめる
 	_match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
 	await get_tree().process_frame
 	var panel: MatchBoardPanel = screen.board_panel()
-	var family: GameEnums.ChoiceFamily = panel.choice_panel().family()
-	var explained: int = -1
-	for action: int in panel.choice_panel().actions():
-		if not MatchTexts.target_rule(family, action).is_empty():
-			explained = action
-	assert_int(explained).override_failure_message("キックオフで説明のある手を選べる場面であること").is_not_equal(-1)
-	panel.choice_panel().button_for(explained).pressed.emit()
+	var actions: Array[int] = panel.choice_panel().actions()
+	panel.choice_panel().button_for(actions[actions.size() - 1]).pressed.emit()
 	for _frame: int in range(4):
 		await get_tree().process_frame
 	var scroll: ScrollContainer = panel.find_child("SideScroll", true, false) as ScrollContainer
-	var info: Control = panel.find_child("TargetInfo", true, false) as Control
-	assert_bool(scroll.get_global_rect().encloses(info.get_global_rect())) \
-			.override_failure_message("%s が %s の外" % [info.get_global_rect(), scroll.get_global_rect()]).is_true()
+	assert_int(scroll.scroll_vertical).is_equal(0)
+	for action: int in actions:
+		var button: Button = panel.choice_panel().button_for(action)
+		assert_bool(scroll.get_global_rect().encloses(button.get_global_rect())) \
+				.override_failure_message("%s が %s の外" % [button.get_global_rect(), scroll.get_global_rect()]).is_true()
+	# 「詳細」は主ボタンの横にあり、画面の中に収まる
+	assert_bool(Rect2(Vector2.ZERO, Vector2(1280, 720)).encloses(panel.detail_button().get_global_rect())).is_true()
 
 
 func test_reveal_shows_both_choices_and_the_score_only_after_the_result() -> void:
@@ -207,12 +205,14 @@ func test_a_move_without_a_target_is_ready_at_once() -> void:
 	assert_bool(panel.primary_button().disabled).is_false()
 	assert_array(panel.board().selectable_areas()).is_empty()
 	assert_str(panel.primary_summary()).is_equal(MatchTexts.action_name(family, action))
-	# 人数を比べる手（即時奪回）なら、比べる人数を説明に出す。比べない手（保持）なら出さない
+	# 人数を比べる手（即時奪回）なら、比べる人数を詳細に出す。比べない手（保持）なら出さない
 	var expected_info: String = ""
 	for hint: ChoiceHint in controller.user_hints():
 		if hint.family == family and hint.action == action and hint.is_compared:
 			expected_info = "比べる人数 %s" % MatchTexts.hint_counts(hint)
-	assert_str(panel.target_info_text()).is_equal(expected_info)
+	panel.detail_button().pressed.emit()
+	assert_str(panel.detail_view().text()).is_equal(expected_info)
+	panel.detail_view().close()
 	panel.primary_button().pressed.emit()
 	assert_int(panel.state()).is_equal(MatchBoardPanel.State.SHOW_RESULT)
 

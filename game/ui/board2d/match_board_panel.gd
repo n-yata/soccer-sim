@@ -1,5 +1,6 @@
 ## 試合画面の盤面と手の選択（screen-common.md §5 の MatchBoardPanel。手順の正本は screen-03-match.md）。
-## 左に作戦ボード、右に操作の列（両チームの陣形・方式、手のボタン、運ぶ先の説明、判定理由、主ボタン）。
+## 左に作戦ボード、右に操作の列（両チームの陣形・方式、手のボタン、判定理由、「詳細」と主ボタン）。
+## 手のボタンは行動の名前だけで、選んだ手の行き先・判断材料・説明は「詳細」のポップアップ（MoveDetailView）で見せる（2026-11-05）。
 ## 手の選択から判定理由の表示までの状態と、MatchController の turn_resolved の受信はこの部品が持つ。
 ##
 ## turn_resolved を受けたら、すぐ判定理由の表示へ進み、盤面の上で駒とボールを動かす（3D 演出は 2026-10-23 にやめた）。
@@ -25,6 +26,8 @@ enum State { IDLE, SELECT_ACTION, READY, SUBMITTING, SHOW_RESULT, LEAVING }
 
 const SIDE_WIDTH: float = 480.0
 const PRIMARY_HEIGHT: float = 112.0
+## 主ボタンの左に並べる「詳細」ボタンの幅
+const DETAIL_WIDTH: float = 128.0
 const LOCK_IN: String = "LOCK IN"
 const NEXT: String = "NEXT"
 const NEXT_SUMMARY: String = "次のターンへ"
@@ -51,14 +54,18 @@ var _board: TacticsBoard
 var _user_setup_label: Label
 var _opponent_setup_label: Label
 var _choice_panel: ChoicePanel
-var _target_info: Label
-## 操作の列の中ほど（手のボタン・運ぶ先の説明・判定理由）を縦にスクロールする入れ物
+## 判定理由のテロップを縦にスクロールする入れ物（手のボタンは4つまでで、スクロールせずに選べる）
 var _side_scroll: ScrollContainer
 var _judge_telop: VBoxContainer
 var _outcome_tag: Label
 var _reason_label: Label
 var _judge_detail: Label
 var _primary_button: Button
+var _detail_button: Button
+var _detail_view: MoveDetailView
+## 選んだ手の詳細（ポップアップの見出しと行）
+var _detail_title: String = ""
+var _detail_lines: Array[String] = []
 var _button_summary: Label
 var _button_action: Label
 var _side_top_slot: VBoxContainer
@@ -87,6 +94,7 @@ func unbind() -> void:
 		_controller.turn_resolved.disconnect(_on_turn_resolved)
 	_controller = null
 	_state = State.IDLE
+	_detail_view.close()
 
 
 ## ターンを始める（screen-03-match.md「ターンを始める」）。前のターンの選択・ヒント・矢印は残さない。
@@ -102,16 +110,17 @@ func start_turn() -> void:
 	_reveal = null
 	_board.clear_overlays()
 	_board.show_snapshot(_snapshot)
-	_choice_panel.show_options(_options, _snapshot.turn_kind, _snapshot.user_has_ball, _hints)
+	_choice_panel.show_options(_options, _snapshot.turn_kind, _snapshot.user_has_ball)
 	_show_destinations()
 	# 選べる手が1つもないことは起きない（トランジション・守備の手は常に1つ以上選べる。アルゴリズム3）。
 	# 起きたら開発時の誤りとして止める（screen-03-match.md「例外・エラー表示」）
 	assert(_choice_panel.has_available(), "MatchBoardPanel: 選べる手が1つもない")
 	_choice_panel.visible = _is_interactive
 	_primary_button.visible = _is_interactive
+	_detail_button.visible = _is_interactive
+	_detail_button.disabled = true
+	_detail_view.close()
 	_choice_panel.set_enabled(true)
-	_target_info.text = ""
-	_target_info.visible = false
 	_judge_telop.visible = false
 	_user_setup_label.text = "● 自分 %s" % MatchTexts.setup_text(_snapshot.user_setup)
 	_opponent_setup_label.text = "◆ CPU %s" % MatchTexts.setup_text(_snapshot.opponent_setup)
@@ -153,11 +162,19 @@ func set_show_hints(is_on: bool) -> void:
 	if _state not in [State.SELECT_ACTION, State.READY]:
 		return
 	_hints = _current_hints()
-	_choice_panel.show_options(_options, _snapshot.turn_kind, _snapshot.user_has_ball, _hints)
-	_choice_panel.set_enabled(true)
 	_show_destinations()
 	if _state == State.READY:
 		_on_action_selected(_selected_family, _selected_action)
+		# 詳細を開いたまま切り替えたら、判断材料の行を新しい設定で出し直す
+		if _detail_view.is_open():
+			_detail_view.open(_detail_title, _detail_lines)
+
+
+## 詳細のポップアップを閉じ、キー操作のフォーカスを「詳細」に戻す（「閉じる」・戻る操作）。
+func close_detail() -> void:
+	_detail_view.close()
+	if _detail_button.is_visible_in_tree():
+		_detail_button.grab_focus()
 
 
 # --- 部品（画面とテストが使う） ---
@@ -178,21 +195,12 @@ func primary_summary() -> String:
 	return _button_summary.text
 
 
-## 手のボタンの下の説明がはみ出すことがあるので、説明が見える所までスクロールする（2026-10-25）。
-## 折り返す説明の高さは、幅が決まってから次の並べ直しで決まるため、2フレーム待ってから位置を測る
-## （遅らせて呼ぶだけでは、試合画面の入れ子の並べ直しより先に走り、スクロールしなかった）。
-func _scroll_to_target_info() -> void:
-	for _frame: int in range(2):
-		if not is_inside_tree():
-			return
-		await get_tree().process_frame
-	# 待つ間に画面を離れたら（ツリーから外れたら）何もしない
-	if is_inside_tree() and is_instance_valid(_target_info) and _target_info.visible:
-		_side_scroll.ensure_control_visible(_target_info)
+func detail_button() -> Button:
+	return _detail_button
 
 
-func target_info_text() -> String:
-	return _target_info.text if _target_info.visible else ""
+func detail_view() -> MoveDetailView:
+	return _detail_view
 
 
 func telop_visible() -> bool:
@@ -276,17 +284,9 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 			and not _selected_target.is_empty()
 	_board.show_intent(_snapshot.ball_area if carries_ball else "", _selected_target if carries_ball else "")
 	_board.show_preview(_controller.user_preview(_current_choice()))
-	var lines: Array[String] = []
-	var rule: String = MatchTexts.target_rule(family, action)
-	if not rule.is_empty():
-		lines.append(rule)
-	var info: String = _target_info_line(family, action)
-	if not info.is_empty():
-		lines.append(info)
-	_target_info.text = "\n".join(lines)
-	_target_info.visible = not lines.is_empty()
-	if _target_info.visible:
-		_scroll_to_target_info()
+	_detail_title = _detail_title_of(family, action)
+	_detail_lines = [_detail_target_line(family), _detail_hint_line(family, action), MatchTexts.target_rule(family, action)]
+	_detail_button.disabled = false
 	_state = State.READY
 	_set_primary(MatchTexts.choice_summary(_current_choice()), LOCK_IN, true)
 
@@ -302,16 +302,42 @@ func _on_area_pressed(area_key: String) -> void:
 			return
 
 
-## 説明の2行目: 行き先の名前と、その手のヒント（「中盤（敵陣）・中央　+1　1対0」）。行き先の無い手は比べる人数だけ。
-func _target_info_line(family: GameEnums.ChoiceFamily, action: int) -> String:
-	var hint: ChoiceHint = _hint_of(family, action)
+## 詳細の見出し: 押したボタンと同じ番号と名前に、中身の手が違えば添える（「① ショートパス（スルーパス）」）。
+func _detail_title_of(family: GameEnums.ChoiceFamily, action: int) -> String:
+	var title: String = "%s %s" % [_choice_panel.number_of(action), MatchTexts.slot_name(family, action)]
+	var name: String = MatchTexts.action_name(family, action)
+	return title if name == MatchTexts.slot_name(family, action) else "%s（%s）" % [title, name]
+
+
+## 詳細の行き先の行（「行き先: 敵陣・中央」。守備は「守る位置: 中盤（自陣）・中央」）。行き先の無い手は空。
+func _detail_target_line(family: GameEnums.ChoiceFamily) -> String:
 	if _selected_target.is_empty():
-		var counts: String = "" if hint == null else MatchTexts.hint_counts(hint)
+		return ""
+	var label: String = "守る位置" if family == GameEnums.ChoiceFamily.DEFENSE else "行き先"
+	return "%s: %s" % [label, MatchTexts.area_name(_selected_target)]
+
+
+## 詳細の判断材料の行: ヒントの札と人数（「判断材料: +1　1対0」。行き先の無い手は「比べる人数 2対4」）。
+## ヒントが OFF か、札も人数も無い手（バックパス）は空。
+func _detail_hint_line(family: GameEnums.ChoiceFamily, action: int) -> String:
+	var hint: ChoiceHint = _hint_of(family, action)
+	if hint == null:
+		return ""
+	var counts: String = MatchTexts.hint_counts(hint)
+	if _selected_target.is_empty():
 		return "" if counts.is_empty() else "比べる人数 %s" % counts
-	var info: String = MatchTexts.area_name(_selected_target)
-	if hint != null:
-		info = "%s　%s　%s" % [info, MatchTexts.hint_tag(hint), MatchTexts.hint_counts(hint)]
-	return info.strip_edges()
+	var parts: Array[String] = []
+	for part: String in [MatchTexts.hint_tag(hint), counts]:
+		if not part.is_empty():
+			parts.append(part)
+	return "" if parts.is_empty() else "判断材料: %s" % "　".join(parts)
+
+
+## 「詳細」: 選んだ手の行き先・判断材料・説明をポップアップで出す（手を選んでいる間だけ押せる）。
+func _on_detail_pressed() -> void:
+	if _state != State.READY:
+		return
+	_detail_view.open(_detail_title, _detail_lines)
 
 
 ## 画面に出す手の行き先（利用者の視点のキー）。行き先の無い手は空。
@@ -390,7 +416,8 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	_board.clear_overlays()
 	_board.show_snapshot(snapshot)
 	_choice_panel.visible = false
-	_target_info.visible = false
+	_detail_button.visible = false
+	_detail_view.close()
 	_outcome_tag.text = MatchTexts.outcome_tag(reveal)
 	_outcome_tag.theme_type_variation = outcome_variation_for(MatchTexts.turn_winner(reveal))
 	_reason_label.text = JudgeReasonFormatter.format(reveal)
@@ -463,6 +490,10 @@ func _build() -> void:
 	_side_bottom_slot.name = "SideBottomSlot"
 	side.add_child(_side_bottom_slot)
 	_build_primary_button(side)
+	# 詳細のポップアップは、盤面と操作の列の上に重ねる（最後の子にして、上に描く）
+	_detail_view = MoveDetailView.new()
+	_detail_view.close_button().pressed.connect(close_detail)
+	add_child(_detail_view)
 
 
 ## 操作の列の上端: 両チームの陣形・方式（常に表示。FR-16・21）
@@ -480,7 +511,7 @@ func _build_setup_card(side: VBoxContainer) -> void:
 		label.clip_text = true
 
 
-## 操作の列の中ほど（縦にスクロール）: 手のボタン・選んだ手の説明・判定理由のテロップ
+## 操作の列の中ほど（縦にスクロール）: 手のボタン・判定理由のテロップ
 func _build_side_body(side: VBoxContainer) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = "SideScroll"
@@ -498,8 +529,6 @@ func _build_side_body(side: VBoxContainer) -> void:
 	_choice_panel.name = "ChoicePanel"
 	_choice_panel.action_selected.connect(_on_action_selected)
 	body.add_child(_choice_panel)
-	_target_info = _label("TargetInfo", &"PanelLabel", body)
-	_target_info.visible = false
 
 	_judge_telop = VBoxContainer.new()
 	_judge_telop.name = "JudgeTelop"
@@ -514,14 +543,26 @@ func _build_side_body(side: VBoxContainer) -> void:
 	_judge_detail = _label("JudgeDetail", &"MutedLabel", _judge_telop)
 
 
-## 操作の列の下端に固定する主ボタン（「決定」と「次のターンへ」。中に要約と操作の2行）
+## 操作の列の下端に固定する「詳細」と主ボタン（「決定」と「次のターンへ」。中に要約と操作の2行）
 func _build_primary_button(side: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.name = "PrimaryRow"
+	row.add_theme_constant_override("separation", 12)
+	side.add_child(row)
+	_detail_button = Button.new()
+	_detail_button.name = "DetailButton"
+	_detail_button.text = "詳細"
+	_detail_button.custom_minimum_size = Vector2(DETAIL_WIDTH, PRIMARY_HEIGHT)
+	_detail_button.disabled = true
+	_detail_button.pressed.connect(_on_detail_pressed)
+	row.add_child(_detail_button)
 	_primary_button = Button.new()
 	_primary_button.name = "PrimaryButton"
 	_primary_button.custom_minimum_size = Vector2(0, PRIMARY_HEIGHT)
+	_primary_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_primary_button.theme_type_variation = &"AccentCard"
 	_primary_button.pressed.connect(_on_primary_pressed)
-	side.add_child(_primary_button)
+	row.add_child(_primary_button)
 	var lines := VBoxContainer.new()
 	lines.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	lines.alignment = BoxContainer.ALIGNMENT_CENTER

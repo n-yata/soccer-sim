@@ -135,7 +135,74 @@ func test_choosing_a_move_makes_it_ready_with_the_destination_the_game_chose() -
 	assert_str(_panel.board().selected_area()).is_equal(target)
 	assert_bool(_panel.board().has_intent()).is_true()
 	assert_str(_panel.primary_summary()).is_equal("%s → %s" % [MatchTexts.action_name(family, action), MatchTexts.area_name(target)])
-	assert_str(_panel.target_info_text()).contains(MatchTexts.area_name(target))
+	# 行き先は「詳細」のポップアップで見せる（2026-11-05）
+	assert_bool(_panel.detail_button().disabled).is_false()
+	_panel.detail_button().pressed.emit()
+	assert_bool(_panel.detail_view().is_open()).is_true()
+	assert_str(_panel.detail_view().text()).starts_with("行き先: %s" % MatchTexts.area_name(target))
+	# 閉じても選んだ手はそのまま
+	_panel.detail_view().close_button().pressed.emit()
+	assert_bool(_panel.detail_view().is_open()).is_false()
+	assert_int(_panel.state()).is_equal(State.READY)
+
+
+func test_the_detail_shows_the_button_name_the_destination_the_numbers_and_the_rule() -> void:
+	_start(true)
+	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
+	for action: int in _panel.choice_panel().actions():
+		_press(action)
+		_panel.detail_button().pressed.emit()
+		# 見出しは押したボタンと同じ番号と名前。中身の手が違えば添える（「① ショートパス（スルーパス）」）
+		var title: String = "%s %s" % [_panel.choice_panel().number_of(action), MatchTexts.slot_name(family, action)]
+		if MatchTexts.action_name(family, action) != MatchTexts.slot_name(family, action):
+			title = "%s（%s）" % [title, MatchTexts.action_name(family, action)]
+		assert_str(_panel.detail_view().title()).is_equal(title)
+		# 本文は行き先・判断材料（ヒントの札と人数。どちらも無ければ出さない）・手の説明の順で、空の行を出さない
+		var lines: Array[String] = []
+		if MoveOptions.needs_target(family, action):
+			lines.append("行き先: %s" % MatchTexts.area_name(_target_of(family, action)))
+		for hint: ChoiceHint in _controller.user_hints():
+			if hint.action == action:
+				var parts: Array[String] = []
+				for part: String in [MatchTexts.hint_tag(hint), MatchTexts.hint_counts(hint)]:
+					if not part.is_empty():
+						parts.append(part)
+				if not parts.is_empty():
+					lines.append("判断材料: %s" % "　".join(parts))
+		if not MatchTexts.target_rule(family, action).is_empty():
+			lines.append(MatchTexts.target_rule(family, action))
+		assert_str(_panel.detail_view().text()).override_failure_message(str(action)).is_equal("\n".join(lines))
+		_panel.close_detail()
+
+
+func test_turning_hints_off_with_the_detail_open_redraws_it_without_the_numbers() -> void:
+	_start(true)
+	_press(GameEnums.PlayType.DRIBBLE)
+	_panel.detail_button().pressed.emit()
+	assert_str(_panel.detail_view().text()).contains("判断材料: ")
+	_panel.set_show_hints(false)
+	assert_bool(_panel.detail_view().is_open()).is_true()
+	assert_str(_panel.detail_view().text()).not_contains("判断材料: ")
+
+
+func test_the_detail_button_works_only_while_a_move_is_chosen() -> void:
+	_start(true)
+	# 手を選ぶ前は押せない
+	assert_bool(_panel.detail_button().disabled).is_true()
+	_press(_first_targeted_action(GameEnums.ChoiceFamily.ATTACK))
+	assert_bool(_panel.detail_button().disabled).is_false()
+	# 詳細を開いたまま決定しても、判定理由を出すときに閉じて隠す
+	_panel.detail_button().pressed.emit()
+	assert_bool(_panel.detail_view().is_open()).is_true()
+	_panel.primary_button().pressed.emit()
+	assert_bool(_panel.detail_button().visible).is_false()
+	assert_bool(_panel.detail_view().is_open()).is_false()
+	# 次のターンでは、また選ぶまで押せない
+	_panel.primary_button().pressed.emit()
+	_controller.continue_after_reveal()
+	_panel.start_turn()
+	assert_bool(_panel.detail_button().visible).is_true()
+	assert_bool(_panel.detail_button().disabled).is_true()
 
 
 func test_pressing_a_destination_on_the_board_chooses_its_move() -> void:
@@ -357,8 +424,8 @@ func test_choosing_another_move_replaces_the_preview_and_submitting_clears_it() 
 	assert_array(_panel.board().preview_movements()).is_empty()
 
 
-func test_choosing_a_move_explains_its_rule_before_the_destination() -> void:
-	# スルーパス・バックパス・守備の手は、手の規則の一言を先に出し、次の行に行き先とヒント（2026-11-03）
+func test_the_detail_explains_the_rule_of_the_chosen_move() -> void:
+	# スルーパス・バックパス・守備の手は、詳細の最後の行に手の説明（誰が動くか・何を読む手か）を出す（2026-11-05）
 	for user_has_ball: bool in [true, false]:
 		_start(user_has_ball)
 		var family: GameEnums.ChoiceFamily = _panel.choice_panel().family()
@@ -368,7 +435,9 @@ func test_choosing_a_move_explains_its_rule_before_the_destination() -> void:
 			if rule.is_empty():
 				continue
 			_press(action)
-			assert_str(_panel.target_info_text()).starts_with(rule + "\n")
+			_panel.detail_button().pressed.emit()
+			assert_str(_panel.detail_view().text()).ends_with(rule)
+			_panel.detail_view().close()
 			explained += 1
 		assert_int(explained).override_failure_message("規則の一言がある手が出ている場面であること").is_greater(0)
 		_panel.unbind()
