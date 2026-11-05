@@ -156,7 +156,7 @@ static func _draw_standing_things(board: TacticsBoard) -> void:
 		var scale: float = BoardProjection.scale_at(foot.y, board.size)
 		match thing["kind"]:
 			"piece":
-				_draw_chess_piece(board, foot, radius * scale, thing["is_user"] as bool, 0.38 if thing["is_preview"] else 1.0,
+				_draw_player(board, foot, radius * scale, thing["is_user"] as bool, 0.38 if thing["is_preview"] else 1.0,
 						thing.get("lift", 0.0) as float)
 			"ball":
 				_draw_lifted_ball(board, foot, scale, thing["lift"] as float)
@@ -164,35 +164,134 @@ static func _draw_standing_things(board: TacticsBoard) -> void:
 				_draw_overflow_tag(board, foot + Vector2(0, -radius * scale), thing["text"] as String)
 
 
-## チェスの駒: 影 → 台座 → 胴 → 首の輪 → 頭。自分はポーン（丸い頭）、相手はビショップ風（とがった頭）。
-## 色だけでなく頭の形で区別する（NFR-20 のグレースケールでも判別できる）。alpha はプレビューの半透明に使う。
-## lift（駒の半径の何倍か）の分だけ駒を持ち上げる（開示で動いている間の弾み）。影は地面の足元に残し、浮くほど小さく薄くする。
-static func _draw_chess_piece(board: TacticsBoard, ground: Vector2, r: float, is_user: bool, alpha: float, lift: float) -> void:
+## サッカー選手の駒（player_parts の部品を順に塗る）。alpha はプレビューの半透明に使う（2026-11-06 にチェスの駒から変えた）。
+static func _draw_player(board: TacticsBoard, ground: Vector2, r: float, is_user: bool, alpha: float, lift: float) -> void:
 	var base: Color = _color(board, &"you" if is_user else &"opponent")
-	base.a = alpha
-	var dark: Color = base.darkened(0.35)
-	var light: Color = base.lightened(0.35)
+	var shadow_alpha: float = 0.35 / (1.0 + lift)
+	for part: Dictionary in player_parts(ground, r, is_user, lift):
+		var color: Color = _player_color(board, part["role"] as StringName, base, shadow_alpha)
+		color.a *= alpha
+		board.draw_colored_polygon(part["points"] as PackedVector2Array, color)
+
+
+## 部品の役割 → 色の決め方（_player_color）。&"team"・&"team_light"・&"team_dark" はチームの色とその明るい色・暗い色、
+## &"shadow" は影、ほかはテーマの色の名前。player_parts の役割はすべてここに載せる（テストで確かめる）
+const PLAYER_ROLE_COLORS: Dictionary = {
+	&"shadow": &"shadow",
+	&"shirt": &"team", &"sleeve": &"team", &"sock": &"team",
+	&"stripe": &"team_light",
+	&"shorts": &"team_dark",
+	&"boot": &"bg", &"emblem": &"bg",
+	&"skin": &"skin",
+	&"hair": &"hair",
+}
+
+
+## 部品の役割 → 色。ユニフォーム・ソックスはチームの色、パンツはその暗い色、縦じまは明るい色。
+static func _player_color(board: TacticsBoard, role: StringName, base: Color, shadow_alpha: float) -> Color:
+	var source: StringName = PLAYER_ROLE_COLORS.get(role, &"team")
+	match source:
+		&"shadow":
+			return Color(0, 0, 0, shadow_alpha)
+		&"team":
+			return base
+		&"team_light":
+			return base.lightened(0.6)
+		&"team_dark":
+			return base.darkened(0.55)
+	return _color(board, source)
+
+
+## サッカー選手の駒の部品を、奥から手前へ塗る順に。各要素は {"role": StringName, "points": PackedVector2Array（画面の座標）}。
+## ground は足元の地面、r は描く大きさ（台座の半径）。高さは約 3.2r（チェスの駒のビショップの先と同じくらい）、幅は ±0.9r。
+## 色だけでなく形でもチームを区別する（NFR-20）: 相手のユニフォームは縦じま（stripe）、胸の印は自分が丸（●）・相手がひし形（◆）。
+## lift（r の何倍か）の分だけ影のほかを持ち上げる（開示の弾み）。影は地面に残し、浮くほど小さくする。
+## 色は役割ごとに _player_color が決める。テストもこの部品を通して形を確かめる
+static func player_parts(ground: Vector2, r: float, is_user: bool, lift: float) -> Array[Dictionary]:
+	var parts: Array[Dictionary] = []
 	var shrink: float = 1.0 / (1.0 + lift)
-	_ellipse(board, ground + Vector2(r * 0.25, r * 0.12), r * 1.15 * shrink, r * 0.42 * shrink, Color(0, 0, 0, 0.35 * alpha * shrink))
+	parts.append(_part(&"shadow", _ellipse_points(ground + Vector2(r * 0.15, r * 0.06), r * 0.85 * shrink, r * 0.28 * shrink)))
 	var foot: Vector2 = ground + Vector2(0, -r * lift)
-	_ellipse(board, foot, r, r * 0.36, dark)
-	board.draw_rect(Rect2(foot + Vector2(-r, -r * 0.30), Vector2(r * 2.0, r * 0.30)), dark)
-	_ellipse(board, foot + Vector2(0, -r * 0.30), r, r * 0.36, base)
-	var neck_y: float = -r * 1.75
-	board.draw_colored_polygon(PackedVector2Array([foot + Vector2(-r * 0.70, -r * 0.30), foot + Vector2(r * 0.70, -r * 0.30),
-			foot + Vector2(r * 0.30, neck_y), foot + Vector2(-r * 0.30, neck_y)]), base)
-	board.draw_line(foot + Vector2(-r * 0.45, -r * 0.45), foot + Vector2(-r * 0.20, neck_y + r * 0.1), light, maxf(1.5, r * 0.12))
-	_ellipse(board, foot + Vector2(0, neck_y), r * 0.55, r * 0.18, dark)
-	var head: Vector2 = foot + Vector2(0, neck_y - r * 0.55)
+	for side: float in [-1.0, 1.0]:
+		var x: float = side * r * 0.26
+		parts.append(_part(&"skin", _box(foot, x - r * 0.10, x + r * 0.10, -r * 1.00, -r * 0.70)))
+		parts.append(_part(&"sock", _box(foot, x - r * 0.11, x + r * 0.11, -r * 0.72, -r * 0.08)))
+		parts.append(_part(&"boot", _ellipse_points(foot + Vector2(x + side * r * 0.04, -r * 0.08), r * 0.18, r * 0.08)))
+	parts.append(_part(&"shorts", _box(foot, -r * 0.48, r * 0.48, -r * 1.45, -r * 0.95)))
+	for side: float in [-1.0, 1.0]:
+		var shoulder: Vector2 = foot + Vector2(side * r * 0.60, -r * 2.22)
+		var elbow: Vector2 = foot + Vector2(side * r * 0.72, -r * 1.86)
+		var hand: Vector2 = foot + Vector2(side * r * 0.78, -r * 1.52)
+		parts.append(_part(&"sleeve", _limb(shoulder, elbow, r * 0.12)))
+		parts.append(_part(&"skin", _limb(elbow, hand, r * 0.09)))
+	parts.append(_part(&"skin", _box(foot, -r * 0.10, r * 0.10, -r * 2.44, -r * 2.25)))
+	parts.append(_part(&"shirt", PackedVector2Array([foot + Vector2(-r * 0.62, -r * 2.30), foot + Vector2(r * 0.62, -r * 2.30),
+			foot + Vector2(r * 0.50, -r * 1.40), foot + Vector2(-r * 0.50, -r * 1.40)])))
+	if not is_user:
+		for side: float in [-1.0, 1.0]:
+			parts.append(_part(&"stripe", _box(foot, side * r * 0.14 - r * 0.07, side * r * 0.14 + r * 0.07, -r * 2.28, -r * 1.42)))
+	var chest: Vector2 = foot + Vector2(0, -r * 1.95)
+	var emblem: float = r * 0.16
 	if is_user:
-		board.draw_circle(head, r * 0.62, base)
-		board.draw_circle(head + Vector2(-r * 0.2, -r * 0.2), r * 0.18, light)
+		parts.append(_part(&"emblem", _ellipse_points(chest, emblem, emblem, 12)))
 	else:
-		var tip: Vector2 = head + Vector2(0, -r * 0.95)
-		board.draw_colored_polygon(PackedVector2Array([tip, head + Vector2(r * 0.55, 0), head + Vector2(0, r * 0.45),
-				head + Vector2(-r * 0.55, 0)]), base)
-		board.draw_line(tip, head + Vector2(-r * 0.3, 0), light, maxf(1.5, r * 0.10))
-		board.draw_circle(tip, r * 0.16, dark)
+		parts.append(_part(&"emblem", PackedVector2Array([chest + Vector2(0, -emblem * 1.2), chest + Vector2(emblem, 0),
+				chest + Vector2(0, emblem * 1.2), chest + Vector2(-emblem, 0)])))
+	var head: Vector2 = foot + Vector2(0, -r * 2.78)
+	parts.append(_part(&"skin", _ellipse_points(head, r * 0.38, r * 0.40)))
+	# 髪: 頭の上半分にかぶせる（いちばん上の部品）
+	var hair: PackedVector2Array = []
+	for step: int in range(9):
+		var angle: float = PI + PI * step / 8.0
+		hair.append(head + Vector2(cos(angle) * r * 0.41, sin(angle) * r * 0.44 - r * 0.02))
+	hair.append(head + Vector2(r * 0.30, -r * 0.08))
+	hair.append(head + Vector2(-r * 0.30, -r * 0.08))
+	parts.append(_part(&"hair", hair))
+	return parts
+
+
+## サッカーボールの黒い模様。中央の五角形と、縁の5枚（ボールの円で切り取る）。
+static func ball_patches(center: Vector2, r: float) -> Array[PackedVector2Array]:
+	var patches: Array[PackedVector2Array] = [_pentagon(center, r * 0.36, -PI / 2.0)]
+	var ball: PackedVector2Array = _ellipse_points(center, r, r, 32)
+	for index: int in range(5):
+		var angle: float = -PI / 2.0 + PI / 5.0 + TAU * index / 5.0
+		var rim: PackedVector2Array = _pentagon(center + Vector2(cos(angle), sin(angle)) * r * 0.98, r * 0.34, angle)
+		for clipped: PackedVector2Array in Geometry2D.intersect_polygons(rim, ball):
+			patches.append(clipped)
+	return patches
+
+
+static func _part(role: StringName, points: PackedVector2Array) -> Dictionary:
+	return {"role": role, "points": points}
+
+
+## foot からの相対の左右（x）・上下（y。上がマイナス）で囲む四角
+static func _box(foot: Vector2, left: float, right: float, top: float, bottom: float) -> PackedVector2Array:
+	return PackedVector2Array([foot + Vector2(left, top), foot + Vector2(right, top), foot + Vector2(right, bottom),
+			foot + Vector2(left, bottom)])
+
+
+## from から to への太さ 2 × half_width の腕
+static func _limb(from: Vector2, to: Vector2, half_width: float) -> PackedVector2Array:
+	var side: Vector2 = (to - from).normalized().orthogonal() * half_width
+	return PackedVector2Array([from - side, from + side, to + side, to - side])
+
+
+static func _pentagon(center: Vector2, radius: float, first_angle: float) -> PackedVector2Array:
+	var points: PackedVector2Array = []
+	for index: int in range(5):
+		var angle: float = first_angle + TAU * index / 5.0
+		points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+
+static func _ellipse_points(center: Vector2, rx: float, ry: float, count: int = 24) -> PackedVector2Array:
+	var points: PackedVector2Array = []
+	for step: int in range(count):
+		var angle: float = TAU * step / count
+		points.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
+	return points
 
 
 ## 「+N」の札。駒の上に重なっても読めるよう、控えめな色の地を敷く。
@@ -212,7 +311,10 @@ static func _draw_lifted_ball(board: TacticsBoard, foot: Vector2, scale: float, 
 	_ellipse(board, foot, r, r * 0.38, Color(0, 0, 0, 0.35))
 	var center: Vector2 = foot + Vector2(0, -r * (1.6 + lift))
 	board.draw_circle(center, r, _color(board, &"ball"))
-	board.draw_arc(center, r, 0.0, TAU, 24, _color(board, &"bg"), 2.0)
+	# サッカーボールの模様（2026-11-06。白い円だけから変えた）
+	for patch: PackedVector2Array in ball_patches(center, r):
+		board.draw_colored_polygon(patch, _color(board, &"bg"))
+	board.draw_arc(center, r, 0.0, TAU, 32, _color(board, &"bg"), 1.5)
 
 
 static func _ellipse(board: TacticsBoard, center: Vector2, rx: float, ry: float, color: Color) -> void:
