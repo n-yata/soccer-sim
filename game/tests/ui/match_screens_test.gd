@@ -97,6 +97,33 @@ func test_the_top_bar_fits_the_screen_width_in_every_phase() -> void:
 					.is_less_equal(96.0)
 
 
+## 開示の帯（両者の手）は、どの手でも、どちらのボールでも、省略記号を出さずに1行に入る
+## （2026-11-06。「あなた: パスコースを切る …」「CPU: ドリブル → 中盤（敵…」で切れていた）
+func test_every_reveal_line_fits_the_banner() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	_play_turn(screen)
+	var possession: Label = screen.find_child("PossessionLabel", true, false) as Label
+	for label_name: String in ["UserChoiceLabel", "OpponentChoiceLabel"]:
+		var label: Label = screen.find_child(label_name, true, false) as Label
+		var font: Font = label.get_theme_font("font")
+		var font_size: int = label.get_theme_font_size("font_size")
+		assert_int(font_size).is_greater_equal(24)
+		var box: StyleBox = label.get_theme_stylebox("normal")
+		for user_has_ball: bool in [true, false]:
+			possession.text = MatchTexts.possession_text(user_has_ball)
+			await await_idle_frame()
+			var width: float = label.size.x - box.get_content_margin(SIDE_LEFT) - box.get_content_margin(SIDE_RIGHT)
+			assert_float(width).is_greater(0.0)
+			for family: int in MatchTexts.ACTION_NAMES:
+				for action: int in range((MatchTexts.ACTION_NAMES[family] as Array).size()):
+					var choice := TurnChoice.new(family as GameEnums.ChoiceFamily, action)
+					var text: String = MatchScreen.reveal_line(label_name == "UserChoiceLabel", choice)
+					var text_width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+					assert_float(text_width).override_failure_message("入らない: %s（幅 %.1f > %.1f）" % [text, text_width,
+							width]).is_less_equal(width)
+
+
 func test_match_screen_shows_the_score_and_the_phase() -> void:
 	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
@@ -188,9 +215,10 @@ func test_reveal_shows_both_choices_and_the_score_only_after_the_result() -> voi
 		var before: String = screen.score_bug().score_text()
 		_play_turn(screen)
 		var reveal: RevealView = controller.last_reveal()
+		# 帯は手の名前だけ（行き先は盤面の矢印と判定理由で読む。行き先まで書くと幅に入らない。2026-11-06）
 		assert_array(screen.reveal_texts()).is_equal([
-			"あなた: %s" % MatchTexts.choice_summary(reveal.user_choice),
-			"CPU: %s" % MatchTexts.choice_summary(reveal.opponent_choice)])
+			"● %s" % MatchTexts.action_name(reveal.user_choice.family, reveal.user_choice.action),
+			"◆ %s" % MatchTexts.action_name(reveal.opponent_choice.family, reveal.opponent_choice.action)])
 		assert_str(screen.phase_text()).is_empty()
 		assert_str(scores_at_reveal.back()).is_equal(before)
 		var snapshot: BoardSnapshot = controller.snapshot()

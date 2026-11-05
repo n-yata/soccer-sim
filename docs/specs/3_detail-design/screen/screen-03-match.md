@@ -32,17 +32,17 @@ MatchScreen (Control)
 │   │   │   └── ClockLabel (Label)            # 「前半 5／15」。アディショナルタイムは「前半 15＋2」
 │   │   ├── PossessionLabel (Label)           # 「● 自分のボール」／「◆ CPU のボール」。地は保持側のチームの色。開示中も隠さず、判定後の保持に替える（2026-10-24）
 │   │   ├── PhaseTag (Label)                  # 「ATTACK」と「攻撃」の2行（1行だとトランジションの「NEG.TRANSITION ネガティブトランジション」で上部バーが画面の幅を超えた。2026-10-29）。地 accent、文字 bg。開示中は隠し、RevealBanner に替える
-│   │   └── RevealBanner (VBoxContainer)      # 両者の選択の帯（2段）。開示から次のターンまで表示（それ以外は非表示）。各段 24px、ELLIPSIS
-│   │       ├── UserChoiceLabel (Label)       # 「YOU ショートパス → 中盤（敵陣）・中央」。地 #0E3A55
-│   │       └── OpponentChoiceLabel (Label)   # 「CPU プレス → 中盤（自陣）・左HS」。地 #4A2611
+│   │   └── RevealBanner (VBoxContainer)      # 両者の選択の帯（2段）。開示から次のターンまで表示（それ以外は非表示）。各段 24px、ELLIPSIS（どの手でも入る。2026-11-06）
+│   │       ├── UserChoiceLabel (Label)       # 「● ショートパス」。手の名前だけ（行き先は盤面の矢印と判定理由で読む。「あなた:」と行き先まで書くと入らなかった。2026-11-06）。地 #0E3A55
+│   │       └── OpponentChoiceLabel (Label)   # 「◆ パスコースを切る」。地 #4A2611
 │   └── BoardPanel                            # MatchBoardPanel（board2d/match_board_panel.tscn）。高さ 600px（2026-10-25 に6列で 576px から変更）。S-08 と共用
 │       ├── Columns (HBoxContainer)           # 間隔 24px
 │       │   ├── BoardArea (Control)           # 本体。残りの幅いっぱい（16:9 で 728×600px。5レーン×6列で、平面図の1エリア 約 145×100px）
 │       │   │   └── TacticsBoard              # board2d/tactics_board.tscn。ピッチ・駒・札・矢印
 │       │   └── SideColumn (VBoxContainer)    # 操作の列。幅 480〜640px（screen-common.md §1.1）、間隔 16px
-│       │       ├── SetupCard (VBoxContainer)      # 上端に固定。両チームの陣形・方式を常に表示（FR-16・21）。2段、各 24px、ELLIPSIS
-│       │       │   ├── UserSetupLabel (Label)     # 「● 自分 4-3-3 ゾーン・カウンター」
-│       │       │   └── OpponentSetupLabel (Label) # 「◆ CPU 4-4-2 ゾーン・保持」
+│       │       ├── SetupCard (VBoxContainer)      # 上端に固定。両チームの陣形・方式を常に表示（FR-16・21）。2段、各 24px、ELLIPSIS（どの組み合わせでも入る。2026-11-06）
+│       │       │   ├── UserSetupLabel (Label)     # 「● 4-3-3 ゾーン・カウンター型」。チームは印だけ（スコア表示の「● YOU」「CPU ◆」と同じ印。「自分」「CPU」まで書くと「4-2-3-1 マンツーマン・カウンター型」が入らなかった。2026-11-06）
+│       │       │   └── OpponentSetupLabel (Label) # 「◆ 4-4-2 ゾーン・保持型」
 │       │       ├── SideScroll (ScrollContainer)   # 中身が入りきらないときだけ縦にスクロールする（screen-common.md §1.1）
 │       │       │   └── SideBody (VBoxContainer)   # 間隔 16px
 │       │       │       ├── SideTopSlot (VBoxContainer) # 画面ごとに足す表示の置き場。S-03 では空、S-08 は説明文の吹き出し
@@ -55,7 +55,7 @@ MatchScreen (Control)
 │       │       ├── PrimaryRow (HBoxContainer) # 列の下端に固定。間隔 12px（2026-11-05）
 │       │       │   ├── DetailButton (Button)  # 「詳細」。幅 128px・高さ 112px。手を選ぶと押せる。判定理由の表示中は隠す
 │       │       │   └── PrimaryButton (Button) # 高さ 112px、残りの幅いっぱい。show_next が偽なら判定理由の表示中は隠す
-│       │       │       ├── ButtonSummary (Label) # 「ショートパス → 中盤（敵陣）・中央」／「次のターンへ」
+│       │       │       ├── ButtonSummary (Label) # 「→ 中盤（敵陣）・中央」（行き先だけ。手の名前は選んだボタンに出ている。両方では幅に入らなかった。運ぶ先の無い手は手の名前。2026-11-06）／「次のターンへ」
 │       │       │       └── ButtonAction (Label)  # 「LOCK IN」／「NEXT」
 │       │       └── SideBottomSlot (VBoxContainer) # 画面ごとに足すボタンの置き場。S-03 では空、S-08 は「次へ」
 │       ├── MoveDetailView（ModalOverlay）  # BoardPanel の最後の子。選んだ手の詳細のポップアップ（見出し・本文・「閉じる」。2026-11-05）
@@ -144,7 +144,7 @@ MatchScreen (Control)
    渡し、自分の選手全員の手の動きと詰め直しを半透明の駒でくり返し見せる（決定前のプレビュー。自分の選手だけ。相手の駒は動かさない。
    2026-11-05。時間は bind で `set_preview_style(match_controller.preview_style())`）。決定で `show_preview_motion([])` にする（結果の盤面を出すときも消える）
 4. 詳細のポップアップの中身を作り、「詳細」を押せるようにする（ボタンの下には説明を出さない。2026-11-05）
-5. `_state = READY`、「決定」を押せるようにする。決定ボタンの要約を「ショートパス → 中盤（敵陣）・中央」の形にする
+5. `_state = READY`、「決定」を押せるようにする。決定ボタンの要約を「→ 中盤（敵陣）・中央」の形にする（`MatchTexts.button_summary`。2026-11-06）
 
 ### 「詳細」を押す（`DetailButton`。2026-11-05）
 
@@ -173,8 +173,7 @@ MatchScreen (Control)
 
 ### 開示（`turn_resolved(reveal, snapshot)`）
 
-1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「あなた: …／CPU: …」を出す（手とエリアの名前は `screen-design.md` の
-   要約と同じ形）
+1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「● …／◆ …」（両者の手の名前。`MatchScreen.reveal_line`。2026-11-06）を出す
 2. `ChoicePanel`・「詳細」を隠し、詳細のポップアップを閉じる
 3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift` で駒とボールを2拍で動かす（2026-11-03）。
    1拍目（プレー）は判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 判定時（`reveal.*_players_at_judgement`・

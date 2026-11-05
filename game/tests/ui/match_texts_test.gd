@@ -117,6 +117,14 @@ func test_choice_summary_has_the_target_only_when_the_move_has_one() -> void:
 	assert_str(MatchTexts.choice_summary(shot)).is_equal("シュート")
 
 
+## 決定ボタンの要約は行き先だけ。運ぶ先を持たない手は手の名前（2026-11-06）
+func test_button_summary_is_the_target_only_or_the_name_without_one() -> void:
+	var cut := TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS, PitchArea.from_key("M2-R2"))
+	assert_str(MatchTexts.button_summary(cut)).is_equal("→ 中盤（敵陣）・右大外")
+	var shot := TurnChoice.new(ATTACK, GameEnums.PlayType.SHOT)
+	assert_str(MatchTexts.button_summary(shot)).is_equal("シュート")
+
+
 func test_phase_tags_follow_the_turn_kind_and_possession() -> void:
 	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.OPEN_PLAY, true)).is_equal("ATTACK\n攻撃")
 	assert_str(MatchTexts.phase_tag(GameEnums.TurnKind.OPEN_PLAY, false)).is_equal("DEFENSE\n守備")

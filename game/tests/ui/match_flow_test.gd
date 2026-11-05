@@ -55,7 +55,7 @@ func test_a_whole_match_can_be_played_through_the_screens() -> void:
 			var panel: MatchBoardPanel = (screen as MatchScreen).board_panel()
 			assert_int(panel.state()).is_equal(MatchBoardPanel.State.SELECT_ACTION)
 			# 相手の陣形・方式は、選び直しの後も常に今の値を出す（FR-16・21）
-			assert_str(panel.setup_texts()[1]).is_equal("◆ CPU %s" % MatchTexts.setup_text(controller.opponent_setup()))
+			assert_str(panel.setup_texts()[1]).is_equal("◆ %s" % MatchTexts.setup_text(controller.opponent_setup()))
 			var choice: TurnChoice = ScreenTestHelper.forward_choice(controller.user_options())
 			# 行き先はゲームが決めるので、手を押せばすぐ決定できる（2026-11-03）
 			panel.choice_panel().button_for(choice.action).pressed.emit()

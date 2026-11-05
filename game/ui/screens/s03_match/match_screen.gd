@@ -114,10 +114,16 @@ func _on_turn_started(snapshot: BoardSnapshot) -> void:
 ## 開示: 局面のタグを両者の選択の帯に替える。スコアはまだ描き直さない（得点を判定理由より先に見せない）。
 func _on_reveal_started(reveal: RevealView) -> void:
 	_reveal = reveal
-	_user_choice_label.text = "あなた: %s" % MatchTexts.choice_summary(reveal.user_choice)
-	_opponent_choice_label.text = "CPU: %s" % MatchTexts.choice_summary(reveal.opponent_choice)
+	_user_choice_label.text = reveal_line(true, reveal.user_choice)
+	_opponent_choice_label.text = reveal_line(false, reveal.opponent_choice)
 	_phase_tag.visible = false
 	_reveal_banner.visible = true
+
+
+## 両者の選択の帯の1行「● ショートパス」。手の名前だけにし、チームは印で示す（スコア表示が「● YOU」「CPU ◆」）。
+## 行き先は盤面の矢印と判定理由で読める。「あなた:」と行き先まで書くと、上部バーの残りの幅に入らなかった（2026-11-06）
+static func reveal_line(is_user: bool, choice: TurnChoice) -> String:
+	return ("● %s" if is_user else "◆ %s") % MatchTexts.action_name(choice.family, choice.action)
 
 
 ## 結果を出す: 得点なら得点した側の音、ハーフの終わり（前半の終わり・試合の終わり）なら笛。

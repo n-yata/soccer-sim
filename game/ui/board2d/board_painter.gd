@@ -12,6 +12,8 @@ const PIECE_DRAW_RATE: float = 1.25
 ## （12px では 0.1px はみ出した。2026-10-29 に実測）。1桁の札は、試合画面と同じ大きさの盤の奥の行でも 16px で収まる
 const TAG_PADDING: float = 14.0
 const MIN_TALLY_FONT_SIZE: int = 11
+## レーン名をエリアの左下の角から離す距離（平面図の座標。左・下）
+const LANE_NAME_INSET: Vector2 = Vector2(10.0, 6.0)
 
 
 static func paint(board: TacticsBoard) -> void:
@@ -125,16 +127,25 @@ static func _draw_lines(board: TacticsBoard) -> void:
 				zone, 1.0, 6.0)
 
 
-## レーン名を、自陣（手前の行）の各エリアの左上に。
+## レーン名を、自陣（手前の行）の各エリアの左下に（位置は lane_name_baseline）。
 static func _draw_lane_names(board: TacticsBoard) -> void:
 	var font: Font = board.get_theme_default_font()
 	var font_size: int = _font_size(board, &"lane_size")
 	var color: Color = _color(board, &"lane_text")
 	for lane: int in GameEnums.Lane.values():
-		var rect: Rect2 = board.area_rect(PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D1).to_key())
-		var at: Vector2 = board.to_screen(rect.position + Vector2(10.0, 8.0))
-		board.draw_string(font, at + Vector2(0, font.get_ascent(font_size)), MatchTexts.lane_name(lane as GameEnums.Lane),
+		board.draw_string(font, lane_name_baseline(board, lane as GameEnums.Lane), MatchTexts.lane_name(lane as GameEnums.Lane),
 				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+
+## 手前の行の lane のエリアに書くレーン名の、文字の基準線の左端（画面の座標）。エリアの左下に置く。
+## 自分の駒はエリアの中央から左へ、足元を高さの半ばに並べるので、左上では駒の体に隠れた（2026-11-06）。
+## 左下なら、1エリアに2人（奥の段）までは重ならない。3人目からの手前の段（PIECE_ROW_RATES）とは重なる
+static func lane_name_baseline(board: TacticsBoard, lane: GameEnums.Lane) -> Vector2:
+	var font: Font = board.get_theme_default_font()
+	var font_size: int = _font_size(board, &"lane_size")
+	var rect: Rect2 = board.area_rect(PitchArea.new(lane, GameEnums.Zone.D1).to_key())
+	return board.to_screen(rect.position + Vector2(LANE_NAME_INSET.x, rect.size.y - LANE_NAME_INSET.y)) \
+			- Vector2(0, font.get_descent(font_size))
 
 
 ## 立っているもの（駒・プレビューの駒・ボール・「+N」の札）を、奥から手前の順に（ボードの standing_order の順）。

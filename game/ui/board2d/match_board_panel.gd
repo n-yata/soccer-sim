@@ -125,8 +125,8 @@ func start_turn() -> void:
 	_detail_view.close()
 	_choice_panel.set_enabled(true)
 	_judge_telop.visible = false
-	_user_setup_label.text = "● 自分 %s" % MatchTexts.setup_text(_snapshot.user_setup)
-	_opponent_setup_label.text = "◆ CPU %s" % MatchTexts.setup_text(_snapshot.opponent_setup)
+	_user_setup_label.text = setup_line(true, _snapshot.user_setup)
+	_opponent_setup_label.text = setup_line(false, _snapshot.opponent_setup)
 	_set_primary("", LOCK_IN, false)
 	_state = State.SELECT_ACTION
 	turn_started.emit(_snapshot)
@@ -240,6 +240,12 @@ func setup_texts() -> Array[String]:
 	return [_user_setup_label.text, _opponent_setup_label.text]
 
 
+## 陣形・方式の札の1行（「● 4-3-3 ゾーン・カウンター型」）。チームは印だけで示す（すぐ上のスコア表示が「● YOU」「CPU ◆」）。
+## 「自分」「CPU」まで書くと、いちばん長い組み合わせ（4-2-3-1 マンツーマン・カウンター型）が 24px で1行に入らない（2026-11-06）
+static func setup_line(is_user: bool, setup: TeamSetup) -> String:
+	return ("● %s" if is_user else "◆ %s") % MatchTexts.setup_text(setup)
+
+
 # --- 手の選択 ---
 
 ## 自分の手の行き先を、盤面にすべて出す（2026-11-03）。選べるエリアの枠と、手の番号の札（ヒントが ON なら人数差の札も添える）。
@@ -291,7 +297,7 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 	_detail_lines = [_detail_target_line(family), _detail_hint_line(family, action), MatchTexts.target_rule(family, action)]
 	_detail_button.disabled = false
 	_state = State.READY
-	_set_primary(MatchTexts.choice_summary(_current_choice()), LOCK_IN, true)
+	_set_primary(MatchTexts.button_summary(_current_choice()), LOCK_IN, true)
 
 
 ## 盤面の行き先を押したら、そこを行き先にする手を選ぶ（同じエリアの手が複数あれば、ボタンの並びで先の手）。

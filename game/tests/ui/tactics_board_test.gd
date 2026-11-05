@@ -1052,3 +1052,22 @@ func test_standing_things_follow_the_shift_while_pieces_are_moving() -> void:
 	assert_int(plans.size()).is_equal(5)
 	for index: int in range(1, order.size()):
 		assert_float((order[index - 1]["plan"] as Vector2).y).is_less_equal((order[index]["plan"] as Vector2).y)
+
+
+## 手前の段のレーン名は、エリアに自分の駒が2人（奥の段）までなら駒に重ならず、エリアの中に収まる
+## （2026-11-06。エリアの左上に置いていて、中央から左に並ぶ自分の駒の体に隠れていた）
+func test_lane_names_sit_below_the_near_row_pieces() -> void:
+	var font: Font = _board.get_theme_default_font()
+	var font_size: int = _board.get_theme_font_size(&"lane_size", TacticsBoard.THEME_TYPE)
+	for lane: int in GameEnums.Lane.values():
+		var key: String = PitchArea.new(lane as GameEnums.Lane, GameEnums.Zone.D1).to_key()
+		var baseline: Vector2 = BoardPainter.lane_name_baseline(_board, lane as GameEnums.Lane)
+		var text_top: float = baseline.y - font.get_ascent(font_size)
+		for index: int in range(BoardGeometry.PIECE_COLUMNS):
+			var foot: Vector2 = _board.to_screen(_board.piece_center(key, true, index))
+			# 駒の台座と影の下端は、足元から描く半径までに収まる
+			var piece_bottom: float = foot.y + _board.piece_radius() * BoardPainter.PIECE_DRAW_RATE \
+					* BoardProjection.scale_at(foot.y, _board.size)
+			assert_float(text_top).override_failure_message("%s の名前が駒 %d に重なる" % [key, index]).is_greater(piece_bottom)
+		var area_bottom: float = _board.to_screen(_board.area_rect(key).end).y
+		assert_float(baseline.y + font.get_descent(font_size)).is_less_equal(area_bottom)

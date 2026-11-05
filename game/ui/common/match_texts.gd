@@ -104,6 +104,14 @@ static func choice_summary(choice: TurnChoice) -> String:
 	return "%s → %s" % [name, area_name(choice.target.to_key())]
 
 
+## 決定ボタンの要約「→ 中盤（敵陣）・中央」。手の名前は選んだボタンに出ているので、行き先だけにする
+## （手の名前と合わせると、長い手と行き先でボタンの幅に入らない。2026-11-06）。運ぶ先を持たない手は手の名前だけ。
+static func button_summary(choice: TurnChoice) -> String:
+	if choice.target == null:
+		return action_name(choice.family, choice.action)
+	return "→ %s" % area_name(choice.target.to_key())
+
+
 ## 上部バーに常に出す、どちらのボールか（2026-10-24）。駒と同じ記号を添える。
 static func possession_text(user_has_ball: bool) -> String:
 	return "● 自分のボール" if user_has_ball else "◆ CPU のボール"

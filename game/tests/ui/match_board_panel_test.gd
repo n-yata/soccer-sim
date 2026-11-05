@@ -86,8 +86,8 @@ func test_a_turn_starts_with_nothing_selected() -> void:
 	assert_bool(_panel.telop_visible()).is_false()
 	var snapshot: BoardSnapshot = _controller.snapshot()
 	assert_array(_panel.setup_texts()).is_equal([
-		"● 自分 %s" % MatchTexts.setup_text(snapshot.user_setup),
-		"◆ CPU %s" % MatchTexts.setup_text(snapshot.opponent_setup)])
+		"● %s" % MatchTexts.setup_text(snapshot.user_setup),
+		"◆ %s" % MatchTexts.setup_text(snapshot.opponent_setup)])
 
 
 func test_a_turn_shows_every_own_destination_with_its_number_and_hint() -> void:
@@ -134,7 +134,8 @@ func test_choosing_a_move_makes_it_ready_with_the_destination_the_game_chose() -
 	assert_bool(_panel.primary_button().disabled).is_false()
 	assert_str(_panel.board().selected_area()).is_equal(target)
 	assert_bool(_panel.board().has_intent()).is_true()
-	assert_str(_panel.primary_summary()).is_equal("%s → %s" % [MatchTexts.action_name(family, action), MatchTexts.area_name(target)])
+	# 要約は行き先だけ（手の名前は選んだボタンに出ている。両方では幅に入らない。2026-11-06）
+	assert_str(_panel.primary_summary()).is_equal("→ %s" % MatchTexts.area_name(target))
 	# 行き先は「詳細」のポップアップで見せる（2026-11-05）
 	assert_bool(_panel.detail_button().disabled).is_false()
 	_panel.detail_button().pressed.emit()
@@ -631,3 +632,57 @@ func test_the_reveal_shifts_the_play_then_the_reshape_and_the_next_turn_stops_it
 	_controller.continue_after_reveal()
 	_panel.start_turn()
 	assert_bool(board.is_shifting()).is_false()
+
+
+## ラベルの中で文字を置ける幅（地の内側の余白を除く）
+func _content_width(label: Label) -> float:
+	var box: StyleBox = label.get_theme_stylebox("normal")
+	return label.size.x - box.get_content_margin(SIDE_LEFT) - box.get_content_margin(SIDE_RIGHT)
+
+
+func _text_width(label: Label, text: String) -> float:
+	return label.get_theme_font("font").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			label.get_theme_font_size("font_size")).x
+
+
+## 陣形・方式の札は、どの陣形・方式の組み合わせでも、省略記号を出さずに1行に入る
+## （2026-11-06。「● 自分 4-3-3 マンツーマン・カウンタ…」で切れていた。文字は 24px より小さくしない（screen-common.md））
+func test_every_setup_fits_on_its_line() -> void:
+	_start(true)
+	await await_idle_frame()
+	var label: Label = _panel.find_child("UserSetupLabel", true, false) as Label
+	var width: float = _content_width(label)
+	assert_float(width).is_greater(0.0)
+	# 字を縮めて入れない（補助の文字も 24px 以上。screen-common.md「文字の大きさ」）
+	assert_int(label.get_theme_font_size("font_size")).is_greater_equal(24)
+	for formation: FormationDef in _catalog.formations:
+		for defense: int in GameEnums.DefenseStyle.values():
+			for attack: int in GameEnums.AttackStyle.values():
+				var setup := TeamSetup.new(formation.id, TeamStyles.new(defense as GameEnums.DefenseStyle,
+						attack as GameEnums.AttackStyle))
+				for is_user: bool in [true, false]:
+					var text: String = MatchBoardPanel.setup_line(is_user, setup)
+					assert_float(_text_width(label, text)).override_failure_message("入らない: %s（幅 %.1f > %.1f）" % [text,
+							_text_width(label, text), width]).is_less_equal(width)
+
+
+## 決定ボタンの要約は、どの手・どの行き先でも、省略記号を出さずに1行に入る
+## （2026-11-06。「パスコースを切る → 中…」で切れていた）
+func test_every_button_summary_fits_on_its_line() -> void:
+	_start(true)
+	await await_idle_frame()
+	var label: Label = _panel.find_child("ButtonSummary", true, false) as Label
+	var width: float = _content_width(label)
+	assert_float(width).is_greater(0.0)
+	# 字を縮めて入れない（補助の文字も 24px 以上。screen-common.md「文字の大きさ」）
+	assert_int(label.get_theme_font_size("font_size")).is_greater_equal(24)
+	var targets: Array[PitchArea] = [null]
+	for zone: int in GameEnums.Zone.values():
+		for lane: int in GameEnums.Lane.values():
+			targets.append(PitchArea.new(lane as GameEnums.Lane, zone as GameEnums.Zone))
+	for family: int in MatchTexts.ACTION_NAMES:
+		for action: int in range((MatchTexts.ACTION_NAMES[family] as Array).size()):
+			for target: PitchArea in targets:
+				var text: String = MatchTexts.button_summary(TurnChoice.new(family as GameEnums.ChoiceFamily, action, target))
+				assert_float(_text_width(label, text)).override_failure_message("入らない: %s（幅 %.1f > %.1f）" % [text,
+						_text_width(label, text), width]).is_less_equal(width)
