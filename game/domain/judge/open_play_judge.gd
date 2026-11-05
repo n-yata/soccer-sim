@@ -29,12 +29,6 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	# バックパス（2026-11-03）は判定しない。守備の手の動きは残し、ボールは試合進行が運ぶ先へ移す
 	if attack.action == GameEnums.PlayType.BACK_PASS:
 		return JudgeOutput.new(GameEnums.TurnOutcome.NO_CONTEST, null, step.pair, movements)
-	# ボールに寄せてドリブルを読んだ（2026-11-03）: 運ばれる前にボールのエリアで奪う。スルーパスと同じく、読まれたら人数に関係なく
-	# 奪われる。ドリブルは適用しない（運ぶ前に止めた）。比較エリアはボールのエリアで、試合進行はそこで守備側のボールにする
-	if attack.action == GameEnums.PlayType.DRIBBLE and defense.action == GameEnums.DefenseAction.CLOSE_DOWN:
-		var tackled: JudgeDetail = detail_at(step.pair, ball, false)
-		tackled.read = GameEnums.ReadKind.EXACT
-		return JudgeOutput.new(GameEnums.TurnOutcome.LOSS, tackled, step.pair, movements)
 	# 手順2.5: オフサイド（2026-10-25）。守備の手を適用した後のラインで、人数・読みより先に見る。
 	# オフサイドならプレーが止まるので、攻撃の手（スルーパスの走り込み・ドリブル）は適用しない
 	if OffsideRule.is_offside(step.pair, ball, attack):
@@ -52,6 +46,10 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	var outcome: GameEnums.TurnOutcome
 	if attack.action == GameEnums.PlayType.THROUGH_PASS:
 		outcome = through_pass_outcome(detail, defender_entered(movements, pair.attacker_side, attack.target))
+	elif defense.action == GameEnums.DefenseAction.CLOSE_DOWN and detail.read == GameEnums.ReadKind.EXACT:
+		# ドリブルのコースを切って行き先を読み切った（2026-11-05）: 人数に関係なく、その行き先で奪う（スルーパスと同じく
+		# 「読まれたら奪われる」）。守備の選手もそこへ寄せているので、奪ったエリアに守備側がいる
+		outcome = GameEnums.TurnOutcome.LOSS
 	else:
 		outcome = outcome_of(detail, attack.action == GameEnums.PlayType.SHOT)
 	return JudgeOutput.new(outcome, detail, step.pair, movements)
@@ -154,13 +152,14 @@ static func through_pass_runner(attacker: TeamLayout, ball: PitchArea, target: P
 	return runner
 
 
-## 両者の手から守備の読みの段階を決める（2026-11-03）。ボールに寄せる・シュートコースを塞ぐ（どちらもボールのエリアへの寄せ）は、
-## 手の種類だけで読んだ相手の手が決まる（ボールに寄せるはドリブル、シュートコースを塞ぐはシュートをぴったり読む。ほかの手は外れ）。
-## ボールに寄せてドリブルを読んだときは、judge が先に奪う。シュートを読めるのはシュートコースを塞ぐだけ。それ以外はエリアで比べる（read_of）。
+## 両者の手から守備の読みの段階を決める（2026-11-03）。ドリブルのコースを切る（2026-11-05）は、相手のドリブルの行き先が
+## 切ったエリアと同じときだけぴったり（パスや別の方向へのドリブルは外れ。judge は人数に関係なく奪う）。シュートコースを塞ぐは
+## シュートだけをぴったり読む（シュートを読めるのはこの手だけ）。それ以外はエリアで比べる（read_of）。
 static func read_for(attack: TurnChoice, defense: TurnChoice, compare: PitchArea, ball: PitchArea) -> GameEnums.ReadKind:
 	match defense.action:
 		GameEnums.DefenseAction.CLOSE_DOWN:
-			return GameEnums.ReadKind.EXACT if attack.action == GameEnums.PlayType.DRIBBLE else GameEnums.ReadKind.NONE
+			var is_read: bool = attack.action == GameEnums.PlayType.DRIBBLE and defense.target.equals(compare)
+			return GameEnums.ReadKind.EXACT if is_read else GameEnums.ReadKind.NONE
 		GameEnums.DefenseAction.BLOCK_SHOT:
 			return GameEnums.ReadKind.EXACT if attack.action == GameEnums.PlayType.SHOT else GameEnums.ReadKind.NONE
 	if attack.action == GameEnums.PlayType.SHOT:

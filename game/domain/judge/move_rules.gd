@@ -86,8 +86,9 @@ static func is_penalty_area(ball: PitchArea) -> bool:
 ## 守備の手。運ぶ先（制限するエリア）は攻撃側から見た座標で返す（DefenseMover.apply の target と同じ）。
 ## 条件を変えたら、画面に出す選べる条件の一言（MatchTexts.target_rule）の文言も直す。
 ## 守備側の人数は、守備側から見た座標（T_d = target.mirrored()）で数える。
-## ball（攻撃側の視点）を渡すと、ボールのエリアへのプレス（ボールに寄せる。ペナルティエリアではシュートコースを塞ぐも）を足す
-## （2026-11-03）。条件はプレスと同じで、ボールの隣に味方がいて寄せが届くときだけ。届かない寄せでは相手の手を読めないため。
+## ball（攻撃側の視点）を渡すと、ドリブルのコースを切る（プレスと同じエリアへ。どこを切るかは MoveMenu がドリブルの行き先から選ぶ。
+## 2026-11-05）と、ペナルティエリアではシュートコースを塞ぐ（ボールのエリアへのプレス。ボールの隣に味方がいて寄せが届くときだけ。
+## 2026-11-03）を足す。条件はプレスと同じ。
 static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOptions:
 	var options := MoveOptions.new()
 	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.DEFENSE
@@ -95,9 +96,9 @@ static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOpt
 		var restricted: PitchArea = target.mirrored()
 		if _has_player_in(pair.defender, restricted.neighbors4()):
 			options.add_target(family, GameEnums.DefenseAction.PRESS, target)
-			if ball != null and target.equals(ball):
+			if ball != null:
 				options.add_target(family, GameEnums.DefenseAction.CLOSE_DOWN, target)
-				if is_penalty_area(ball):
+				if target.equals(ball) and is_penalty_area(ball):
 					options.add_target(family, GameEnums.DefenseAction.BLOCK_SHOT, target)
 		# カバーで下がる選手は、T_d の背後まで1マスで届く選手（T_d・横・背後。前方は除く。DefenseMover.cover_neighbors）
 		var can_cover: bool = pair.defender.count_at(restricted) >= 1 \

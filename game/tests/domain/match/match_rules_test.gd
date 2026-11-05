@@ -210,18 +210,18 @@ func test_open_play_advance_moves_the_ball_and_keeps_fixes() -> void:
 	assert_str(next.away_players[0].fixed_area.to_key()).is_equal("M2-L1")
 
 
-func test_a_dribble_read_by_closing_down_is_lost_where_the_ball_was() -> void:
-	# ボールに寄せてドリブルを読むと、運ばれる前にボールのエリア M2-C で奪う（2026-11-03）。相手 a2 は守備側の視点 D2-C
-	# （攻撃側の視点 A1-C）にいて、ボールのエリア（守備側の M1-C）の隣
+func test_a_dribble_read_by_cutting_its_lane_is_lost_where_it_went() -> void:
+	# A1-L1 へのドリブルを、ドリブルのコースを切って読み切ると、その行き先で奪う（2026-11-05）。相手 a2 は守備側の視点 D2-C
+	# （攻撃側の視点 A1-C）にいて、隣の守備側の D2-R1（攻撃側の A1-L1）へ寄せる
 	var state: MatchState = _open_state(HOME, _holder_spec(), [["a2", "D2-C", "D2-C"], _back()], "M2-C")
-	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "M2-L1"),
-			_choice(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN, "M2-C"))
+	var resolution: TurnResolution = _resolve(state, _choice(ATTACK, GameEnums.PlayType.DRIBBLE, "A1-L1"),
+			_choice(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN, "A1-L1"))
 	var next: MatchState = resolution.next_state
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.LOSS)
 	assert_int(next.possession).is_equal(AWAY)
-	# 判定後のボール位置（攻撃側の視点）はボールのエリア。奪った側の視点では M1-C
-	assert_str(resolution.record.ball_after.to_key()).is_equal("M2-C")
-	assert_str(next.ball_area.to_key()).is_equal("M1-C")
+	# 判定後のボール位置（攻撃側の視点）はドリブルの行き先。奪った側の視点では D2-R1
+	assert_str(resolution.record.ball_after.to_key()).is_equal("A1-L1")
+	assert_str(next.ball_area.to_key()).is_equal("D2-R1")
 
 
 func test_back_pass_moves_the_ball_back_without_a_judgement() -> void:

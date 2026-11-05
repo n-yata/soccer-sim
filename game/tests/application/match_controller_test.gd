@@ -47,8 +47,12 @@ class AlternatingStylesOpponent extends OpponentPolicy:
 	func choose_turn(state: MatchState, side: GameEnums.TeamSide) -> TurnChoice:
 		return inner.choose_turn(state, side)
 
+	## 陣形は本物の CPU の選び方で、方式は最初の選び直し（マンツーマン・保持型）と違うゾーン・カウンター型に固定する。
+	## 1回目の得点で必ず CPU の方式が入れ替わるようにするため（試合の始めの方式がシードしだいだと、得点の少ない試合で
+	## 入れ替わりが起きず、確認が通らないことがあった。2026-11-05）
 	func choose_setup() -> TeamSetup:
-		return inner.choose_setup()
+		var setup: TeamSetup = inner.choose_setup()
+		return TeamSetup.new(setup.formation_id, TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER))
 
 	func choose_styles() -> TeamStyles:
 		style_calls += 1

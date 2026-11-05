@@ -188,7 +188,7 @@ func test_je06_shot_read_by_the_defense_is_saved() -> void:
 
 
 func test_shot_is_not_read_by_a_plain_press_or_closing_down_the_ball() -> void:
-	# 同じボールのエリアへの寄せでも、パスコースを切る（PRESS）・ボールに寄せる（CLOSE_DOWN）はシュートを読んだことにならず、
+	# 同じボールのエリアへの寄せでも、パスコースを切る（PRESS）・ドリブルのコースを切る（CLOSE_DOWN）はシュートを読んだことにならず、
 	# 同数のシュートは得点（2026-11-03）
 	for action: int in [GameEnums.DefenseAction.PRESS, GameEnums.DefenseAction.CLOSE_DOWN]:
 		var output: JudgeOutput = _judge(_je05(), ZONE, "A1-C",
@@ -425,40 +425,57 @@ func test_dribble_without_a_player_on_the_ball_moves_nobody() -> void:
 	assert_str(_summary(output)).is_equal("ADVANCE A1-C 0-0 NONE")
 
 
-# --- ボールに寄せる・バックパス（2026-11-03。手の選択の簡素化） ---
+# --- ドリブルのコースを切る・バックパス（2026-11-03・2026-11-05。手の選択の簡素化） ---
 
 ## 攻撃側はボールの M2-C に a1、M1-C に a2。守備側（ゾーン）は D2-C（攻撃側の視点で A1-C）に d1。
-## d1 はボールのエリア（守備側の視点 M1-C）の上下左右にいるので、ボールへ寄せられる
+## d1 は守備側の視点 D2-R1（攻撃側の視点 A1-L1）の隣にいるので、そこへ寄せてドリブルのコースを切れる
 func _close_down_pair() -> LayoutPair:
 	return LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "M1-C", ""]]), _team([["d1", "D2-C", ""]]), HOME)
 
 
-func test_closing_down_the_ball_reads_a_dribble_and_wins_it_before_the_carry() -> void:
-	# ボールに寄せる（CLOSE_DOWN）はドリブルをぴったり読んだ扱いで、運ばれる前にボールのエリア M2-C で奪う（人数に関係なくロスト）。
-	# ドリブルの選手は動かない
+func test_cutting_the_dribble_lane_where_the_dribble_goes_wins_the_ball_there() -> void:
+	# A1-L1 へのドリブルを、ドリブルのコースを切る（CLOSE_DOWN）で A1-L1 に読み切った。人数に関係なく、その行き先でロスト。
+	# d1 も A1-L1（守備側の D2-R1）へ寄せているので、奪ったエリアに守備側がいる
 	var output: JudgeOutput = _judge(_close_down_pair(), ZONE, "M2-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "M2-L1"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "M2-C"))
-	assert_array(_moves(output)).is_equal(["d1:D2-C>M1-C:PRESS"])
-	assert_str(_summary(output)).is_equal("LOSS M2-C 1-1 NONE EXACT")
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-L1"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "A1-L1"))
+	assert_array(_moves(output)).is_equal(["d1:D2-C>D2-R1:PRESS", "a1:M2-C>A1-L1:DRIBBLE"])
+	assert_str(_summary(output)).is_equal("LOSS A1-L1 1-1 NONE EXACT")
 
 
-func test_pressing_the_ball_area_does_not_read_a_dribble_or_a_pass() -> void:
-	# 同じボールのエリアへの寄せでも、パスコースを切る（PRESS）はドリブルを読んだことにならず、1対0 のドリブルは前進
-	var dribble: JudgeOutput = _judge(_close_down_pair(), ZONE, "M2-C",
-			_attack(GameEnums.PlayType.DRIBBLE, "M2-L1"), _defense(GameEnums.DefenseAction.PRESS, "M2-C"))
-	assert_str(_summary(dribble)).is_equal("ADVANCE M2-L1 1-0 NONE")
-	# ボールに寄せても、パスの読みにはならない（M1-C へのショートパスは 1対0 で前進）
+func test_cutting_the_dribble_lane_wins_the_ball_even_against_two_more_attackers() -> void:
+	# 行き先の A1-L1 に攻撃側の a2・a3 がいて、ドリブルの a1 が入ると 3対1（2人多い）。ぴったり読まれても 2人多ければ通る
+	# プレス（パスコースを切る）では前進だが、ドリブルのコースを切ったときは人数に関係なく奪う（2026-11-05）
+	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-L1", ""], ["a3", "A1-L1", ""]]),
+			_team([["d1", "D2-C", ""]]), HOME)
+	var cut: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-L1"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "A1-L1"))
+	assert_str(_summary(cut)).is_equal("LOSS A1-L1 3-1 NONE EXACT")
+	var pressed: JudgeOutput = _judge(pair, ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-L1"), _defense(GameEnums.DefenseAction.PRESS, "A1-L1"))
+	assert_str(_summary(pressed)).is_equal("ADVANCE A1-L1 3-1 NONE EXACT")
+
+
+func test_cutting_the_wrong_dribble_lane_or_a_pass_is_not_a_read() -> void:
+	# 切ったのと違う方向（A1-R1）へのドリブルは読みが外れで、人数で決まる（1対0 で前進）
+	var other_way: JudgeOutput = _judge(_close_down_pair(), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-R1"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "A1-L1"))
+	assert_str(_summary(other_way)).is_equal("ADVANCE A1-R1 1-0 NONE")
+	# パスの読みにもならない（M1-C へのショートパスは 1対0 で前進）
 	var short_pass: JudgeOutput = _judge(_close_down_pair(), ZONE, "M2-C",
-			_attack(GameEnums.PlayType.SHORT_PASS, "M1-C"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "M2-C"))
+			_attack(GameEnums.PlayType.SHORT_PASS, "M1-C"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "A1-L1"))
 	assert_str(_summary(short_pass)).is_equal("ADVANCE M1-C 1-0 NONE")
+	# パスコースを切る（PRESS）で同じ A1-L1 を制限しても、ドリブルはエリアの読みで決まる（ぴったりで 1対1 → ロスト。人数の規則）
+	var pressed: JudgeOutput = _judge(_close_down_pair(), ZONE, "M2-C",
+			_attack(GameEnums.PlayType.DRIBBLE, "A1-L1"), _defense(GameEnums.DefenseAction.PRESS, "A1-L1"))
+	assert_str(_summary(pressed)).is_equal("LOSS A1-L1 1-1 NONE EXACT")
 
 
 func test_back_pass_is_not_judged_but_the_defense_still_moves() -> void:
 	var output: JudgeOutput = _judge(_close_down_pair(), ZONE, "M2-C",
-			_attack(GameEnums.PlayType.BACK_PASS, "M1-C"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "M2-C"))
+			_attack(GameEnums.PlayType.BACK_PASS, "M1-C"), _defense(GameEnums.DefenseAction.CLOSE_DOWN, "A1-L1"))
 	assert_int(output.outcome).is_equal(GameEnums.TurnOutcome.NO_CONTEST)
 	assert_object(output.detail).is_null()
-	assert_array(_moves(output)).is_equal(["d1:D2-C>M1-C:PRESS"])
+	assert_array(_moves(output)).is_equal(["d1:D2-C>D2-R1:PRESS"])
 
 
 # --- 対称性・不正な入力・不変の性質 ---

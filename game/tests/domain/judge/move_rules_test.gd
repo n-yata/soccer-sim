@@ -166,19 +166,21 @@ func test_cover_needs_a_defender_within_one_area_of_the_area_behind() -> void:
 	assert_array(_keys(options.targets(DEFENSE, COVER))).is_equal(["D1-L1", "D1-C", "D1-R1"])
 
 
-func test_closing_down_and_blocking_the_shot_press_the_ball_area() -> void:
-	# 守備側から見て D2-C に1人。ボールが攻撃側の視点で A2-C（守備側の D1-C。D2-C の隣）なら、ボールに寄せる・
-	# シュートコースを塞ぐ（ペナルティエリア）の両方を選べる（2026-11-03）
+func test_cutting_the_dribble_lane_goes_where_a_press_can_go_and_blocking_the_shot_presses_the_ball() -> void:
+	# 守備側から見て D2-C に1人。プレスできるエリアは攻撃側の視点で M2-C・A1-L1・A1-R1・A2-C。
+	# ドリブルのコースを切る（2026-11-05）は、そのどこへでも寄せられる（どこを切るかは MoveMenu がドリブルの行き先から選ぶ）
+	var pressable: Array[String] = ["M2-C", "A1-L1", "A1-R1", "A2-C"]
+	# ボールが A2-C（ペナルティエリア。守備側の D1-C で D2-C の隣）なら、シュートコースを塞ぐ（ボールのエリア）も選べる
 	var in_box: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("A2-C"))
-	assert_array(_keys(in_box.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["A2-C"])
+	assert_array(_keys(in_box.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(pressable)
 	assert_array(_keys(in_box.targets(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT))).is_equal(["A2-C"])
-	# ボールが M2-C（守備側の M1-C。D2-C の隣）なら、ボールに寄せるだけ
-	var midfield: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("M2-C"))
-	assert_array(_keys(midfield.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["M2-C"])
+	# ペナルティエリアの外（M1-C。ボールの隣に守備側がいない）でも、ドリブルのコースは切れる。シュートコースを塞ぐは無い
+	var midfield: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("M1-C"))
+	assert_array(_keys(midfield.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(pressable)
 	assert_bool(midfield.is_available(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_false()
-	# ボールの隣に守備側がいなければ（ボール M1-C = 守備側の M2-C）、寄せが届かないので選べない
-	var far: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("M1-C"))
-	assert_bool(far.is_available(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_false()
+	# ペナルティエリアでも、ボールの隣に守備側がいなければシュートコースは塞げない（ボール A2-L1 = 守備側の D1-R1）
+	var far_shot: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("A2-L1"))
+	assert_bool(far_shot.is_available(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_false()
 	# ボールを渡さなければ、どちらも足さない
 	var no_ball: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]))
 	assert_bool(no_ball.is_available(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_false()

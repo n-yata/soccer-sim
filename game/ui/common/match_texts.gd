@@ -9,7 +9,7 @@ const LANE_NAMES: Array[String] = ["左大外", "左HS", "中央", "右HS", "右
 const ACTION_NAMES: Dictionary = {
 	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ドリブル", "スルーパス", "背後へのロングボール", "サイドチェンジ", "シュート", "バックパス"],
 	# 守備の手は、何を読んで守るかが分かる名前にする（2026-11-03。行き先はゲームが決め、手のボタンだけで選ぶため）
-	GameEnums.ChoiceFamily.DEFENSE: ["パスコースを切る", "背後を埋める", "ボールに寄せる", "シュートコースを塞ぐ"],
+	GameEnums.ChoiceFamily.DEFENSE: ["パスコースを切る", "背後を埋める", "ドリブルのコースを切る", "シュートコースを塞ぐ"],
 	GameEnums.ChoiceFamily.NEG_TRANS: ["即時奪回", "リトリート"],
 	GameEnums.ChoiceFamily.POS_TRANS: ["カウンター", "保持"],
 }
@@ -73,7 +73,7 @@ static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
 		GameEnums.DefenseAction.COVER:
 			return "背後を埋める: 相手のロングパスの行き先を読み、味方1人がそのエリアの背後へ下がる"
 		GameEnums.DefenseAction.CLOSE_DOWN:
-			return "ボールに寄せる: 隣の味方1人がボールを持つ選手へ寄せる。相手のドリブルを読めば、運ばれる前に奪う"
+			return "ドリブルのコースを切る: 相手のドリブルの行き先を読み、隣の味方1人がそのエリアへ寄せる。読みが当たれば、人数に関係なく奪う"
 		GameEnums.DefenseAction.BLOCK_SHOT:
 			return "シュートコースを塞ぐ: 隣の味方1人がボールを持つ選手へ寄せ、シュートを止めに行く。相手のシュートを読む手"
 	return ""

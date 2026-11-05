@@ -32,7 +32,7 @@ static func _cause(reveal: RevealView) -> String:
 	var is_attacker: bool = reveal.user_role == GameEnums.Phase.ATTACK
 	if _is_through_pass(reveal, is_attacker):
 		return _through_pass_cause(reveal, is_attacker)
-	# ボールに寄せてドリブルを読んだ（2026-11-03）は、人数に関係なく運ぶ前に奪うので、原因は読みだけで言う
+	# ドリブルのコースを切って行き先を読み切った（2026-11-05）は、人数に関係なく奪うので、原因は読みだけで言う
 	if _is_closed_down_dribble(reveal, is_attacker):
 		return "読まれて" if is_attacker else "読み切って"
 	var attackers: int = reveal.user_count if is_attacker else reveal.opponent_count
@@ -68,9 +68,10 @@ static func _is_through_pass(reveal: RevealView, is_attacker: bool) -> bool:
 			and attack.action == GameEnums.PlayType.THROUGH_PASS
 
 
-## 攻守ターンで、攻撃側のドリブルを守備側がボールに寄せて読んだか（判定は人数に関係なくロスト。2026-11-03）。
+## 攻守ターンで、攻撃側のドリブルの行き先を守備側がドリブルのコースを切って読み切ったか（判定は人数に関係なくロスト。2026-11-05）。
+## 切ったエリアと違う方向へのドリブルは読みが外れで、人数で決まるので、ここに入らない。
 static func _is_closed_down_dribble(reveal: RevealView, is_attacker: bool) -> bool:
-	if reveal.turn_kind != GameEnums.TurnKind.OPEN_PLAY:
+	if reveal.turn_kind != GameEnums.TurnKind.OPEN_PLAY or reveal.read != GameEnums.ReadKind.EXACT:
 		return false
 	var attack: TurnChoice = reveal.user_choice if is_attacker else reveal.opponent_choice
 	var defense: TurnChoice = reveal.opponent_choice if is_attacker else reveal.user_choice

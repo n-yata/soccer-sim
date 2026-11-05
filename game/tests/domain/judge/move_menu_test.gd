@@ -65,13 +65,13 @@ func test_attack_menu_keeps_one_move_per_slot_with_the_best_destination() -> voi
 	assert_bool(menu.is_available(ATTACK, GameEnums.PlayType.SWITCH)).is_false()
 
 
-func test_defense_menu_cuts_the_predicted_short_pass_and_closes_down_the_ball() -> void:
+func test_defense_menu_cuts_the_predicted_short_pass_and_the_predicted_dribble() -> void:
 	var menu: MoveOptions = MoveMenu.options_for(_midfield_state(), AWAY)
 	# パスコースを切る: 予測先は攻撃のショートパスの枠の A1-L1。そこへはプレスできない（守備側の視点 D2-R1 の上下左右に味方がいない）ので、
 	# プレスできるエリアのうち A1-L1 にいちばん近い（1マス）もので、候補の順で先の M2-L1
 	assert_array(_keys(menu.targets(DEFENSE, GameEnums.DefenseAction.PRESS))).is_equal(["M2-L1"])
-	# ボールに寄せる: ボールのエリア（守備側の視点 M2-C の下の M1-C に味方がいる）
-	assert_array(_keys(menu.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["M1-C"])
+	# ドリブルのコースを切る（2026-11-05）: 予測先は攻撃のドリブルの枠の M2-L1。そこへ寄せられる（守備側の視点 M1-R1 の隣の M1-C に味方）
+	assert_array(_keys(menu.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["M2-L1"])
 	# 背後を埋める: 攻撃にロングパスの枠が無いので出ない。シュートコースを塞ぐ: ペナルティエリアの外なので出ない
 	assert_bool(menu.is_available(DEFENSE, GameEnums.DefenseAction.COVER)).is_false()
 	assert_bool(menu.is_available(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_false()
@@ -103,8 +103,9 @@ func test_long_pass_slot_prefers_the_better_numbers_and_cover_takes_the_nearest_
 	# 背後を埋める: 予測先 M1-R2 へはカバーできない。カバーできるエリア（AWAY の視点 D2-C・D2-R1・D2-R2・M1-R1 = HOME の視点
 	# A1-C・A1-L1・A1-L2・M2-L1）のうち、M1-R2 にいちばん近い（2マス）A1-C
 	assert_array(_keys(defense.targets(DEFENSE, GameEnums.DefenseAction.COVER))).is_equal(["A1-C"])
-	# ボールに寄せる: ボールの M1-L1 の隣に守備側がいないので、寄せが届かず出ない
-	assert_bool(defense.is_available(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_false()
+	# ドリブルのコースを切る: 攻撃のドリブルの枠は M2-L2（どこへ運んでも 1対0。前へ1列で、候補の順で先）。そこへは寄せられないので、
+	# 寄せられるエリア（HOME の視点 M2-L1・A1-L2・A1-C・A2-L1）のうち M2-L2 にいちばん近い（1マス）もので、候補の順で先の M2-L1
+	assert_array(_keys(defense.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["M2-L1"])
 
 
 func test_penalty_area_offers_shot_instead_of_back_pass_and_the_defense_can_block_it() -> void:
@@ -115,7 +116,9 @@ func test_penalty_area_offers_shot_instead_of_back_pass_and_the_defense_can_bloc
 	assert_bool(attack.is_available(ATTACK, GameEnums.PlayType.BACK_PASS)).is_false()
 	var defense: MoveOptions = MoveMenu.options_for(state, AWAY)
 	assert_array(_keys(defense.targets(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT))).is_equal(["A2-C"])
-	assert_array(_keys(defense.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["A2-C"])
+	# ドリブルのコースを切る: 攻撃のドリブルの枠は A2-L1（1対0・同じ列。A1-C は 2対1 で同じ +1 だが後ろ）。寄せられるエリア
+	# （M2-C・A1-L1・A1-R1・A2-C）のうち A2-L1 にいちばん近い（1マス）もので、候補の順で先の A1-L1
+	assert_array(_keys(defense.targets(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN))).is_equal(["A1-L1"])
 
 
 func test_counter_takes_the_best_destination_and_secure_stays() -> void:

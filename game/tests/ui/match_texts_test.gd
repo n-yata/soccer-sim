@@ -43,7 +43,7 @@ func test_action_names_cover_every_family() -> void:
 	# 守備の手は、何を読んで守るかが分かる名前（2026-11-03）
 	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.PRESS)).is_equal("パスコースを切る")
 	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.COVER)).is_equal("背後を埋める")
-	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_equal("ボールに寄せる")
+	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_equal("ドリブルのコースを切る")
 	assert_str(MatchTexts.action_name(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_equal("シュートコースを塞ぐ")
 	assert_str(MatchTexts.action_name(NEG, GameEnums.NegTransAction.COUNTER_PRESS)).is_equal("即時奪回")
 	assert_str(MatchTexts.action_name(NEG, GameEnums.NegTransAction.RETREAT)).is_equal("リトリート")
@@ -221,7 +221,7 @@ func test_target_rule_explains_who_moves_and_what_each_defense_reads() -> void:
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.COVER)) \
 			.is_equal("背後を埋める: 相手のロングパスの行き先を読み、味方1人がそのエリアの背後へ下がる")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)) \
-			.is_equal("ボールに寄せる: 隣の味方1人がボールを持つ選手へ寄せる。相手のドリブルを読めば、運ばれる前に奪う")
+			.is_equal("ドリブルのコースを切る: 相手のドリブルの行き先を読み、隣の味方1人がそのエリアへ寄せる。読みが当たれば、人数に関係なく奪う")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)) \
 			.is_equal("シュートコースを塞ぐ: 隣の味方1人がボールを持つ選手へ寄せ、シュートを止めに行く。相手のシュートを読む手")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.BACK_PASS)) \

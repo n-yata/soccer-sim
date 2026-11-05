@@ -88,7 +88,7 @@ static func _is_preferred(hint: ChoiceHint, styles: TeamStyles, ball: PitchArea)
 		GameEnums.ChoiceFamily.POS_TRANS:
 			return is_counter == (hint.action == GameEnums.PosTransAction.COUNTER)
 		GameEnums.ChoiceFamily.DEFENSE:
-			# ボールに寄せる・シュートコースを塞ぐもプレス（2026-11-03）
+			# ドリブルのコースを切る・シュートコースを塞ぐもプレス（2026-11-03。2026-11-05 に名前を改めた）
 			return is_man == (hint.action != GameEnums.DefenseAction.COVER)
 		GameEnums.ChoiceFamily.NEG_TRANS:
 			return is_man == (hint.action == GameEnums.NegTransAction.COUNTER_PRESS)

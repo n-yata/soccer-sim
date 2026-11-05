@@ -198,11 +198,11 @@ func test_no_contest_depends_on_the_user_role() -> void:
 	assert_str(JudgeReasonFormatter.detail(loser)).is_empty()
 
 
-func test_a_dribble_won_by_closing_down_is_explained_by_the_read() -> void:
-	# ボールに寄せてドリブルを読んだロスト（2026-11-03）は人数に関係なく決まるので、攻撃側が少なくても原因は読み
+func test_a_dribble_won_by_cutting_its_lane_is_explained_by_the_read() -> void:
+	# ドリブルのコースを切って行き先を読み切ったロスト（2026-11-05）は人数に関係なく決まるので、攻撃側が少なくても原因は読み
 	var attacker: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M2-C", 1, 2)
 	attacker.turn_kind = GameEnums.TurnKind.OPEN_PLAY
-	attacker.user_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M2-L1"))
+	attacker.user_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M2-C"))
 	attacker.opponent_choice = TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN,
 			PitchArea.from_key("M2-C"))
 	attacker.read = GameEnums.ReadKind.EXACT
@@ -213,6 +213,13 @@ func test_a_dribble_won_by_closing_down_is_explained_by_the_read() -> void:
 	defender.opponent_choice = attacker.user_choice
 	defender.read = GameEnums.ReadKind.EXACT
 	assert_str(JudgeReasonFormatter.format(defender)).is_equal("中盤（自陣）・中央で 2対1。読み切ってロスト")
+	# 切ったのと違う方向へのドリブル（読みは外れ）は、人数で決まるので原因も人数
+	var other_way: RevealView = _reveal(GameEnums.Phase.ATTACK, GameEnums.TurnOutcome.LOSS, "M2-L1", 1, 2)
+	other_way.turn_kind = GameEnums.TurnKind.OPEN_PLAY
+	other_way.user_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M2-L1"))
+	other_way.opponent_choice = attacker.opponent_choice
+	other_way.read = GameEnums.ReadKind.NONE
+	assert_str(JudgeReasonFormatter.format(other_way)).is_equal("中盤（敵陣）・左HSで 1対2。相手が数的優位でロスト")
 
 
 func test_a_back_pass_is_not_judged() -> void:

@@ -42,7 +42,7 @@ func test_every_player_moves_at_most_one_area_per_turn_with_uniformly_random_mov
 
 
 ## ルール上選べる手から、手の種類を一様に選び、その運ぶ先を一様に選ぶ。選べる手が無ければ null（resolve_turn が拒否し、テストが落ちる）。
-## 種類を先に選ぶのは、運ぶ先が1つしかない手（ボールに寄せる・シュートコースを塞ぐ。2026-11-03）も通るようにするため
+## 種類を先に選ぶのは、運ぶ先が1つしかない手（シュートコースを塞ぐ。2026-11-03）も通るようにするため
 func _uniform_choice(state: MatchState, side: GameEnums.TeamSide, rng: RandomNumberGenerator) -> TurnChoice:
 	var hints: Array[ChoiceHint] = MoveHints.evaluate(state, side, MoveRules.options_for(state, side))
 	if hints.is_empty():

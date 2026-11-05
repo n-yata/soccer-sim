@@ -77,7 +77,7 @@ enum DefenseStyle { ZONE, MAN }
 enum AttackStyle { POSSESSION, COUNTER }
 enum TurnKind { OPEN_PLAY, TRANSITION }
 enum PlayType { SHORT_PASS, DRIBBLE, THROUGH_PASS, LONG_BEHIND, SWITCH, SHOT, BACK_PASS }   # THROUGH_PASS は 2026-10-25、BACK_PASS は 2026-11-03（末尾に足す）
-enum DefenseAction { PRESS, COVER, CLOSE_DOWN, BLOCK_SHOT }   # CLOSE_DOWN・BLOCK_SHOT はボールのエリアへの寄せ（2026-11-03）
+enum DefenseAction { PRESS, COVER, CLOSE_DOWN, BLOCK_SHOT }   # CLOSE_DOWN はドリブルのコースを切る（2026-11-05）、BLOCK_SHOT はボールのエリアへの寄せ（2026-11-03）
 enum NegTransAction { COUNTER_PRESS, RETREAT }
 enum PosTransAction { COUNTER, SECURE }
 enum TurnOutcome { ADVANCE, STALL, LOSS, GOAL, SAVE, REGAIN, REGAIN_FAILED, NO_CONTEST, OFFSIDE }   # OFFSIDE は 2026-10-25
@@ -247,8 +247,8 @@ static func options_for(state: MatchState, side: GameEnums.TeamSide) -> MoveOpti
 static func is_allowed(options: MoveOptions, choice: TurnChoice) -> bool
 ## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
 static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
-## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 30 エリアのすべてが候補。ball を渡すと、ボールのエリアへの寄せ
-## （CLOSE_DOWN。ペナルティエリアでは BLOCK_SHOT も）を足す
+## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 30 エリアのすべてが候補。ball を渡すと、ドリブルのコースを切る
+## （CLOSE_DOWN。プレスと同じエリア。2026-11-05）と、ペナルティエリアではシュートコースを塞ぐ（BLOCK_SHOT。ボールのエリア）を足す
 static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOptions
 static func neg_transition_options() -> MoveOptions
 ## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）

@@ -8,7 +8,7 @@ class_name MoveMenu
 extends RefCounted
 
 ## 枠ごとの手。並びはボタンの並びで、攻撃と守備で読みが対応する手を同じ位置にそろえる
-## （ショートパス ↔ パスコースを切る、ロングパス ↔ 背後を埋める、ドリブル ↔ ボールに寄せる、シュート ↔ シュートコースを塞ぐ）。
+## （ショートパス ↔ パスコースを切る、ロングパス ↔ 背後を埋める、ドリブル ↔ ドリブルのコースを切る、シュート ↔ シュートコースを塞ぐ）。
 ## 1つの枠に入る手は、局面でどれか1つだけになる（ショートパスかスルーパス、ロングボールかサイドチェンジ、シュートかバックパス）。
 const SLOTS: Dictionary = {
 	GameEnums.ChoiceFamily.ATTACK: [
@@ -97,8 +97,8 @@ static func _is_better(a: ChoiceHint, b: ChoiceHint, ball: PitchArea) -> bool:
 
 
 ## 守備: パスコースを切る（プレス）・背後を埋める（カバー）は、攻撃側のメニューのショートパス・ロングパスの行き先を予測先にする。
-## ボールに寄せる・シュートコースを塞ぐは、選べればボールのエリア（寄せが届くときだけ選べる）。
-## パスコースを切る・背後を埋めるは、予測先で選べなければ、選べるうちで予測先にいちばん近いエリア。
+## ドリブルのコースを切るは、ドリブルの枠の行き先を予測先にする（2026-11-05）。シュートコースを塞ぐは、選べればボールのエリア。
+## 予測先で選べなければ、選べるうちで予測先にいちばん近いエリア。
 static func _defense_menu(state: MatchState, candidates: MoveOptions) -> MoveOptions:
 	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.DEFENSE
 	var attack_menu: MoveOptions = options_for(state, state.possession)
@@ -112,6 +112,8 @@ static func _defense_menu(state: MatchState, candidates: MoveOptions) -> MoveOpt
 				predicted = _slot_target(attack_menu, 2)
 		elif action == GameEnums.DefenseAction.COVER:
 			predicted = _slot_target(attack_menu, 1)
+		elif action == GameEnums.DefenseAction.CLOSE_DOWN:
+			predicted = _slot_target(attack_menu, 2)
 		if predicted == null:
 			continue
 		var nearest: PitchArea = _nearest(candidates.targets(family, action), predicted)
