@@ -338,7 +338,7 @@ func test_the_next_turn_starts_clean() -> void:
 	assert_int(_panel.board().movement_count()).is_equal(0)
 	assert_str(_panel.board().compare_tag()).is_empty()
 	assert_bool(_panel.board().has_intent()).is_false()
-	assert_array(_panel.board().preview_movements()).is_empty()
+	assert_array(_panel.board().preview_ghost_ids()).is_empty()
 	assert_bool(_panel.telop_visible()).is_false()
 	assert_bool(_panel.choice_panel().visible).is_true()
 	assert_str(_panel.primary_summary()).is_empty()
@@ -374,11 +374,14 @@ func test_unbind_stops_receiving_results() -> void:
 
 # --- 決定前のプレビュー ---
 
-func _keys_of(movements: Array[Movement]) -> Array[String]:
-	var keys: Array[String] = []
-	for movement: Movement in movements:
-		keys.append("%s %s>%s" % [movement.player_id, movement.from.to_key(), movement.to.to_key()])
-	return keys
+## 盤面のプレビューは、その手の3つの配置（自分の選手全員）を動かしていて、手で直接動く選手（expected）はすべて半透明の駒で動く
+func _assert_previews(choice: TurnChoice, expected: Array[Movement]) -> void:
+	var board: TacticsBoard = _panel.board()
+	assert_array(board.preview_frames()).is_equal(_controller.user_preview_frames(choice))
+	var movers: Array[String] = []
+	for movement: Movement in expected:
+		movers.append(movement.player_id)
+	assert_array(board.preview_ghost_ids()).contains(movers)
 
 
 func test_a_defensive_area_previews_the_movers_without_the_ball_arrow() -> void:
@@ -386,11 +389,11 @@ func test_a_defensive_area_previews_the_movers_without_the_ball_arrow() -> void:
 	var action: int = _first_targeted_action(GameEnums.ChoiceFamily.DEFENSE)
 	_press(action)
 	var target: String = _target_of(GameEnums.ChoiceFamily.DEFENSE, action)
-	var expected: Array[Movement] = _controller.user_preview(
-			TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, action, PitchArea.from_key(target)))
+	var choice := TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, action, PitchArea.from_key(target))
+	var expected: Array[Movement] = _controller.user_preview(choice)
 	# プレスは必ず1人が寄せる（空振りしない）
 	assert_int(expected.size()).is_greater_equal(1)
-	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+	_assert_previews(choice, expected)
 	# 守備の手では、ボールから選んだエリアへの矢印を出さない
 	assert_bool(_panel.board().has_intent()).is_false()
 
@@ -400,12 +403,19 @@ func test_an_attacking_area_keeps_the_ball_arrow_and_previews_the_dribbler() -> 
 	var action: int = GameEnums.PlayType.DRIBBLE
 	_press(action)
 	var target: String = _target_of(GameEnums.ChoiceFamily.ATTACK, action)
-	var expected: Array[Movement] = _controller.user_preview(
-			TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, action, PitchArea.from_key(target)))
+	var choice := TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, action, PitchArea.from_key(target))
+	var expected: Array[Movement] = _controller.user_preview(choice)
 	# ボールのエリアには必ず保持者がいるので、ドリブルは1人が運ぶ
 	assert_int(expected.size()).is_equal(1)
-	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+	_assert_previews(choice, expected)
 	assert_bool(_panel.board().has_intent()).is_true()
+
+
+func test_the_board_previews_with_the_timing_from_the_settings() -> void:
+	_start(true)
+	var style: Dictionary = _controller.preview_style()
+	assert_float(style["move_sec"] as float).is_greater(0.0)
+	assert_dict(_panel.board().preview_style()).is_equal(style)
 
 
 func test_choosing_another_move_replaces_the_preview_and_submitting_clears_it() -> void:
@@ -416,12 +426,11 @@ func test_choosing_another_move_replaces_the_preview_and_submitting_clears_it() 
 	assert_int(actions.size()).override_failure_message("攻撃の手が2つ以上ある場面であること").is_greater_equal(2)
 	for action: int in [actions[0], actions[1]]:
 		_press(action)
-		var expected: Array[Movement] = _controller.user_preview(
-				TurnChoice.new(family, action, PitchArea.from_key(_target_of(family, action))))
-		assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+		var choice := TurnChoice.new(family, action, PitchArea.from_key(_target_of(family, action)))
+		_assert_previews(choice, _controller.user_preview(choice))
 	_panel.primary_button().pressed.emit()
 	assert_int(_panel.state()).is_equal(State.SHOW_RESULT)
-	assert_array(_panel.board().preview_movements()).is_empty()
+	assert_array(_panel.board().preview_ghost_ids()).is_empty()
 
 
 func test_the_detail_explains_the_rule_of_the_chosen_move() -> void:
@@ -479,10 +488,10 @@ func test_a_move_without_a_target_previews_as_soon_as_it_is_chosen() -> void:
 	_start_in_a_lost_transition()
 	_press(GameEnums.NegTransAction.RETREAT)
 	assert_int(_panel.state()).is_equal(State.READY)
-	var expected: Array[Movement] = _controller.user_preview(
-			TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT))
+	var choice := TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT)
+	var expected: Array[Movement] = _controller.user_preview(choice)
 	assert_array(expected).is_not_empty()
-	assert_array(_keys_of(_panel.board().preview_movements())).is_equal(_keys_of(expected))
+	_assert_previews(choice, expected)
 	assert_bool(_panel.board().has_intent()).is_false()
 
 
@@ -560,8 +569,8 @@ func test_binding_gives_the_board_the_piece_motion_from_the_settings() -> void:
 	# 2拍目の途中: 1人だけが動くのでずらしは無く、浮いている（同梱の弾みは駒の半径の 0.35 倍）
 	await await_millis(600)
 	assert_int(board.shift_beat_index()).is_equal(1)
-	assert_float(board.shifting_piece_lift(mover["player_id"] as String)).is_greater(0.05)
-	assert_float(board.shifting_piece_lift(mover["player_id"] as String)) \
+	assert_float(board.shifting_piece_lift(mover["player_id"] as String, true)).is_greater(0.05)
+	assert_float(board.shifting_piece_lift(mover["player_id"] as String, true)) \
 			.is_less_equal(_controller.piece_style()["hop"] as float + 0.0001)
 
 

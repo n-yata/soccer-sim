@@ -88,6 +88,7 @@ func bind(controller: MatchController, show_next: bool = true) -> void:
 	_board.set_result_sec(_controller.board_result_sec())
 	_board.set_piece_style(_controller.piece_style())
 	_board.set_beat_gap_sec(_controller.board_beat_gap_sec())
+	_board.set_preview_style(_controller.preview_style())
 
 
 ## コントローラーとのつながりを切る（画面の exit）。
@@ -285,7 +286,7 @@ func _on_action_selected(family: GameEnums.ChoiceFamily, action: int) -> void:
 	var carries_ball: bool = family in [GameEnums.ChoiceFamily.ATTACK, GameEnums.ChoiceFamily.POS_TRANS] \
 			and not _selected_target.is_empty()
 	_board.show_intent(_snapshot.ball_area if carries_ball else "", _selected_target if carries_ball else "")
-	_board.show_preview(_controller.user_preview(_current_choice()))
+	_board.show_preview_motion(_controller.user_preview_frames(_current_choice()))
 	_detail_title = _detail_title_of(family, action)
 	_detail_lines = [_detail_target_line(family), _detail_hint_line(family, action), MatchTexts.target_rule(family, action)]
 	_detail_button.disabled = false
@@ -363,7 +364,7 @@ func _on_primary_pressed() -> void:
 func _submit() -> void:
 	_state = State.SUBMITTING
 	_primary_button.disabled = true
-	_board.show_preview([])
+	_board.show_preview_motion([])
 	_choice_panel.set_enabled(false)
 	if not _controller.submit_turn(_current_choice()) and _state == State.SUBMITTING:
 		start_turn()

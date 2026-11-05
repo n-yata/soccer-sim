@@ -320,6 +320,11 @@ class_name MovePreview extends RefCounted
 ## 計算は判定と同じ関数（apply_attack・apply_defense・TransitionJudge.judge）を通す。トランジションの「何もしない」は、
 ## 奪取側の相手を即時奪回、喪失側の相手を保持とする（どちらも配置を変えない手）。選べるかは見ない。適用できなければ空
 static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[Movement]
+## 相手が何もしないと仮定したときの配置の並び [ターン開始時, 判定時, 次のターン開始時]（2026-11-05。プレビューで手の動きと詰め直しを
+## 見せる）。結果は、攻撃は手が通る（ADVANCE）、守備はボールが動かない（STALL）、トランジションは上と同じ「何もしない」相手での判定の
+## 結果。シュートは判定時まで（決まるかで置き直しが変わるため）、適用できない手・オフサイドになる手はターン開始時だけ。
+## 次のターン開始時は MatchRules.preview_next（resolve_turn と同じ、判定の結果を次の状態へ反映する手順）から作る
+static func team_steps(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[LayoutPair]
 ```
 
 `JudgeOutput`（`judge_output.gd`）は `outcome: TurnOutcome`・`detail: JudgeDetail`（`NO_CONTEST` は `null`）・
@@ -401,7 +406,8 @@ static func finish(state: MatchState) -> MatchState
     「ターン開始の位置から動いたか」で付け直す（得点はキックオフで全員を基本エリアに置くので付け直さない）
   - 置ける保持者は、ターン開始の位置と今いるエリアのどちらからも、ボールのエリアが1マス以内の選手だけ。いなければ置かない。
     キックオフ（`create_match`・`apply_halftime`・得点の後）は距離を問わない
-  - 膠着したドリブルの選手は、`current_area` もボールのエリア（ターン開始の位置）へ戻す
+  - 膠着したドリブルの選手は、`current_area` もボールのエリア（ターン開始の位置）へ戻す。トランジションで自分で運んだ
+    カウンターの膠着も同じく戻し、固定は解いたままにする（2026-11-06）
   - 選手の位置の持ち越し（キックオフのリセット・固定の解除・写し戻し・`moved_in_turn`・ドリブルの戻し・保持者を置く）は、
     `MatchRules` から呼ぶ内部のクラス `MatchPositions`（`match/`）に分けている（2026-10-24。ファイルの大きさの目安を保つため）。
     アプリケーション層は `MatchPositions` を呼ばない
@@ -550,6 +556,9 @@ func user_options() -> MoveOptions               # 利用者の視点
 func user_hints() -> Array[ChoiceHint]           # 利用者の視点。設定でヒントが OFF なら UI は呼ばない
 ## 決定前のプレビュー（利用者の視点の手 → 利用者の選手の動き。利用者の視点）。手を選べないときは空
 func user_preview(user_choice: TurnChoice) -> Array[Movement]
+## 決定前のプレビューの配置の並び（MovePreview.team_steps を、利用者の選手の並び（BoardSnapshot.user_players と同じ形）にしたもの。2026-11-05）
+func user_preview_frames(user_choice: TurnChoice) -> Array
+func preview_style() -> Dictionary              # 決定前のプレビューの時間 {"move_sec", "hold_sec"}（PresentationConfig。2026-11-05）
 ## 選択不可の手なら false を返し、状態を変えない（push_error で記録する）
 func submit_turn(user_choice: TurnChoice) -> bool
 ## 開示（駒とボールの動きと判定理由）を利用者が確認した後に呼ぶ。進行段階に応じて次の画面を App に要求する
@@ -849,7 +858,7 @@ func validation_errors() -> Array[String]
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数・アディショナルタイムの最大ターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty（2026-10-25）・マーク注意の減点 marked_penalty（2026-10-29） |
-| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・結果の演出を出す時間（秒）・1拍目のボールの軌道（浮き球の高さ・ドリブルの弾みの高さと回数）・駒の動き（ずらしの幅・弾みの高さ）・拍の間の小休止（秒）・振り返りで遡るターン数 |
+| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・結果の演出を出す時間（秒）・1拍目のボールの軌道（浮き球の高さ・ドリブルの弾みの高さと回数）・駒の動き（ずらしの幅・弾みの高さ）・拍の間の小休止（秒）・決定前のプレビューの動く時間と止める時間（秒）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
 ```gdscript
@@ -859,7 +868,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）と結果の演出を出す時間は0より大きく2以下、浮き球の高さは0以上20以下・ドリブルの弾みの高さは0以上5以下（有限の値）・弾みの回数は1以上8以下、駒のずらしの幅は0以上0.8以下・駒の弾みの高さは0以上1.5以下・拍の間の小休止は0以上0.5以下（有限の値）、遡るターン数は
+値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）と結果の演出を出す時間は0より大きく2以下、浮き球の高さは0以上20以下・ドリブルの弾みの高さは0以上5以下（有限の値）・弾みの回数は1以上8以下、駒のずらしの幅は0以上0.8以下・駒の弾みの高さは0以上1.5以下・拍の間の小休止は0以上0.5以下（有限の値）、プレビューの動く時間は0より大きく2以下・止める時間は0以上2以下、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -1090,6 +1099,12 @@ func route_back() -> bool
 > 盤面に重ねる。移動先は自分の色の輪（中抜き）、動く選手の駒から輪へ点線の曲線の矢印。開示後の動き（実線）と線の種類で区別する。
 > プレビューは理由で絞らない（リトリート・カウンターの飛び出し・マークの付け直しも出す）。ボールから運ぶ先への矢印は、
 > ボールを運ぶ手（攻撃・カウンター）だけに出す。プレス・カバー・スルーパスでは、運ぶ先を選ぶ間に選べる条件の一言（`MatchTexts.target_rule`）を出す。
+> （輪と点線の矢印は 2026-11-05 にやめた。下の注記）
+>
+> **2026-11-05（チーム全員のプレビュー）**: 手を選ぶと、`MatchController.user_preview_frames` の配置の並び（ターン開始時・判定時・
+> 次のターン開始時）を `TacticsBoard.show_preview_motion` に渡し、どこかの配置で位置が変わる自分の選手を、半透明の駒で配置から配置へ
+> 動かし、止めて最初へ戻すのをくり返す（ボードの子ノード `BoardPreviewLoop`。時間は `preview_style()`）。動く選手のもとの駒は描かない（残すと見づらい、というシャビの指摘）。動かない駒はその場に残す。
+> 1人分の動きしか見えない・矢印が読みにくい、というシャビの指摘による。`show_preview`（輪と点線の曲線の矢印）は消した。
 >
 > **2026-11-03（手の選択の簡素化）**: 行き先はゲームが決め（`MoveMenu`）、手を押すとすぐ `READY` になる（運ぶ先を選ぶ状態をやめた）。
 > 自分の手の行き先はターンの頭から `set_selectable`・`set_hints` で盤面に出し（札は手の番号。ヒントが ON なら人数差も）、

@@ -163,6 +163,11 @@ static func _layout_of(pair: LayoutPair, side: GameEnums.TeamSide) -> TeamLayout
 	return pair.attacker if pair.attacker_side == side else pair.defender
 
 
+## 利用者（HOME）の選手の並び（BoardSnapshot.user_players と同じ形・利用者の視点）。決定前のプレビューの配置に使う。
+static func user_players_of(pair: LayoutPair, catalog: ContentCatalog, setup: TeamSetup) -> Array[Dictionary]:
+	return _players(_layout_of(pair, GameEnums.TeamSide.HOME), GameEnums.TeamSide.HOME, _numbers(catalog, setup))
+
+
 ## 選手 ID → 背番号（陣形データ）。陣形が見つからなければ空（背番号は 0 になる）。
 static func _numbers(catalog: ContentCatalog, setup: TeamSetup) -> Dictionary:
 	var numbers: Dictionary = {}

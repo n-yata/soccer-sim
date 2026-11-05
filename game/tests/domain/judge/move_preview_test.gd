@@ -226,3 +226,87 @@ func test_an_inapplicable_defense_returns_no_movements() -> void:
 	# A2-C（AWAY から見て D1-C。ゴール前の1列目）のカバーは背後が盤外で適用できない
 	var state: MatchState = _open_state([["h1", "M2-C", ""]], [["a1", "D1-C", ""]], "M2-C")
 	assert_array(_preview(state, AWAY, _choice(DEFENSE, GameEnums.DefenseAction.COVER, "A2-C"))).is_empty()
+
+
+# --- 相手が何もしないときの3つの配置（team_steps。2026-11-05） ---
+
+## 配置の選手 ID → エリアのキー
+func _areas(layout: TeamLayout) -> Dictionary:
+	var result: Dictionary = {}
+	for player: PlayerState in layout.players:
+		result[player.player_id] = layout.current_area_of(player.player_id).to_key()
+	return result
+
+
+func _home_areas(pair: LayoutPair) -> Dictionary:
+	return _areas(pair.attacker if pair.attacker_side == HOME else pair.defender)
+
+
+func test_a_pass_shows_the_turn_start_the_play_and_the_reshape_after_it_goes_through() -> void:
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""], ["h3", "D2-L2", ""]],
+			[["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
+	var pass_choice := _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C")
+	var steps: Array[LayoutPair] = MovePreview.team_steps(state, HOME, pass_choice)
+	assert_int(steps.size()).is_equal(3)
+	var start: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
+	assert_dict(_home_areas(steps[0])).is_equal(_home_areas(start))
+	assert_dict(_home_areas(steps[1])).is_equal(_home_areas(OpenPlayJudge.apply_attack(start,
+			state.setup_of(AWAY).styles, state.ball_area, pass_choice).pair))
+	# 詰め直しは、パスが通った（前進。ボールは A1-C、HOME の保持のまま）次のターンの開始時
+	var next: MatchState = MatchRules.preview_next(state, JudgeOutput.new(GameEnums.TurnOutcome.ADVANCE, null, steps[1],
+			[] as Array[Movement]), pass_choice)
+	assert_str(next.ball_area.to_key()).is_equal("A1-C")
+	assert_int(next.possession).is_equal(HOME)
+	assert_dict(_home_areas(steps[2])).is_equal(_home_areas(StyleLayoutCalculator.turn_start(next).pair))
+
+
+func test_a_shot_or_an_offside_pass_shows_no_reshape() -> void:
+	# シュートは決まるかで置き直しが変わるので、判定時まで（2つ）
+	var shot_state: MatchState = _open_state([["h1", "A2-C", ""]], [["a1", "D1-C", ""]], "A2-C")
+	assert_int(MovePreview.team_steps(shot_state, HOME, _choice(ATTACK, GameEnums.PlayType.SHOT)).size()).is_equal(2)
+	# オフサイドのパスはプレーが止まるので、ターン開始時だけ（1つ）。受け手 h2 は A2-L1 でオフサイドの位置
+	var offside_state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A2-L1", ""]], [["a1", "D2-C", ""]], "M2-C")
+	var through := _choice(ATTACK, GameEnums.PlayType.THROUGH_PASS, "A1-C")
+	assert_int(MovePreview.team_steps(offside_state, HOME, through).size()).is_equal(1)
+
+
+func test_a_defense_shows_the_reshape_with_the_ball_where_it_is() -> void:
+	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
+	var press := _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M2-C")
+	var steps: Array[LayoutPair] = MovePreview.team_steps(state, AWAY, press)
+	assert_int(steps.size()).is_equal(3)
+	# 判定時は、プレスで a1 が寄せた配置
+	var judged_away: Dictionary = _areas(steps[1].defender)
+	assert_str(judged_away["a1"] as String).is_equal("M1-C")
+
+
+func test_a_transition_shows_three_steps_against_a_side_that_does_not_move() -> void:
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-R1", ""]], [["a1", "M2-C", ""]])
+	var steps: Array[LayoutPair] = MovePreview.team_steps(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "M2-R1"))
+	assert_int(steps.size()).is_equal(3)
+
+
+func test_preview_next_builds_the_same_next_state_as_resolving_the_turn() -> void:
+	# 本物の試合のキックオフで、選べる最初の攻撃の手と守備の手でターンを解決し、その判定の結果から preview_next が
+	# 同じ次の状態（ボール・保持・両チームの選手のエリア）を作ることを確かめる（試合の進め方を二重に持たない）
+	var catalog: ContentCatalog = ContentRepository.new().load_catalog()
+	var state: MatchState = MatchRules.create_match("p", TeamSetup.new("4-4-2", TeamStyles.new(ZONE, GameEnums.AttackStyle.POSSESSION)),
+			TeamSetup.new("4-4-2", TeamStyles.new(MAN, GameEnums.AttackStyle.COUNTER)), HOME, catalog, "")
+	var attack_options: MoveOptions = MoveRules.options_for(state, HOME)
+	var attack := TurnChoice.new(ATTACK, GameEnums.PlayType.SHORT_PASS,
+			attack_options.targets(ATTACK, GameEnums.PlayType.SHORT_PASS)[0])
+	var defense: TurnChoice = _first_defense(MoveRules.options_for(state, AWAY))
+	var resolution: TurnResolution = MatchRules.resolve_turn(state, attack, defense, MatchRuleConfig.new())
+	var record: TurnRecord = resolution.record
+	var output := JudgeOutput.new(record.outcome, record.judge, record.pair_at_judgement, [] as Array[Movement])
+	var next: MatchState = MatchRules.preview_next(state, output, attack)
+	assert_str(next.ball_area.to_key()).is_equal(resolution.next_state.ball_area.to_key())
+	assert_int(next.possession).is_equal(resolution.next_state.possession)
+	for side: GameEnums.TeamSide in [HOME, AWAY]:
+		var expected: Dictionary = {}
+		var actual: Dictionary = {}
+		for player: PlayerState in resolution.next_state.players_of(side):
+			expected[player.player_id] = player.base_area.to_key() + "/" + (player.fixed_area.to_key() if player.is_fixed() else "")
+		for player: PlayerState in next.players_of(side):
+			actual[player.player_id] = player.base_area.to_key() + "/" + (player.fixed_area.to_key() if player.is_fixed() else "")
+		assert_dict(actual).override_failure_message(str(side)).is_equal(expected)

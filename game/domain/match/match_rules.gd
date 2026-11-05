@@ -87,14 +87,8 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 		return null
 	var ball_after: PitchArea = _ball_after(state, output, holder_choice)
 	var next: MatchState = state.duplicate_deep()
-	_apply_outcome(next, state.turn_kind, output, ball_after)
 	var record: TurnRecord = _record(state, start, output, home_choice, away_choice, ball_after)
-	if state.turn_kind == GameEnums.TurnKind.OPEN_PLAY and holder_choice.action == GameEnums.PlayType.DRIBBLE \
-			and output.outcome == GameEnums.TurnOutcome.STALL:
-		record.movements.append_array(MatchPositions.stop_dribble(next, state, output))
-	# 得点はキックオフで全員を自陣に縮めた陣形に置いた（仕切り直し）ので、ターン開始からの動きは数えない
-	if output.outcome != GameEnums.TurnOutcome.GOAL:
-		MatchPositions.mark_moved(next, start.pair)
+	record.movements.append_array(_apply_judged(next, state, start, output, holder_choice, ball_after))
 	next.turn_number += 1
 	var half_over: bool = _is_half_over(next.turn_number, record, rules)
 	# ハーフの終わり（最終ターン、またはアディショナルタイムの終わり）: 得点でも方式の選び直しを行わない。
@@ -110,6 +104,43 @@ static func resolve_turn(state: MatchState, home_choice: TurnChoice, away_choice
 		record.movements.append_array(MatchPositions.place_holder(next, null if kickoff else start.pair))
 	next.turn_records.append(record)
 	return TurnResolution.new(next, record)
+
+
+## 判定の結果 output を next（state の写し）に反映する（resolve_turn と preview_next で共有する）。結果の反映、膠着した
+## ドリブルの選手を戻す動き、ターン開始からの動きの印（得点は除く）。戻した選手の動きを返す。
+static func _apply_judged(next: MatchState, state: MatchState, start: LayoutStep, output: JudgeOutput,
+		holder_choice: TurnChoice, ball_after: PitchArea) -> Array[Movement]:
+	_apply_outcome(next, state.turn_kind, output, ball_after)
+	var movements: Array[Movement] = []
+	if output.outcome == GameEnums.TurnOutcome.STALL and _carries_ball(state.turn_kind, holder_choice):
+		movements.append_array(MatchPositions.stop_dribble(next, state, output))
+		# トランジションは膠着で終わり攻守ターンが始まるので、戻した選手の固定も解いたままにする（_apply_outcome で解いた）
+		if state.turn_kind == GameEnums.TurnKind.TRANSITION:
+			MatchPositions.release_fixes(next)
+	# 得点はキックオフで全員を自陣に縮めた陣形に置いた（仕切り直し）ので、ターン開始からの動きは数えない
+	if output.outcome != GameEnums.TurnOutcome.GOAL:
+		MatchPositions.mark_moved(next, start.pair)
+	return movements
+
+
+## 保持側の手が、選手がボールを運ぶ手か。攻守ターンのドリブルと、トランジションのカウンター（前に味方がいなければ
+## 奪った選手が自分で運ぶ。2026-11-05）。運ぶ動きが無いカウンターでは、stop_dribble は何も戻さない。
+static func _carries_ball(kind: GameEnums.TurnKind, holder_choice: TurnChoice) -> bool:
+	if kind == GameEnums.TurnKind.TRANSITION:
+		return holder_choice.action == GameEnums.PosTransAction.COUNTER
+	return holder_choice.action == GameEnums.PlayType.DRIBBLE
+
+
+## 決定前のプレビュー（MovePreview.team_steps）のための、次のターンの状態。判定の結果 output（相手が何もしないと仮定した
+## 結果）を、resolve_turn と同じ手順で反映し、ボールの保持者を置く。ハーフの終わり・ターンの記録・ターン数は扱わない
+## （プレビューは次のターン開始時の配置だけを見るため）。state は書き換えない。
+static func preview_next(state: MatchState, output: JudgeOutput, holder_choice: TurnChoice) -> MatchState:
+	var start: LayoutStep = StyleLayoutCalculator.turn_start(state)
+	var next: MatchState = state.duplicate_deep()
+	_apply_judged(next, state, start, output, holder_choice, _ball_after(state, output, holder_choice))
+	var kickoff: bool = output.outcome == GameEnums.TurnOutcome.GOAL
+	MatchPositions.place_holder(next, null if kickoff else start.pair)
+	return next
 
 
 ## 得点後の方式の選び直し（STYLE_CHANGE → TURN）。失点側のキックオフは得点の時点で済ませてあり、

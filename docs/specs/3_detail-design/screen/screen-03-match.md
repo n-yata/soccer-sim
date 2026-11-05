@@ -140,7 +140,9 @@ MatchScreen (Control)
 2. `_selected_family`・`_selected_action` を記録し、`_selected_target` をその手の行き先（`_options` の1件。行き先の無い手は空）にする
 3. 行き先を塗り（`TacticsBoard.set_selected`）、ボールを運ぶ手（攻撃・カウンター）なら `TacticsBoard.show_intent(ボールのエリア, 行き先)` で
    ボールから行き先への矢印を描く。守備の手では描かない（行き先は守る位置で、ボールはそこへ動かない）。
-   `MatchController.user_preview(手)` の動きを `TacticsBoard.show_preview` で重ねる（決定前のプレビュー。自分の選手だけ。相手の駒は動かさない）
+   `MatchController.user_preview_frames(手)` の配置の並び（ターン開始時・判定時・次のターン開始時）を `TacticsBoard.show_preview_motion` に
+   渡し、自分の選手全員の手の動きと詰め直しを半透明の駒でくり返し見せる（決定前のプレビュー。自分の選手だけ。相手の駒は動かさない。
+   2026-11-05。時間は bind で `set_preview_style(match_controller.preview_style())`）。決定で `show_preview_motion([])` にする（結果の盤面を出すときも消える）
 4. 詳細のポップアップの中身を作り、「詳細」を押せるようにする（ボタンの下には説明を出さない。2026-11-05）
 5. `_state = READY`、「決定」を押せるようにする。決定ボタンの要約を「ショートパス → 中盤（敵陣）・中央」の形にする
 

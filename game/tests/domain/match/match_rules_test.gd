@@ -614,6 +614,23 @@ func test_a_dribble_backwards_stalls_against_a_cover_on_the_attackers_forward_si
 	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.DRIBBLE_STOPPED)).is_equal(["h1:M1-L1>M2-C"])
 
 
+func test_a_counter_carried_alone_that_stalls_returns_the_carrier_to_the_ball() -> void:
+	# 前（M2-C）に味方がいないカウンターは、奪った h1（M1-C に固定）が自分で運ぶ（2026-11-05）。運ぶ先 M2-C は相手の a1
+	# （相手から見て M1-C）と 1対1、背後（攻撃側の視点の A1-C）に a2 がいてカバーあり → 膠着。攻守ターンのドリブルの膠着と
+	# 同じく、h1 はボールの M1-C へ戻る。トランジションが終わるので固定は解く（判定前の固定に戻さない）
+	var state: MatchState = _transition_state([["h1", "M1-C", "M1-C"], ["h2", "D2-C", ""]],
+			[["a1", "M1-C", ""], ["a2", "D2-C", ""]])
+	var resolution: TurnResolution = _resolve(state, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "M2-C"),
+			_choice(NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS))
+	var next: MatchState = resolution.next_state
+	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.STALL)
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.DRIBBLE)).is_equal(["h1:M1-C>M2-C"])
+	assert_array(_moves_of(resolution.record, GameEnums.MovementReason.DRIBBLE_STOPPED)).is_equal(["h1:M2-C>M1-C"])
+	assert_str(next.ball_area.to_key()).is_equal("M1-C")
+	assert_str(MatchRules.current_layouts(next).pair.attacker.current_area_of("h1").to_key()).is_equal("M1-C")
+	assert_bool(next.home_players[0].is_fixed()).is_false()
+
+
 func test_the_nearest_player_within_one_area_is_placed_on_the_ball() -> void:
 	# 保持 × リトリートで、奪取側が X（M1-C）から攻守ターンを始める。M1-C には誰もいない。
 	# 1マス以内のいちばん近い h1（M2-C）を M1-C に置いて固定する（h2 は M2-L2。2マス離れていて届かない）

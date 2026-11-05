@@ -107,6 +107,8 @@ func _config(turns: int, additional: int = 0) -> ConfigRepository:
 	presentation.piece_stagger = 0.2
 	presentation.piece_hop_height = 0.5
 	presentation.board_beat_gap_sec = 0.3
+	presentation.preview_move_sec = 0.7
+	presentation.preview_hold_sec = 0.4
 	ResourceSaver.save(presentation, dir.path_join("presentation_config.tres"))
 	return ConfigRepository.new(dir)
 
@@ -264,6 +266,34 @@ func test_user_preview_of_a_press_ends_in_the_chosen_area_in_the_user_view() -> 
 	assert_int(preview[0].side).is_equal(HOME)
 	assert_int(preview[0].reason).is_equal(GameEnums.MovementReason.PRESS)
 	assert_str(preview[0].to.to_key()).is_equal(target.to_key())
+
+
+func test_user_preview_frames_show_the_whole_team_through_the_play_and_the_reshape() -> void:
+	# 利用者は守備（AWAY のキックオフ）。プレスの3つの配置（ターン開始時・判定時・次のターン開始時）を、自分の選手全員の並びで返す
+	var controller: MatchController = _controller(_seed_for_kickoff(AWAY))
+	controller.start_match(_user_setup())
+	var target: PitchArea = controller.user_options().targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0]
+	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, target)
+	var frames: Array = controller.user_preview_frames(press)
+	assert_int(frames.size()).is_equal(3)
+	var team_size: int = controller.snapshot().user_players.size()
+	for frame: Array in frames:
+		assert_int(frame.size()).is_equal(team_size)
+	# ターン開始時はいまの盤面と同じ。判定時は、プレスで寄せた選手が制限するエリア（利用者の視点で選んだエリア）にいる
+	assert_array(frames[0]).is_equal(controller.snapshot().user_players)
+	var pressed: Array[String] = []
+	for player: Dictionary in frames[1]:
+		if player["area"] == target.to_key():
+			pressed.append(player["player_id"] as String)
+	assert_array(pressed).is_not_empty()
+	# 選べない手は空（攻撃の手は守備のときに選べない）
+	var dribble := TurnChoice.new(ATTACK, GameEnums.PlayType.DRIBBLE, PitchArea.from_key("M1-L1"))
+	await assert_error(func() -> void: controller.user_preview_frames(dribble)) \
+			.is_push_error("MatchController: 選べない手のプレビューは出せない")
+
+
+func test_preview_style_comes_from_the_presentation_settings() -> void:
+	assert_dict(_controller(1).preview_style()).is_equal({"move_sec": 0.7, "hold_sec": 0.4})
 
 
 func test_user_preview_is_empty_before_the_match_for_an_unavailable_choice_and_during_the_reveal() -> void:

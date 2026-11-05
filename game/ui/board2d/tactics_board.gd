@@ -46,7 +46,6 @@ var _even_hints: Array[String] = []
 var _intent_from: String = ""
 var _intent_to: String = ""
 var _movements: Array[Movement] = []
-var _preview: Array[Movement] = []
 var _compare_area: String = ""
 var _compare_tag: String = ""
 ## 振り返りの集計の札（エリアのキー → 「勝3 負1 膠1」）。選べるエリアに関係なく、札があるエリアにだけ描く
@@ -54,6 +53,9 @@ var _tally: Dictionary = {}
 var _pressed_key: String = ""
 ## 開示の進行（拍の Tween・着地・結果の演出）。子ノード
 var _reveal := BoardReveal.new()
+## 決定前のプレビューのくり返し（子ノード）と、渡された配置の並び
+var _preview_loop := BoardPreviewLoop.new()
+var _preview_frames: Array = []
 
 func _init() -> void:
 	assert(BoardGeometry.PIECE_COLUMNS * BoardGeometry.PIECE_ROW_RATES.size() >= MAX_PIECES, "TacticsBoard: 駒の列 × 段が MAX_PIECES に足りない")
@@ -64,6 +66,9 @@ func _init() -> void:
 	add_child(_reveal)
 	_reveal.landed.connect(play_landed.emit)
 	_reveal.changed.connect(queue_redraw)
+	_preview_loop.name = "PreviewLoop"
+	add_child(_preview_loop)
+	_preview_loop.changed.connect(queue_redraw)
 
 
 # --- 外から渡す値 ---
@@ -71,6 +76,7 @@ func _init() -> void:
 func show_snapshot(snapshot: BoardSnapshot) -> void:
 	_reveal.stop()
 	_reveal.clear_effect()
+	_clear_preview()
 	_user_players = snapshot.user_players.duplicate()
 	_opponent_players = snapshot.opponent_players.duplicate()
 	_ball_area = snapshot.ball_area
@@ -111,11 +117,32 @@ func show_movements(movements: Array[Movement]) -> void:
 	queue_redraw()
 
 
-## 決定前のプレビュー: 選んだ手で動く自分の選手（利用者の視点の Movement）。移動先の半透明の駒と点線の矢印を描く。
-## 開示後の矢印（show_movements）と違い、理由で絞らない（その手で起きる自分の動きをすべて見せる）。
-func show_preview(movements: Array[Movement]) -> void:
-	_preview = movements.duplicate()
-	queue_redraw()
+## 決定前のプレビュー（2026-11-05）: 自分の選手の配置の並び frames（MatchController.user_preview_frames。ターン開始時・判定時・
+## 次のターン開始時。各要素は BoardSnapshot.user_players と同じ形）を、半透明の駒で順に動かし、止めて最初へ戻すのをくり返す。
+## どこかの配置で位置が変わる選手だけを動かし、その選手のもとの駒は描かない（動かない駒はその場）。空なら消す。
+func show_preview_motion(frames: Array) -> void:
+	_preview_frames = frames.duplicate(true)
+	var centers: Dictionary = {}
+	for frame: Array in frames:
+		var players: Array[Dictionary] = []
+		players.assign(frame)
+		var slots: Array[int] = BoardShift.slots(players)
+		for index: int in range(players.size()):
+			var player_id: String = players[index]["player_id"] as String
+			if not centers.has(player_id):
+				centers[player_id] = []
+			(centers[player_id] as Array).append(slot_center(players[index]["area"] as String, true, slots[index]))
+	_preview_loop.load_centers(centers)
+
+
+## 決定前のプレビューの時間 {"move_sec", "hold_sec"}（MatchController.preview_style()）。パネルが bind で入れる。
+func set_preview_style(style: Dictionary) -> void:
+	_preview_loop.set_style(style)
+
+
+func _clear_preview() -> void:
+	_preview_frames = []
+	_preview_loop.clear()
 
 
 ## 比較エリアの光と人数の札（`自分対相手`）。
@@ -136,6 +163,7 @@ func show_tally(tally: Dictionary) -> void:
 func clear_overlays() -> void:
 	_reveal.stop()
 	_reveal.clear_effect()
+	_clear_preview()
 	_selectable.clear()
 	_selected = ""
 	_hints.clear()
@@ -143,7 +171,6 @@ func clear_overlays() -> void:
 	_intent_from = ""
 	_intent_to = ""
 	_movements.clear()
-	_preview.clear()
 	_compare_area = ""
 	_compare_tag = ""
 	_tally.clear()
@@ -224,14 +251,14 @@ func shift_beat_ball_path(beat: int) -> Dictionary:
 	return _reveal.shift.ball_path_of(beat).duplicate()
 
 
-## player_id の駒を描く位置。開示で動いていれば道筋の途中、後の拍で動くならその拍の始まり、そうでなければ rest（駒の列の位置）。
-func shifting_piece_center(player_id: String, rest: Vector2) -> Vector2:
-	return _reveal.shift.piece_position(player_id, rest)
+## is_user 側の player_id の駒を描く位置。開示で動いていれば道筋の途中、後の拍で動くならその拍の始まり、そうでなければ rest（駒の列の位置）。
+func shifting_piece_center(player_id: String, is_user: bool, rest: Vector2) -> Vector2:
+	return _reveal.shift.piece_position(player_id, is_user, rest)
 
 
-## player_id の駒の高さ（駒の半径の何倍か。開示で動いている間の弾み）。動いていなければ 0。
-func shifting_piece_lift(player_id: String) -> float:
-	return _reveal.shift.piece_lift(player_id)
+## is_user 側の player_id の駒の高さ（駒の半径の何倍か。開示で動いている間の弾み）。動いていなければ 0。
+func shifting_piece_lift(player_id: String, is_user: bool) -> float:
+	return _reveal.shift.piece_lift(player_id, is_user)
 
 
 # --- 位置の計算（BoardGeometry。描画・テスト・ResultEffect が読む公開の面として残す） ---
@@ -423,24 +450,34 @@ func standing_order() -> Array[Dictionary]:
 			for index: int in range(team.size()):
 				var rest: Vector2 = slot_center(team[index]["area"] as String, is_user, slots[index])
 				things.append({"kind": "piece", "is_user": is_user, "is_preview": false,
-						"plan": shifting_piece_center(team[index]["player_id"] as String, rest),
-						"lift": shifting_piece_lift(team[index]["player_id"] as String)})
+						"plan": shifting_piece_center(team[index]["player_id"] as String, is_user, rest),
+						"lift": shifting_piece_lift(team[index]["player_id"] as String, is_user)})
 	else:
 		for area: PitchArea in PitchArea.all():
 			for is_user: bool in [true, false]:
 				_append_area_pieces(things, area.to_key(), is_user)
-	for index: int in range(_preview.size()):
-		things.append({"kind": "piece", "is_user": true, "is_preview": true, "plan": preview_center(index)})
+	for player_id: String in _preview_loop.ghost_ids():
+		things.append({"kind": "piece", "is_user": true, "is_preview": true, "plan": _preview_loop.ghost_position(player_id)})
 	if not _ball_area.is_empty():
 		things.append({"kind": "ball", "plan": ball_center(), "lift": ball_lift()})
 	things.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a["plan"] as Vector2).y < (b["plan"] as Vector2).y)
 	return things
 
 
-## エリアの1チームの駒（上限を超えたら駒 (上限 - 1) つと「+N」の札）を things に足す。
+## エリアの1チームの駒（上限を超えたら駒 (上限 - 1) つと「+N」の札）を things に足す。決定前のプレビューで半透明の駒に
+## なっている自分の選手は、もとの位置に駒を残さない（見づらいというシャビの指摘。2026-11-05）。他の駒は並びの位置のまま。
 func _append_area_pieces(things: Array[Dictionary], key: String, is_user: bool) -> void:
 	var shown: int = visible_piece_count(key, is_user)
+	var ghosts: Array[String] = []
+	if is_user:
+		ghosts = _preview_loop.ghost_ids()
+	var ids: Array[String] = []
+	for player: Dictionary in players(is_user):
+		if player["area"] == key:
+			ids.append(player["player_id"] as String)
 	for index: int in range(shown):
+		if ids[index] in ghosts:
+			continue
 		things.append({"kind": "piece", "is_user": is_user, "is_preview": false, "plan": piece_center(key, is_user, index)})
 	var tag: String = overflow_tag(key, is_user)
 	if not tag.is_empty():
@@ -465,33 +502,29 @@ func drawn_movements() -> Array[Movement]:
 	return result
 
 
-func preview_movements() -> Array[Movement]:
-	return _preview.duplicate()
+## 決定前のプレビューの配置の並び（show_preview_motion に渡したもの）。プレビューしていなければ空。
+func preview_frames() -> Array:
+	return _preview_frames.duplicate(true)
 
 
-## index 番目のプレビューの移動先の半透明の駒の中心。移動先のエリアの自分の駒の並びの続き（そのエリアの自分の駒の数 ＋
-## 同じエリアへの先のプレビューの駒の数）に置く。1エリアに5人以上が集まるのはまれなので、最後の位置（MAX_PIECES - 1）で止める。
-func preview_center(index: int) -> Vector2:
-	var key: String = _preview[index].to.to_key()
-	var slot: int = (pieces_in(key)["user"] as Array).size()
-	for earlier: int in range(index):
-		if _preview[earlier].to.to_key() == key:
-			slot += 1
-	return slot_center(key, true, slot)
+## 決定前のプレビューで、半透明の駒で動かしている選手。
+func preview_ghost_ids() -> Array[String]:
+	return _preview_loop.ghost_ids()
 
 
-## index 番目のプレビューの矢印の始点。動く選手の駒（移動元のエリアの自分の駒の列で、盤面の選手の順の位置）の中心。
-## 駒は番号を描かないが、矢印がどの駒から出るかが分かるよう、駒の足元から引く。見つからなければエリアの中央。
-func preview_origin(index: int) -> Vector2:
-	var key: String = _preview[index].from.to_key()
-	var slot: int = 0
-	for player: Dictionary in _user_players:
-		if player["area"] != key:
-			continue
-		if player["player_id"] == _preview[index].player_id:
-			return slot_center(key, true, slot)
-		slot += 1
-	return area_rect(key).get_center()
+## player_id の半透明の駒のいまの位置（平面図）。
+func preview_ghost_center(player_id: String) -> Vector2:
+	return _preview_loop.ghost_position(player_id)
+
+
+## 決定前のプレビューを動かしているか。
+func is_previewing() -> bool:
+	return _preview_loop.is_active()
+
+
+## いま使っている決定前のプレビューの時間 {"move_sec", "hold_sec"}。
+func preview_style() -> Dictionary:
+	return _preview_loop.style()
 
 
 func has_intent() -> bool:

@@ -16,6 +16,10 @@ extends Resource
 @export var piece_hop_height: float = 0.35
 ## 開示の拍と拍の間の小休止（秒）。0 以上 0.5 以下（長いとテンポが落ちる）
 @export var board_beat_gap_sec: float = 0.12
+## 決定前のプレビューで、半透明の駒が配置から次の配置へ動く1区間の時間（秒）。0 より大きく 2 以下
+@export var preview_move_sec: float = 0.6
+## 決定前のプレビューで、動き終えて止めてから元へ戻すまでの時間（秒）。0 以上 2 以下
+@export var preview_hold_sec: float = 0.6
 ## 開示の1拍目で、浮き球（ロングボール・サイドチェンジ）がいちばん高く上がるときの高さ（ボールの半径の何倍か）。0 以上 20 以下
 ## （高すぎると盤面の上へはみ出す）
 @export var ball_loft_height: float = 6.0

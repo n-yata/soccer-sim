@@ -41,6 +41,49 @@ static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: T
 	return _of_side(movements, side)
 
 
+## side が choice を選び、相手が何もしないと仮定したときの配置の並び [ターン開始時, 判定時, 次のターン開始時]
+## （2026-11-05。プレビューで手の動きと詰め直しを見せるため）。相手が何もしないときの結果は次のとおり仮定する。
+## - 攻撃（運ぶ先のある手）: 手が通る（前進。ボールは運ぶ先へ、保持のまま）
+## - シュート: 決まるかで置き直しが変わるので、判定時まで（2つ）
+## - 守備: ボールは動かず、相手の保持のまま（膠着）
+## - トランジション: own_movements と同じく、相手を動かない手にして判定した結果
+## 適用できない手・オフサイドになる手は、ターン開始時だけ（1つ）。配置は判定と試合の進め方と同じ関数で作る。
+static func team_steps(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[LayoutPair]:
+	var holder_styles: TeamStyles = state.setup_of(state.possession).styles
+	var other_styles: TeamStyles = state.setup_of(MatchState.other(state.possession)).styles
+	var start: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
+	var steps: Array[LayoutPair] = [start]
+	var output: JudgeOutput = null
+	var holder_choice: TurnChoice = choice
+	if state.turn_kind == GameEnums.TurnKind.TRANSITION:
+		var is_winner: bool = side == state.possession
+		holder_choice = choice if is_winner \
+				else TurnChoice.new(GameEnums.ChoiceFamily.POS_TRANS, GameEnums.PosTransAction.SECURE)
+		var loser: TurnChoice = choice if not is_winner \
+				else TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS)
+		output = TransitionJudge.judge(state.transition_origin, holder_styles, other_styles, state.ball_area,
+				holder_choice, loser)
+	elif side == state.possession:
+		if not choice.is_complete_for(GameEnums.ChoiceFamily.ATTACK) or OffsideRule.is_offside(start, state.ball_area, choice):
+			return steps
+		var attacked: LayoutStep = OpenPlayJudge.apply_attack(start, other_styles, state.ball_area, choice)
+		if choice.action == GameEnums.PlayType.SHOT:
+			steps.append(attacked.pair)
+			return steps
+		output = JudgeOutput.new(GameEnums.TurnOutcome.ADVANCE, null, attacked.pair, attacked.movements)
+	elif choice.is_complete_for(GameEnums.ChoiceFamily.DEFENSE):
+		var defended: LayoutStep = OpenPlayJudge.apply_defense(start, other_styles, choice)
+		if defended != null:
+			output = JudgeOutput.new(GameEnums.TurnOutcome.STALL, null, defended.pair, defended.movements)
+			# 膠着のボールの位置は判定前のまま。保持側の手は運ばない手として渡す（ドリブルを戻す動きを起こさない）
+			holder_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHORT_PASS)
+	if output == null:
+		return steps
+	steps.append(output.pair)
+	steps.append(StyleLayoutCalculator.turn_start(MatchRules.preview_next(state, output, holder_choice)).pair)
+	return steps
+
+
 ## side の動きだけ（ドリブルに付いていく相手のマークの付け直しなど、相手の動きを除く）。
 static func _of_side(movements: Array[Movement], side: GameEnums.TeamSide) -> Array[Movement]:
 	var result: Array[Movement] = []

@@ -209,6 +209,30 @@ func user_preview(user_choice: TurnChoice) -> Array[Movement]:
 	return ViewConverter.movements_to_user(MovePreview.own_movements(_state, USER, domain_choice))
 
 
+## 利用者の手を、相手が何もしないと仮定して適用したときの、利用者の選手の並び（BoardSnapshot.user_players と同じ形・利用者の視点）を、
+## ターン開始時・判定時・次のターン開始時の順に（MovePreview.team_steps。シュートは判定時まで、適用できない手はターン開始時だけ）。
+## 決定前のプレビューで、自分の駒全員の手の動きと詰め直しを見せるために使う（2026-11-05）。空になる条件は user_preview と同じ。
+func user_preview_frames(user_choice: TurnChoice) -> Array:
+	if not _is_started_or_error("user_preview_frames"):
+		return []
+	if user_choice == null or _awaiting_continue or _state.stage != GameEnums.MatchStage.TURN or is_match_over():
+		return []
+	var domain_choice: TurnChoice = ViewConverter.choice_to_domain(user_choice, _state.possession)
+	if not MoveRules.is_allowed(_user_menu(), domain_choice):
+		push_error("MatchController: 選べない手のプレビューは出せない")
+		return []
+	var frames: Array = []
+	for pair: LayoutPair in MovePreview.team_steps(_state, USER, domain_choice):
+		frames.append(ViewConverter.user_players_of(pair, _catalog, _state.home_setup))
+	return frames
+
+
+## 決定前のプレビューの時間（PresentationConfig）。{"move_sec": 1区間を動く時間, "hold_sec": 動き終えて止める時間}（秒）。
+func preview_style() -> Dictionary:
+	var presentation: PresentationConfig = _config.presentation()
+	return {"move_sec": presentation.preview_move_sec, "hold_sec": presentation.preview_hold_sec}
+
+
 ## 利用者の手（利用者の視点）でターンを確定する。選べない手・試合中でない・前の開示を確認する前のときは
 ## false を返し、状態を変えない。
 func submit_turn(user_choice: TurnChoice) -> bool:

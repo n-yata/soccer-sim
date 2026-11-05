@@ -466,6 +466,39 @@ func test_out_of_range_piece_motion_reports_an_error() -> void:
 			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（piece_stagger=0.9, piece_hop_height=0.35, board_beat_gap_sec=0.12）のため、初期値を使う")
 
 
+## プレビューの値（動く時間 move・止める時間 hold）だけを変えた設定
+func _preview_with(case_name: String, move: float, hold: float) -> ConfigRepository:
+	var dir: String = create_temp_dir("config_repository/preview_" + case_name)
+	var presentation := PresentationConfig.new()
+	presentation.preview_move_sec = move
+	presentation.preview_hold_sec = hold
+	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
+	return ConfigRepository.new(dir)
+
+
+func test_bundled_preview_timing_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の初期値（動く 0.6 秒・止める 0.6 秒）
+	for config: PresentationConfig in [ConfigRepository.new().presentation(), PresentationConfig.new()]:
+		assert_float(config.preview_move_sec).is_equal(0.6)
+		assert_float(config.preview_hold_sec).is_equal(0.6)
+	var text: String = FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)
+	for key: String in ["preview_move_sec = ", "preview_hold_sec = "]:
+		assert_str(text).contains(key)
+
+
+func test_preview_timing_inside_the_range_is_read_and_outside_falls_back() -> void:
+	# 動く時間は 0 より大きく 2 以下、止める時間は 0 以上 2 以下
+	for values: Array in [[0.01, 0.0], [2.0, 2.0]]:
+		var config: PresentationConfig = _preview_with("ok_%s_%s" % values, values[0], values[1]).presentation()
+		assert_float(config.preview_move_sec).override_failure_message(str(values)).is_equal(values[0] as float)
+		assert_float(config.preview_hold_sec).override_failure_message(str(values)).is_equal(values[1] as float)
+	var initial := PresentationConfig.new()
+	for values: Array in [[0.0, 0.6], [2.01, 0.6], [NAN, 0.6], [0.6, -0.01], [0.6, 2.01], [0.6, INF]]:
+		var config: PresentationConfig = _preview_with("bad_%s_%s" % values, values[0], values[1]).presentation()
+		assert_float(config.preview_move_sec).override_failure_message(str(values)).is_equal(initial.preview_move_sec)
+		assert_float(config.preview_hold_sec).override_failure_message(str(values)).is_equal(initial.preview_hold_sec)
+
+
 func test_missing_presentation_falls_back_to_the_initial_value_with_an_error() -> void:
 	var repository := ConfigRepository.new(create_temp_dir("config_repository/presentation_missing"))
 	await assert_error(func() -> void: repository.presentation()) \

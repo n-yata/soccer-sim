@@ -23,7 +23,6 @@ static func paint(board: TacticsBoard) -> void:
 	_draw_offside_line(board)
 	_draw_movements(board)
 	_draw_intent(board)
-	_draw_preview_paths(board)
 	_draw_standing_things(board)
 	ResultEffectPainter.paint(board)
 	# 札は駒と矢印の上に描く（通り道のエリアの札の字を隠さないように）
@@ -298,18 +297,6 @@ static func _draw_intent(board: TacticsBoard) -> void:
 	_draw_arrow(board, from_point, to_point, _color(board, &"accent"), 6.0)
 
 
-## 決定前のプレビューの点線の矢印（地面に沿った緩い曲線）。移動先の半透明の駒は、立っているものと一緒に描く。
-## 開示後の動き（実線の矢印）・いまの駒（不透明）と、線の種類と透明度で区別する。
-static func _draw_preview_paths(board: TacticsBoard) -> void:
-	var color: Color = _color(board, &"you")
-	var radius: float = board.piece_radius()
-	for index: int in range(board.preview_movements().size()):
-		var origin: Vector2 = board.preview_origin(index)
-		var center: Vector2 = board.preview_center(index)
-		if origin.distance_to(center) > radius * 2.0:
-			_draw_curved_dashed_arrow(board, origin, center, color, 3.0)
-
-
 static func _draw_arrow(board: TacticsBoard, from_point: Vector2, to_point: Vector2, color: Color, width: float) -> void:
 	var direction: Vector2 = (to_point - from_point).normalized()
 	var head_length: float = 14.0 + width
@@ -318,29 +305,6 @@ static func _draw_arrow(board: TacticsBoard, from_point: Vector2, to_point: Vect
 	var side: Vector2 = direction.orthogonal() * head_length * 0.5
 	board.draw_colored_polygon(PackedVector2Array([to_point, to_point - direction * head_length + side,
 			to_point - direction * head_length - side]), color)
-
-
-## 平面図の2点の間の、2次ベジェ曲線の点線と矢じり（曲線は平面図で作り、点ごとに画面へ写す）。
-## 曲がりの大きさは距離の 2 割（上限はセルの高さの 3 割）。
-static func _draw_curved_dashed_arrow(board: TacticsBoard, from_plan: Vector2, to_plan: Vector2, color: Color, width: float) -> void:
-	var bulge: float = minf(from_plan.distance_to(to_plan) * 0.2, board.cell_size().y * 0.3)
-	var control: Vector2 = (from_plan + to_plan) / 2.0 + (to_plan - from_plan).normalized().orthogonal() * bulge
-	var segments: int = 24
-	var points: Array[Vector2] = []
-	for step: int in range(segments + 1):
-		var t: float = float(step) / segments
-		points.append(board.to_screen(from_plan.lerp(control, t).lerp(control.lerp(to_plan, t), t)))
-	var tip: Vector2 = points[segments]
-	var head_length: float = 12.0 + width
-	# 矢じりの分を残して、1区間おきに描く（点線）
-	for step: int in range(0, segments, 2):
-		if points[step + 1].distance_to(tip) < head_length * 0.8:
-			break
-		board.draw_line(points[step], points[step + 1], color, width)
-	var direction: Vector2 = (tip - points[segments - 2]).normalized()
-	var side: Vector2 = direction.orthogonal() * head_length * 0.5
-	board.draw_colored_polygon(PackedVector2Array([tip, tip - direction * head_length + side,
-			tip - direction * head_length - side]), color)
 
 
 static func _draw_centered_text(board: TacticsBoard, center: Vector2, text: String, font_size: int, color: Color) -> void:

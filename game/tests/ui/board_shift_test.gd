@@ -90,41 +90,52 @@ func _piece_shift(stagger: float, hop: float) -> BoardShift:
 	return shift
 
 
+func test_a_piece_is_told_apart_by_side_as_well_as_id() -> void:
+	# 選手の id は陣形の枠の id なので、同じ陣形なら相手にも同じ id がいる。自分の near だけが動き、相手の near は動かない
+	var shift: BoardShift = _piece_shift(0.0, 0.35)
+	shift.progress = 0.5
+	var rest := Vector2(500, 500)
+	assert_vector(shift.piece_position("near", false, rest)).is_equal(rest)
+	assert_float(shift.piece_lift("near", false)).is_equal(0.0)
+	assert_vector(shift.piece_position("near", true, rest)).is_not_equal(rest)
+	assert_float(shift.piece_lift("near", true)).is_greater(0.0)
+
+
 func test_pieces_near_the_ball_start_first_and_all_arrive_together() -> void:
 	var shift: BoardShift = _piece_shift(0.4, 0.0)
 	shift.progress = 0.3
 	# 遠い駒はまだ動き出していない。近い駒は道筋の途中
-	assert_vector(shift.piece_position("far", Vector2.ZERO)).is_equal(FAR_FROM)
-	var near_y: float = shift.piece_position("near", Vector2.ZERO).y
+	assert_vector(shift.piece_position("far", true, Vector2.ZERO)).is_equal(FAR_FROM)
+	var near_y: float = shift.piece_position("near", true, Vector2.ZERO).y
 	assert_float(near_y).is_between(NEAR_TO.y + 0.1, NEAR_FROM.y - 0.1)
 	shift.progress = 1.0
-	assert_vector(shift.piece_position("near", Vector2.ZERO)).is_equal_approx(NEAR_TO, Vector2(0.001, 0.001))
-	assert_vector(shift.piece_position("far", Vector2.ZERO)).is_equal_approx(FAR_TO, Vector2(0.001, 0.001))
+	assert_vector(shift.piece_position("near", true, Vector2.ZERO)).is_equal_approx(NEAR_TO, Vector2(0.001, 0.001))
+	assert_vector(shift.piece_position("far", true, Vector2.ZERO)).is_equal_approx(FAR_TO, Vector2(0.001, 0.001))
 
 
 func test_pieces_ease_in_and_out_along_their_path() -> void:
 	var shift: BoardShift = _piece_shift(0.0, 0.0)
 	# 等速なら 1/5 の時点で 20 進む。イージングでは出だしが遅い
 	shift.progress = 0.2
-	var moved: float = NEAR_FROM.y - shift.piece_position("near", Vector2.ZERO).y
+	var moved: float = NEAR_FROM.y - shift.piece_position("near", true, Vector2.ZERO).y
 	assert_float(moved).is_between(0.1, 19.9)
 	# ずらしが無ければ、近い駒も遠い駒も同じだけ進む
-	assert_float(FAR_FROM.y - shift.piece_position("far", Vector2.ZERO).y).is_equal_approx(moved, 0.001)
+	assert_float(FAR_FROM.y - shift.piece_position("far", true, Vector2.ZERO).y).is_equal_approx(moved, 0.001)
 
 
 func test_moving_pieces_hop_and_land() -> void:
 	var shift: BoardShift = _piece_shift(0.4, 0.35)
-	assert_float(shift.piece_lift("near")).is_equal_approx(0.0, 0.0001)
+	assert_float(shift.piece_lift("near", true)).is_equal_approx(0.0, 0.0001)
 	shift.progress = 0.3
 	# 近い駒は道筋の真ん中（自分の進み具合 0.5）で、いちばん高い
-	assert_float(shift.piece_lift("near")).is_equal_approx(0.35, 0.0001)
+	assert_float(shift.piece_lift("near", true)).is_equal_approx(0.35, 0.0001)
 	# まだ動き出していない遠い駒と、道筋の無い駒は浮かない
-	assert_float(shift.piece_lift("far")).is_equal(0.0)
-	assert_float(shift.piece_lift("nobody")).is_equal(0.0)
+	assert_float(shift.piece_lift("far", true)).is_equal(0.0)
+	assert_float(shift.piece_lift("nobody", true)).is_equal(0.0)
 	shift.progress = 1.0
-	assert_float(shift.piece_lift("near")).is_equal_approx(0.0, 0.0001)
+	assert_float(shift.piece_lift("near", true)).is_equal_approx(0.0, 0.0001)
 	shift.clear()
-	assert_float(shift.piece_lift("near")).is_equal(0.0)
+	assert_float(shift.piece_lift("near", true)).is_equal(0.0)
 
 
 func test_build_beats_orders_the_pieces_by_distance_from_the_ball() -> void:

@@ -76,10 +76,11 @@ func ball_path_of(index: int) -> Dictionary:
 ## （その拍の始まりの位置）。どちらでもなければ rest（駒の列の位置。動き終えた駒と動かない駒）。
 ## 前の拍の行き先を見ないのは、前の拍の行き先は後の拍の元と同じ位置で、後の拍に出てこなければ rest と同じ位置だから。
 ## いまの拍の駒は、ボールに近い順に少し遅れて動き出し、加速して減速して止まる（PieceMotion。piece_style）。
-func piece_position(player_id: String, rest: Vector2) -> Vector2:
+## 駒は is_user と player_id の組で見分ける（選手の id は陣形の枠の id なので、同じ陣形なら相手にも同じ id がいる）。
+func piece_position(player_id: String, is_user: bool, rest: Vector2) -> Vector2:
 	for index: int in range(beat_index, beats.size()):
 		for path: Dictionary in beats[index]["piece_paths"] as Array:
-			if path["player_id"] == player_id:
+			if _is_path_of(path, player_id, is_user):
 				if index != beat_index:
 					return path["from"] as Vector2
 				return (path["from"] as Vector2).lerp(path["to"] as Vector2, PieceMotion.smooth(_piece_t(path)))
@@ -87,11 +88,15 @@ func piece_position(player_id: String, rest: Vector2) -> Vector2:
 
 
 ## player_id の駒の高さ（駒の半径の何倍か）。いまの拍で動いている駒だけが浮く。ほかは 0（地面）。
-func piece_lift(player_id: String) -> float:
+func piece_lift(player_id: String, is_user: bool) -> float:
 	for path: Dictionary in piece_paths_of(beat_index):
-		if path["player_id"] == player_id:
+		if _is_path_of(path, player_id, is_user):
 			return PieceMotion.hop(_piece_t(path), piece_style.get("hop", 0.0) as float)
 	return 0.0
+
+
+static func _is_path_of(path: Dictionary, player_id: String, is_user: bool) -> bool:
+	return path["player_id"] == player_id and path["is_user"] == is_user
 
 
 ## いまの拍の中での、その駒の進み具合（ずらしの分だけ遅れる）。

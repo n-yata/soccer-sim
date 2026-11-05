@@ -122,6 +122,10 @@ func _load_presentation() -> PresentationConfig:
 		push_error("ConfigRepository: %s の値が範囲外（ball_loft_height=%s, ball_touch_height=%s, ball_dribble_touches=%d）のため、初期値を使う"
 				% [PRESENTATION_FILE, loaded.ball_loft_height, loaded.ball_touch_height, loaded.ball_dribble_touches])
 		return PresentationConfig.new()
+	if not (_is_board_sec_valid(loaded.preview_move_sec) and _is_within(loaded.preview_hold_sec, MAX_BOARD_BEAT_SEC)):
+		push_error("ConfigRepository: %s の値が範囲外（preview_move_sec=%s, preview_hold_sec=%s）のため、初期値を使う"
+				% [PRESENTATION_FILE, loaded.preview_move_sec, loaded.preview_hold_sec])
+		return PresentationConfig.new()
 	if not _is_piece_motion_valid(loaded):
 		push_error("ConfigRepository: %s の値が範囲外（piece_stagger=%s, piece_hop_height=%s, board_beat_gap_sec=%s）のため、初期値を使う"
 				% [PRESENTATION_FILE, loaded.piece_stagger, loaded.piece_hop_height, loaded.board_beat_gap_sec])

@@ -313,39 +313,94 @@ func _move(player_id: String, from_key: String, to_key: String,
 	return Movement.new(GameEnums.TeamSide.HOME, player_id, PitchArea.from_key(from_key), PitchArea.from_key(to_key), reason)
 
 
-func test_preview_rings_continue_the_row_of_pieces_in_the_destination() -> void:
-	# D1-C には自分の p1 がいる。A1-C の p2 と A1-L1 の p3 が D1-C へ動くと、輪は p1 の隣から順に並ぶ
+## 3つの配置: いま（p1 D1-C・p2 A1-C・p3 A1-L1）→ 判定時（p2 が D1-C へ）→ 次のターン開始時（p3 も D1-C へ）
+func _preview_frames() -> Array:
+	return [
+		_players_of({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1"}),
+		_players_of({"p1": "D1-C", "p2": "D1-C", "p3": "A1-L1"}),
+		_players_of({"p1": "D1-C", "p2": "D1-C", "p3": "D1-C"}),
+	]
+
+
+func test_preview_motion_moves_every_player_who_moves_in_some_arrangement() -> void:
 	_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1"}))
-	_board.show_preview([_move("p2", "A1-C", "D1-C"), _move("p3", "A1-L1", "D1-C")])
-	assert_int(_board.preview_movements().size()).is_equal(2)
-	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D1-C", true, 1))
-	assert_vector(_board.preview_center(1)).is_equal(_board.piece_center("D1-C", true, 2))
-	# 駒は動かさない（相手の駒も、自分の駒も、いまの位置のまま）
+	_board.show_preview_motion(_preview_frames())
+	# p1 はどの配置でも動かないので、半透明の駒を出さない
+	assert_array(_board.preview_ghost_ids()).contains_exactly_in_any_order(["p2", "p3"])
+	assert_array(_board.preview_frames()).is_equal(_preview_frames())
+	# 半透明の駒は、動き始めはいまの駒の位置。盤面の選手（数える駒）は変えない（相手も自分も、いまのエリアのまま）
+	assert_vector(_board.preview_ghost_center("p2")).is_equal(_board.piece_center("A1-C", true, 0))
 	assert_int((_board.pieces_in("A1-C")["user"] as Array).size()).is_equal(1)
 	assert_int((_board.pieces_in("D1-C")["opponent"] as Array).size()).is_equal(1)
 
 
-func test_preview_rings_stop_at_the_last_slot_of_a_crowded_area() -> void:
-	_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "D1-C", "p3": "D1-C", "p4": "D1-C", "p5": "A1-C"}))
-	_board.show_preview([_move("p5", "A1-C", "D1-C")])
-	assert_vector(_board.preview_center(0)).is_equal(_board.piece_center("D1-C", true, TacticsBoard.MAX_PIECES - 1))
+func test_preview_motion_ends_in_the_row_of_the_last_arrangement_and_repeats() -> void:
+	# 各時刻の確かめは、区間の境目から 300 ミリ秒以上離す（Tween はフレームで進み、待ちは実時間なので、ずれを見込む）
+	_board.set_preview_style({"move_sec": 0.6, "hold_sec": 0.9})
+	_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1"}))
+	_board.show_preview_motion(_preview_frames())
+	var p3_start: Vector2 = _board.preview_ghost_center("p3")
+	# 2区間（1.2 秒）を動き終えて止まっている間（1.2〜2.1 秒）は、次のターン開始時の駒の列の位置（D1-C の p1 の隣から順に）
+	await await_millis(1650)
+	assert_vector(_board.preview_ghost_center("p2")).is_equal_approx(_board.piece_center("D1-C", true, 1), Vector2(0.01, 0.01))
+	assert_vector(_board.preview_ghost_center("p3")).is_equal_approx(_board.piece_center("D1-C", true, 2), Vector2(0.01, 0.01))
+	# 止める時間の後は最初へ戻ってくり返す。2周目の1区間目（2.1〜2.7 秒）は、p3 が動き出す前の位置にいる
+	await await_millis(750)
+	assert_vector(_board.preview_ghost_center("p3")).is_equal_approx(p3_start, Vector2(0.01, 0.01))
 
 
-func test_preview_keeps_every_reason_and_is_cleared_with_the_overlays() -> void:
-	# 開示後の矢印と違い、プレビューは方式の動き（リトリート・マークの付け直し）も出す
-	_board.show_snapshot(_preview_snapshot({"p1": "A1-C", "p2": "A1-L1"}))
-	_board.show_preview([_move("p1", "A1-C", "D1-C", GameEnums.MovementReason.RETREAT_RESET),
-			_move("p2", "A1-L1", "A1-C", GameEnums.MovementReason.MARK)])
-	assert_int(_board.preview_movements().size()).is_equal(2)
+func test_preview_motion_does_not_move_with_a_move_time_that_is_not_positive() -> void:
+	# 負・有限でない動く時間は 0 として扱い、半透明の駒は動き始めの位置のまま（くり返しの Tween を作らない）
+	for move_sec: float in [-1.0, NAN]:
+		_board.set_preview_style({"move_sec": move_sec, "hold_sec": 0.1})
+		assert_float(_board.preview_style()["move_sec"] as float).is_equal(0.0)
+		_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1"}))
+		_board.show_preview_motion(_preview_frames())
+		await await_millis(100)
+		assert_vector(_board.preview_ghost_center("p2")).is_equal(_board.piece_center("A1-C", true, 0))
+
+
+func test_preview_motion_leaves_no_piece_where_the_mover_stood() -> void:
+	# A1-C の p1（並びの1番目）だけが D1-C へ動く（並びの0番目の p2 は動かない）。p1 のもとの駒は描かず、p2 は並びの0番目の位置のまま
+	_board.show_snapshot(_preview_snapshot({"p2": "A1-C", "p1": "A1-C"}))
+	_board.show_preview_motion([_players_of({"p2": "A1-C", "p1": "A1-C"}), _players_of({"p2": "A1-C", "p1": "D1-C"})])
+	assert_array(_board.preview_ghost_ids()).contains_exactly(["p1"])
+	var standing: Array[Vector2] = []
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece" and thing["is_user"] and not thing["is_preview"]:
+			standing.append(thing["plan"] as Vector2)
+	assert_array(standing).is_equal([_board.piece_center("A1-C", true, 0)])
+	# 選手の id は陣形の枠の id なので、相手にも同じ id がいる。相手の駒は消さない
+	var same_ids := _preview_snapshot({"p2": "A1-C", "p1": "A1-C"})
+	same_ids.opponent_players = _players_of({"p1": "A1-C"})
+	_board.show_snapshot(same_ids)
+	_board.show_preview_motion([_players_of({"p2": "A1-C", "p1": "A1-C"}), _players_of({"p2": "A1-C", "p1": "D1-C"})])
+	var opponents: int = 0
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece" and not thing["is_user"]:
+			opponents += 1
+	assert_int(opponents).is_equal(1)
+	# プレビューを消すと、もとの駒は戻る
+	_board.show_preview_motion([])
+	var after: int = 0
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece" and thing["is_user"]:
+			after += 1
+	assert_int(after).is_equal(2)
+
+
+func test_preview_motion_is_cleared_with_the_overlays_the_next_snapshot_and_an_empty_preview() -> void:
+	_board.show_snapshot(_preview_snapshot({"p1": "D1-C", "p2": "A1-C", "p3": "A1-L1"}))
+	_board.show_preview_motion(_preview_frames())
 	_board.clear_overlays()
-	assert_array(_board.preview_movements()).is_empty()
-
-
-func test_preview_arrows_start_from_the_piece_of_the_moving_player() -> void:
-	# A1-C の自分の駒は盤面の選手の順に p0・p2。p2 の矢印は2つ目の駒から出る
-	_board.show_snapshot(_preview_snapshot({"p0": "A1-C", "p1": "D1-C", "p2": "A1-C"}))
-	_board.show_preview([_move("p2", "A1-C", "D1-C")])
-	assert_vector(_board.preview_origin(0)).is_equal(_board.piece_center("A1-C", true, 1))
+	assert_array(_board.preview_ghost_ids()).is_empty()
+	assert_array(_board.preview_frames()).is_empty()
+	_board.show_preview_motion(_preview_frames())
+	_board.show_preview_motion([])
+	assert_array(_board.preview_ghost_ids()).is_empty()
+	_board.show_preview_motion(_preview_frames())
+	_board.show_snapshot(_preview_snapshot({"p1": "D1-C"}))
+	assert_array(_board.preview_ghost_ids()).is_empty()
 
 
 # --- 開示で駒を動かす ---
@@ -584,12 +639,27 @@ func test_the_ball_moves_in_the_second_beat_when_the_next_turn_puts_it_elsewhere
 	_assert_ball_in(second["to"] as Vector2, "A1-C")
 
 
+func test_an_opponent_with_the_same_id_as_a_moving_user_piece_stays_in_its_row() -> void:
+	# 選手の id は陣形の枠の id なので、同じ陣形なら相手にも同じ id がいる。自分の p1 だけが D1-C から A1-C へ動き、
+	# 相手の p1（D1-C）は動かない。相手の駒が自分の p1 の道筋に乗って一緒に動かない（2026-11-05 のシャビの指摘）
+	var snapshot := BoardSnapshot.new()
+	snapshot.user_players = _players_of({"p1": "A1-C"})
+	snapshot.opponent_players = _players_of({"p1": "D1-C"})
+	_board.show_snapshot(snapshot)
+	_start_one(_players_of({"p1": "D1-C"}), _players_of({"p1": "D1-C"}), "", 1.0)
+	var opponents: Array[Vector2] = []
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece" and not thing["is_user"]:
+			opponents.append(thing["plan"] as Vector2)
+	assert_array(opponents).is_equal([_board.piece_center("D1-C", false, 0)])
+
+
 func test_during_the_first_beat_players_who_move_later_wait_where_the_play_left_them() -> void:
 	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
 	# p2・o1 は2拍目で動く。1拍目の間は、いまの盤面の位置へ飛ばず、判定時の位置（= 判定前と同じ）に描く
-	assert_vector(_board.shifting_piece_center("p2", _board.piece_center("M2-C", true, 0))) \
+	assert_vector(_board.shifting_piece_center("p2", true, _board.piece_center("M2-C", true, 0))) \
 			.is_equal(_board.piece_center("M1-C", true, 0))
-	assert_vector(_board.shifting_piece_center("o1", _board.piece_center("A1-C", false, 0))) \
+	assert_vector(_board.shifting_piece_center("o1", false, _board.piece_center("A1-C", false, 0))) \
 			.is_equal(_board.piece_center("M2-C", false, 0))
 	# 駒は選手ごとに描く（1拍目に動く駒があり、2拍目にもある）
 	assert_bool(_board.is_shifting_pieces()).is_true()
@@ -642,7 +712,7 @@ func test_the_second_beat_starts_after_the_first_and_both_end_by_themselves() ->
 	assert_int(_board.shift_beat_index()).is_equal(1)
 	assert_array(_ids_of(_board.shift_paths())).contains_exactly_in_any_order(["p2", "o1"])
 	var p1_rest: Vector2 = _board.piece_center("A1-C", true, 0)
-	assert_vector(_board.shifting_piece_center("p1", p1_rest)).is_equal(p1_rest)
+	assert_vector(_board.shifting_piece_center("p1", true, p1_rest)).is_equal(p1_rest)
 	_two_beat_board(_before(), _at_judgement(), 0.05, 0.05)
 	await await_millis(400)
 	assert_bool(_board.is_shifting()).is_false()
@@ -659,7 +729,7 @@ func test_a_gap_between_beats_holds_the_second_beat_but_not_the_landing() -> voi
 	assert_array(landed).has_size(1)
 	assert_int(_board.shift_beat_index()).is_equal(0)
 	var p1_landed: Vector2 = _board.piece_center("A1-C", true, 0)
-	assert_vector(_board.shifting_piece_center("p1", Vector2.ZERO)).is_equal_approx(p1_landed, Vector2(0.001, 0.001))
+	assert_vector(_board.shifting_piece_center("p1", true, Vector2.ZERO)).is_equal_approx(p1_landed, Vector2(0.001, 0.001))
 	await await_millis(500)
 	assert_int(_board.shift_beat_index()).is_equal(1)
 
@@ -681,20 +751,20 @@ func test_bad_piece_motion_values_mean_no_stagger_or_hop() -> void:
 	_board.set_piece_style({"stagger": NAN, "hop": INF})
 	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
 	await await_millis(300)
-	var position: Vector2 = _board.shifting_piece_center("p1", Vector2.ZERO)
+	var position: Vector2 = _board.shifting_piece_center("p1", true, Vector2.ZERO)
 	assert_bool(is_finite(position.x) and is_finite(position.y)).is_true()
-	assert_float(_board.shifting_piece_lift("p1")).is_equal(0.0)
+	assert_float(_board.shifting_piece_lift("p1", true)).is_equal(0.0)
 	# 負の値も 0。負の弾みで駒が地面より下へ沈み（影の計算が 0 で割れる）、負のずらしで拍の終わりに着かなくならない
 	_board.set_piece_style({"stagger": -0.5, "hop": -1.0})
 	# 1拍目（0.3 秒）の終わりの位置を、長い小休止の間（1拍目の進み具合が 1 のまま）に確かめる
 	_board.set_beat_gap_sec(0.5)
 	_two_beat_board(_before(), _at_judgement(), 0.3, 1.0)
 	await await_millis(150)
-	assert_float(_board.shifting_piece_lift("p1")).is_greater_equal(0.0)
+	assert_float(_board.shifting_piece_lift("p1", true)).is_greater_equal(0.0)
 	await await_millis(300)
 	assert_int(_board.shift_beat_index()).is_equal(0)
 	var p1_landed: Vector2 = _board.piece_center("A1-C", true, 0)
-	assert_vector(_board.shifting_piece_center("p1", Vector2.ZERO)).is_equal_approx(p1_landed, Vector2(0.001, 0.001))
+	assert_vector(_board.shifting_piece_center("p1", true, Vector2.ZERO)).is_equal_approx(p1_landed, Vector2(0.001, 0.001))
 
 
 func test_moving_pieces_are_drawn_at_their_lift() -> void:
@@ -710,11 +780,11 @@ func test_moving_pieces_are_drawn_at_their_lift() -> void:
 	for thing: Dictionary in _board.standing_order():
 		if thing["kind"] == "piece":
 			lifts[thing["plan"]] = thing["lift"]
-	assert_float(_board.shifting_piece_lift("p1")).is_greater(0.1)
-	assert_array(lifts.values()).contains([_board.shifting_piece_lift("p1")])
-	assert_float(_board.shifting_piece_lift("p2")).is_equal(0.0)
+	assert_float(_board.shifting_piece_lift("p1", true)).is_greater(0.1)
+	assert_array(lifts.values()).contains([_board.shifting_piece_lift("p1", true)])
+	assert_float(_board.shifting_piece_lift("p2", true)).is_equal(0.0)
 	_board.clear_overlays()
-	assert_float(_board.shifting_piece_lift("p1")).is_equal(0.0)
+	assert_float(_board.shifting_piece_lift("p1", true)).is_equal(0.0)
 
 
 # --- 結果の演出 ---
@@ -925,10 +995,11 @@ func test_standing_things_are_drawn_from_the_far_side_to_the_near_side() -> void
 	snapshot.opponent_players = _players_of({"o_far": "A2-R2"})
 	snapshot.ball_area = "A1-C"
 	_board.show_snapshot(snapshot)
-	_board.show_preview([_move("mid", "A1-L2", "D1-L2", GameEnums.MovementReason.PRESS)])
+	_board.show_preview_motion([_players_of({"near": "D1-C", "far": "A2-C", "mid": "A1-L2"}),
+			_players_of({"near": "D1-C", "far": "A2-C", "mid": "D1-L2"})])
 	var order: Array[Dictionary] = _board.standing_order()
-	# 駒 4（自分3・相手1）＋プレビューの駒 1＋ボール 1
-	assert_int(order.size()).is_equal(6)
+	# 駒 3（自分2・相手1。プレビューで動く mid のもとの駒は描かない）＋プレビューの駒 1＋ボール 1
+	assert_int(order.size()).is_equal(5)
 	for index: int in range(1, order.size()):
 		assert_float((order[index - 1]["plan"] as Vector2).y).override_failure_message(str(index)) \
 				.is_less_equal((order[index]["plan"] as Vector2).y)
