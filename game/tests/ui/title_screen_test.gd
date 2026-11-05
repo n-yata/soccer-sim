@@ -58,20 +58,22 @@ func test_an_unfinished_tutorial_is_the_large_card_before_kick_off() -> void:
 	assert_object(tutorial.get_parent()).is_same(kick_off.get_parent())
 	assert_int(tutorial.get_index()).is_equal(kick_off.get_index() - 1)
 	assert_bool((tutorial.find_child("FirstTimeBadge", true, false) as Control).visible).is_true()
-	assert_int(_title.small_cards().columns).is_equal(4)
+	assert_int(_title.small_cards().columns).is_equal(2)
 	assert_bool(tutorial.disabled).is_false()
 
 
-## 完了後は小さなカードの最後（5列）。「はじめての方へ」を隠し、KICK OFF を高くする（再開カードも無いとき）
+## 完了後は小さなカードの最後（2列のまま）。「はじめての方へ」を隠し、KICK OFF を高くする（再開カードも無いとき）
 func test_a_finished_tutorial_moves_to_the_end_of_the_small_cards() -> void:
 	App.user_data.mark_tutorial_completed()
 	_title.enter({})
 	var tutorial: Button = _title.tutorial_card()
 	assert_object(tutorial.get_parent()).is_same(_title.small_cards())
 	assert_int(tutorial.get_index()).is_equal(_title.small_cards().get_child_count() - 1)
-	assert_int(_title.small_cards().columns).is_equal(5)
+	assert_int(_title.small_cards().columns).is_equal(2)
 	assert_bool((tutorial.find_child("FirstTimeBadge", true, false) as Control).visible).is_false()
 	assert_float(_card("KickOffCard").custom_minimum_size.y).is_equal(200.0)
+	# 文字の位置（内側の余白）もほかの小さなカードとそろえる（2026-11-05。名前だけ右へずれていた）
+	assert_array(_box_offsets(tutorial)).is_equal(_box_offsets(_card("QuizCard")))
 	tutorial.pressed.emit()
 	assert_array(_requested).is_equal([AppScreens.Id.S08_TUTORIAL] as Array[int])
 
@@ -83,8 +85,16 @@ func test_the_tutorial_card_moves_back_when_unfinished_again() -> void:
 	var kick_off: Button = _card("KickOffCard")
 	assert_object(_title.tutorial_card().get_parent()).is_same(kick_off.get_parent())
 	assert_int(_title.tutorial_card().get_index()).is_equal(kick_off.get_index() - 1)
-	assert_int(_title.small_cards().columns).is_equal(4)
+	assert_int(_title.small_cards().columns).is_equal(2)
 	assert_float(kick_off.custom_minimum_size.y).is_equal(136.0)
+	# 大きなカードの内側の余白に戻す（KICK OFF と同じ）
+	assert_array(_box_offsets(_title.tutorial_card())).is_equal(_box_offsets(kick_off))
+
+
+## カードの中の Box の内側の余白（左・上・右・下）
+func _box_offsets(card: Button) -> Array:
+	var box: Control = card.get_node("Box") as Control
+	return [box.offset_left, box.offset_top, box.offset_right, box.offset_bottom]
 
 
 ## 小さなカードの一言（screen-01-title.md「ノード構成」）。押せない間は隠して「準備中」だけを出す

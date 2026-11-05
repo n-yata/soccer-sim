@@ -98,9 +98,10 @@ func _add_button(action: int) -> void:
 	button.custom_minimum_size = Vector2(0, BUTTON_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.toggle_mode = true
-	button.text = "%s %s" % [number_of(action), MatchTexts.slot_name(_family, action)]
+	button.text = "%s %s" % [number_of(action), MatchTexts.slot_button_text(_family, action)]
 	button.disabled = not _enabled
-	# 長い手の名前（シュートコースを塞ぐ）は、ボタンの中で折り返す（左右の余白を詰めた ChoiceButton）
+	# 長い手の名前（シュートコースを塞ぐ）は、slot_button_text が語の切れ目で改行する（左右の余白を詰めた ChoiceButton）。
+	# 折り返しの指定は、それでも入らない幅（狭い端末など）のときの保険
 	button.theme_type_variation = &"ChoiceButton"
 	button.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	button.pressed.connect(_on_button_pressed.bind(action))

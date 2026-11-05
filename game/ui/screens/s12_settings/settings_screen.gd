@@ -56,6 +56,7 @@ func _build() -> void:
 	var layout := VBoxContainer.new()
 	layout.name = "Layout"
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layout.offset_top = ScreenHeader.TOP_MARGIN
 	layout.add_theme_constant_override("separation", 0)
 	add_child(layout)
 	_header = HEADER_SCENE.instantiate() as ScreenHeader

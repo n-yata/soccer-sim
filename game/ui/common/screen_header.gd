@@ -5,6 +5,10 @@ extends Control
 ## 戻る（またはやめる）のボタンが押された
 signal back_pressed
 
+## ヘッダーの上に空ける外周の余白（screen-common.md §1.1）。ヘッダーを置く画面が、自分の配置の上端に当てる
+## （2026-11-05。当てていなかった画面で、ヘッダーが画面の上端に付いていた）
+const TOP_MARGIN: float = 24.0
+
 @onready var _back_button: Button = %BackButton
 @onready var _title_label: Label = %TitleLabel
 

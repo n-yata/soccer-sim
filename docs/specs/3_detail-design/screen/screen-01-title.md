@@ -37,7 +37,7 @@ TitleScreen (Control)
     │   ├── TutorialSub (Label)            # 「ピッチ・局面・読み合いを、操作して覚える」
     │   └── FirstTimeBadge (Label)         # 「はじめての方へ」。地 you、文字 bg
     ├── KickOffCard (Button)               # 「KICK OFF／CPU 対戦」。地 accent、高さ 136px
-    └── SmallCards (GridContainer)         # 4列（チュートリアル完了後は5列）。残りの高さいっぱい
+    └── SmallCards (GridContainer)         # 2列（チュートリアル完了後も2列。2026-11-05）。残りの高さいっぱい
         ├── QuizCard (Button)              # 「理解度チェック」＋一言「3／8 正解」
         ├── RecordsCard (Button)           # 「戦績」＋一言「5勝 2分 3敗」
         ├── ScopeCard (Button)             # 「表現範囲」＋一言「実戦との違い」
@@ -46,7 +46,7 @@ TitleScreen (Control)
 ```
 
 - チュートリアルの位置は `enter` のたびに決める。未完了なら `Cards` の `KickOffCard` の直前、完了後は `SmallCards` の最後へ
-  `reparent()` し（`SmallCards` を5列にする）、大きさと「はじめての方へ」の表示を切り替える
+  `reparent()` し、大きさ・内側の余白（大きなカードは左右 24px・上下 12px、小さなカードは 16px）と「はじめての方へ」の表示を切り替える
 - 再開カードもチュートリアルも無いとき（完了済みで中断中の試合が無い）は、`KickOffCard` を高さ 200px に広げる
 - `NewMatchGate`（`common/new_match_gate.gd`）はノードを持たない部品で、`TitleScreen` のスクリプトが持つ（`screen-common.md` §5）
 - 確認ダイアログは `ConfirmDialog`（`common/confirm_dialog.tscn`）を `TitleScreen` の最後の子として置く
@@ -138,7 +138,7 @@ TitleScreen (Control)
   縁 `accent`（テーマの型 `ResumeCard`）。4行が入るよう高さを 112px から 140px にした）、「CPU 対戦」の確認の手順
   （`NewMatchGate`・`ConfirmDialog`）、状態 `BUSY`・`CONFIRMING`
 - **戦績の作業（2026-10-29）で足したもの**: 戦績のカードの一言（`RecordsCard` の中の `RecordsSub`。押せない間は隠し「準備中」だけ。
-  小さなカードの幅では1行に収まらず数の途中で折り返すので、「3勝」「3分」「2敗」の3行に分ける）、
+  「3勝 3分 2敗」の1行）、
   戦績を記録できていない試合（`FINALIZE_PENDING`）の確認
 - **設定の作業（2026-10-29）で足したもの**: 「設定」のカードが押せる（S-12 を作った）。`tutorial_completed` は保存できるが、
   完了にする手段（チュートリアル）がまだ無いので、位置の切り替えはチュートリアルの作業で足す
@@ -148,6 +148,9 @@ TitleScreen (Control)
   「実戦との違い」と「設定」の一言「音量・ヒント」（どちらも固定の文。シーンに置いた）
 - **理解度チェックの作業（2026-10-31）で足したもの**: 「理解度チェック」のカードが押せる（S-09 を作った）。カードの一言
   （`QuizSub`。`QuizTexts.total_summary`。「3／8 正解」、回答0件なら「未回答」。押せない間は隠す）
+- **UI の見直し（2026-11-05）で変えたもの**: 小さなカードを4列（完了後は5列）から2列にした。4列では幅 146px で、
+  名前と一言が語の途中で縦に折り返していた（「理解度／チェッ／ク」）。3列（幅 200px）でも「理解度チェック」が1行に入らない。
+  戦績の一言は2列の幅に入るので、3行に分けるのをやめた。チュートリアル完了後は5枚目（チュートリアル）が3行目の左に1枚だけ並ぶ
 - プロダクト名は仮称の「SOCCER GAME」（正式名は要件定義書 §7.1 #4）。日本語は Noto Sans JP を置くまで、端末のフォントで表示される
 
 ## 例外・エラー表示

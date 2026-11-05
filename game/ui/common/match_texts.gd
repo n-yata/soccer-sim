@@ -18,6 +18,14 @@ const ACTION_NAMES: Dictionary = {
 const SLOT_NAMES: Dictionary = {
 	GameEnums.ChoiceFamily.ATTACK: ["ショートパス", "ロングパス", "ドリブル", ""],
 }
+## 手のボタンで1行に入らない名前 → 1行目の文字数（2026-11-05）。Godot の折り返しは、かなの間ならどこでも切る
+## （「パスコースを切／る」）ので、語の切れ目で改行する。ボタンの内側（16:9 で 218px）に 24px の字は約9文字で、
+## 番号「① 」を足すと8文字以上の名前は入らない
+const BUTTON_LINE_BREAKS: Dictionary = {
+	"パスコースを切る": 6,
+	"ドリブルのコースを切る": 5,
+	"シュートコースを塞ぐ": 4,
+}
 ## 判定で手が成功した側（利用者から見た値）。NONE は奪い合いの無い結果（NO_CONTEST）
 enum TurnWinner { USER, OPPONENT, NONE }
 
@@ -52,6 +60,15 @@ static func slot_name(family: GameEnums.ChoiceFamily, action: int) -> String:
 		if not name.is_empty():
 			return name
 	return action_name(family, action)
+
+
+## 手のボタンの名前。1行に入らない名前は、BUTTON_LINE_BREAKS の位置で改行する。
+static func slot_button_text(family: GameEnums.ChoiceFamily, action: int) -> String:
+	var name: String = slot_name(family, action)
+	if not BUTTON_LINE_BREAKS.has(name):
+		return name
+	var first_line: int = BUTTON_LINE_BREAKS[name] as int
+	return "%s\n%s" % [name.left(first_line), name.substr(first_line)]
 
 
 ## 手を選んだときに添える一言（誰が動くか・何を読む手か。2026-11-03 に、行き先を選ばない操作に合わせて書き直した）。

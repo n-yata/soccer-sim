@@ -50,7 +50,9 @@ func test_each_phase_shows_its_own_moves() -> void:
 	_panel.show_options(options, GameEnums.TurnKind.OPEN_PLAY, false)
 	assert_int(_panel.family()).is_equal(DEFENSE)
 	assert_array(_panel.actions()).is_equal([GameEnums.DefenseAction.PRESS, GameEnums.DefenseAction.CLOSE_DOWN])
-	assert_str(_panel.button_for(GameEnums.DefenseAction.PRESS).text).is_equal("① パスコースを切る")
+	# 1行に入らない名前は、決めた位置で改行する（番号は1行目。2026-11-05）
+	assert_str(_panel.button_for(GameEnums.DefenseAction.PRESS).text).is_equal("① パスコースを\n切る")
+	assert_str(_panel.button_for(GameEnums.DefenseAction.CLOSE_DOWN).text).is_equal("② ドリブルの\nコースを切る")
 	var transition := MoveOptions.new()
 	transition.allow(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.COUNTER_PRESS)
 	transition.allow(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT)

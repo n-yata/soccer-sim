@@ -65,6 +65,51 @@ func test_slot_names_group_the_attacking_plays_by_distance() -> void:
 	assert_str(MatchTexts.slot_name(POS, GameEnums.PosTransAction.COUNTER)).is_equal("カウンター")
 
 
+## ボタンに出る名前（すべての局面の、すべての手の slot_name）
+func _button_names() -> Dictionary:
+	var names: Dictionary = {}
+	var action_counts: Dictionary = {ATTACK: GameEnums.PlayType.size(), DEFENSE: GameEnums.DefenseAction.size(),
+			NEG: GameEnums.NegTransAction.size(), POS: GameEnums.PosTransAction.size()}
+	for family: int in action_counts:
+		for action: int in range(action_counts[family] as int):
+			names[MatchTexts.slot_name(family as GameEnums.ChoiceFamily, action)] = [family, action]
+	return names
+
+
+func test_long_button_names_break_at_the_chosen_place() -> void:
+	# かなの間ならどこでも折り返すため、決めた位置で改行する（2026-11-05。「パスコースを切／る」と切れていた）
+	assert_str(MatchTexts.slot_button_text(DEFENSE, GameEnums.DefenseAction.PRESS)).is_equal("パスコースを\n切る")
+	assert_str(MatchTexts.slot_button_text(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_equal("ドリブルの\nコースを切る")
+	assert_str(MatchTexts.slot_button_text(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_equal("シュート\nコースを塞ぐ")
+	# 1行に入る名前は改行しない
+	assert_str(MatchTexts.slot_button_text(DEFENSE, GameEnums.DefenseAction.COVER)).is_equal("背後を埋める")
+	assert_str(MatchTexts.slot_button_text(ATTACK, GameEnums.PlayType.THROUGH_PASS)).is_equal("ショートパス")
+
+
+func test_every_button_name_of_eight_or_more_letters_has_a_line_break() -> void:
+	# ボタンの内側（16:9 で 218px）に 24px の字は約9文字。番号「① 」を足すと、8文字以上の名前は1行に入らない
+	var names: Dictionary = _button_names()
+	for name: String in names:
+		var pair: Array = names[name] as Array
+		var text: String = MatchTexts.slot_button_text(pair[0] as GameEnums.ChoiceFamily, pair[1] as int)
+		assert_str(text.replace("\n", "")).is_equal(name)
+		if name.length() >= 8:
+			assert_str(text).override_failure_message("改行の位置が無い: %s" % name).contains("\n")
+		else:
+			assert_str(text).is_equal(name)
+		for line: String in text.split("\n"):
+			assert_int(line.length()).override_failure_message("1行が長い: %s" % text).is_less_equal(7)
+
+
+func test_line_breaks_are_only_for_names_on_the_buttons() -> void:
+	# 名前を変えたのに改行の位置だけが古い名前で残ると、気づかずに効かなくなる
+	var names: Dictionary = _button_names()
+	for name: String in MatchTexts.BUTTON_LINE_BREAKS:
+		assert_bool(names.has(name)).override_failure_message("ボタンに出ない名前: %s" % name).is_true()
+		var first_line: int = MatchTexts.BUTTON_LINE_BREAKS[name] as int
+		assert_int(first_line).is_between(1, name.length() - 1)
+
+
 func test_choice_summary_has_the_target_only_when_the_move_has_one() -> void:
 	var pass_choice := TurnChoice.new(ATTACK, GameEnums.PlayType.SHORT_PASS, PitchArea.from_key("M1-C"))
 	assert_str(MatchTexts.choice_summary(pass_choice)).is_equal("ショートパス → 中盤（自陣）・中央")

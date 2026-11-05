@@ -13,8 +13,12 @@ const LARGE_TUTORIAL_SIZE: Vector2 = Vector2(0, 104)
 const SMALL_CARD_SIZE: Vector2 = Vector2(96, 96)
 const KICK_OFF_SIZE: Vector2 = Vector2(0, 136)
 const KICK_OFF_TALL_SIZE: Vector2 = Vector2(0, 200)
-const SMALL_COLUMNS: int = 4
-const SMALL_COLUMNS_WITH_TUTORIAL: int = 5
+## カードの中身の内側の余白（x が左右、y が上下。.tscn の各カードの Box と同じ値）
+const LARGE_CARD_PADDING: Vector2 = Vector2(24, 12)
+const SMALL_CARD_PADDING: Vector2 = Vector2(16, 16)
+## 小さなカードの列の数。チュートリアルのカードが加わっても同じ（2026-11-05 に 4列・5列から変えた。
+## 4列では幅 146px で、名前と一言が語の途中で縦に折り返していた。3列でも「理解度チェック」が1行に入らない）
+const SMALL_COLUMNS: int = 2
 
 @onready var _resume_card: Button = %ResumeCard
 @onready var _resume_summary: Label = %ResumeSummary
@@ -47,6 +51,7 @@ var _gate: NewMatchGate
 
 
 func _ready() -> void:
+	_small_cards.columns = SMALL_COLUMNS
 	for card: Button in _destinations:
 		card.pressed.connect(_on_card_pressed.bind(card))
 	_resume_card.pressed.connect(_on_resume_pressed)
@@ -63,14 +68,13 @@ func enter(_params: Dictionary) -> void:
 	place_tutorial_card(App.user_data.settings().tutorial_completed)
 	apply_availability(MainShell.SCREEN_SCENES)
 	# 戦績のカードの一言「5勝 2分 3敗」（0件なら「まだ記録がありません」）。押せない間は「準備中」だけを出す
-	# 小さなカードは幅が狭く、1行に収まらない。数の途中で折り返さないよう、勝ち・引き分け・負けで行を分ける
-	_records_sub.text = RecordTexts.totals_summary(App.user_data.totals()).replace(" ", "\n")
+	_records_sub.text = RecordTexts.totals_summary(App.user_data.totals())
 	# 理解度チェックのカードの一言「3／8 正解」（回答0件なら「未回答」）
 	_quiz_sub.text = QuizTexts.total_summary(App.user_data.quiz_progress())
 	_state = State.IDLE
 
 
-## チュートリアルのカードを置く（screen-01-title.md「画面を開く」の 3.）。完了後は小さなカードの最後へ移し（5列）、
+## チュートリアルのカードを置く（screen-01-title.md「画面を開く」の 3.）。完了後は小さなカードの最後へ移し、
 ## 「はじめての方へ」と説明の行を隠す。未完了なら KICK OFF の直前の大きなカードに戻す。
 ## 再開カードもチュートリアルの大きなカードも無いときは、KICK OFF を高くする。
 func place_tutorial_card(is_completed: bool) -> void:
@@ -80,7 +84,6 @@ func place_tutorial_card(is_completed: bool) -> void:
 		if _tutorial_card.get_parent() != _small_cards:
 			_tutorial_card.reparent(_small_cards, false)
 		_small_cards.move_child(_tutorial_card, -1)
-		_small_cards.columns = SMALL_COLUMNS_WITH_TUTORIAL
 		_tutorial_card.custom_minimum_size = SMALL_CARD_SIZE
 		_tutorial_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_tutorial_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -95,7 +98,6 @@ func place_tutorial_card(is_completed: bool) -> void:
 		if _tutorial_card.get_index() < target:
 			target -= 1
 		cards.move_child(_tutorial_card, target)
-		_small_cards.columns = SMALL_COLUMNS
 		_tutorial_card.custom_minimum_size = LARGE_TUTORIAL_SIZE
 		_tutorial_card.size_flags_horizontal = Control.SIZE_FILL
 		_tutorial_card.size_flags_vertical = Control.SIZE_FILL
@@ -106,6 +108,12 @@ func place_tutorial_card(is_completed: bool) -> void:
 	# 大きなカードは中央へ、小さなカードはほかの小さなカードと同じく上へそろえる
 	var box: BoxContainer = _tutorial_card.get_node("Box") as BoxContainer
 	box.alignment = BoxContainer.ALIGNMENT_BEGIN if is_completed else BoxContainer.ALIGNMENT_CENTER
+	# 内側の余白も、置いた先のカードにそろえる（.tscn の大きなカードは左右 24・上下 12、小さなカードは 16）
+	var padding: Vector2 = SMALL_CARD_PADDING if is_completed else LARGE_CARD_PADDING
+	box.offset_left = padding.x
+	box.offset_right = -padding.x
+	box.offset_top = padding.y
+	box.offset_bottom = -padding.y
 	var has_large_card: bool = _resume_card.visible or not is_completed
 	_kick_off_card.custom_minimum_size = KICK_OFF_SIZE if has_large_card else KICK_OFF_TALL_SIZE
 

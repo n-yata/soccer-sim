@@ -159,7 +159,8 @@ func test_the_records_card_shows_the_totals() -> void:
 	App.user_data.append_record(_record(1, 2, 0))
 	App.user_data.append_record(_record(2, 1, 1))
 	App.user_data.append_record(_record(3, 0, 1))
-	assert_str(_open().records_summary_text()).is_equal("1勝\n1分\n1敗")
+	# 2列のカードの幅に入るので、行を分けない（2026-11-05）
+	assert_str(_open().records_summary_text()).is_equal("1勝 1分 1敗")
 
 
 ## 戦績の保存先にファイルを置いて記録を失敗させたまま試合を終え、結果画面から出る（終了処理待ちが残る）。
