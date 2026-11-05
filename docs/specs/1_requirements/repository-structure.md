@@ -100,7 +100,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 
 **配置ファイル**:
 - `screens/`: 画面ごとのシーンとスクリプト。ディレクトリ名は画面 ID と画面の英語名（例: `s03_match/`）
-- `board2d/`: 作戦ボードの部品（エリア・人数・ヒントの札・動きの矢印・開示で駒を動かす道筋の計算・開示のボールの軌道 `ball_flight.gd`・開示の結果の演出 `result_effect.gd`・平面図での位置の計算 `board_geometry.gd`・開示の進行 `board_reveal.gd`・描画（結果の演出は `result_effect_painter.gd`）・遠近の写し方 `board_projection.gd`）
+- `board2d/`: 作戦ボードの部品（エリア・人数・ヒントの札・動きの矢印・開示で駒を動かす道筋の計算・開示のボールの軌道 `ball_flight.gd`・開示の駒の進み方 `piece_motion.gd`・開示の結果の演出 `result_effect.gd`・平面図での位置の計算 `board_geometry.gd`・開示の進行 `board_reveal.gd`・描画（結果の演出は `result_effect_painter.gd`）・遠近の写し方 `board_projection.gd`）
 - `common/`: 画面をまたいで使う部品
 
 **依存関係**:
@@ -128,7 +128,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 **配置ファイル**（2026-10-19 時点）:
 - `match_rule_config.tres`: 1ハーフのターン数・アディショナルタイムの最大ターン数
 - `cpu_config.tres`: CPU の選択の温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty・マーク注意の減点 marked_penalty
-- `presentation_config.tres`: 開示で駒を動かす時間（2026-10-22 に追加。2026-11-03 に1拍目・2拍目の2つにした）・1拍目のボールの軌道の高さと弾み・結果の演出を出す時間（2026-11-03 に追加）・振り返りで遡るターン数（2026-10-29 に追加）
+- `presentation_config.tres`: 開示で駒を動かす時間（2026-10-22 に追加。2026-11-03 に1拍目・2拍目の2つにした）・1拍目のボールの軌道の高さと弾み・結果の演出を出す時間（2026-11-03 に追加）・駒のずらしと弾み・拍の間の小休止（2026-11-05 に追加）・振り返りで遡るターン数（2026-10-29 に追加）
 - 自己対戦検証の調整値（`verification_config.tres`）は、それを使う作業で作る
 
 #### game/assets/

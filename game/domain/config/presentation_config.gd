@@ -10,6 +10,12 @@ extends Resource
 @export var board_settle_sec: float = 0.6
 ## 開示の1拍目の終わりから、結果の演出（ゴールの光・奪った場所の輪・オフサイドの旗）を出す時間（秒）。範囲は拍の長さと同じ
 @export var board_result_sec: float = 0.8
+## 開示の拍で、ボールに近い駒から順に動き出すときの遅れの幅（拍の時間の何割を遅れに使うか）。0 以上 0.8 以下（0 なら全員同時）
+@export var piece_stagger: float = 0.35
+## 開示で動いている駒が浮く高さ（駒の半径の何倍か）。0 以上 1.5 以下（0 なら浮かない）
+@export var piece_hop_height: float = 0.35
+## 開示の拍と拍の間の小休止（秒）。0 以上 0.5 以下（長いとテンポが落ちる）
+@export var board_beat_gap_sec: float = 0.12
 ## 開示の1拍目で、浮き球（ロングボール・サイドチェンジ）がいちばん高く上がるときの高さ（ボールの半径の何倍か）。0 以上 20 以下
 ## （高すぎると盤面の上へはみ出す）
 @export var ball_loft_height: float = 6.0

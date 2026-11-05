@@ -86,6 +86,8 @@ func bind(controller: MatchController, show_next: bool = true) -> void:
 	_controller.turn_resolved.connect(_on_turn_resolved)
 	_board.set_ball_style(_controller.ball_style())
 	_board.set_result_sec(_controller.board_result_sec())
+	_board.set_piece_style(_controller.piece_style())
+	_board.set_beat_gap_sec(_controller.board_beat_gap_sec())
 
 
 ## コントローラーとのつながりを切る（画面の exit）。

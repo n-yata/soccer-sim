@@ -649,6 +649,74 @@ func test_the_second_beat_starts_after_the_first_and_both_end_by_themselves() ->
 	assert_int(_board.shift_beat_count()).is_equal(0)
 
 
+func test_a_gap_between_beats_holds_the_second_beat_but_not_the_landing() -> void:
+	var landed: Array[int] = []
+	_board.play_landed.connect(func() -> void: landed.append(1))
+	_board.set_beat_gap_sec(0.5)
+	_two_beat_board(_before(), _at_judgement(), 0.05, 1.0)
+	await await_millis(250)
+	# 1拍目は終わって着地したが、小休止の間なので2拍目はまだ始まっていない（1拍目の終わりの位置のまま）
+	assert_array(landed).has_size(1)
+	assert_int(_board.shift_beat_index()).is_equal(0)
+	var p1_landed: Vector2 = _board.piece_center("A1-C", true, 0)
+	assert_vector(_board.shifting_piece_center("p1", Vector2.ZERO)).is_equal_approx(p1_landed, Vector2(0.001, 0.001))
+	await await_millis(500)
+	assert_int(_board.shift_beat_index()).is_equal(1)
+
+
+func test_no_gap_is_left_after_the_last_beat_and_bad_gaps_mean_none() -> void:
+	# 小休止は拍と拍の間だけ。2拍（0.05 秒ずつ）と小休止 0.5 秒なら、0.6 秒ほどで終わる（最後の拍の後にも置くと 1.1 秒）
+	_board.set_beat_gap_sec(0.5)
+	_two_beat_board(_before(), _at_judgement(), 0.05, 0.05)
+	await await_millis(850)
+	assert_bool(_board.is_shifting()).is_false()
+	# 負・NaN・無限大の小休止は 0（置かない）
+	for bad: float in [-1.0, NAN, INF]:
+		_board.set_beat_gap_sec(bad)
+		assert_float(_board.beat_gap_sec()).override_failure_message(str(bad)).is_equal(0.0)
+
+
+func test_bad_piece_motion_values_mean_no_stagger_or_hop() -> void:
+	# 有限でない値は 0。NaN のまま入れると駒の位置が NaN になる
+	_board.set_piece_style({"stagger": NAN, "hop": INF})
+	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
+	await await_millis(300)
+	var position: Vector2 = _board.shifting_piece_center("p1", Vector2.ZERO)
+	assert_bool(is_finite(position.x) and is_finite(position.y)).is_true()
+	assert_float(_board.shifting_piece_lift("p1")).is_equal(0.0)
+	# 負の値も 0。負の弾みで駒が地面より下へ沈み（影の計算が 0 で割れる）、負のずらしで拍の終わりに着かなくならない
+	_board.set_piece_style({"stagger": -0.5, "hop": -1.0})
+	# 1拍目（0.3 秒）の終わりの位置を、長い小休止の間（1拍目の進み具合が 1 のまま）に確かめる
+	_board.set_beat_gap_sec(0.5)
+	_two_beat_board(_before(), _at_judgement(), 0.3, 1.0)
+	await await_millis(150)
+	assert_float(_board.shifting_piece_lift("p1")).is_greater_equal(0.0)
+	await await_millis(300)
+	assert_int(_board.shift_beat_index()).is_equal(0)
+	var p1_landed: Vector2 = _board.piece_center("A1-C", true, 0)
+	assert_vector(_board.shifting_piece_center("p1", Vector2.ZERO)).is_equal_approx(p1_landed, Vector2(0.001, 0.001))
+
+
+func test_moving_pieces_are_drawn_at_their_lift() -> void:
+	_board.set_piece_style({"stagger": 0.0, "hop": 0.5})
+	_two_beat_board(_before(), _at_judgement(), 1.0, 1.0)
+	# 動き始めは地面
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece":
+			assert_float(thing["lift"] as float).is_equal_approx(0.0, 0.0001)
+	await await_millis(500)
+	# 1拍目の途中: 動いている p1 は浮き、動いていない駒は地面。描く高さは shifting_piece_lift と同じ
+	var lifts: Dictionary = {}
+	for thing: Dictionary in _board.standing_order():
+		if thing["kind"] == "piece":
+			lifts[thing["plan"]] = thing["lift"]
+	assert_float(_board.shifting_piece_lift("p1")).is_greater(0.1)
+	assert_array(lifts.values()).contains([_board.shifting_piece_lift("p1")])
+	assert_float(_board.shifting_piece_lift("p2")).is_equal(0.0)
+	_board.clear_overlays()
+	assert_float(_board.shifting_piece_lift("p1")).is_equal(0.0)
+
+
 # --- 結果の演出 ---
 
 const Effect := ResultEffect.Kind

@@ -146,7 +146,8 @@ static func _draw_standing_things(board: TacticsBoard) -> void:
 		var scale: float = BoardProjection.scale_at(foot.y, board.size)
 		match thing["kind"]:
 			"piece":
-				_draw_chess_piece(board, foot, radius * scale, thing["is_user"] as bool, 0.38 if thing["is_preview"] else 1.0)
+				_draw_chess_piece(board, foot, radius * scale, thing["is_user"] as bool, 0.38 if thing["is_preview"] else 1.0,
+						thing.get("lift", 0.0) as float)
 			"ball":
 				_draw_lifted_ball(board, foot, scale, thing["lift"] as float)
 			"tag":
@@ -155,12 +156,15 @@ static func _draw_standing_things(board: TacticsBoard) -> void:
 
 ## チェスの駒: 影 → 台座 → 胴 → 首の輪 → 頭。自分はポーン（丸い頭）、相手はビショップ風（とがった頭）。
 ## 色だけでなく頭の形で区別する（NFR-20 のグレースケールでも判別できる）。alpha はプレビューの半透明に使う。
-static func _draw_chess_piece(board: TacticsBoard, foot: Vector2, r: float, is_user: bool, alpha: float) -> void:
+## lift（駒の半径の何倍か）の分だけ駒を持ち上げる（開示で動いている間の弾み）。影は地面の足元に残し、浮くほど小さく薄くする。
+static func _draw_chess_piece(board: TacticsBoard, ground: Vector2, r: float, is_user: bool, alpha: float, lift: float) -> void:
 	var base: Color = _color(board, &"you" if is_user else &"opponent")
 	base.a = alpha
 	var dark: Color = base.darkened(0.35)
 	var light: Color = base.lightened(0.35)
-	_ellipse(board, foot + Vector2(r * 0.25, r * 0.12), r * 1.15, r * 0.42, Color(0, 0, 0, 0.35 * alpha))
+	var shrink: float = 1.0 / (1.0 + lift)
+	_ellipse(board, ground + Vector2(r * 0.25, r * 0.12), r * 1.15 * shrink, r * 0.42 * shrink, Color(0, 0, 0, 0.35 * alpha * shrink))
+	var foot: Vector2 = ground + Vector2(0, -r * lift)
 	_ellipse(board, foot, r, r * 0.36, dark)
 	board.draw_rect(Rect2(foot + Vector2(-r, -r * 0.30), Vector2(r * 2.0, r * 0.30)), dark)
 	_ellipse(board, foot + Vector2(0, -r * 0.30), r, r * 0.36, base)

@@ -362,6 +362,18 @@ func board_result_sec() -> float:
 	return _config.presentation().board_result_sec
 
 
+## 開示で駒が動くときの値（PresentationConfig）。{"stagger": ボールに近い駒から順に動き出す遅れの幅（拍の時間の割合）,
+## "hop": 動いている駒が浮く高さ（駒の半径の何倍か）}。
+func piece_style() -> Dictionary:
+	var presentation: PresentationConfig = _config.presentation()
+	return {"stagger": presentation.piece_stagger, "hop": presentation.piece_hop_height}
+
+
+## 開示の拍と拍の間の小休止（秒。PresentationConfig）。
+func board_beat_gap_sec() -> float:
+	return _config.presentation().board_beat_gap_sec
+
+
 ## 開示の1拍目のボールの軌道の値（PresentationConfig）。{"loft": 浮き球の高さ, "touch": ドリブルの弾みの高さ,
 ## "touches": 弾みの回数}。高さはボールの半径の何倍か。
 func ball_style() -> Dictionary:

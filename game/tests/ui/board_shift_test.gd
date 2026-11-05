@@ -70,6 +70,152 @@ func test_a_carried_ball_bounces_with_the_style_set_on_the_shift() -> void:
 	assert_float(shift.ball_lift()).is_equal_approx(2.0, 0.0001)
 
 
+# --- 駒の進み方（イージング・ずらし・弾み） ---
+
+const NEAR_FROM := Vector2(0, 100)
+const NEAR_TO := Vector2(0, 0)
+const FAR_FROM := Vector2(200, 100)
+const FAR_TO := Vector2(200, 0)
+
+
+## ボールに近い駒 near（order 0）と遠い駒 far（order 1）が動く1拍
+func _piece_shift(stagger: float, hop: float) -> BoardShift:
+	var shift := BoardShift.new()
+	shift.piece_style = {"stagger": stagger, "hop": hop}
+	var paths: Array[Dictionary] = [
+		{"player_id": "near", "is_user": true, "from": NEAR_FROM, "to": NEAR_TO, "order": 0.0},
+		{"player_id": "far", "is_user": true, "from": FAR_FROM, "to": FAR_TO, "order": 1.0},
+	]
+	shift.start([{"piece_paths": paths, "ball_path": {} as Dictionary, "sec": 1.0, "keyframe": 0}])
+	return shift
+
+
+func test_pieces_near_the_ball_start_first_and_all_arrive_together() -> void:
+	var shift: BoardShift = _piece_shift(0.4, 0.0)
+	shift.progress = 0.3
+	# 遠い駒はまだ動き出していない。近い駒は道筋の途中
+	assert_vector(shift.piece_position("far", Vector2.ZERO)).is_equal(FAR_FROM)
+	var near_y: float = shift.piece_position("near", Vector2.ZERO).y
+	assert_float(near_y).is_between(NEAR_TO.y + 0.1, NEAR_FROM.y - 0.1)
+	shift.progress = 1.0
+	assert_vector(shift.piece_position("near", Vector2.ZERO)).is_equal_approx(NEAR_TO, Vector2(0.001, 0.001))
+	assert_vector(shift.piece_position("far", Vector2.ZERO)).is_equal_approx(FAR_TO, Vector2(0.001, 0.001))
+
+
+func test_pieces_ease_in_and_out_along_their_path() -> void:
+	var shift: BoardShift = _piece_shift(0.0, 0.0)
+	# 等速なら 1/5 の時点で 20 進む。イージングでは出だしが遅い
+	shift.progress = 0.2
+	var moved: float = NEAR_FROM.y - shift.piece_position("near", Vector2.ZERO).y
+	assert_float(moved).is_between(0.1, 19.9)
+	# ずらしが無ければ、近い駒も遠い駒も同じだけ進む
+	assert_float(FAR_FROM.y - shift.piece_position("far", Vector2.ZERO).y).is_equal_approx(moved, 0.001)
+
+
+func test_moving_pieces_hop_and_land() -> void:
+	var shift: BoardShift = _piece_shift(0.4, 0.35)
+	assert_float(shift.piece_lift("near")).is_equal_approx(0.0, 0.0001)
+	shift.progress = 0.3
+	# 近い駒は道筋の真ん中（自分の進み具合 0.5）で、いちばん高い
+	assert_float(shift.piece_lift("near")).is_equal_approx(0.35, 0.0001)
+	# まだ動き出していない遠い駒と、道筋の無い駒は浮かない
+	assert_float(shift.piece_lift("far")).is_equal(0.0)
+	assert_float(shift.piece_lift("nobody")).is_equal(0.0)
+	shift.progress = 1.0
+	assert_float(shift.piece_lift("near")).is_equal_approx(0.0, 0.0001)
+	shift.clear()
+	assert_float(shift.piece_lift("near")).is_equal(0.0)
+
+
+func test_build_beats_orders_the_pieces_by_distance_from_the_ball() -> void:
+	# ボールは M2-C。p_near は同じエリア、p_mid は1つ下、p_far は3つ下から動く
+	var center: Callable = func(key: String, _is_user: bool, _slot: int) -> Vector2: return _row_point(key)
+	var start: Array[Dictionary] = [
+		{"player_id": "p_far", "number": 0, "area": "D2-C"},
+		{"player_id": "p_near", "number": 0, "area": "M2-C"},
+		{"player_id": "p_mid", "number": 0, "area": "M1-C"},
+	]
+	var finish: Array[Dictionary] = [
+		{"player_id": "p_far", "number": 0, "area": "D1-C"},
+		{"player_id": "p_near", "number": 0, "area": "A1-C"},
+		{"player_id": "p_mid", "number": 0, "area": "M2-C"},
+	]
+	var no_players: Array[Dictionary] = []
+	var beats: Array[Dictionary] = BoardShift.build_beats([
+		{"user": start, "opponent": no_players, "ball": "M2-C", "sec": 1.0},
+	], {"user": finish, "opponent": no_players, "ball": "M2-C"}, center, _row_point)
+	var orders: Dictionary = {}
+	for path: Dictionary in beats[0]["piece_paths"] as Array:
+		orders[path["player_id"]] = path["order"]
+	assert_float(orders["p_near"] as float).is_equal(0.0)
+	assert_float(orders["p_mid"] as float).is_equal(0.5)
+	assert_float(orders["p_far"] as float).is_equal(1.0)
+
+
+func test_pieces_at_the_same_distance_share_their_order() -> void:
+	# ボールは M2-C。p_a と p_b は同じ M1-C から（同じ距離）、p_c は D2-C から動く
+	var center: Callable = func(key: String, _is_user: bool, _slot: int) -> Vector2: return _row_point(key)
+	var start: Array[Dictionary] = [
+		{"player_id": "p_a", "number": 0, "area": "M1-C"},
+		{"player_id": "p_b", "number": 0, "area": "M1-C"},
+		{"player_id": "p_c", "number": 0, "area": "D2-C"},
+	]
+	var finish: Array[Dictionary] = [
+		{"player_id": "p_a", "number": 0, "area": "M2-C"},
+		{"player_id": "p_b", "number": 0, "area": "M2-C"},
+		{"player_id": "p_c", "number": 0, "area": "M1-C"},
+	]
+	var no_players: Array[Dictionary] = []
+	var beats: Array[Dictionary] = BoardShift.build_beats([
+		{"user": start, "opponent": no_players, "ball": "M2-C", "sec": 1.0},
+	], {"user": finish, "opponent": no_players, "ball": "M2-C"}, center, _row_point)
+	var orders: Dictionary = {}
+	for path: Dictionary in beats[0]["piece_paths"] as Array:
+		orders[path["player_id"]] = path["order"]
+	assert_float(orders["p_a"] as float).is_equal(0.0)
+	assert_float(orders["p_b"] as float).is_equal(0.0)
+	assert_float(orders["p_c"] as float).is_equal(1.0)
+
+
+func test_no_order_is_given_when_the_ball_area_cannot_be_read() -> void:
+	# 2人が別の距離から動いても、ボールのエリアが読めなければ距離を測れないので、全員遅れずに動く
+	var center: Callable = func(key: String, _is_user: bool, _slot: int) -> Vector2: return _row_point(key)
+	var start: Array[Dictionary] = [
+		{"player_id": "p_a", "number": 0, "area": "M1-C"},
+		{"player_id": "p_b", "number": 0, "area": "D1-C"},
+	]
+	var finish: Array[Dictionary] = [
+		{"player_id": "p_a", "number": 0, "area": "M2-C"},
+		{"player_id": "p_b", "number": 0, "area": "D2-C"},
+	]
+	var no_players: Array[Dictionary] = []
+	var beats: Array[Dictionary] = BoardShift.build_beats([
+		{"user": start, "opponent": no_players, "ball": "X-9", "sec": 1.0},
+	], {"user": finish, "opponent": no_players, "ball": "X-9"}, center, _row_point)
+	for path: Dictionary in beats[0]["piece_paths"] as Array:
+		assert_float(path["order"] as float).override_failure_message(path["player_id"] as String).is_equal(0.0)
+
+
+func test_a_single_moving_piece_has_no_delay() -> void:
+	var center: Callable = func(key: String, _is_user: bool, _slot: int) -> Vector2: return _row_point(key)
+	var no_players: Array[Dictionary] = []
+	var beats: Array[Dictionary] = BoardShift.build_beats([
+		{"user": [{"player_id": "p1", "number": 0, "area": "D2-C"}] as Array[Dictionary], "opponent": no_players,
+				"ball": "X-9", "sec": 1.0},
+	], {"user": [{"player_id": "p1", "number": 0, "area": "D1-C"}] as Array[Dictionary], "opponent": no_players,
+			"ball": "X-9"}, center, _row_point)
+	# 1人だけ・ボールが読めない拍は、順を 0 にする（遅れずに動く）
+	assert_float((beats[0]["piece_paths"] as Array)[0]["order"] as float).is_equal(0.0)
+
+
+## 列ごとに 100 ずつ下がる点（A2 が 0、D1 が 500）。レーンは C だけを使う
+func _row_point(key: String) -> Vector2:
+	var area: PitchArea = PitchArea.from_key(key)
+	if area == null:
+		return Vector2(-1, -1)
+	return Vector2(0, (PitchArea.ZONE_COUNT - 1 - area.zone) * 100.0)
+
+
 func test_build_beats_puts_the_flight_of_a_keyframe_on_its_ball_path() -> void:
 	var center: Callable = func(_key: String, _is_user: bool, _slot: int) -> Vector2: return Vector2.ZERO
 	var ball_point: Callable = func(key: String) -> Vector2: return Vector2(0, 10) if key == "M2-C" else Vector2(0, 0)

@@ -537,6 +537,34 @@ func test_binding_gives_the_board_the_result_time_from_the_settings() -> void:
 	assert_dict(board.result_effect()).is_empty()
 
 
+func test_binding_gives_the_board_the_piece_motion_from_the_settings() -> void:
+	# bind で設定の駒の動き（弾み）と小休止を盤面に入れる。入れないと、駒が浮かず、拍の間も空かない
+	_start(true)
+	var board: TacticsBoard = _panel.board()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var mover: Dictionary = snapshot.user_players[0]
+	var moved_from: Dictionary = mover.duplicate()
+	var area: PitchArea = PitchArea.from_key(mover["area"] as String)
+	moved_from["area"] = PitchArea.new(area.lane, (area.zone + 1 if area.zone < GameEnums.Zone.A2 else area.zone - 1) as GameEnums.Zone).to_key()
+	var moved_before: Array[Dictionary] = snapshot.user_players.duplicate()
+	moved_before[0] = moved_from
+	var from_key: String = "D1-C" if snapshot.ball_area != "D1-C" else "D2-C"
+	# 1拍目はボールだけが動く（0.05 秒）。2拍目で駒が1人だけ、いまの位置へ動く（1 秒）
+	board.start_shift([
+		{"user": moved_before, "opponent": snapshot.opponent_players, "ball": from_key, "sec": 0.05},
+		{"user": moved_before, "opponent": snapshot.opponent_players, "ball": snapshot.ball_area, "sec": 1.0},
+	])
+	assert_int(board.shift_beat_count()).is_equal(2)
+	# 小休止は設定の値が入っている（小休止で2拍目が遅れることは tactics_board_test で確かめる）
+	assert_float(board.beat_gap_sec()).is_equal(_controller.board_beat_gap_sec())
+	# 2拍目の途中: 1人だけが動くのでずらしは無く、浮いている（同梱の弾みは駒の半径の 0.35 倍）
+	await await_millis(600)
+	assert_int(board.shift_beat_index()).is_equal(1)
+	assert_float(board.shifting_piece_lift(mover["player_id"] as String)).is_greater(0.05)
+	assert_float(board.shifting_piece_lift(mover["player_id"] as String)) \
+			.is_less_equal(_controller.piece_style()["hop"] as float + 0.0001)
+
+
 ## 利用者が守備の最初のターンで、画面に出た最初の守備の手を決定し、開示が2拍（プレーと詰め直し）になり、ボールが動く場面を
 ## シードを変えて探す（2026-11-03 に手の選び方が変わり、最初のシードでは詰め直す選手がいなくなったため）
 func _start_with_a_two_beat_reveal() -> void:

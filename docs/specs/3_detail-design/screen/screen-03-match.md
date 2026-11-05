@@ -180,7 +180,9 @@ MatchScreen (Control)
    `match_controller.board_settle_sec()` 秒。どちらの拍も、位置が変わった全選手を動かす（方式でずれた選手も動き、
    手で動いた後にチーム全体がボールに合わせて組み直ることが見える）。1拍目のボールは、ボールを持つ側の手
    （`BallFlight.holder_choice(reveal)`）の軌道 `BallFlight.kind_for(...)` で動かす（2026-11-03）。軌道の高さの値は、
-   `bind` で `TacticsBoard.set_ball_style(match_controller.ball_style())` として入れる。
+   `bind` で `TacticsBoard.set_ball_style(match_controller.ball_style())` として入れる。駒の動き（ずらし・弾み）と拍の間の
+   小休止も、`bind` で `set_piece_style(match_controller.piece_style())`・`set_beat_gap_sec(match_controller.board_beat_gap_sec())`
+   として入れる（2026-11-05）。
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
 4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功・オフサイド（2026-10-25）、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が

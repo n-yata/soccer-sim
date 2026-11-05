@@ -16,6 +16,10 @@ const MAX_BOARD_BEAT_SEC: float = 2.0
 const MAX_BALL_LOFT_HEIGHT: float = 20.0
 const MAX_BALL_TOUCH_HEIGHT: float = 5.0
 const MAX_BALL_DRIBBLE_TOUCHES: int = 8
+## 駒の動きの上限（ずらしの幅は拍の時間の割合、弾みの高さは駒の半径の何倍か、小休止は秒）。範囲の正本は同じ表
+const MAX_PIECE_STAGGER: float = 0.8
+const MAX_PIECE_HOP_HEIGHT: float = 1.5
+const MAX_BOARD_BEAT_GAP_SEC: float = 0.5
 
 var _config_dir: String
 var _match_rules: MatchRuleConfig
@@ -118,7 +122,22 @@ func _load_presentation() -> PresentationConfig:
 		push_error("ConfigRepository: %s の値が範囲外（ball_loft_height=%s, ball_touch_height=%s, ball_dribble_touches=%d）のため、初期値を使う"
 				% [PRESENTATION_FILE, loaded.ball_loft_height, loaded.ball_touch_height, loaded.ball_dribble_touches])
 		return PresentationConfig.new()
+	if not _is_piece_motion_valid(loaded):
+		push_error("ConfigRepository: %s の値が範囲外（piece_stagger=%s, piece_hop_height=%s, board_beat_gap_sec=%s）のため、初期値を使う"
+				% [PRESENTATION_FILE, loaded.piece_stagger, loaded.piece_hop_height, loaded.board_beat_gap_sec])
+		return PresentationConfig.new()
 	return loaded
+
+
+## 駒の動きの値の範囲（ずらしの幅・弾みの高さ・拍の間の小休止。同じ表）。NaN でも偽になるよう、肯定形で確かめる。
+static func _is_piece_motion_valid(config: PresentationConfig) -> bool:
+	return _is_within(config.piece_stagger, MAX_PIECE_STAGGER) and _is_within(config.piece_hop_height, MAX_PIECE_HOP_HEIGHT) \
+			and _is_within(config.board_beat_gap_sec, MAX_BOARD_BEAT_GAP_SEC)
+
+
+## 0 以上 upper 以下の有限の値か。
+static func _is_within(value: float, upper: float) -> bool:
+	return is_finite(value) and value >= 0.0 and value <= upper
 
 
 ## ボールの軌道の値の範囲（functional-overview.md「設定値として外部化する値」）。NaN でも偽になるよう、肯定形で確かめる。

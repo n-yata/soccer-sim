@@ -15,6 +15,8 @@ var beat_index: int = 0
 var progress: float = 1.0
 ## ボールの軌道の値 {"loft", "touch", "touches"}（BallFlight.lift。MatchController.ball_style()）。空なら高さは 0
 var ball_style: Dictionary = {}
+## 駒の動きの値 {"stagger", "hop"}（PieceMotion。MatchController.piece_style()）。空ならずらしも弾みも無い
+var piece_style: Dictionary = {}
 
 
 ## 駒かボールのどれかが動いているか。
@@ -73,12 +75,28 @@ func ball_path_of(index: int) -> Dictionary:
 ## player_id の駒を描く位置。いまの拍で動いていれば道筋の途中。まだ動いていなければ、後の拍で最初に動く道筋の元
 ## （その拍の始まりの位置）。どちらでもなければ rest（駒の列の位置。動き終えた駒と動かない駒）。
 ## 前の拍の行き先を見ないのは、前の拍の行き先は後の拍の元と同じ位置で、後の拍に出てこなければ rest と同じ位置だから。
+## いまの拍の駒は、ボールに近い順に少し遅れて動き出し、加速して減速して止まる（PieceMotion。piece_style）。
 func piece_position(player_id: String, rest: Vector2) -> Vector2:
 	for index: int in range(beat_index, beats.size()):
 		for path: Dictionary in beats[index]["piece_paths"] as Array:
 			if path["player_id"] == player_id:
-				return _point_on(path, index)
+				if index != beat_index:
+					return path["from"] as Vector2
+				return (path["from"] as Vector2).lerp(path["to"] as Vector2, PieceMotion.smooth(_piece_t(path)))
 	return rest
+
+
+## player_id の駒の高さ（駒の半径の何倍か）。いまの拍で動いている駒だけが浮く。ほかは 0（地面）。
+func piece_lift(player_id: String) -> float:
+	for path: Dictionary in piece_paths_of(beat_index):
+		if path["player_id"] == player_id:
+			return PieceMotion.hop(_piece_t(path), piece_style.get("hop", 0.0) as float)
+	return 0.0
+
+
+## いまの拍の中での、その駒の進み具合（ずらしの分だけ遅れる）。
+func _piece_t(path: Dictionary) -> float:
+	return PieceMotion.local_t(progress, path.get("order", 0.0) as float, piece_style.get("stagger", 0.0) as float)
 
 
 ## ボールを描く位置（地面の位置。影もここに描く）。駒と同じ決め方で、rest はいまのエリアの位置。
@@ -103,8 +121,8 @@ static func _flight_of(path: Dictionary) -> BallFlight.Kind:
 	return path.get("flight", BallFlight.Kind.STRAIGHT) as BallFlight.Kind
 
 
-## index の拍の道筋の上で、いまの位置。いまの拍なら進み具合の分、後の拍なら元。
-## 駒とボールで同じ決め方にするため、1か所に置く（駒の道筋は "flight" を持たないので、まっすぐ等速になる）。
+## index の拍のボールの道筋の上で、いまの位置。いまの拍なら軌道の進み方の分、後の拍なら元。
+## （駒は 2026-11-05 から、ずらしとイージングのある piece_position の進み方で動く。ボールは軌道どおりに動かす）
 func _point_on(path: Dictionary, index: int) -> Vector2:
 	if index != beat_index:
 		return path["from"] as Vector2
@@ -122,11 +140,34 @@ static func build_beats(keyframes: Array[Dictionary], end: Dictionary, center: C
 		var finish: Dictionary = end if index == keyframes.size() - 1 else keyframes[index + 1]
 		var piece_paths: Array[Dictionary] = paths(_players_in(start, "user"), _players_in(finish, "user"), true, center)
 		piece_paths.append_array(paths(_players_in(start, "opponent"), _players_in(finish, "opponent"), false, center))
+		_order_by_distance(piece_paths, start["ball"] as String, ball_point)
 		var ball_path: Dictionary = _ball_path(start["ball"] as String, finish["ball"] as String, ball_point)
 		if not ball_path.is_empty() and start.has("flight"):
 			ball_path["flight"] = start["flight"] as BallFlight.Kind
 		beats.append({"piece_paths": piece_paths, "ball_path": ball_path, "sec": start["sec"] as float, "keyframe": index})
 	return beats
+
+
+## 駒の道筋に、ずらしの順 "order"（拍の始まりのボールの位置に近い順。0 = いちばん近い 〜 1 = いちばん遠い）を入れる。
+## 同じ距離の駒は同じ順にする（並べ替えは安定でないので、順位で付けると同じ距離の片方だけが遅れるため）。
+## 1人だけ・全員が同じ距離・ボールのエリアが読めない拍は、全員 0（遅れずに動く）。
+static func _order_by_distance(piece_paths: Array[Dictionary], ball_key: String, ball_point: Callable) -> void:
+	for path: Dictionary in piece_paths:
+		path["order"] = 0.0
+	if piece_paths.size() < 2 or PitchArea.from_key(ball_key) == null:
+		return
+	var ball: Vector2 = ball_point.call(ball_key) as Vector2
+	var distances: Array[float] = []
+	for path: Dictionary in piece_paths:
+		var distance: float = snappedf((path["from"] as Vector2).distance_to(ball), 0.001)
+		if not distances.has(distance):
+			distances.append(distance)
+	if distances.size() < 2:
+		return
+	distances.sort()
+	for path: Dictionary in piece_paths:
+		var distance: float = snappedf((path["from"] as Vector2).distance_to(ball), 0.001)
+		path["order"] = float(distances.find(distance)) / (distances.size() - 1)
 
 
 static func _players_in(keyframe: Dictionary, key: String) -> Array[Dictionary]:

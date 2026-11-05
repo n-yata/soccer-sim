@@ -22,6 +22,8 @@ var _landing_pending: bool = false
 ## 結果の演出を出す時間（秒）。0 以下なら演出を出さない（時間を入れない盤面、振り返りなど）
 var _result_sec: float = 0.0
 var _effect_tween: Tween
+## 拍と拍の間の小休止（秒）。0 なら置かない
+var _beat_gap_sec: float = 0.0
 
 
 ## 拍（BoardShift.build_beats の値。ResultEffect.shape_ball_paths で結果に合わせた後）を順に動かし、1拍目が終わったら
@@ -42,6 +44,9 @@ func start(beats: Array[Dictionary], result: Dictionary) -> void:
 		_shift_tween.tween_method(_set_progress, 0.0, 1.0, shift.beats[index]["sec"] as float)
 		if (shift.beats[index]["keyframe"] as int) == 0:
 			_shift_tween.tween_callback(_land)
+		# 着地（テロップ・結果の演出）は小休止を待たない。小休止は拍と拍の間だけ（最後の拍の後には置かない）
+		if index < shift.beats.size() - 1 and _beat_gap_sec > 0.0:
+			_shift_tween.tween_interval(_beat_gap_sec)
 	_shift_tween.finished.connect(stop)
 
 
@@ -71,6 +76,15 @@ func clear_effect() -> void:
 ## 結果の演出を出す時間（秒）。有限でない値は 0（演出を出さない）として扱う（無限大だと演出が消えなくなる）。
 func set_result_sec(sec: float) -> void:
 	_result_sec = sec if is_finite(sec) else 0.0
+
+
+## 拍と拍の間の小休止（秒）。有限でない値・負の値は 0（置かない）として扱う。
+func set_beat_gap_sec(sec: float) -> void:
+	_beat_gap_sec = sec if is_finite(sec) and sec > 0.0 else 0.0
+
+
+func beat_gap_sec() -> float:
+	return _beat_gap_sec
 
 
 ## 1拍目の着地。結果の演出を始め、着地を知らせる（1回の開示で1回だけ）。

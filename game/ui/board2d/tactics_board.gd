@@ -29,6 +29,8 @@ const DRAWN_REASONS: Array[GameEnums.MovementReason] = [
 	GameEnums.MovementReason.THROUGH_RUN,
 ]
 const HINT_HEIGHT: float = 26.0
+## 駒のずらしの幅を押さえる上限（拍の時間の割合。1 に近づくほど動く時間が無くなるので、1 より小さく置く）
+const MAX_PIECE_STAGGER_SAFE: float = 0.95
 ## ボールの半径（BoardGeometry.BALL_RADIUS。描画が TacticsBoard の名前で読む）
 const BALL_RADIUS: float = BoardGeometry.BALL_RADIUS
 
@@ -227,6 +229,11 @@ func shifting_piece_center(player_id: String, rest: Vector2) -> Vector2:
 	return _reveal.shift.piece_position(player_id, rest)
 
 
+## player_id の駒の高さ（駒の半径の何倍か。開示で動いている間の弾み）。動いていなければ 0。
+func shifting_piece_lift(player_id: String) -> float:
+	return _reveal.shift.piece_lift(player_id)
+
+
 # --- 位置の計算（BoardGeometry。描画・テスト・ResultEffect が読む公開の面として残す） ---
 
 ## ゴールの四角（平面図）。is_top なら上（利用者が攻めるゴール）。描画とボールの行き先で共有する。
@@ -347,6 +354,29 @@ func set_ball_style(style: Dictionary) -> void:
 	_reveal.shift.ball_style = style.duplicate()
 
 
+## 開示で駒が動くときの値 {"stagger", "hop"}（MatchController.piece_style()）。パネルが bind で入れる。
+## 有限でない値・負の値は 0（ずらし・弾みなし）として扱う（NaN だと駒の位置が壊れ、負の弾みは駒が沈み影の計算が 0 で割れ、
+## 負のずらしは拍の終わりに駒が着かない）。ずらしは MAX_PIECE_STAGGER_SAFE 以下に押さえる（1 以上だと動く時間が残らない。
+## 調整値の範囲の正本はデータ層の検査。ここは画面を壊さないための守り）。
+func set_piece_style(style: Dictionary) -> void:
+	var stagger: float = style.get("stagger", 0.0) as float
+	var hop: float = style.get("hop", 0.0) as float
+	_reveal.shift.piece_style = {
+		"stagger": clampf(stagger, 0.0, MAX_PIECE_STAGGER_SAFE) if is_finite(stagger) else 0.0,
+		"hop": maxf(hop, 0.0) if is_finite(hop) else 0.0,
+	}
+
+
+## 開示の拍と拍の間の小休止（秒。MatchController.board_beat_gap_sec()）。パネルが bind で入れる。
+func set_beat_gap_sec(sec: float) -> void:
+	_reveal.set_beat_gap_sec(sec)
+
+
+## いま入れている拍と拍の間の小休止（秒。0 以下・有限でない値を入れたら 0）。
+func beat_gap_sec() -> float:
+	return _reveal.beat_gap_sec()
+
+
 ## is_user のチームの選手（BoardSnapshot.user_players と同じ形）。
 func players(is_user: bool) -> Array[Dictionary]:
 	return (_user_players if is_user else _opponent_players).duplicate()
@@ -393,7 +423,8 @@ func standing_order() -> Array[Dictionary]:
 			for index: int in range(team.size()):
 				var rest: Vector2 = slot_center(team[index]["area"] as String, is_user, slots[index])
 				things.append({"kind": "piece", "is_user": is_user, "is_preview": false,
-						"plan": shifting_piece_center(team[index]["player_id"] as String, rest)})
+						"plan": shifting_piece_center(team[index]["player_id"] as String, rest),
+						"lift": shifting_piece_lift(team[index]["player_id"] as String)})
 	else:
 		for area: PitchArea in PitchArea.all():
 			for is_user: bool in [true, false]:

@@ -419,6 +419,53 @@ func test_out_of_range_ball_style_reports_an_error() -> void:
 			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（ball_loft_height=6.0, ball_touch_height=1.0, ball_dribble_touches=0）のため、初期値を使う")
 
 
+## 駒の動きの値（ずらしの幅 stagger・弾みの高さ hop・拍の間の小休止 gap）だけを変えた設定
+func _piece_motion_with(case_name: String, stagger: float, hop: float, gap: float) -> ConfigRepository:
+	var dir: String = create_temp_dir("config_repository/piece_motion_" + case_name)
+	var presentation := PresentationConfig.new()
+	presentation.piece_stagger = stagger
+	presentation.piece_hop_height = hop
+	presentation.board_beat_gap_sec = gap
+	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
+	return ConfigRepository.new(dir)
+
+
+func test_bundled_piece_motion_matches_the_initial_value() -> void:
+	# functional-overview.md「設定値として外部化する値」の初期値（ずらし 0.35・弾み 0.35・小休止 0.12 秒）
+	for config: PresentationConfig in [ConfigRepository.new().presentation(), PresentationConfig.new()]:
+		assert_float(config.piece_stagger).is_equal(0.35)
+		assert_float(config.piece_hop_height).is_equal(0.35)
+		assert_float(config.board_beat_gap_sec).is_equal(0.12)
+	var text: String = FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)
+	for key: String in ["piece_stagger = ", "piece_hop_height = ", "board_beat_gap_sec = "]:
+		assert_str(text).contains(key)
+
+
+func test_piece_motion_inside_the_range_is_read_including_the_bounds() -> void:
+	# 下限（すべて 0。ずらし・弾み・小休止なし）と上限（0.8・1.5・0.5）を含む
+	for values: Array in [[0.0, 0.0, 0.0], [0.8, 1.5, 0.5], [0.2, 0.5, 0.25]]:
+		var config: PresentationConfig = _piece_motion_with("ok_%s_%s_%s" % values, values[0], values[1], values[2]).presentation()
+		assert_float(config.piece_stagger).override_failure_message(str(values)).is_equal(values[0] as float)
+		assert_float(config.piece_hop_height).override_failure_message(str(values)).is_equal(values[1] as float)
+		assert_float(config.board_beat_gap_sec).override_failure_message(str(values)).is_equal(values[2] as float)
+
+
+func test_out_of_range_piece_motion_falls_back_to_the_initial_value() -> void:
+	var initial := PresentationConfig.new()
+	for values: Array in [[-0.1, 0.35, 0.12], [0.81, 0.35, 0.12], [NAN, 0.35, 0.12], [0.35, -0.1, 0.12],
+			[0.35, 1.51, 0.12], [0.35, INF, 0.12], [0.35, 0.35, -0.01], [0.35, 0.35, 0.51], [0.35, 0.35, NAN]]:
+		var config: PresentationConfig = _piece_motion_with("bad_%s_%s_%s" % values, values[0], values[1], values[2]).presentation()
+		assert_float(config.piece_stagger).override_failure_message(str(values)).is_equal(initial.piece_stagger)
+		assert_float(config.piece_hop_height).override_failure_message(str(values)).is_equal(initial.piece_hop_height)
+		assert_float(config.board_beat_gap_sec).override_failure_message(str(values)).is_equal(initial.board_beat_gap_sec)
+
+
+func test_out_of_range_piece_motion_reports_an_error() -> void:
+	var repository: ConfigRepository = _piece_motion_with("error", 0.9, 0.35, 0.12)
+	await assert_error(func() -> void: repository.presentation()) \
+			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（piece_stagger=0.9, piece_hop_height=0.35, board_beat_gap_sec=0.12）のため、初期値を使う")
+
+
 func test_missing_presentation_falls_back_to_the_initial_value_with_an_error() -> void:
 	var repository := ConfigRepository.new(create_temp_dir("config_repository/presentation_missing"))
 	await assert_error(func() -> void: repository.presentation()) \
