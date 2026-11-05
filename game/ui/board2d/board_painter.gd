@@ -174,20 +174,20 @@ static func _draw_player(board: TacticsBoard, ground: Vector2, r: float, is_user
 		board.draw_colored_polygon(part["points"] as PackedVector2Array, color)
 
 
-## 部品の役割 → 色の決め方（_player_color）。&"team"・&"team_light"・&"team_dark" はチームの色とその明るい色・暗い色、
+## 部品の役割 → 色の決め方（_player_color）。&"team"・&"team_dark" はチームの色とその暗い色、
 ## &"shadow" は影、ほかはテーマの色の名前。player_parts の役割はすべてここに載せる（テストで確かめる）
 const PLAYER_ROLE_COLORS: Dictionary = {
 	&"shadow": &"shadow",
-	&"shirt": &"team", &"sleeve": &"team", &"sock": &"team",
-	&"stripe": &"team_light",
-	&"shorts": &"team_dark",
-	&"boot": &"bg", &"emblem": &"bg",
+	&"base": &"team", &"shirt": &"team", &"sock": &"team",
+	&"base_side": &"team_dark", &"shorts": &"team_dark", &"stripe": &"team_dark",
+	&"emblem": &"bg",
 	&"skin": &"skin",
 	&"hair": &"hair",
 }
 
 
-## 部品の役割 → 色。ユニフォーム・ソックスはチームの色、パンツはその暗い色、縦じまは明るい色。
+## 部品の役割 → 色。台座の上面・ユニフォーム・脚はチームの色、台座の側面・パンツ・縦じまはその暗い色
+## （縦じまは、明るい色ではグレースケールで胴と見分けにくかった。2026-11-06）。
 static func _player_color(board: TacticsBoard, role: StringName, base: Color, shadow_alpha: float) -> Color:
 	var source: StringName = PLAYER_ROLE_COLORS.get(role, &"team")
 	match source:
@@ -195,57 +195,62 @@ static func _player_color(board: TacticsBoard, role: StringName, base: Color, sh
 			return Color(0, 0, 0, shadow_alpha)
 		&"team":
 			return base
-		&"team_light":
-			return base.lightened(0.6)
 		&"team_dark":
 			return base.darkened(0.55)
 	return _color(board, source)
 
 
 ## サッカー選手の駒の部品を、奥から手前へ塗る順に。各要素は {"role": StringName, "points": PackedVector2Array（画面の座標）}。
-## ground は足元の地面、r は描く大きさ（台座の半径）。高さは約 3.2r（チェスの駒のビショップの先と同じくらい）、幅は ±0.9r。
+## ground は足元の地面、r は描く大きさ（台座の半径）。高さは約 3.25r（チェスの駒のビショップの先と同じくらい）、幅は ±r（台座）。
+## 駒らしく、丸い台座（base・base_side）に、細部を省いたずんぐりした選手（脚・パンツ・ユニフォーム・頭）が立つ
+## （2026-11-06。最初は腕・スパイクまで描いたが、シャビ「少し人っぽくしすぎた。もう少しコマっぽく」）。
 ## 色だけでなく形でもチームを区別する（NFR-20）: 相手のユニフォームは縦じま（stripe）、胸の印は自分が丸（●）・相手がひし形（◆）。
 ## lift（r の何倍か）の分だけ影のほかを持ち上げる（開示の弾み）。影は地面に残し、浮くほど小さくする。
-## 色は役割ごとに _player_color が決める。テストもこの部品を通して形を確かめる
+## 色は役割ごとに PLAYER_ROLE_COLORS が決める。テストもこの部品を通して形を確かめる
 static func player_parts(ground: Vector2, r: float, is_user: bool, lift: float) -> Array[Dictionary]:
 	var parts: Array[Dictionary] = []
 	var shrink: float = 1.0 / (1.0 + lift)
-	parts.append(_part(&"shadow", _ellipse_points(ground + Vector2(r * 0.15, r * 0.06), r * 0.85 * shrink, r * 0.28 * shrink)))
+	parts.append(_part(&"shadow", _ellipse_points(ground + Vector2(r * 0.25, r * 0.12), r * 1.10 * shrink, r * 0.40 * shrink)))
 	var foot: Vector2 = ground + Vector2(0, -r * lift)
-	for side: float in [-1.0, 1.0]:
-		var x: float = side * r * 0.26
-		parts.append(_part(&"skin", _box(foot, x - r * 0.10, x + r * 0.10, -r * 1.00, -r * 0.70)))
-		parts.append(_part(&"sock", _box(foot, x - r * 0.11, x + r * 0.11, -r * 0.72, -r * 0.08)))
-		parts.append(_part(&"boot", _ellipse_points(foot + Vector2(x + side * r * 0.04, -r * 0.08), r * 0.18, r * 0.08)))
-	parts.append(_part(&"shorts", _box(foot, -r * 0.48, r * 0.48, -r * 1.45, -r * 0.95)))
-	for side: float in [-1.0, 1.0]:
-		var shoulder: Vector2 = foot + Vector2(side * r * 0.60, -r * 2.22)
-		var elbow: Vector2 = foot + Vector2(side * r * 0.72, -r * 1.86)
-		var hand: Vector2 = foot + Vector2(side * r * 0.78, -r * 1.52)
-		parts.append(_part(&"sleeve", _limb(shoulder, elbow, r * 0.12)))
-		parts.append(_part(&"skin", _limb(elbow, hand, r * 0.09)))
-	parts.append(_part(&"skin", _box(foot, -r * 0.10, r * 0.10, -r * 2.44, -r * 2.25)))
-	parts.append(_part(&"shirt", PackedVector2Array([foot + Vector2(-r * 0.62, -r * 2.30), foot + Vector2(r * 0.62, -r * 2.30),
-			foot + Vector2(r * 0.50, -r * 1.40), foot + Vector2(-r * 0.50, -r * 1.40)])))
+	# 台座: 側面（下半分の楕円と、上面までの帯）と上面
+	var base_top_y: float = -r * 0.26
+	var side: PackedVector2Array = []
+	for step: int in range(13):
+		var angle: float = PI * step / 12.0
+		side.append(foot + Vector2(cos(angle) * r, sin(angle) * r * 0.34))
+	side.append(foot + Vector2(-r, base_top_y))
+	side.append(foot + Vector2(r, base_top_y))
+	parts.append(_part(&"base_side", side))
+	parts.append(_part(&"base", _ellipse_points(foot + Vector2(0, base_top_y), r, r * 0.34)))
+	# 脚はひとかたまり（ソックスの色）、その上にパンツ
+	parts.append(_part(&"sock", PackedVector2Array([foot + Vector2(-r * 0.36, -r * 1.05), foot + Vector2(r * 0.36, -r * 1.05),
+			foot + Vector2(r * 0.30, -r * 0.30), foot + Vector2(-r * 0.30, -r * 0.30)])))
+	parts.append(_part(&"shorts", _box(foot, -r * 0.46, r * 0.46, -r * 1.48, -r * 1.00)))
+	# ユニフォーム: 肩を丸めた胴（腕は描かない）
+	parts.append(_part(&"shirt", PackedVector2Array([foot + Vector2(-r * 0.68, -r * 2.12), foot + Vector2(-r * 0.50, -r * 2.32),
+			foot + Vector2(r * 0.50, -r * 2.32), foot + Vector2(r * 0.68, -r * 2.12), foot + Vector2(r * 0.56, -r * 1.42),
+			foot + Vector2(-r * 0.56, -r * 1.42)])))
 	if not is_user:
-		for side: float in [-1.0, 1.0]:
-			parts.append(_part(&"stripe", _box(foot, side * r * 0.14 - r * 0.07, side * r * 0.14 + r * 0.07, -r * 2.28, -r * 1.42)))
-	var chest: Vector2 = foot + Vector2(0, -r * 1.95)
-	var emblem: float = r * 0.16
+		for side_sign: float in [-1.0, 1.0]:
+			var x: float = side_sign * r * 0.20
+			parts.append(_part(&"stripe", _box(foot, x - r * 0.10, x + r * 0.10, -r * 2.30, -r * 1.44)))
+	var chest: Vector2 = foot + Vector2(0, -r * 1.92)
+	var emblem: float = r * 0.17
 	if is_user:
 		parts.append(_part(&"emblem", _ellipse_points(chest, emblem, emblem, 12)))
 	else:
 		parts.append(_part(&"emblem", PackedVector2Array([chest + Vector2(0, -emblem * 1.2), chest + Vector2(emblem, 0),
 				chest + Vector2(0, emblem * 1.2), chest + Vector2(-emblem, 0)])))
-	var head: Vector2 = foot + Vector2(0, -r * 2.78)
-	parts.append(_part(&"skin", _ellipse_points(head, r * 0.38, r * 0.40)))
+	# 頭は大きめ（駒らしい比率）
+	var head: Vector2 = foot + Vector2(0, -r * 2.74)
+	parts.append(_part(&"skin", _ellipse_points(head, r * 0.46, r * 0.46)))
 	# 髪: 頭の上半分にかぶせる（いちばん上の部品）
 	var hair: PackedVector2Array = []
 	for step: int in range(9):
 		var angle: float = PI + PI * step / 8.0
-		hair.append(head + Vector2(cos(angle) * r * 0.41, sin(angle) * r * 0.44 - r * 0.02))
-	hair.append(head + Vector2(r * 0.30, -r * 0.08))
-	hair.append(head + Vector2(-r * 0.30, -r * 0.08))
+		hair.append(head + Vector2(cos(angle) * r * 0.48, sin(angle) * r * 0.50 - r * 0.02))
+	hair.append(head + Vector2(r * 0.36, -r * 0.10))
+	hair.append(head + Vector2(-r * 0.36, -r * 0.10))
 	parts.append(_part(&"hair", hair))
 	return parts
 
@@ -270,12 +275,6 @@ static func _part(role: StringName, points: PackedVector2Array) -> Dictionary:
 static func _box(foot: Vector2, left: float, right: float, top: float, bottom: float) -> PackedVector2Array:
 	return PackedVector2Array([foot + Vector2(left, top), foot + Vector2(right, top), foot + Vector2(right, bottom),
 			foot + Vector2(left, bottom)])
-
-
-## from から to への太さ 2 × half_width の腕
-static func _limb(from: Vector2, to: Vector2, half_width: float) -> PackedVector2Array:
-	var side: Vector2 = (to - from).normalized().orthogonal() * half_width
-	return PackedVector2Array([from - side, from + side, to + side, to - side])
 
 
 static func _pentagon(center: Vector2, radius: float, first_angle: float) -> PackedVector2Array:

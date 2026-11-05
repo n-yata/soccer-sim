@@ -23,7 +23,8 @@ func _parts_of(parts: Array[Dictionary], role: StringName) -> Array[Dictionary]:
 	return found
 
 
-## 隣の駒と横に重ならない: 影のほかの部品は、足元から左右に台座の半径（r）の内側にある
+## 影のほかの部品は、足元から左右に台座の半径（r）の内側にある（台座はチェスの駒の台座と同じ幅。
+## 駒の間隔が詰まる狭い盤面では、隣の台座の縁が 1px ほど重なるのもチェスの駒のときと同じ。2026-11-06）
 func test_every_part_but_the_shadow_stays_within_the_piece_radius() -> void:
 	for is_user: bool in [true, false]:
 		var points: PackedVector2Array = _all_points(BoardPainter.player_parts(GROUND, R, is_user, 0.0))
@@ -32,16 +33,38 @@ func test_every_part_but_the_shadow_stays_within_the_piece_radius() -> void:
 			assert_float(absf(point.x - GROUND.x)).override_failure_message("%s がはみ出す" % point).is_less_equal(R)
 
 
-## 足が地面に着いて立ち、頭がいちばん上にある。高さはチェスの駒（ビショップの先まで 約3.25r）と同じくらい
-func test_the_player_stands_on_the_ground_with_the_head_on_top() -> void:
+## 駒らしく、地面に丸い台座（base）を置き、その上に選手が立つ（2026-11-06。シャビ「少し人っぽくしすぎた。もう少しコマっぽく」）。
+## 台座は足元を中心に、駒の半径いっぱいの幅。頭がいちばん上で、高さはチェスの駒（ビショップの先まで 約3.25r）と同じくらい。
+## 腕・スパイクのような細かい部品は持たない
+func test_the_player_stands_on_a_round_base_with_the_head_on_top() -> void:
 	for is_user: bool in [true, false]:
 		var parts: Array[Dictionary] = BoardPainter.player_parts(GROUND, R, is_user, 0.0)
-		var lowest: float = -INF
+		var bases: Array[Dictionary] = _parts_of(parts, &"base")
+		assert_int(bases.size()).is_equal(1)
+		var base: PackedVector2Array = bases[0]["points"]
+		var left: float = INF
+		var right: float = -INF
+		for point: Vector2 in base:
+			left = minf(left, point.x)
+			right = maxf(right, point.x)
+		assert_float(left).is_equal_approx(GROUND.x - R, 0.001)
+		assert_float(right).is_equal_approx(GROUND.x + R, 0.001)
+		# 台座の側面（暗い色）は足元を中心に、下端が地面のすぐ下（台座の楕円の縦の半径 0.34r）にある。台座の上面は地面より上
+		var side: PackedVector2Array = _parts_of(parts, &"base_side")[0]["points"]
+		assert_float(_center(side).x).is_equal_approx(GROUND.x, 0.001)
+		var side_bottom: float = -INF
+		for point: Vector2 in side:
+			side_bottom = maxf(side_bottom, point.y)
+		assert_float(side_bottom).is_between(GROUND.y, GROUND.y + 0.4 * R)
+		assert_float(_center(base).y).is_less(GROUND.y)
+		# 影も含めて、足元から台座の半径より下へは出ない（tactics_board_test のレーン名の位置は、この前提で駒の下端を見積もる）
+		for point: Vector2 in _all_points(parts, false):
+			assert_float(point.y).override_failure_message("%s が足元より下に出すぎる" % point).is_less_equal(GROUND.y + R)
+		for role: StringName in [&"sleeve", &"boot"]:
+			assert_array(_parts_of(parts, role)).is_empty()
 		var highest: float = INF
 		for point: Vector2 in _all_points(parts):
-			lowest = maxf(lowest, point.y)
 			highest = minf(highest, point.y)
-		assert_float(lowest).is_between(GROUND.y - 0.1 * R, GROUND.y + 0.1 * R)
 		assert_float(GROUND.y - highest).is_between(2.8 * R, 3.4 * R)
 		var hair_top: float = INF
 		for point: Vector2 in _all_points(_parts_of(parts, &"hair")):
@@ -108,7 +131,7 @@ func _on_edge(point: Vector2, polygon: PackedVector2Array) -> bool:
 func test_every_part_role_has_a_color() -> void:
 	var board: TacticsBoard = auto_free(TacticsBoard.new()) as TacticsBoard
 	add_child(board)
-	var computed: Array[StringName] = [&"shadow", &"team", &"team_light", &"team_dark"]
+	var computed: Array[StringName] = [&"shadow", &"team", &"team_dark"]
 	for is_user: bool in [true, false]:
 		for part: Dictionary in BoardPainter.player_parts(GROUND, R, is_user, 0.0):
 			var role: StringName = part["role"]

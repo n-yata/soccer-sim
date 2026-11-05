@@ -22,3 +22,10 @@
 - [x] コミット前レビュー（review-pre-commit）（第1回で収束。Critical / High なし、Low 4件。Low 2 を直した）
 - [x] 振り返りを `retrospective.md` に記録する
 - [x] シャビに報告し、main へコミットする（自分の hunk だけをステージする。別セッション play-feedback の変更が同じ文書にある）
+
+## 手直し（2026-11-06。「もう少しコマっぽく」）
+- [x] 台座のテストに書き換え、失敗することを確かめる（台座が無く失敗）
+- [x] 台座に立つ駒の形にし、テストを通す（board_figures_test 6件・tactics_board_test 63件）
+- [x] スクリーンショット（全体・拡大・グレースケール）で確かめる（縦じまを暗い色にした）
+- [x] 仕様書（functional-overview・screen-common）を直す
+- [x] 全体のテスト・コミット前レビュー・振り返り・コミット（インデックスの中身だけで 1183 件成功・128 秒。レビューは Critical / High なし、Low 3件）
