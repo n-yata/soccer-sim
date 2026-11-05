@@ -185,6 +185,14 @@ func test_counter_hint_uses_the_layout_after_the_breakout() -> void:
 	assert_array(_describe_all(_hints(_transition_scene(), HOME))).is_equal(["COUNTER M2-L2 1-0 NONE", "SECURE -"])
 
 
+func test_a_carried_counter_hint_counts_the_ball_winner_at_the_target() -> void:
+	# 奪取側 HOME は D2-C（ボール）の h1 だけで、前に味方がいない。自分で運ぶ先は M1-L1・M1-C・M1-R1（2026-11-05）。
+	# 喪失側の a1 は AWAY から見て M2-C（HOME から見て M1-C）。運んだ後の人数で数えるので、M1-C は 1対1、ほかは 1対0
+	var state: MatchState = _transition_state([["h1", "D2-C", ""]], [["a1", "M2-C", ""]])
+	assert_array(_describe_all(_hints(state, HOME))).is_equal(
+			["COUNTER M1-L1 1-0 NONE", "COUNTER M1-C 1-1 NONE", "COUNTER M1-R1 1-0 NONE", "SECURE -"])
+
+
 func test_counter_press_hint_totals_around_the_ball_and_retreat_is_not_compared() -> void:
 	# X は HOME から見て D2-C（AWAY から見て A1-C）。周りに AWAY は a1（A1-C）と a2（M2-C）の2人、HOME は h1 の1人
 	assert_array(_describe_all(_hints(_transition_scene(), AWAY))).is_equal(["COUNTER_PRESS - 2-1 NONE", "RETREAT -"])

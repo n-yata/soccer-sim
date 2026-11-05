@@ -29,6 +29,9 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
 		pair = step.pair
 		movements.append_array(step.movements)
 	if is_counter:
+		var carried: LayoutStep = carry_if_empty(pair, ball, winner_choice.target)
+		pair = carried.pair
+		movements.append_array(carried.movements)
 		var detail: JudgeDetail = OpenPlayJudge.detail_at(pair, winner_choice.target, false)
 		return JudgeOutput.new(OpenPlayJudge.outcome_of(detail, false), detail, pair, movements)
 	if loser_choice.action == GameEnums.NegTransAction.RETREAT:
@@ -59,6 +62,16 @@ static func counter_layout(winner: TeamLayout, winner_styles: TeamStyles) -> Tea
 		current[copied.player_id] = area
 		players.append(copied)
 	return TeamLayout.new(players, current)
+
+
+## カウンターの運ぶ先に奪取側の味方がいなければ、ボールを持つ選手が自分で運ぶ（奪ってそのまま持ち上がる速攻。2026-11-05）。
+## 前に味方がいないときの運ぶ先（MoveRules.pos_transition_options）のための動き。味方がいれば何も動かさない。
+## 判定とヒント（MoveHints）で共有する。pair は奪取側を attacker に持つ。
+static func carry_if_empty(pair: LayoutPair, ball: PitchArea, target: PitchArea) -> LayoutStep:
+	if pair.attacker.count_at(target) >= 1:
+		var none: Array[Movement] = []
+		return LayoutStep.new(pair.duplicate_deep(), none)
+	return OpenPlayJudge.carry_ball(pair, ball, target)
 
 
 static func _breakout_movements(before: TeamLayout, after: TeamLayout, side: GameEnums.TeamSide) -> Array[Movement]:

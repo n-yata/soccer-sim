@@ -91,6 +91,12 @@ static func apply_attack(pair: LayoutPair, defender_styles: TeamStyles, ball: Pi
 	return LayoutStep.new(step.pair, movements)
 
 
+## ボールを持つ選手を to へ運ばせて固定する（ドリブルと同じ動きで、運ぶ選手の選び方も同じ: ボールのエリアの、固定された選手を優先）。
+## トランジションの速攻（TransitionJudge.carry_if_empty）が使う。
+static func carry_ball(pair: LayoutPair, ball: PitchArea, to: PitchArea) -> LayoutStep:
+	return _dribble(pair, ball, to)
+
+
 ## ボールを持つ選手（ball にいる攻撃側の選手。固定された選手を優先し、同じなら配置の順で先）を
 ## to へ動かして固定する。ball に攻撃側がいなければ誰も動かさない（ボールだけが進み、人数で判定する）。
 ## 攻撃側が固定されるのはドリブルとスルーパスの受け手だけなので、ball で固定されている選手は直前にボールを運んできたか受けた選手。

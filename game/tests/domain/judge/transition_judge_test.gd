@@ -90,6 +90,29 @@ func _je07(winner_choice: TurnChoice, winner_side: GameEnums.TeamSide = HOME) ->
 			_area("D2-C"), winner_choice, _counter_press())
 
 
+# --- 自分で運ぶカウンター（2026-11-05） ---
+
+func test_a_counter_into_an_empty_area_is_carried_by_the_ball_winner() -> void:
+	# 奪取側（保持型。飛び出しなし）は M2-C の w1（ボール）と M1-C の w2。前の A1-C に味方はいないので、w1 が運ぶ。
+	# 喪失側は奪取側から見て A2-R2 に l1 だけ（喪失側から見て D1-L2）。A1-C は 1対0 で前進
+	var origin := LayoutPair.new(_team([["w1", "M2-C", "", ""], ["w2", "M1-C", "", ""]]),
+			_team([["l1", "D1-L2", "", ""]]), HOME)
+	var output: JudgeOutput = TransitionJudge.judge(origin, _styles(ZONE, POSSESSION), _styles(ZONE, POSSESSION),
+			_area("M2-C"), _counter("A1-C"), _counter_press())
+	assert_array(_moves(output)).is_equal(["w1:M2-C>A1-C:DRIBBLE"])
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-0 NONE")
+
+
+func test_a_counter_to_a_teammate_does_not_move_the_ball_winner() -> void:
+	# 運ぶ先に味方がいれば、ボールだけが渡る（自分で運ぶ動きは出ない）
+	var origin := LayoutPair.new(_team([["w1", "M2-C", "", ""], ["w2", "A1-C", "", ""]]),
+			_team([["l1", "D1-L2", "", ""]]), HOME)
+	var output: JudgeOutput = TransitionJudge.judge(origin, _styles(ZONE, POSSESSION), _styles(ZONE, POSSESSION),
+			_area("M2-C"), _counter("A1-C"), _counter_press())
+	assert_array(_moves(output)).is_empty()
+	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-0 NONE")
+
+
 # --- 判定例 JE-07 ---
 
 func test_je07_counter_into_the_space_behind_the_possession_side() -> void:

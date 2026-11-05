@@ -75,7 +75,9 @@ static func _add_winner_hints(hints: Array[ChoiceHint], state: MatchState, optio
 			if action == GameEnums.PosTransAction.SECURE:
 				hints.append(ChoiceHint.new(family, action, null, false, 0, 0, GameEnums.CoverKind.NONE))
 				continue
-			var detail: JudgeDetail = OpenPlayJudge.detail_at(counter, choice.target, false)
+			# 前に味方がいない運ぶ先は、奪った選手が運んだ後の人数で数える（判定と同じ。2026-11-05）
+			var carried: LayoutPair = TransitionJudge.carry_if_empty(counter, state.ball_area, choice.target).pair
+			var detail: JudgeDetail = OpenPlayJudge.detail_at(carried, choice.target, false)
 			hints.append(ChoiceHint.new(family, action, choice.target, true,
 					detail.attacker_count, detail.defender_count, detail.cover))
 

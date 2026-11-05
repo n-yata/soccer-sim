@@ -118,6 +118,7 @@ static func neg_transition_options() -> MoveOptions:
 
 
 ## 奪った側の手。SECURE は常に選べる。COUNTER の運ぶ先は、ball から1〜4列前（レーン不問。2026-10-25 に1〜2ゾーン前を6列で読み替えた）で味方がいるエリア。
+## そこが1つも無ければ、1列前でレーン差1以内のエリア（奪った選手が自分で運ぶ。2026-11-05）。
 ## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）。ball と winner は奪った側から見た座標。
 static func pos_transition_options(winner: TeamLayout, ball: PitchArea) -> MoveOptions:
 	var options := MoveOptions.new()
@@ -127,6 +128,13 @@ static func pos_transition_options(winner: TeamLayout, ball: PitchArea) -> MoveO
 		var ahead: int = target.zone - ball.zone
 		if ahead >= 1 and ahead <= _COUNTER_MAX_ZONES_AHEAD and winner.count_at(target) >= 1:
 			options.add_target(family, GameEnums.PosTransAction.COUNTER, target)
+	# 前に味方がいなければ、奪った選手が自分で運ぶ速攻（1列前・レーン差1以内。2026-11-05。シャビの判断「カウンターが出せるようにして」）。
+	# 運ぶ選手は TransitionJudge.carry_if_empty が動かす。ボールのエリアに奪った側がいない（運ぶ人がいない）ときと、前に盤が無い
+	# （敵陣ゴール前で奪った）ときは、カウンターを選べない（誰もいないのにボールだけが進まないように）
+	if not options.is_available(family, GameEnums.PosTransAction.COUNTER) and winner.count_at(ball) >= 1:
+		for target: PitchArea in PitchArea.all():
+			if target.zone - ball.zone == 1 and absi(target.lane - ball.lane) <= 1:
+				options.add_target(family, GameEnums.PosTransAction.COUNTER, target)
 	return options
 
 

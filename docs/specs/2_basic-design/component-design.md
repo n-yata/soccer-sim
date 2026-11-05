@@ -251,7 +251,8 @@ static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
 ## （CLOSE_DOWN。プレスと同じエリア。2026-11-05）と、ペナルティエリアではシュートコースを塞ぐ（BLOCK_SHOT。ボールのエリア）を足す
 static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOptions
 static func neg_transition_options() -> MoveOptions
-## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）
+## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）。前に味方がいなければ、1列前でレーン差1以内を運ぶ先にする
+## （奪った選手が自分で運ぶ。ボールのエリアに奪った側がいるときだけ。2026-11-05）
 static func pos_transition_options(winner: TeamLayout, ball: PitchArea) -> MoveOptions
 
 class_name MoveMenu extends RefCounted   # 2026-11-03。アルゴリズム3「画面に出す手」
@@ -302,13 +303,15 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
         ball: PitchArea, winner_choice: TurnChoice, loser_choice: TurnChoice) -> JudgeOutput
 ## カウンターのときの奪取側の配置（カウンター型の飛び出し）。MoveRules.pos_transition_options に渡す配置にも使う
 static func counter_layout(winner: TeamLayout, winner_styles: TeamStyles) -> TeamLayout
+## カウンターの運ぶ先に奪取側がいなければ、ボールを持つ選手が運ぶ（OpenPlayJudge.carry_ball。判定とヒントで共有する。2026-11-05）
+static func carry_if_empty(pair: LayoutPair, ball: PitchArea, target: PitchArea) -> LayoutStep
 ## center と上下左右の人数の合計（即時奪回の比較とヒントで共有する）
 static func total_around(layout: TeamLayout, center: PitchArea) -> int
 
 class_name MoveHints extends RefCounted
 ## FR-19 のヒントと、アルゴリズム8 の評価値の共通の計算。
 ## 「相手が何もしない」と仮定して、各手を適用した後の比較エリアの人数差とカバーの有無を出す
-## 攻撃の手は攻撃の手だけを適用した後、守備の手は制限するエリアの適用前、カウンターは飛び出しの後、即時奪回は
+## 攻撃の手は攻撃の手だけを適用した後、守備の手は制限するエリアの適用前、カウンターは飛び出しの後（運ぶ先に味方がいなければ、奪った選手が運んだ後）、即時奪回は
 ## ボール位置と上下左右の合計で数える。リトリート・保持は比べない。陣形データを使わないため catalog 引数は持たない
 static func evaluate(state: MatchState, side: GameEnums.TeamSide, options: MoveOptions) -> Array[ChoiceHint]
 

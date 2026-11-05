@@ -226,6 +226,22 @@ func test_counter_from_the_fourth_row_reaches_the_last_two_rows() -> void:
 	assert_array(_keys(options.targets(POS_TRANS, GameEnums.PosTransAction.COUNTER))).is_equal(["A1-L2", "A2-R1"])
 
 
+func test_counter_carries_one_row_ahead_when_no_teammate_is_ahead() -> void:
+	# ボールは M2-C。前の A1・A2 に味方がいないので、奪った選手が自分で運ぶ: 1列前でレーン差1以内（2026-11-05）
+	var options: MoveOptions = MoveRules.pos_transition_options(_team(["M2-C", "M1-C"]), _area("M2-C"))
+	assert_array(_keys(options.targets(POS_TRANS, GameEnums.PosTransAction.COUNTER))).is_equal(["A1-L1", "A1-C", "A1-R1"])
+	# 大外ではレーンが盤の内側だけ
+	var wide: MoveOptions = MoveRules.pos_transition_options(_team(["M2-L2"]), _area("M2-L2"))
+	assert_array(_keys(wide.targets(POS_TRANS, GameEnums.PosTransAction.COUNTER))).is_equal(["A1-L2", "A1-L1"])
+	# ボールのエリアに奪った側がいなければ、運ぶ人がいないのでカウンターは選べない（保持は選べる）
+	var no_carrier: MoveOptions = MoveRules.pos_transition_options(_team(["M1-C"]), _area("M2-C"))
+	assert_bool(no_carrier.is_available(POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_false()
+	assert_bool(no_carrier.is_available(POS_TRANS, GameEnums.PosTransAction.SECURE)).is_true()
+	# 前に味方が1人でもいれば、運ぶ先は味方のいるエリアだけ（自分で運ぶ先は足さない）
+	var with_mate: MoveOptions = MoveRules.pos_transition_options(_team(["M2-C", "A2-R2"]), _area("M2-C"))
+	assert_array(_keys(with_mate.targets(POS_TRANS, GameEnums.PosTransAction.COUNTER))).is_equal(["A2-R2"])
+
+
 func test_counter_from_the_last_row_is_unavailable_but_secure_stays() -> void:
 	var options: MoveOptions = MoveRules.pos_transition_options(_team(["A2-C", "A2-L1"]), _area("A2-C"))
 	assert_bool(options.is_available(POS_TRANS, GameEnums.PosTransAction.COUNTER)).is_false()
