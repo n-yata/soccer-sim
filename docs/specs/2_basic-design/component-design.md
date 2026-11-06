@@ -1201,7 +1201,8 @@ func route_back() -> bool
 | `SoundCues` | 効果音（オートロード `Sfx`。2026-10-30）。音（`CLICK`・`GOAL_FOR`・`GOAL_AGAINST`・`WHISTLE`）→ ファイル（`assets/sounds/`）の対応を持ち、すべて `SE` バスで鳴らす。木に入った `BaseButton` の `pressed` に自分でつないでクリック音を鳴らす。得点・笛は `MatchScreen` が鳴らす（時点は `screen-03-match.md`）。素材の台帳は `assets/LICENSES.md`「効果音」 |
 | `SimplificationList` | 単純化カタログの一覧（ゲームの表現範囲とチュートリアルの最後で共用） |
 | `NewMatchGate` | 「CPU 対戦」を押したときの確認の手順（タイトルと戦績の0件の表示で共用。ノードを持たない） |
-| `MatchTexts` | 試合の画面の文言（エリア名「中盤（敵陣）・左HS」・手の名前・局面のタグ・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
+| `MatchTexts` | 試合の画面の文言（エリア名「中盤（敵陣）・左HS」・手の名前・局面のタグ・局面の帯・結果のラベル・ヒントの札・時計）を1か所に集める（static） |
+| `PhaseBanner` | 局面が変わったターンの始めに、画面の真ん中を横切る帯（S-03。2026-11-07）。1.2 秒で消え、タップを受けない。出す時点は `screen-03-match.md`「ターンを始める」 |
 | `QuizTexts` | 理解度チェックとタイトルのカードの文言（学習目標の名前・正答状況・正誤・根拠の原則）を1か所に集める（static）。問題の文の `{M2-L1}` を `MatchTexts.area_name` の呼び名にする（2026-10-31） |
 | `StylePicker` | 守備方式・攻撃方式の2択を2組並べる部品（方式の選び直し・ハーフタイム） |
 | `MatchScreenLayout` | 試合の合間の画面（方式の選び直し・ハーフタイム・試合結果）の骨組み（上部バー・本体・操作の列と主ボタン）を組む（static） |
@@ -1233,7 +1234,7 @@ func route_back() -> bool
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OffsideRule`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`TutorialContentReader`・`QuizContentReader`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`VersionedJsonFile`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`PieceSprites`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`PieceSprites`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout`・`PhaseBanner` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。

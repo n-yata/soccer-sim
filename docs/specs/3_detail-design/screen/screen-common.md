@@ -64,6 +64,7 @@ Godot の画面の拡大縮小は、プロジェクト設定で次のように�
   | 局面のタグ・比較エリアの札（`1対0`） | 26px（Barlow Condensed Bold） |
   | スコア | 52px（Barlow Condensed Bold） |
   | 結果のラベル（`ADVANCE`）・`KICK OFF` | 44px（Barlow Condensed Bold） |
+  | 局面の帯の見出し（`NEG. TRANSITION`。S-03。2026-11-07） | 64px（Barlow Condensed SemiBold） |
   | 勝敗（S-06） | 96px（Barlow Condensed Bold） |
 
 ## 3. 配色

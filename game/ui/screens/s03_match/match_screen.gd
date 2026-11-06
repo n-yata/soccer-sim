@@ -22,6 +22,10 @@ var _board_panel: MatchBoardPanel
 var _menu_host: MatchMenuHost
 ## 開示中のターン（結果を出したときに、得点の音を選ぶ）
 var _reveal: RevealView
+## 局面が変わったときの帯（2026-11-07）
+var _phase_banner: PhaseBanner
+## 前のターンの局面（GameEnums.Phase）。試合画面を開いた最初のターン（キックオフ・再開）は比べる相手が無いので -1
+var _last_phase: int = -1
 
 
 func _init() -> void:
@@ -30,6 +34,7 @@ func _init() -> void:
 
 func enter(_params: Dictionary) -> void:
 	_controller = App.match_controller
+	_last_phase = -1
 	if not _controller.is_match_started():
 		push_error("MatchScreen: 試合が始まる前に試合画面は開けない")
 		return
@@ -66,6 +71,10 @@ func handle_back() -> bool:
 
 func board_panel() -> MatchBoardPanel:
 	return _board_panel
+
+
+func phase_banner() -> PhaseBanner:
+	return _phase_banner
 
 
 func menu_host() -> MatchMenuHost:
@@ -106,6 +115,7 @@ func _on_turn_started(snapshot: BoardSnapshot) -> void:
 	_phase_tag.text = MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball)
 	_phase_tag.visible = true
 	_reveal_banner.visible = false
+	_show_phase_change(MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball))
 	# 前半・後半のキックオフの笛（再開した試合の1ターン目でも鳴らす）
 	if snapshot.turn_number == 1:
 		Sfx.play(SoundCues.Cue.WHISTLE)
@@ -118,6 +128,14 @@ func _on_reveal_started(reveal: RevealView) -> void:
 	_opponent_choice_label.text = reveal_line(false, reveal.opponent_choice)
 	_phase_tag.visible = false
 	_reveal_banner.visible = true
+	_phase_banner.dismiss()
+
+
+## 前のターンと局面が変わったときだけ帯を出す（前のターンの帯は、そのターンの開示の始まりで消えている）
+func _show_phase_change(phase: GameEnums.Phase) -> void:
+	if _last_phase != -1 and phase != _last_phase:
+		_phase_banner.show_phase(phase)
+	_last_phase = phase
 
 
 ## 両者の選択の帯の1行「● ショートパス」。手の名前だけにし、チームは印で示す（スコア表示が「● YOU」「CPU ◆」）。
@@ -199,6 +217,9 @@ func _build() -> void:
 	_board_panel.name = "BoardPanel"
 	_board_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_board_panel)
+	# 局面の帯は盤面と手の選択の上に重ね、メニューより下に置く
+	_phase_banner = PhaseBanner.new()
+	add_child(_phase_banner)
 	# メニューは画面の最後の子（上に重ねる）
 	_menu_host = MatchMenuHost.new(self, top_bar, _can_open_menu, _board_panel.set_show_hints)
 

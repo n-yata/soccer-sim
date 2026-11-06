@@ -161,6 +161,37 @@ func _assert_possession(screen: MatchScreen, user_has_ball: bool) -> void:
 	assert_str(screen.possession_variation()).is_equal("YouChipLabel" if user_has_ball else "OpponentChipLabel")
 
 
+## 局面の帯（2026-11-07）: 試合画面を開いた最初のターン（キックオフ）では出さず、前のターンと局面が変わったターンにだけ出す。
+## 変わらないターンでは出さない。開示が始まれば消す
+func test_the_phase_banner_shows_only_when_the_phase_changes() -> void:
+	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var banner: PhaseBanner = screen.phase_banner()
+	assert_bool(banner.is_showing()).override_failure_message("キックオフで出た").is_false()
+	var snapshot: BoardSnapshot = controller.snapshot()
+	var previous: GameEnums.Phase = MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball)
+	var changes: int = 0
+	var stays: int = 0
+	for _turn: int in range(20):
+		_play_turn(screen)
+		assert_bool(banner.is_showing()).override_failure_message("開示中に出ている").is_false()
+		if controller.state().stage != GameEnums.MatchStage.TURN or controller.is_match_over():
+			break
+		screen.board_panel().primary_button().pressed.emit()
+		snapshot = controller.snapshot()
+		var phase: GameEnums.Phase = MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball)
+		assert_bool(banner.is_showing()).override_failure_message("%s → %s" % [previous, phase]).is_equal(phase != previous)
+		if phase != previous:
+			changes += 1
+			assert_str(banner.title_text()).is_equal(MatchTexts.phase_banner_title(phase))
+		else:
+			stays += 1
+		previous = phase
+	# 変わるターンと変わらないターンの両方を通っている
+	assert_int(changes).is_greater(0)
+	assert_int(stays).is_greater(0)
+
+
 func test_the_board_fits_the_base_resolution_with_areas_large_enough_to_press() -> void:
 	# 基準解像度 1280×720 で開いた試合画面の実寸で確かめる（screen-common.md §1.1。NFR-19: 1エリア 96dp×56dp 以上）
 	_match_at(ScreenTestHelper.Stop.START)

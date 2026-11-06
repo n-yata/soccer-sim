@@ -32,6 +32,10 @@ enum TurnWinner { USER, OPPONENT, NONE }
 const OUTCOME_WORDS: Array[String] = ["前進", "膠着", "ロスト", "得点", "シュート阻止", "奪回成功", "奪回失敗", "判定なし", "オフサイド"]
 const DEFENSE_STYLE_NAMES: Array[String] = ["ゾーン", "マンツーマン"]
 const ATTACK_STYLE_NAMES: Array[String] = ["保持型", "カウンター型"]
+## 局面の帯の見出しと一言（GameEnums.Phase の順）
+const PHASE_BANNER_TITLES: Array[String] = ["ATTACK", "NEG. TRANSITION", "DEFENSE", "POS. TRANSITION"]
+const PHASE_BANNER_LINES: Array[String] = ["攻撃 ― 自分のボールで攻める", "ネガティブトランジション ― ボールを失った",
+		"守備 ― CPU のボールを守る", "ポジティブトランジション ― ボールを奪った"]
 ## 人数差の符号。マイナスは数学の記号（U+2212）で、ハイフンより読みやすい
 const MINUS_SIGN: String = "−"
 
@@ -123,6 +127,23 @@ static func phase_tag(turn_kind: GameEnums.TurnKind, user_has_ball: bool) -> Str
 	if turn_kind == GameEnums.TurnKind.TRANSITION:
 		return "POS.TRANSITION\nポジティブトランジション" if user_has_ball else "NEG.TRANSITION\nネガティブトランジション"
 	return "ATTACK\n攻撃" if user_has_ball else "DEFENSE\n守備"
+
+
+## 利用者から見た局面。トランジションでボールを持っているのは奪取側（ポジティブ）。
+static func user_phase(turn_kind: GameEnums.TurnKind, user_has_ball: bool) -> GameEnums.Phase:
+	if turn_kind == GameEnums.TurnKind.TRANSITION:
+		return GameEnums.Phase.POS_TRANSITION if user_has_ball else GameEnums.Phase.NEG_TRANSITION
+	return GameEnums.Phase.ATTACK if user_has_ball else GameEnums.Phase.DEFENSE
+
+
+## 局面が変わったときの帯（PhaseBanner）の英字の大見出し（2026-11-07）。
+static func phase_banner_title(phase: GameEnums.Phase) -> String:
+	return PHASE_BANNER_TITLES[phase]
+
+
+## 局面が変わったときの帯の日本語の一言。
+static func phase_banner_line(phase: GameEnums.Phase) -> String:
+	return PHASE_BANNER_LINES[phase]
 
 
 ## 「ADVANCE 前進」の形。

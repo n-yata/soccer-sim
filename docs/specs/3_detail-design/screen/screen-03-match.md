@@ -60,6 +60,7 @@ MatchScreen (Control)
 │       │       └── SideBottomSlot (VBoxContainer) # 画面ごとに足すボタンの置き場。S-03 では空、S-08 は「次へ」
 │       ├── MoveDetailView（ModalOverlay）  # BoardPanel の最後の子。選んだ手の詳細のポップアップ（見出し・本文・「閉じる」。2026-11-05）
 │       （3D 演出の ReplayLayer は 2026-10-23 にやめた。開示は TacticsBoard の上で駒とボールを動かす）
+├── PhaseBanner (PanelContainer)              # 局面の帯（s03_match/phase_banner.gd。2026-11-07）。局面が変わったターンの始めに、画面の真ん中を横切る高さ 160px の帯。英字の大見出し 64px（Barlow Condensed）と日本語の一言 28px。地 bg（不透明度 0.92）、縁と見出しは新しい局面でボールを持つ側の色（you／opponent）。1.2 秒で消え、タップを受けない（mouse_filter IGNORE）
 ├── MatchMenu                                 # common/match_menu.tscn。閉じているときは非表示
 ├── SettingsOverlay (PanelContainer)          # メニューの「設定」で重ねて開く
 │   └── SettingsPanel                         # common/settings_panel.tscn
@@ -133,6 +134,11 @@ MatchScreen (Control)
 4. `PrimaryButton` の要約を空、操作を「LOCK IN」にして押せなくする。`_state = SELECT_ACTION`
 5. `snapshot.turn_number` が 1（前半・後半のキックオフ）なら、笛を鳴らす（`Sfx.play(WHISTLE)`。再開した試合の1ターン目でも鳴らす。
    得点後の再開では鳴らさない。2026-10-30 の効果音の作業。鳴らすのは `MatchScreen` で、チュートリアルでは鳴らさない）
+6. 局面（`MatchTexts.user_phase`。攻撃・守備・ネガトラ・ポジトラ）が前のターンと変わっていれば、`PhaseBanner.show_phase(局面)` で局面の帯を出す
+   （見出し「NEG. TRANSITION」・一言「ネガティブトランジション ― ボールを失った」など。`MatchTexts.phase_banner_title`・`phase_banner_line`）。
+   試合画面を開いた最初のターン（前半・後半・得点後のキックオフ、中断からの再開）は比べる前のターンが無いので出さない。帯は 1.2 秒で消え、
+   その間も手は選べる（読み合いの手の選択を待たせない）。持ち主は `MatchScreen`（前のターンの局面を覚え、開いたときに忘れる）で、
+   チュートリアルでは出さない。2026-11-07 にシャビの依頼で足した（案を3つ見せて、中継のテロップの帯に決めた）
 
 ### 手のボタンを押す（`ChoicePanel.action_selected`）
 
@@ -173,7 +179,7 @@ MatchScreen (Control)
 
 ### 開示（`turn_resolved(reveal, snapshot)`）
 
-1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「● …／◆ …」（両者の手の名前。`MatchScreen.reveal_line`。2026-11-06）を出す
+1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「● …／◆ …」（両者の手の名前。`MatchScreen.reveal_line`。2026-11-06）を出す。局面の帯が残っていれば消す（`PhaseBanner.dismiss()`。2026-11-07）
 2. `ChoicePanel`・「詳細」を隠し、詳細のポップアップを閉じる
 3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift` で駒とボールを1拍で動かす（2026-11-03 に2拍にし、2026-11-06 に1拍に戻した）。
    判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 次のターン開始時（いまの盤面）を
