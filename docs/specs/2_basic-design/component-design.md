@@ -1172,7 +1172,7 @@ func route_back() -> bool
 > **2026-10-23（縦向きの盤面）**: ピッチを縦に置き、斜めから見た半3Dで描く（利用者は上へ攻める。上が敵陣、左が左大外）。
 > 位置（エリア・駒・ボール・道筋）は平面図（縦向きのピッチを真上から見た図）の座標で持ち、描くときと押した点を読むときに
 > `BoardProjection`（`board_projection.gd`）の写し方（平面図 ⇔ 画面。奥 = 上を狭く。6列では縦は詰めない（`NEAR_WEIGHT` 1.0。2026-10-25））を通す。
-> 駒はサッカー選手（相手は縦じまのユニフォーム。胸に自分は ●・相手は ◆ の印。形は `BoardPainter.player_parts`、ボールの模様は `ball_patches`。2026-11-06 にチェスの駒から変えた）で、1チーム 2列×2段に並べ、奥から手前の順に描く
+> 駒はユニフォームを着たチェスのポーン（相手は縦じま。胸に自分は ●・相手は ◆ の印。絵は `PieceSprites` が光沢のある 3D で1回だけ描く。描けないとき（画面の無い実行・描き終わる前）は `BoardPainter.player_parts` の平面の形。ボールの模様は `ball_patches`。2026-11-06 に、頭の形で区別するチェスの駒から変えた）で、1チーム 2列×2段に並べ、奥から手前の順に描く
 > （`standing_order()`。描画とテストで共有）。押せる範囲は、画面でいちばん小さい奥の行でも 48dp 以上（`MIN_CELL`）。
 
 ### 5.4 3D 演出（廃止）
@@ -1233,7 +1233,7 @@ func route_back() -> bool
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OffsideRule`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`TutorialContentReader`・`QuizContentReader`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`VersionedJsonFile`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`PieceSprites`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout` |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。
