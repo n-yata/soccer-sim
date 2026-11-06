@@ -37,8 +37,27 @@ static func receiver_area(pair: LayoutPair, ball: PitchArea, attack: TurnChoice)
 	return null
 
 
-## attack の受け手が、pair の守備側のラインより前の列にいるか。pair は判定に使う配置（判定では守備の手を適用した後、
-## ヒントではターン開始の配置）。
+## attack の受け手が、pair の守備側のラインより前の列にいるか。pair は判定に使う配置（判定ではターン開始と守備の手を
+## 適用した後の両方、ヒントではターン開始の配置）。
 static func is_offside(pair: LayoutPair, ball: PitchArea, attack: TurnChoice) -> bool:
 	var receiver: PitchArea = receiver_area(pair, ball, attack)
 	return receiver != null and receiver.zone > line_row(pair.defender, ball)
+
+
+## カウンター（奪った側の前へのパス。2026-11-06）がオフサイドなら、受け手のいたエリア（奪取側の視点）。オンサイドなら null。
+## 受け手は、飛び出しの後の配置 counter で運ぶ先 target にいる奪取側の選手。飛び出しはパスと同時の走り込みなので、スルーパスと
+## 同じく走り込む前（直前の配置 origin）の位置で、奪った時点の喪失側のラインと比べる。オンサイドの受け手が1人でもいれば
+## オフサイドではない。運ぶ先に味方がいない（奪った選手が自分で運ぶ）カウンターはドリブルなので対象外で null。
+## origin は奪取側を attacker に持つ。ball は奪取側の視点。
+static func counter_offside_area(origin: LayoutPair, counter: TeamLayout, ball: PitchArea, target: PitchArea) -> PitchArea:
+	var line: int = line_row(origin.defender, ball)
+	var spot: PitchArea = null
+	for player: PlayerState in counter.players:
+		if not counter.current_area_of(player.player_id).equals(target):
+			continue
+		var before: PitchArea = origin.attacker.current_area_of(player.player_id)
+		if before.zone <= line:
+			return null
+		if spot == null:
+			spot = before.duplicate_deep()
+	return spot

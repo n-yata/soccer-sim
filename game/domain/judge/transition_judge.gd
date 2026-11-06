@@ -29,6 +29,12 @@ static func judge(origin: LayoutPair, winner_styles: TeamStyles, loser_styles: T
 		pair = step.pair
 		movements.append_array(step.movements)
 	if is_counter:
+		# カウンターのオフサイド（2026-11-06）。奪った時点のラインで見るので、喪失側のリトリートで下がっても通さない。
+		# プレーが止まるので、奪った選手は運ばない
+		var spot: PitchArea = OffsideRule.counter_offside_area(origin, winner, ball, winner_choice.target)
+		if spot != null:
+			var offside: JudgeDetail = OpenPlayJudge.detail_at(pair, spot, true)
+			return JudgeOutput.new(GameEnums.TurnOutcome.OFFSIDE, offside, pair, movements)
 		var carried: LayoutStep = carry_if_empty(pair, ball, winner_choice.target)
 		pair = carried.pair
 		movements.append_array(carried.movements)

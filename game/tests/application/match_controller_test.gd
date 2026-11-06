@@ -268,18 +268,20 @@ func test_user_preview_of_a_press_ends_in_the_chosen_area_in_the_user_view() -> 
 	assert_str(preview[0].to.to_key()).is_equal(target.to_key())
 
 
-func test_user_preview_frames_show_the_whole_team_through_the_play_and_the_reshape() -> void:
-	# 利用者は守備（AWAY のキックオフ）。プレスの3つの配置（ターン開始時・判定時・次のターン開始時）を、自分の選手全員の並びで返す
+func test_user_preview_frames_show_the_whole_team_from_now_to_the_next_turn_start() -> void:
+	# 利用者は守備（AWAY のキックオフ）。プレスの2つの配置（ターン開始時・次のターン開始時。1拍で見せる。2026-11-06）を、
+	# 自分の選手全員の並びで返す
 	var controller: MatchController = _controller(_seed_for_kickoff(AWAY))
 	controller.start_match(_user_setup())
 	var target: PitchArea = controller.user_options().targets(DEFENSE, GameEnums.DefenseAction.PRESS)[0]
 	var press := TurnChoice.new(DEFENSE, GameEnums.DefenseAction.PRESS, target)
 	var frames: Array = controller.user_preview_frames(press)
-	assert_int(frames.size()).is_equal(3)
+	assert_int(frames.size()).is_equal(2)
 	var team_size: int = controller.snapshot().user_players.size()
 	for frame: Array in frames:
 		assert_int(frame.size()).is_equal(team_size)
-	# ターン開始時はいまの盤面と同じ。判定時は、プレスで寄せた選手が制限するエリア（利用者の視点で選んだエリア）にいる
+	# ターン開始時はいまの盤面と同じ。次のターン開始時は、プレスで寄せた選手が制限するエリア（利用者の視点で選んだエリア）に
+	# 固定されたまま残る
 	assert_array(frames[0]).is_equal(controller.snapshot().user_players)
 	var pressed: Array[String] = []
 	for player: Dictionary in frames[1]:

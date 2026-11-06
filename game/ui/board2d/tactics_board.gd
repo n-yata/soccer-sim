@@ -117,8 +117,8 @@ func show_movements(movements: Array[Movement]) -> void:
 	queue_redraw()
 
 
-## 決定前のプレビュー（2026-11-05）: 自分の選手の配置の並び frames（MatchController.user_preview_frames。ターン開始時・判定時・
-## 次のターン開始時。各要素は BoardSnapshot.user_players と同じ形）を、半透明の駒で順に動かし、止めて最初へ戻すのをくり返す。
+## 決定前のプレビュー（2026-11-05）: 自分の選手の配置の並び frames（MatchController.user_preview_frames。ターン開始時・
+## 次のターン開始時。2026-11-06 に1拍にした。各要素は BoardSnapshot.user_players と同じ形）を、半透明の駒で順に動かし、止めて最初へ戻すのをくり返す。
 ## どこかの配置で位置が変わる選手だけを動かし、その選手のもとの駒は描かない（動かない駒はその場）。空なら消す。
 func show_preview_motion(frames: Array) -> void:
 	_preview_frames = frames.duplicate(true)
@@ -181,7 +181,7 @@ func clear_overlays() -> void:
 ## 開示で、駒とボールを拍に分けて順に動かす。keyframes の各要素は、拍の始まりの配置とその拍の時間
 ## {"user": Array[Dictionary], "opponent": Array[Dictionary], "ball": String, "sec": float}（配置は BoardSnapshot.user_players と
 ## 同じ形、ボールはエリアのキー）。i 番目の拍は keyframes[i] から keyframes[i + 1] へ、最後の拍はいまの盤面
-## （show_snapshot の後の次のターン開始時の配置）へ動く。開示では、判定前（1拍目 = プレー）と判定時（2拍目 = 詰め直し）を渡す。
+## （show_snapshot の後の次のターン開始時の配置）へ動く。開示では、ふつうは判定前だけを渡し、得点のときは判定時も渡す（MatchBoardPanel.reveal_keyframes。2026-11-06）。
 ## 各拍では、位置が変わった選手の駒を、ルールの動き（手・方式・保持者）を区別せず同時に動かす。ボールは、拍の始まりと
 ## 終わりのエリアが違うときだけ動かす（空文字・読めないキーなら動かさない）。動きの無い拍・時間が 0 以下の拍は飛ばす。
 ## result（ResultEffect.for_reveal の値。省略可）があれば、ボールの道筋を結果に合わせ（得点はゴールへ・膠着は跳ね返り）、

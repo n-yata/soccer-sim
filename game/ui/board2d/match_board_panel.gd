@@ -436,15 +436,9 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	_set_primary(NEXT_SUMMARY, NEXT, true)
 	# 着地は start_shift の中ですぐ届くことがあるので、テロップの中身と状態は先に作っておく
 	_state = State.SHOW_RESULT
-	# 2拍で動かす。1拍目（プレー）は判定前 → 判定時、2拍目（詰め直し）は判定時 → 次のターン開始時。
-	# どちらの拍も、位置が変わった全員を動かす（方式でずれた選手も。矢印はすぐ出す）。
-	# 1拍目のボールは、ボールを持つ側の手の軌道で動き、1拍目の終わりに結果の演出を出す
-	_board.start_shift([
-		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
-				"sec": _controller.board_play_sec(), "flight": BallFlight.kind_for(BallFlight.holder_choice(reveal))},
-		{"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
-				"ball": reveal.ball_after, "sec": _controller.board_settle_sec()},
-	], ResultEffect.for_reveal(reveal))
+	# 拍の組み立ては reveal_keyframes（ふつうは1拍、得点だけ2拍）。矢印はすぐ出し、1拍目の終わりに結果の演出を出す
+	_board.start_shift(reveal_keyframes(reveal, _controller.board_play_sec(), _controller.board_settle_sec()),
+			ResultEffect.for_reveal(reveal))
 	_board.show_movements(reveal.movements)
 	if reveal.has_detail:
 		_board.show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)
@@ -452,6 +446,22 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	if not _show_next:
 		_primary_button.visible = false
 		turn_ready_to_leave.emit()
+
+
+## 開示で盤面を動かす拍の始まりの配置の並び（TacticsBoard.start_shift の keyframes）。
+## ふつうは1拍で、判定前 → 次のターン開始時（いまの盤面）を play_sec 秒で動かす（2026-11-06。シャビ「2拍で動くのいらない」。
+## 2026-11-03 からはプレーと詰め直しの2拍だった）。ボールは、ボールを持つ側の手の軌道で動く。
+## 得点だけは、シュート（判定前 → 判定時、play_sec 秒）と、キックオフへの組み直し（判定時 → いまの盤面、settle_sec 秒）の2拍にする
+## （1拍では、シュートの最中に全員がキックオフの配置へ歩き出し、ボールがゴールからセンターへ飛んだ。シャビの判断で案A）。
+static func reveal_keyframes(reveal: RevealView, play_sec: float, settle_sec: float) -> Array[Dictionary]:
+	var keyframes: Array[Dictionary] = [
+		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
+				"sec": play_sec, "flight": BallFlight.kind_for(BallFlight.holder_choice(reveal))},
+	]
+	if reveal.outcome == GameEnums.TurnOutcome.GOAL:
+		keyframes.append({"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
+				"ball": reveal.ball_after, "sec": settle_sec})
+	return keyframes
 
 
 ## 1拍目の着地で、開示のテロップを出す。開示中でなければ出さない（「ターンを始める」は _reveal を空にしてから盤面を消すので、

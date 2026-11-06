@@ -242,22 +242,22 @@ func _home_areas(pair: LayoutPair) -> Dictionary:
 	return _areas(pair.attacker if pair.attacker_side == HOME else pair.defender)
 
 
-func test_a_pass_shows_the_turn_start_the_play_and_the_reshape_after_it_goes_through() -> void:
+## 1拍で見せる（2026-11-06。シャビ「2拍で動くのいらない」）ので、判定時の配置は入れず、ターン開始時と次のターン開始時の2つ
+func test_a_pass_shows_the_turn_start_and_the_next_turn_start_after_it_goes_through() -> void:
 	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""], ["h3", "D2-L2", ""]],
 			[["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
 	var pass_choice := _choice(ATTACK, GameEnums.PlayType.SHORT_PASS, "A1-C")
 	var steps: Array[LayoutPair] = MovePreview.team_steps(state, HOME, pass_choice)
-	assert_int(steps.size()).is_equal(3)
+	assert_int(steps.size()).is_equal(2)
 	var start: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
 	assert_dict(_home_areas(steps[0])).is_equal(_home_areas(start))
-	assert_dict(_home_areas(steps[1])).is_equal(_home_areas(OpenPlayJudge.apply_attack(start,
-			state.setup_of(AWAY).styles, state.ball_area, pass_choice).pair))
-	# 詰め直しは、パスが通った（前進。ボールは A1-C、HOME の保持のまま）次のターンの開始時
-	var next: MatchState = MatchRules.preview_next(state, JudgeOutput.new(GameEnums.TurnOutcome.ADVANCE, null, steps[1],
+	# 次のターン開始時は、パスが通った（前進。ボールは A1-C、HOME の保持のまま）後の詰め直し
+	var judged: LayoutPair = OpenPlayJudge.apply_attack(start, state.setup_of(AWAY).styles, state.ball_area, pass_choice).pair
+	var next: MatchState = MatchRules.preview_next(state, JudgeOutput.new(GameEnums.TurnOutcome.ADVANCE, null, judged,
 			[] as Array[Movement]), pass_choice)
 	assert_str(next.ball_area.to_key()).is_equal("A1-C")
 	assert_int(next.possession).is_equal(HOME)
-	assert_dict(_home_areas(steps[2])).is_equal(_home_areas(StyleLayoutCalculator.turn_start(next).pair))
+	assert_dict(_home_areas(steps[1])).is_equal(_home_areas(StyleLayoutCalculator.turn_start(next).pair))
 
 
 func test_a_shot_or_an_offside_pass_shows_no_reshape() -> void:
@@ -270,20 +270,31 @@ func test_a_shot_or_an_offside_pass_shows_no_reshape() -> void:
 	assert_int(MovePreview.team_steps(offside_state, HOME, through).size()).is_equal(1)
 
 
-func test_a_defense_shows_the_reshape_with_the_ball_where_it_is() -> void:
+func test_a_defense_shows_the_next_turn_start_with_the_ball_where_it_is() -> void:
 	var state: MatchState = _open_state([["h1", "M2-C", ""], ["h2", "A1-C", ""]], [["a1", "D2-C", ""], ["a2", "A2-L2", ""]], "M2-C")
 	var press := _choice(DEFENSE, GameEnums.DefenseAction.PRESS, "M2-C")
 	var steps: Array[LayoutPair] = MovePreview.team_steps(state, AWAY, press)
-	assert_int(steps.size()).is_equal(3)
-	# 判定時は、プレスで a1 が寄せた配置
-	var judged_away: Dictionary = _areas(steps[1].defender)
-	assert_str(judged_away["a1"] as String).is_equal("M1-C")
+	assert_int(steps.size()).is_equal(2)
+	# プレスで寄せた a1 は固定され、膠着（ボールは M2-C のまま）の次のターン開始時もそこにいる
+	var start: LayoutPair = StyleLayoutCalculator.turn_start(state).pair
+	var defended: LayoutStep = OpenPlayJudge.apply_defense(start, state.setup_of(AWAY).styles, press)
+	var next: MatchState = MatchRules.preview_next(state, JudgeOutput.new(GameEnums.TurnOutcome.STALL, null, defended.pair,
+			defended.movements), _choice(ATTACK, GameEnums.PlayType.SHORT_PASS))
+	assert_dict(_areas(steps[1].defender)).is_equal(_areas(StyleLayoutCalculator.turn_start(next).pair.defender))
+	assert_str(_areas(steps[1].defender)["a1"] as String).is_equal("M1-C")
 
 
-func test_a_transition_shows_three_steps_against_a_side_that_does_not_move() -> void:
+func test_a_transition_shows_the_next_turn_start_against_a_side_that_does_not_move() -> void:
 	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M1-R1", ""]], [["a1", "M2-C", ""]])
 	var steps: Array[LayoutPair] = MovePreview.team_steps(state, HOME, _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "M2-R1"))
-	assert_int(steps.size()).is_equal(3)
+	assert_int(steps.size()).is_equal(2)
+
+
+func test_an_offside_counter_shows_only_the_turn_start() -> void:
+	# 喪失側の最終ラインは a1 の M2-C（HOME から見て M1-C = 2）。M2-C の h2 へのカウンターはオフサイドでプレーが止まる（2026-11-06）
+	var state: MatchState = _transition_state([["h1", "D2-C", ""], ["h2", "M2-C", ""]], [["a1", "M2-C", ""]])
+	var counter := _choice(POS_TRANS, GameEnums.PosTransAction.COUNTER, "M2-C")
+	assert_int(MovePreview.team_steps(state, HOME, counter).size()).is_equal(1)
 
 
 func test_preview_next_builds_the_same_next_state_as_resolving_the_turn() -> void:

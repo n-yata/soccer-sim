@@ -263,8 +263,9 @@ func test_through_pass_runner_followed_in_by_the_man_marker_is_lost() -> void:
 func test_through_pass_into_an_area_a_cover_drops_into_is_lost() -> void:
 	# ボールのエリア M2-C（守備側の M1-C）のカバーで、d1 が背後の D2-C（攻撃側の視点で運ぶ先の A1-C）へ下がる。
 	# 制限したのはボールのエリアで読みは外れだが、運ぶ先へ守備が入ってきたので奪われる（2026-10-28）。
-	# d1 が下がるのでラインも A1 になり、A1-L1 の受け手はオフサイドではない
-	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-L1", ""]]), _team([["d1", "M1-C", ""]]), HOME)
+	# 最終ラインは D2-L2 の deep（攻撃側の視点で A1 = 4）で、A1-L1 の受け手はターン開始からオフサイドではない
+	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-L1", ""]]),
+			_team([["d1", "M1-C", ""], ["deep", "D2-L2", ""]]), HOME)
 	var output: JudgeOutput = _judge(pair, ZONE, "M2-C",
 			_attack(GameEnums.PlayType.THROUGH_PASS, "A1-C"), _defense(GameEnums.DefenseAction.COVER, "M2-C"))
 	assert_array(_moves(output)).is_equal(["d1:M1-C>D2-C:COVER", "a2:A1-L1>A1-C:THROUGH_RUN"])
@@ -302,15 +303,16 @@ func test_je10_without_the_step_up_the_level_receiver_is_onside() -> void:
 	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-0 NONE")
 
 
-func test_a_cover_dropping_behind_the_line_keeps_the_receiver_onside() -> void:
-	# 守備側の最終ラインは M1（攻撃側の視点で M2 = 3）で、A1-C の a2 はオフサイドの位置。
-	# M2-L1（守備側の M1-R1）のカバーで d2 が背後の D2-R1（A1-L1 = 4）へ下がると、ラインが下がって a2 はオンサイド
+func test_a_cover_dropping_behind_the_line_does_not_put_the_receiver_onside() -> void:
+	# 守備側の最終ラインは M1（攻撃側の視点で M2 = 3）で、A1-C の a2 はターン開始からオフサイドの位置。
+	# M2-L1（守備側の M1-R1）のカバーで d2 が背後の D2-R1（A1-L1 = 4）へ下がっても、パスが出た時点（ターン開始）の
+	# ラインで a2 はオフサイド（2026-11-06。下がった後のラインだけで見て通していた）
 	var pair := LayoutPair.new(_team([["a1", "M2-C", ""], ["a2", "A1-C", ""]]),
 			_team([["d1", "M1-C", ""], ["d2", "M1-R1", ""], ["far", "A2-L2", ""]]), HOME)
 	var covered: JudgeOutput = _judge(pair, ZONE, "M2-C",
 			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.COVER, "M2-L1"))
 	assert_array(_moves(covered)).is_equal(["d2:M1-R1>D2-R1:COVER"])
-	assert_str(_summary(covered)).is_equal("ADVANCE A1-C 1-0 NONE")
+	assert_str(_summary(covered)).is_equal("OFFSIDE A1-C 1-0 NONE")
 	var pressed: JudgeOutput = _judge(pair, ZONE, "M2-C",
 			_attack(GameEnums.PlayType.SHORT_PASS, "A1-C"), _defense(GameEnums.DefenseAction.PRESS, "D1-R1"))
 	assert_str(_summary(pressed)).is_equal("OFFSIDE A1-C 1-0 NONE")

@@ -32,13 +32,19 @@ MatchSetupScreen (Control)
         ├── DefenseToggle (HBoxContainer)   # 2択のボタン（ゾーン／マンツーマン）。高さ 96px
         ├── AttackTitle (Label)             # 「③ 攻撃方式」
         ├── AttackToggle (HBoxContainer)    # 2択のボタン（保持型／カウンター型）
-        ├── NotesTitle (Label)              # 「④ 解説」
-        ├── NotesScroll (ScrollContainer)   # 残りの高さいっぱい。長い解説は中でスクロール
-        │   └── NotesView                   # common/notes_view.gd（_ready でコードから置く）
+        ├── NotesButton (Button)            # 「解説を見る」。高さ 96px。押すと NotesPopup を開く
+        ├── Spacer (Control)                # 残りの高さを埋め、開始ボタンを列の下端へ寄せる
         └── StartButton (Button)            # 「この布陣で試合開始」。列の下端、高さ 112px
+NotesPopup                                  # common/notes_popup.gd（ModalOverlay。_ready でコードから画面の子に置く）
+├── Title (Label)                           # 「解説」
+├── Scroll (ScrollContainer)                # 高さ 400px。長い解説は中でスクロール（横には流さない）
+│   └── NotesView                           # common/notes_view.gd
+└── CloseButton (Button)                    # 「閉じる」
 ```
 
 - `FormationCard` は S-05 でも使う（陣形名・`MiniPitch`・選択中の枠と ✓）。押せる範囲はカード全体
+- 解説は画面に欄を置かず、ポップアップだけで見せる（2026-11-06。欄では長い解説が画面からはみ出して読めなかった。
+  シャビ「詳細ボタンみたいなの押したときのポップアップのみに」）。閉じている間も中身は選択に合わせて作り直す
 
 ## 画面の状態
 
@@ -61,18 +67,22 @@ MatchSetupScreen (Control)
 ### 画面を開く（`enter`）
 
 1. `library.formations()` で4枚の陣形カードを作る。各カードのミニピッチは `library.base_counts(id)`
-2. 3項目を未選択にし、解説欄は「陣形と方式を選ぶと、ここに解説が出ます」とする（未選択から始める理由は
+2. 3項目を未選択にし、解説のポップアップの中身は「陣形と方式を選ぶと、ここに解説が出ます」とする（未選択から始める理由は
    `screen-design.md` S-02）
 3. `_state = EDITING`
 
 ### 陣形・方式を選ぶ
 
 1. 選んだ項目を記録し、カードの枠・✓、2択のボタンの選択中の表示を更新する
-2. 解説欄を作り直す。選んだ項目の解説だけを、次の順に並べる
+2. 解説のポップアップの中身（`NotesView`）を作り直す。選んだ項目の解説だけを、次の順に並べる
    - 陣形: `library.formation_notes(_formation_id, "")`
    - 守備方式: `library.defense_style_notes(_defense)`
    - 攻撃方式: `library.attack_style_notes(_attack)`
 3. 3項目すべてが選ばれていれば `_state = READY`（開始ボタンを押せるようにする）
+
+### 「解説を見る」を押す
+
+1. `NotesPopup.open()`。「閉じる」で閉じる。選択と状態は変えない
 
 ### 「この布陣で試合開始」を押す
 
@@ -82,6 +92,7 @@ MatchSetupScreen (Control)
 
 ### 戻る・Android の戻る操作（`handle_back`）
 
+- 解説のポップアップを開いていれば、それを閉じるだけにする（2026-11-06）
 - `STARTING` 以外なら `App.request_screen(S01_TITLE)`。何も保存しない（中断中の試合はそのまま残る）
 - `STARTING` なら何もしない。どちらも `true` を返す
 

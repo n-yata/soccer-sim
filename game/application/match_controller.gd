@@ -210,7 +210,8 @@ func user_preview(user_choice: TurnChoice) -> Array[Movement]:
 
 
 ## 利用者の手を、相手が何もしないと仮定して適用したときの、利用者の選手の並び（BoardSnapshot.user_players と同じ形・利用者の視点）を、
-## ターン開始時・判定時・次のターン開始時の順に（MovePreview.team_steps。シュートは判定時まで、適用できない手はターン開始時だけ）。
+## ターン開始時・次のターン開始時の順に（MovePreview.team_steps。2026-11-06 に判定時を外して1拍にした。シュートは次のターン開始時の
+## 代わりに判定時、適用できない手・オフサイドの手はターン開始時だけ）。
 ## 決定前のプレビューで、自分の駒全員の手の動きと詰め直しを見せるために使う（2026-11-05）。空になる条件は user_preview と同じ。
 func user_preview_frames(user_choice: TurnChoice) -> Array:
 	if not _is_started_or_error("user_preview_frames"):
@@ -370,13 +371,13 @@ func review() -> ReviewView:
 	return view
 
 
-## 開示の1拍目（プレー）で、ターン前の配置から判定時の配置へ駒とボールを動かす時間（秒。PresentationConfig）。
+## 開示の1拍目で駒とボールを動かす時間（秒。PresentationConfig）。ふつうは判定前 → 次のターン開始時、得点は判定前 → 判定時。
 ## 画面が使うときに初めて読む（試合を進めるだけの呼び出し側に、表示の設定ファイルを求めないため）。
 func board_play_sec() -> float:
 	return _config.presentation().board_play_sec
 
 
-## 開示の2拍目（詰め直し）で、判定時の配置から次のターン開始時の配置へ駒を動かす時間（秒。PresentationConfig）。
+## 得点の開示の2拍目（判定時 → キックオフの配置）で駒を動かす時間（秒。PresentationConfig。2026-11-06 から得点のときだけ使う）。
 func board_settle_sec() -> float:
 	return _config.presentation().board_settle_sec
 
@@ -393,7 +394,7 @@ func piece_style() -> Dictionary:
 	return {"stagger": presentation.piece_stagger, "hop": presentation.piece_hop_height}
 
 
-## 開示の拍と拍の間の小休止（秒。PresentationConfig）。
+## 開示の拍と拍の間の小休止（秒。PresentationConfig）。2拍になるのは得点だけ（2026-11-06）。
 func board_beat_gap_sec() -> float:
 	return _config.presentation().board_beat_gap_sec
 

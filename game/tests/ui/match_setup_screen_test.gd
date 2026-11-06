@@ -131,6 +131,48 @@ func test_notes_add_in_real_for_styles_tied_to_a_simplification() -> void:
 	assert_array(_notes().in_real_texts()).is_equal([in_real["SIM-07"], in_real["SIM-02"]])
 
 
+func _popup() -> NotesPopup:
+	return _screen.find_child("NotesPopup", true, false) as NotesPopup
+
+
+## 解説は画面に並べず、「解説を見る」ボタンのポップアップだけで見せる（2026-11-06。欄が画面からはみ出して読めなかった）
+func test_notes_are_shown_only_in_the_popup_of_the_notes_button() -> void:
+	assert_object(_screen.find_child("NotesScroll", true, false)).is_null()
+	assert_object(_screen.find_child("NotesTitle", true, false)).is_null()
+	assert_bool(_popup().is_open()).is_false()
+	assert_bool(_popup().is_ancestor_of(_notes())).is_true()
+	_button("CounterButton").pressed.emit()
+	_button("NotesButton").pressed.emit()
+	assert_bool(_popup().is_open()).is_true()
+	assert_array(_notes().headings()).is_equal(["攻撃方式 カウンター型"])
+
+
+func test_the_notes_popup_scrolls_within_the_screen() -> void:
+	# 中身が長くても枠は伸びず、中をスクロールする。枠の高さは画面の高さより小さい
+	var scroll: ScrollContainer = _popup().find_child("Scroll", true, false) as ScrollContainer
+	assert_bool(scroll.is_ancestor_of(_notes())).is_true()
+	assert_int(scroll.horizontal_scroll_mode).is_equal(ScrollContainer.SCROLL_MODE_DISABLED)
+	assert_float(scroll.custom_minimum_size.y).is_greater(0.0)
+	assert_float(scroll.custom_minimum_size.y + ModalOverlay.BUTTON_HEIGHT).is_less(
+			float(ProjectSettings.get_setting("display/window/size/viewport_height")) * 0.9)
+
+
+func test_closing_the_notes_popup_keeps_the_selection() -> void:
+	_select_all()
+	_button("NotesButton").pressed.emit()
+	_popup().close_button().pressed.emit()
+	assert_bool(_popup().is_open()).is_false()
+	assert_bool(_screen.is_ready()).is_true()
+	assert_bool(_button("ManButton").button_pressed).is_true()
+
+
+func test_back_closes_the_notes_popup_first() -> void:
+	_button("NotesButton").pressed.emit()
+	assert_bool(_screen.handle_back()).is_true()
+	assert_bool(_popup().is_open()).is_false()
+	assert_array(_requested).is_empty()
+
+
 func test_style_toggles_select_one_of_two() -> void:
 	_button("ZoneButton").pressed.emit()
 	assert_bool(_button("ZoneButton").button_pressed).is_true()

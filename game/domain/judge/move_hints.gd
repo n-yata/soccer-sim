@@ -78,8 +78,11 @@ static func _add_winner_hints(hints: Array[ChoiceHint], state: MatchState, optio
 			# 前に味方がいない運ぶ先は、奪った選手が運んだ後の人数で数える（判定と同じ。2026-11-05）
 			var carried: LayoutPair = TransitionJudge.carry_if_empty(counter, state.ball_area, choice.target).pair
 			var detail: JudgeDetail = OpenPlayJudge.detail_at(carried, choice.target, false)
-			hints.append(ChoiceHint.new(family, action, choice.target, true,
-					detail.attacker_count, detail.defender_count, detail.cover))
+			var hint := ChoiceHint.new(family, action, choice.target, true,
+					detail.attacker_count, detail.defender_count, detail.cover)
+			# 受け手がオフサイドになるか（判定と同じ関数。奪った時点のラインで決まるので確定。2026-11-06）
+			hint.is_offside = OffsideRule.counter_offside_area(origin, counter.attacker, state.ball_area, choice.target) != null
+			hints.append(hint)
 
 
 ## 喪失側: 即時奪回はボール位置と上下左右の人数の合計（奪取側は直前の配置のまま）。リトリートは比べない。

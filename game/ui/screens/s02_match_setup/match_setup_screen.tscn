@@ -111,16 +111,16 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "カウンター型"
 
-[node name="NotesTitle" type="Label" parent="Layout/Body/Columns/SideColumn"]
-layout_mode = 2
-theme_type_variation = &"SectionTitleLabel"
-text = "④ 解説"
-
-[node name="NotesScroll" type="ScrollContainer" parent="Layout/Body/Columns/SideColumn"]
+[node name="NotesButton" type="Button" parent="Layout/Body/Columns/SideColumn"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+text = "解説を見る"
+
+[node name="Spacer" type="Control" parent="Layout/Body/Columns/SideColumn"]
 layout_mode = 2
 size_flags_vertical = 3
-horizontal_scroll_mode = 0
+mouse_filter = 2
 
 [node name="StartButton" type="Button" parent="Layout/Body/Columns/SideColumn"]
 unique_name_in_owner = true

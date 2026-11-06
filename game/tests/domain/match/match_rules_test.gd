@@ -366,8 +366,9 @@ func test_transition_no_contest_keeps_the_ball_with_the_winner_without_a_judgeme
 
 
 func test_transition_counter_advance_moves_the_ball_to_the_target() -> void:
+	# 喪失側の最終ラインは a4 の M1-R2（奪取側から見て M2-L2）。M2-C の h2 はラインと同じ列でオンサイド
 	var state: MatchState = _transition_state([["h1", "M1-C", ""], ["h2", "M2-C", ""]],
-			[["a1", "M2-L2", ""], ["a3", "M1-L2", "M2-L1"]])
+			[["a1", "M2-L2", ""], ["a3", "M1-L2", "M2-L1"], ["a4", "M1-R2", ""]])
 	var resolution: TurnResolution = _resolve(state, _counter("M2-C"), _counter_press())
 	assert_int(resolution.record.outcome).is_equal(GameEnums.TurnOutcome.ADVANCE)
 	assert_int(resolution.next_state.possession).is_equal(HOME)
@@ -388,9 +389,10 @@ func test_transition_counter_stall_keeps_the_ball_where_it_was_won() -> void:
 
 func test_after_a_transition_players_keep_their_positions_and_lose_their_fixes() -> void:
 	# a3（基本 M1-L2）は M2-L1 に固定されていた。攻守ターンが始まると固定は解けるが、基本エリアへ一気には戻らない
-	# （2026-10-24。1ターン1マス）。次のターン開始で、基本エリアへ1マスずつ戻る
+	# （2026-10-24。1ターン1マス）。次のターン開始で、基本エリアへ1マスずつ戻る。
+	# a4 は喪失側の最終ライン（M2-C の h2 をオンサイドにする）
 	var state: MatchState = _transition_state([["h1", "M1-C", ""], ["h2", "M2-C", ""]],
-			[["a1", "M2-L2", ""], ["a3", "M1-L2", "M2-L1"]])
+			[["a1", "M2-L2", ""], ["a3", "M1-L2", "M2-L1"], ["a4", "M1-R2", ""]])
 	var next: MatchState = _resolve(state, _counter("M2-C"), _counter_press()).next_state
 	assert_bool(next.away_players[1].is_fixed()).is_false()
 	assert_str(next.away_players[1].current_area.to_key()).is_equal("M2-L1")

@@ -1,5 +1,6 @@
 ## S-02 試合準備（screen-02-match-setup.md）。陣形・守備方式・攻撃方式を、未選択から選ぶ。
-## 解説欄には、選んだ項目の単独の解説（FR-17。LibraryService）を「陣形・守備方式・攻撃方式」の順に出す。
+## 解説は「解説を見る」ボタンのポップアップ（NotesPopup）に、選んだ項目の単独の解説（FR-17。LibraryService）を
+## 「陣形・守備方式・攻撃方式」の順に出す（2026-11-06。画面に欄を並べると、はみ出して読めなかった）。
 ## 開始ボタンは試合画面（S-03）があるときだけ押せ、MatchController.start_match で試合を作る
 ## （S-03 への切り替えは MatchController が頼む）。
 class_name MatchSetupScreen
@@ -17,7 +18,7 @@ const GUIDE_TEXT: String = "陣形と方式を選ぶと、ここに解説が出�
 @onready var _man_button: Button = %ManButton
 @onready var _possession_button: Button = %PossessionButton
 @onready var _counter_button: Button = %CounterButton
-@onready var _notes_scroll: ScrollContainer = %NotesScroll
+@onready var _notes_button: Button = %NotesButton
 @onready var _start_button: Button = %StartButton
 @onready var _start_pending_label: Label = %StartPendingLabel
 
@@ -30,14 +31,16 @@ var _can_start: bool = false
 var _cards: Dictionary = {}
 ## 陣形 ID → 基本配置の人数。画面を開いたときに1回だけ求める
 var _counts: Dictionary = {}
+var _notes_popup: NotesPopup
 var _notes_view: NotesView
 
 
 func _ready() -> void:
 	_header.set_title("試合準備")
-	_notes_view = NotesView.new()
-	_notes_view.name = "NotesView"
-	_notes_scroll.add_child(_notes_view)
+	_notes_popup = NotesPopup.new()
+	add_child(_notes_popup)
+	_notes_view = _notes_popup.notes_view()
+	_notes_button.pressed.connect(_notes_popup.open)
 	_header.back_pressed.connect(_go_back)
 	_zone_button.pressed.connect(_on_defense_selected.bind(GameEnums.DefenseStyle.ZONE))
 	_man_button.pressed.connect(_on_defense_selected.bind(GameEnums.DefenseStyle.MAN))
@@ -67,7 +70,11 @@ func is_ready() -> bool:
 
 
 ## 戻る操作は、選んでいる途中でもタイトルへ戻る。何も保存しない。STARTING なら何もしない（screen-02-match-setup.md）。
+## 解説のポップアップを開いていれば、先にそれを閉じる。
 func handle_back() -> bool:
+	if _notes_popup.is_open():
+		_notes_popup.close()
+		return true
 	if _state != State.STARTING:
 		_go_back()
 	return true

@@ -122,8 +122,9 @@ func test_penalty_area_offers_shot_instead_of_back_pass_and_the_defense_can_bloc
 
 
 func test_counter_takes_the_best_destination_and_secure_stays() -> void:
-	# HOME が奪取側。ボール D2-C。味方 M1-C（相手と 1対1）と A1-C（1対0・3列前）。相手は AWAY の視点 M2-C（HOME の視点 M1-C）
-	var state: MatchState = _open_state(["D2-C", "M1-C", "A1-C"], ["M2-C"], "D2-C")
+	# HOME が奪取側。ボール D2-C。味方 M1-C（相手と 1対1）と A1-C（1対0・3列前）。相手は AWAY の視点 M2-C（HOME の視点 M1-C）と、
+	# 最終ラインの D2-L2（HOME の視点 A1-R2。A1-C の味方はラインと同じ列でオンサイド）
+	var state: MatchState = _open_state(["D2-C", "M1-C", "A1-C"], ["M2-C", "D2-L2"], "D2-C")
 	state.turn_kind = GameEnums.TurnKind.TRANSITION
 	state.transition_origin = LayoutPair.new(TeamLayout.from_players(state.home_players),
 			TeamLayout.from_players(state.away_players), HOME)

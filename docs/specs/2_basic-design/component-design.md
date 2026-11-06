@@ -120,7 +120,7 @@ enum JudgeTally { WIN, LOSE, STALL, EXCLUDED }                 # 振り返りで
 | `Movement` | `movement.gd` | （ターン記録の選手の動き） | `side`・`player_id`・`from`・`to`・`reason: MovementReason` |
 | `TurnChoice` | `turn_choice.gd` | （ターン記録の選択） | `family: ChoiceFamily`・`action: int`・`target: PitchArea`（シュート・即時奪回・リトリート・保持は `null`）・`is_complete_for(family)`（判定に使える形か。攻守ターン・トランジションの判定で共有） |
 | `MoveOptions` | `move_options.gd` | — | 手（`family` と `action`）ごとの、選べる `target` の一覧。一覧が空の手は選択不可。運ぶ先を持たない手（シュート・即時奪回・リトリート・保持）は `allow` で選べるかだけを持つ。`add_target`・`allow`・`is_available`・`targets`・`static needs_target(family, action)` |
-| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持・スルーパスは比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`is_offside`（今の配置のままオフサイドになる攻撃の手か。2026-10-25）・`is_marked`（相手が何もしなくても、マンツーマンの付け直しで守備の選手が運ぶ先へ入ってくるスルーパスか。どちら向きにも確定ではない。`OpenPlayJudge.defender_entered` で判定と共有。2026-10-28）・`diff()`。評価値や推奨の印は持たない |
+| `ChoiceHint` | `choice_hint.gd` | — | ヒント（FR-19）。手と運ぶ先ごとの人数差・カバーの有無。`family`・`action`・`target`・`is_compared`（リトリート・保持・スルーパスは比べない）・`own_count`・`opponent_count`（その手を選ぶ側から見た値）・`cover`・`is_offside`（今の配置のままオフサイドになる攻撃の手・カウンターか。2026-10-25。カウンターは 2026-11-06）・`is_marked`（相手が何もしなくても、マンツーマンの付け直しで守備の選手が運ぶ先へ入ってくるスルーパスか。どちら向きにも確定ではない。`OpenPlayJudge.defender_entered` で判定と共有。2026-10-28）・`diff()`。評価値や推奨の印は持たない |
 | `JudgeDetail` | `judge_detail.gd` | （ターン記録の比較エリア・人数・カバー） | `compare_area`・`attacker_count`・`defender_count`・`cover: CoverKind`・`read: ReadKind`（守備の読みの段階） |
 | `TurnRecord` | `turn_record.gd` | ターン記録 | 判定前・判定時の配置は `pair_before`・`pair_at_judgement`（`LayoutPair`。現在エリアを含む）。`ball_after` は判定直後にボールがあるエリア（`GOAL` はシュートしたエリア、`SAVE` は守備側の自陣ゴール前 `D1-C`。攻撃側の視点で `A2-C`） |
 | `MatchState` | `match_state.gd` | 試合 | `transition_origin: LayoutPair`（トランジションターンの起点となる直前の配置。攻守ターンでは `null`）、`turn_records: Array[TurnRecord]`。選手は `home_players`・`away_players`（基本エリア・固定先・今いるエリア `current_area`・`moved_in_turn`。位置はターンをまたいで持ち越す）。ターン開始時の配置は `StyleLayoutCalculator.turn_start(state)` で出す（攻守ターンはアルゴリズム2、トランジションは起点） |
@@ -268,8 +268,11 @@ class_name OffsideRule extends RefCounted   # 2026-10-25。判定・ヒント・
 static func line_row(defender: TeamLayout, ball: PitchArea) -> int
 ## 対象の手の受け手のエリア（スルーパスは走り込む前の位置、前へのショートパス・ロングボールは運ぶ先）。対象外の手は null
 static func receiver_area(pair: LayoutPair, ball: PitchArea, attack: TurnChoice) -> PitchArea
-## 受け手の列がラインより前か
+## 受け手の列がラインより前か（判定はターン開始と守備の手の後の両方の配置で呼び、どちらかで真ならオフサイド。2026-11-06）
 static func is_offside(pair: LayoutPair, ball: PitchArea, attack: TurnChoice) -> bool
+## カウンターがオフサイドなら受け手のいたエリア（直前の配置）、オンサイド・自分で運ぶカウンターなら null（2026-11-06）。
+## 受け手は飛び出しの後の配置 counter で運ぶ先にいる奪取側の選手で、走り込む前の位置を奪った時点のラインと比べる
+static func counter_offside_area(origin: LayoutPair, counter: TeamLayout, ball: PitchArea, target: PitchArea) -> PitchArea
 
 class_name OpenPlayJudge extends RefCounted
 ## アルゴリズム5の手順2〜6。pair はアルゴリズム2を適用済みの配置。守備の手を適用した後にオフサイドなら OFFSIDE を返し、
@@ -320,9 +323,10 @@ class_name MovePreview extends RefCounted
 ## 計算は判定と同じ関数（apply_attack・apply_defense・TransitionJudge.judge）を通す。トランジションの「何もしない」は、
 ## 奪取側の相手を即時奪回、喪失側の相手を保持とする（どちらも配置を変えない手）。選べるかは見ない。適用できなければ空
 static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[Movement]
-## 相手が何もしないと仮定したときの配置の並び [ターン開始時, 判定時, 次のターン開始時]（2026-11-05。プレビューで手の動きと詰め直しを
-## 見せる）。結果は、攻撃は手が通る（ADVANCE）、守備はボールが動かない（STALL）、トランジションは上と同じ「何もしない」相手での判定の
-## 結果。シュートは判定時まで（決まるかで置き直しが変わるため）、適用できない手・オフサイドになる手はターン開始時だけ。
+## 相手が何もしないと仮定したときの配置の並び [ターン開始時, 次のターン開始時]（2026-11-05。プレビューで手の動きと詰め直しを
+## 見せる。2026-11-06 に判定時を外して1拍にした）。結果は、攻撃は手が通る（ADVANCE）、守備はボールが動かない（STALL）、
+## トランジションは上と同じ「何もしない」相手での判定の結果。シュートは次のターン開始時の代わりに判定時（決まるかで置き直しが
+## 変わるため）、適用できない手・オフサイドになる手（カウンターを含む）はターン開始時だけ。
 ## 次のターン開始時は MatchRules.preview_next（resolve_turn と同じ、判定の結果を次の状態へ反映する手順）から作る
 static func team_steps(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[LayoutPair]
 ```
@@ -567,11 +571,11 @@ func submit_style_change(user_styles: TeamStyles) -> void
 func submit_halftime(user_setup: TeamSetup) -> void
 func opponent_setup() -> TeamSetup               # 開示済みの相手の陣形・方式（FR-16・21）
 func snapshot() -> BoardSnapshot                 # 現在の盤面・スコア（画面を開いたときの初期表示）。試合の開始前は、suspended_status() が RESUMABLE のときに中断データの状態を返す（タイトルの再開カード用）
-func board_play_sec() -> float                   # 開示の1拍目（プレー。判定前 → 判定時）で駒とボールを動かす時間（PresentationConfig。2026-11-03）
-func board_settle_sec() -> float                  # 開示の2拍目（詰め直し。判定時 → 次のターン開始時）で駒を動かす時間（PresentationConfig。2026-10-22 に board_shift_sec として足し、2026-11-03 に2拍目の時間にして改名した）
+func board_play_sec() -> float                   # 開示の拍（判定前 → 次のターン開始時。2026-11-06 に1拍にした）で駒とボールを動かす時間（PresentationConfig。2026-11-03）
+func board_settle_sec() -> float                  # 開示の2拍目（詰め直し。判定時 → 次のターン開始時）で駒を動かす時間（PresentationConfig。2026-10-22 に board_shift_sec として足し、2026-11-03 に2拍目の時間にして改名した。2026-11-06 に開示を1拍にし、得点の2拍目（判定時 → キックオフの配置）だけで使う）
 func board_result_sec() -> float                 # 開示の1拍目の終わりから結果の演出を出す時間（PresentationConfig。2026-11-03）
 func piece_style() -> Dictionary                 # 開示の駒の動きの値 {"stagger": ずらしの幅, "hop": 弾みの高さ（駒の半径の何倍か）}（PresentationConfig。2026-11-05）
-func board_beat_gap_sec() -> float               # 開示の拍と拍の間の小休止（秒。PresentationConfig。2026-11-05）
+func board_beat_gap_sec() -> float               # 開示の拍と拍の間の小休止（秒。PresentationConfig。2026-11-05。2026-11-06 から2拍になるのは得点だけなので、得点のときだけ効く）
 func ball_style() -> Dictionary                  # 開示の1拍目のボールの軌道の値 {"loft", "touch", "touches"}（PresentationConfig。高さはボールの半径の何倍か。2026-11-03）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
@@ -781,7 +785,7 @@ func mark_tutorial_completed() -> bool
 | `score_user` / `score_opponent` | スコア |
 | `user_setup` / `opponent_setup` | 陣形と方式（相手の方式の常時表示。FR-16・21） |
 | `movements` | 直前の判定で動いた選手（利用者の視点に変換済み）。矢印の表示に使う |
-| `offside_line_zone` | 相手のオフサイドライン（利用者の視点の列。`OffsideRule.line_row`）。利用者が保持する攻守ターンだけ、それ以外は -1（2026-10-25） |
+| `offside_line_zone` | 相手のオフサイドライン（利用者の視点の列。`OffsideRule.line_row`）。利用者が保持する攻守ターンと、利用者が奪った側のトランジション（奪った時点の配置。2026-11-06）だけ、それ以外は -1（2026-10-25） |
 
 試合の作戦ボードは優劣記号を描かず、エリアの中の駒の数で優劣を示す（2026-10-22。`functional-overview.md`「表示仕様」）。
 ミニピッチの優劣記号（`▲`・`＝`・`▼`）は人数の比較だけで決まるので、UI が人数から描く。
@@ -1105,6 +1109,14 @@ func route_back() -> bool
 > 次のターン開始時）を `TacticsBoard.show_preview_motion` に渡し、どこかの配置で位置が変わる自分の選手を、半透明の駒で配置から配置へ
 > 動かし、止めて最初へ戻すのをくり返す（ボードの子ノード `BoardPreviewLoop`。時間は `preview_style()`）。動く選手のもとの駒は描かない（残すと見づらい、というシャビの指摘）。動かない駒はその場に残す。
 > 1人分の動きしか見えない・矢印が読みにくい、というシャビの指摘による。`show_preview`（輪と点線の曲線の矢印）は消した。
+>
+> **2026-11-06（1拍に戻す）**: シャビ「2拍で動くのいらない。1拍に動くに戻して」（プレビューと開示の両方）。プレビューは
+> `MovePreview.team_steps` から判定時を外し、配置の並びを [ターン開始時, 次のターン開始時] にした（`BoardPreviewLoop` は配置の数を
+> 問わないので変えない）。開示は、パネルが `start_shift` に判定前の配置だけを渡し、判定前 → 次のターン開始時を `board_play_sec()` 秒の
+> 1拍で動かす（結果の演出とテロップはその拍の終わり。拍の組み立ては `MatchBoardPanel.reveal_keyframes`）。
+> 得点だけは、判定時の配置も渡して2拍にする（シュート = 判定前 → 判定時、組み直し = 判定時 → キックオフの配置を `board_settle_sec()` 秒。
+> 拍の間に `board_beat_gap_sec()` の小休止）。1拍では、シュートの最中に全員がキックオフの配置へ歩き出し、ボールがゴールの口から
+> センターへ瞬間移動した（コミット前レビューの指摘。シャビの判断で案A）。
 >
 > **2026-11-03（手の選択の簡素化）**: 行き先はゲームが決め（`MoveMenu`）、手を押すとすぐ `READY` になる（運ぶ先を選ぶ状態をやめた）。
 > 自分の手の行き先はターンの頭から `set_selectable`・`set_hints` で盤面に出し（札は手の番号。ヒントが ON なら人数差も）、

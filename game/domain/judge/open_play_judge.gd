@@ -29,9 +29,10 @@ static func judge(pair: LayoutPair, _attacker_styles: TeamStyles, defender_style
 	# バックパス（2026-11-03）は判定しない。守備の手の動きは残し、ボールは試合進行が運ぶ先へ移す
 	if attack.action == GameEnums.PlayType.BACK_PASS:
 		return JudgeOutput.new(GameEnums.TurnOutcome.NO_CONTEST, null, step.pair, movements)
-	# 手順2.5: オフサイド（2026-10-25）。守備の手を適用した後のラインで、人数・読みより先に見る。
+	# 手順2.5: オフサイド（2026-10-25）。人数・読みより先に見る。パスが出た時点（ターン開始）のラインでも、守備の手を
+	# 適用した後のライン（オフサイドトラップ）でも、受け手が前にいればオフサイド（2026-11-06。守備が下がっても通さない）。
 	# オフサイドならプレーが止まるので、攻撃の手（スルーパスの走り込み・ドリブル）は適用しない
-	if OffsideRule.is_offside(step.pair, ball, attack):
+	if OffsideRule.is_offside(pair, ball, attack) or OffsideRule.is_offside(step.pair, ball, attack):
 		var spot: PitchArea = OffsideRule.receiver_area(step.pair, ball, attack)
 		# 3つ目の引数（is_shot）はカバー判定をしないために真にする（オフサイドはシュートではないが、カバーは結果に関わらない）
 		var offside: JudgeDetail = detail_at(step.pair, spot, true)

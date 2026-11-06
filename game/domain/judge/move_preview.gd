@@ -41,13 +41,14 @@ static func own_movements(state: MatchState, side: GameEnums.TeamSide, choice: T
 	return _of_side(movements, side)
 
 
-## side が choice を選び、相手が何もしないと仮定したときの配置の並び [ターン開始時, 判定時, 次のターン開始時]
-## （2026-11-05。プレビューで手の動きと詰め直しを見せるため）。相手が何もしないときの結果は次のとおり仮定する。
+## side が choice を選び、相手が何もしないと仮定したときの配置の並び [ターン開始時, 次のターン開始時]
+## （2026-11-05。プレビューで手の動きと詰め直しを見せるため。2026-11-06 に、判定時をはさむ2拍から1拍にした）。
+## 相手が何もしないときの結果は次のとおり仮定する。
 ## - 攻撃（運ぶ先のある手）: 手が通る（前進。ボールは運ぶ先へ、保持のまま）
-## - シュート: 決まるかで置き直しが変わるので、判定時まで（2つ）
+## - シュート: 決まるかで置き直しが変わるので、次のターン開始時の代わりに判定時
 ## - 守備: ボールは動かず、相手の保持のまま（膠着）
 ## - トランジション: own_movements と同じく、相手を動かない手にして判定した結果
-## 適用できない手・オフサイドになる手は、ターン開始時だけ（1つ）。配置は判定と試合の進め方と同じ関数で作る。
+## 適用できない手・オフサイドになる手（カウンターを含む）は、ターン開始時だけ（1つ）。配置は判定と試合の進め方と同じ関数で作る。
 static func team_steps(state: MatchState, side: GameEnums.TeamSide, choice: TurnChoice) -> Array[LayoutPair]:
 	var holder_styles: TeamStyles = state.setup_of(state.possession).styles
 	var other_styles: TeamStyles = state.setup_of(MatchState.other(state.possession)).styles
@@ -77,9 +78,8 @@ static func team_steps(state: MatchState, side: GameEnums.TeamSide, choice: Turn
 			output = JudgeOutput.new(GameEnums.TurnOutcome.STALL, null, defended.pair, defended.movements)
 			# 膠着のボールの位置は判定前のまま。保持側の手は運ばない手として渡す（ドリブルを戻す動きを起こさない）
 			holder_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHORT_PASS)
-	if output == null:
+	if output == null or output.outcome == GameEnums.TurnOutcome.OFFSIDE:
 		return steps
-	steps.append(output.pair)
 	steps.append(StyleLayoutCalculator.turn_start(MatchRules.preview_next(state, output, holder_choice)).pair)
 	return steps
 

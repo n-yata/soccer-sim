@@ -147,12 +147,17 @@ func test_snapshot_shows_the_opponents_offside_line_only_while_the_user_attacks(
 	assert_int(ViewConverter.snapshot(attacking, _catalog, [], -1, 15, false).offside_line_zone).is_equal(3)
 	# キックオフの配置そのままなら、CPU の最終ラインは CPU の自陣ゴール前（利用者の視点で A2 = 5）
 	assert_int(ViewConverter.snapshot(_state(HOME), _catalog, [], -1, 15, false).offside_line_zone).is_equal(5)
-	# CPU が保持しているとき（利用者が守備）と、トランジションでは出さない
+	# CPU が保持しているとき（利用者が守備）は出さない
 	assert_int(ViewConverter.snapshot(_state(AWAY), _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
+	# 利用者が奪った側のトランジションでは、奪った時点の相手のラインを出す（カウンターのオフサイド。2026-11-06）
 	var transition: MatchState = _state(HOME)
 	transition.turn_kind = GameEnums.TurnKind.TRANSITION
-	transition.transition_origin = MatchRules.current_layouts(_state(HOME)).pair
-	assert_int(ViewConverter.snapshot(transition, _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
+	transition.transition_origin = MatchRules.current_layouts(attacking).pair
+	assert_int(ViewConverter.snapshot(transition, _catalog, [], -1, 15, false).offside_line_zone).is_equal(3)
+	var lost: MatchState = _state(AWAY)
+	lost.turn_kind = GameEnums.TurnKind.TRANSITION
+	lost.transition_origin = MatchRules.current_layouts(_state(AWAY)).pair
+	assert_int(ViewConverter.snapshot(lost, _catalog, [], -1, 15, false).offside_line_zone).is_equal(-1)
 	# 方式の選び直し・試合終了の盤面にも出さない
 	var style_change: MatchState = _state(HOME)
 	style_change.stage = GameEnums.MatchStage.STYLE_CHANGE

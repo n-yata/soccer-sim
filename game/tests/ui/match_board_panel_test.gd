@@ -575,16 +575,17 @@ func test_binding_gives_the_board_the_piece_motion_from_the_settings() -> void:
 			.is_less_equal(_controller.piece_style()["hop"] as float + 0.0001)
 
 
-## 利用者が守備の最初のターンで、画面に出た最初の守備の手を決定し、開示が2拍（プレーと詰め直し）になり、ボールが動く場面を
-## シードを変えて探す（2026-11-03 に手の選び方が変わり、最初のシードでは詰め直す選手がいなくなったため）
-func _start_with_a_two_beat_reveal() -> void:
+## 利用者が守備の最初のターンで、画面に出た最初の守備の手を決定し、ボールが動く開示の場面をシードを変えて探す
+## （2026-11-03 に手の選び方が変わり、最初のシードでは詰め直す選手がいなくなったため）
+func _start_with_a_reveal_moving_the_ball() -> void:
 	var first_seed: int = 0
 	for _attempt: int in range(30):
 		_start(false, first_seed)
 		_press(_first_targeted_action(GameEnums.ChoiceFamily.DEFENSE))
 		_panel.primary_button().pressed.emit()
 		var reveal: RevealView = _controller.last_reveal()
-		if _panel.board().shift_beat_count() == 2 and reveal.ball_before != reveal.ball_after:
+		var reshaped: Array[String] = _moved_ids(reveal.user_players_at_judgement, _controller.snapshot().user_players)
+		if reveal.ball_before != reveal.ball_after and not reshaped.is_empty():
 			return
 		first_seed = _controller_seed + 1
 		_panel.unbind()
@@ -594,44 +595,73 @@ func _start_with_a_two_beat_reveal() -> void:
 		add_child(_panel)
 		_panel.size = Vector2(1232, 576)
 		_controller = null
-	fail("開示が2拍になる場面が無い")
+	fail("ボールが動き、詰め直す選手がいる開示の場面が無い")
 
 
-func test_the_reveal_shifts_the_play_then_the_reshape_and_the_next_turn_stops_it() -> void:
-	_start_with_a_two_beat_reveal()
+## 開示は1拍で動かす（2026-11-06。シャビ「2拍で動くのいらない」）。判定前の配置から次のターン開始時の配置へ、
+## 手の動きと詰め直しをまとめて動かす
+func test_the_reveal_shifts_from_before_to_the_next_turn_start_in_one_beat_and_the_next_turn_stops_it() -> void:
+	_start_with_a_reveal_moving_the_ball()
 	var reveal: RevealView = _controller.last_reveal()
 	var snapshot: BoardSnapshot = _controller.snapshot()
 	var board: TacticsBoard = _panel.board()
-	# 1拍目（プレー）: 判定前 → 判定時。プレスで1人は必ず動く（空振りしない）
-	var play: Array[String] = _moved_ids(reveal.user_players_before, reveal.user_players_at_judgement)
-	play.append_array(_moved_ids(reveal.opponent_players_before, reveal.opponent_players_at_judgement))
-	assert_array(play).is_not_empty()
-	assert_array(_path_ids(board.shift_beat_paths(0))).contains(play)
-	# 2拍目（詰め直し）: 判定時 → 次のターン開始時。この場面では、ボールに合わせて組み直す選手がいる
-	# （動きの無い拍を飛ばすことは tactics_board_test で確かめる）
-	var reshape: Array[String] = _moved_ids(reveal.user_players_at_judgement, snapshot.user_players)
-	reshape.append_array(_moved_ids(reveal.opponent_players_at_judgement, snapshot.opponent_players))
-	assert_array(reshape).is_not_empty()
-	assert_int(board.shift_beat_count()).is_equal(2)
-	assert_array(_path_ids(board.shift_beat_paths(1))).contains(reshape)
-	# エリアが変わった選手のほかに動くのは、同じエリアで列の位置だけが変わった選手で、どの道筋も位置が変わっている
-	for beat: int in range(board.shift_beat_count()):
-		for path: Dictionary in board.shift_beat_paths(beat):
-			assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
+	assert_int(board.shift_beat_count()).is_equal(1)
+	# 判定前 → 次のターン開始時で位置が変わった選手が、その1拍で動く。プレスで寄せた選手（判定時に動いた選手）と、
+	# 詰め直した選手（判定時 → 次のターン開始時に動いた選手）の両方を含む
+	var moved: Array[String] = _moved_ids(reveal.user_players_before, snapshot.user_players)
+	moved.append_array(_moved_ids(reveal.opponent_players_before, snapshot.opponent_players))
+	assert_array(moved).contains(_moved_ids(reveal.user_players_at_judgement, snapshot.user_players))
+	assert_array(_path_ids(board.shift_beat_paths(0))).contains(moved)
+	for path: Dictionary in board.shift_beat_paths(0):
+		assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
 	assert_bool(board.is_shifting()).is_true()
-	assert_int(board.shift_beat_index()).is_equal(0)
-	# ボールは1拍目で、判定前の位置から判定後の位置へ動く（ボールの位置が変わる場面を選んだ。空振りしない）
-	assert_str(reveal.ball_before).is_not_equal(reveal.ball_after)
+	# ボールは判定前の位置から判定後の位置へ動く（ボールの位置が変わる場面を選んだ。空振りしない）
 	var ball_path: Dictionary = board.shift_beat_ball_path(0)
 	assert_str(board.plan_area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
 	assert_str(board.plan_area_at(ball_path["to"] as Vector2)).is_equal(reveal.ball_after)
-	# 1拍目のボールの軌道は、ボールを持つ側（この場面では CPU の攻撃）の手で決まる
+	# ボールの軌道は、ボールを持つ側（この場面では CPU の攻撃）の手で決まる
 	assert_int(reveal.opponent_choice.family).is_equal(GameEnums.ChoiceFamily.ATTACK)
 	assert_int(ball_path["flight"] as int).is_equal(BallFlight.kind_for(reveal.opponent_choice))
 	_panel.primary_button().pressed.emit()
 	_controller.continue_after_reveal()
 	_panel.start_turn()
 	assert_bool(board.is_shifting()).is_false()
+
+
+## 判定前（A2-C にボール）・判定時（A2-C）の配置だけを持つ開示の値。outcome で結果を変える
+func _reveal_of(outcome: GameEnums.TurnOutcome) -> RevealView:
+	var reveal := RevealView.new()
+	reveal.outcome = outcome
+	reveal.user_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHOT)
+	reveal.opponent_choice = TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS,
+			PitchArea.from_key("M2-C"))
+	reveal.ball_before = "A2-C"
+	reveal.ball_after = "A2-C"
+	reveal.user_players_before = [{"player_id": "p1", "number": 9, "area": "A1-C"}]
+	reveal.opponent_players_before = [{"player_id": "p1", "number": 4, "area": "M2-C"}]
+	reveal.user_players_at_judgement = [{"player_id": "p1", "number": 9, "area": "A2-C"}]
+	reveal.opponent_players_at_judgement = [{"player_id": "p1", "number": 4, "area": "A2-C"}]
+	return reveal
+
+
+## 開示はふつう1拍（判定前の配置だけ）。得点だけは、シュート（判定前 → 判定時）と、キックオフへの組み直し（判定時 → いまの盤面）の
+## 2拍にする（2026-11-06。1拍ではシュートの最中に全員がキックオフへ歩き出し、ボールがゴールからセンターへ飛んでいた。シャビの判断で案A）
+func test_the_reveal_keyframes_are_one_beat_except_a_goal_in_two() -> void:
+	var save: Array[Dictionary] = MatchBoardPanel.reveal_keyframes(_reveal_of(GameEnums.TurnOutcome.SAVE), 0.6, 0.5)
+	assert_int(save.size()).is_equal(1)
+	assert_array(save[0]["user"] as Array).is_equal(_reveal_of(GameEnums.TurnOutcome.SAVE).user_players_before)
+	assert_str(save[0]["ball"] as String).is_equal("A2-C")
+	assert_float(save[0]["sec"] as float).is_equal(0.6)
+	assert_int(save[0]["flight"] as int).is_equal(BallFlight.Kind.DRIVEN)
+	var goal: RevealView = _reveal_of(GameEnums.TurnOutcome.GOAL)
+	var frames: Array[Dictionary] = MatchBoardPanel.reveal_keyframes(goal, 0.6, 0.5)
+	assert_int(frames.size()).is_equal(2)
+	assert_float(frames[0]["sec"] as float).is_equal(0.6)
+	assert_array(frames[1]["user"] as Array).is_equal(goal.user_players_at_judgement)
+	assert_array(frames[1]["opponent"] as Array).is_equal(goal.opponent_players_at_judgement)
+	assert_str(frames[1]["ball"] as String).is_equal(goal.ball_after)
+	assert_float(frames[1]["sec"] as float).is_equal(0.5)
+	assert_bool(frames[1].has("flight")).is_false()
 
 
 ## ラベルの中で文字を置ける幅（地の内側の余白を除く）

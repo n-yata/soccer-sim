@@ -68,8 +68,8 @@ MatchScreen (Control)
 
 - **画面の向き**: 横向きだけ（要件定義書 §6.1）。端末の横の長さの違い（16:9〜21:9）は、操作の列の幅（上限 640px）と
   `BoardArea` の幅で吸収する（横に長い端末ほどピッチが横に伸びる。高さは 600px で一定。screen-common.md §1.1）
-- **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から判定時の位置へ（プレー）、続けて次のターン開始時の位置へ
-  （詰め直し）、駒とボールを2拍で動かして見せる（2026-11-03 に2拍にした）。
+- **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から次のターン開始時の位置へ、駒とボールを1拍で動かして見せる
+  （2026-11-03 にプレーと詰め直しの2拍にし、2026-11-06 に1拍に戻した）。
   盤面は縦向きのピッチを斜めから見せ、利用者の攻撃方向は上（2026-10-23 に、3D 演出の表示場所 `ReplayLayer` から置き換えた）
 - **盤面と操作の列の部品**: `BoardPanel`（`MatchBoardPanel`）の中身は S-08 と共用する。画面ごとの違いは
   `SideTopSlot`・`SideBottomSlot` に置く（[`screen-08-tutorial.md`](./screen-08-tutorial.md)）
@@ -140,7 +140,7 @@ MatchScreen (Control)
 2. `_selected_family`・`_selected_action` を記録し、`_selected_target` をその手の行き先（`_options` の1件。行き先の無い手は空）にする
 3. 行き先を塗り（`TacticsBoard.set_selected`）、ボールを運ぶ手（攻撃・カウンター）なら `TacticsBoard.show_intent(ボールのエリア, 行き先)` で
    ボールから行き先への矢印を描く。守備の手では描かない（行き先は守る位置で、ボールはそこへ動かない）。
-   `MatchController.user_preview_frames(手)` の配置の並び（ターン開始時・判定時・次のターン開始時）を `TacticsBoard.show_preview_motion` に
+   `MatchController.user_preview_frames(手)` の配置の並び（ターン開始時・次のターン開始時。2026-11-06 に判定時を外して1拍にした）を `TacticsBoard.show_preview_motion` に
    渡し、自分の選手全員の手の動きと詰め直しを半透明の駒でくり返し見せる（決定前のプレビュー。自分の選手だけ。相手の駒は動かさない。
    2026-11-05。時間は bind で `set_preview_style(match_controller.preview_style())`）。決定で `show_preview_motion([])` にする（結果の盤面を出すときも消える）
 4. 詳細のポップアップの中身を作り、「詳細」を押せるようにする（ボタンの下には説明を出さない。2026-11-05）
@@ -175,15 +175,15 @@ MatchScreen (Control)
 
 1. `_reveal = reveal`、`_snapshot = snapshot`。`PhaseTag` を隠し、`RevealBanner` に「● …／◆ …」（両者の手の名前。`MatchScreen.reveal_line`。2026-11-06）を出す
 2. `ChoicePanel`・「詳細」を隠し、詳細のポップアップを閉じる
-3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift` で駒とボールを2拍で動かす（2026-11-03）。
-   1拍目（プレー）は判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 判定時（`reveal.*_players_at_judgement`・
-   `reveal.ball_after`）を `match_controller.board_play_sec()` 秒、2拍目（詰め直し）は判定時 → 次のターン開始時を
-   `match_controller.board_settle_sec()` 秒。どちらの拍も、位置が変わった全選手を動かす（方式でずれた選手も動き、
-   手で動いた後にチーム全体がボールに合わせて組み直ることが見える）。1拍目のボールは、ボールを持つ側の手
+3. `TacticsBoard.show_snapshot(_snapshot)`（次のターン開始時の盤面）の後に、`start_shift` で駒とボールを1拍で動かす（2026-11-03 に2拍にし、2026-11-06 に1拍に戻した）。
+   判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 次のターン開始時（いまの盤面）を
+   `match_controller.board_play_sec()` 秒。位置が変わった全選手を動かす（手で動いた選手も、方式でずれた選手も）。
+   得点だけは判定時（`reveal.*_players_at_judgement`・`reveal.ball_after`）も渡して2拍にし、シュートの後に、判定時 → キックオフの
+   配置を `match_controller.board_settle_sec()` 秒で動かす（拍の組み立ては `MatchBoardPanel.reveal_keyframes`。2026-11-06）。ボールは、ボールを持つ側の手
    （`BallFlight.holder_choice(reveal)`）の軌道 `BallFlight.kind_for(...)` で動かす（2026-11-03）。軌道の高さの値は、
    `bind` で `TacticsBoard.set_ball_style(match_controller.ball_style())` として入れる。駒の動き（ずらし・弾み）と拍の間の
    小休止も、`bind` で `set_piece_style(match_controller.piece_style())`・`set_beat_gap_sec(match_controller.board_beat_gap_sec())`
-   として入れる（2026-11-05）。
+   として入れる（2026-11-05。小休止は 2026-11-06 から、2拍になる得点のときだけ効く）。
    `show_movements(reveal.movements)` で矢印を描き、`show_compare(reveal.compare_area, reveal.user_count, reveal.opponent_count)` で
    比較エリアを光らせて人数の札（`1対0`）を出す
 4. 上部バーのスコアと `PossessionLabel`（判定後の保持）を `_snapshot` で描き直す（`result_shown`）。`JudgeTelop` に結果（`OutcomeTag`。例 `● ADVANCE 前進`。成功した側を色と記号で示す: 保持側（攻撃側・奪った側）の成功は前進・得点・奪回失敗、相手側の成功は膠着・ロスト・シュート阻止・奪回成功・オフサイド（2026-10-25）、判定なしはどちらでもない。`MatchTexts.turn_winner`。2026-10-24）と判定理由（`JudgeReasonFormatter`）、判定の内訳（`JudgeDetail`。`reveal.compare_area`・`user_count`・`opponent_count`・`cover`。`NO_CONTEST` では隠す）を出す。`reveal.simplification_ids` が
@@ -192,8 +192,8 @@ MatchScreen (Control)
    試合の終わり）なら笛（`WHISTLE`）。両方に当たれば両方を鳴らす
 5. `PrimaryButton` を「次のターンへ／NEXT」にする。`_state = SHOW_RESULT`
 
-> 矢印はすぐ出し、「次へ」もすぐ押せる（待たせない）。**`JudgeTelop` は、1拍目の着地（`TacticsBoard.play_landed`）で出す**
-> （2026-11-03。手順 4 の中身は開示の瞬間に作っておき、隠しておく。1拍目が無ければすぐ出る。動きを途中で止めても出し忘れない。
+> 矢印はすぐ出し、「次へ」もすぐ押せる（待たせない）。**`JudgeTelop` は、拍の着地（`TacticsBoard.play_landed`）で出す**
+> （2026-11-03。手順 4 の中身は開示の瞬間に作っておき、隠しておく。動きが無ければすぐ出る。動きを途中で止めても出し忘れない。
 > 「ターンを始める」で待つのをやめるので、次のターンの後に前のテロップは出ない）。着地のときに、盤面に結果の演出
 > （`ResultEffect.for_reveal(reveal)` を `start_shift` の2つ目の引数で渡す。時間は bind で `set_result_sec(match_controller.board_result_sec())`）を出す。
 > 方式の選び直し・ハーフタイムの後と試合の最初は

@@ -88,8 +88,9 @@ static func snapshot(state: MatchState, catalog: ContentCatalog, last_movements:
 	view.opponent_setup = state.away_setup.duplicate_deep()
 	view.movements = movements_to_user(last_movements)
 	# 利用者が攻撃側なので、攻撃側の視点の列がそのまま利用者の視点の列
-	# 手を選ぶ場面（試合中の TURN）だけ。方式の選び直し・ハーフタイム・試合終了の盤面には出さない
-	if view.user_has_ball and state.turn_kind == GameEnums.TurnKind.OPEN_PLAY \
+	# 手を選ぶ場面（試合中の TURN）だけ。方式の選び直し・ハーフタイム・試合終了の盤面には出さない。
+	# 利用者が奪った側のトランジションも、カウンターのオフサイドのために出す（pair は奪った時点の配置。2026-11-06）
+	if view.user_has_ball \
 			and state.stage == GameEnums.MatchStage.TURN and state.status == GameEnums.MatchStatus.IN_PROGRESS:
 		view.offside_line_zone = OffsideRule.line_row(pair.defender, state.ball_area)
 	return view

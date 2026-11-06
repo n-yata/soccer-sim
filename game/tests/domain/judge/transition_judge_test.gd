@@ -113,6 +113,50 @@ func test_a_counter_to_a_teammate_does_not_move_the_ball_winner() -> void:
 	assert_str(_summary(output)).is_equal("ADVANCE A1-C 1-0 NONE")
 
 
+# --- カウンターのオフサイド（2026-11-06） ---
+
+## 奪取側（保持型。飛び出しなし）は M1-C の w1（ボール）と A1-C の w2。喪失側の最終ラインは、基本 D2-C から M1-C へ
+## 上がっている l1（奪取側から見て M2-C = 3）。A1-C（4）の w2 はラインより前
+func _offside_counter(loser_choice: TurnChoice) -> JudgeOutput:
+	var origin := LayoutPair.new(_team([["w1", "M1-C", "", ""], ["w2", "A1-C", "", ""]]),
+			_team([["l1", "D2-C", "M1-C", ""], ["l2", "M2-L1", "", ""]]), HOME)
+	return TransitionJudge.judge(origin, _styles(ZONE, POSSESSION), _styles(ZONE, POSSESSION),
+			_area("M1-C"), _counter("A1-C"), loser_choice)
+
+
+func test_a_counter_pass_to_a_receiver_beyond_the_line_is_offside() -> void:
+	# 人数（1対0）に関係なく、受け手のいたエリアで守備側のボールになる
+	assert_str(_summary(_offside_counter(_counter_press()))).is_equal("OFFSIDE A1-C 1-0 NONE")
+
+
+func test_a_counter_pass_stays_offside_when_the_loser_retreats() -> void:
+	# リトリートで l1 が基本の D2-C（奪取側から見て A1-C = 4）へ戻ると、その後のラインでは w2 はラインと同じ列になる。
+	# ラインは奪った時点の配置で決まり（パスが出た時点）、喪失側が後から下がってもオンサイドにならない
+	var output: JudgeOutput = _offside_counter(_retreat())
+	assert_array(_moves(output)).contains(["l1:M1-C>D2-C:RETREAT_RESET"])
+	assert_int(output.outcome).is_equal(GameEnums.TurnOutcome.OFFSIDE)
+	assert_str(output.detail.compare_area.to_key()).is_equal("A1-C")
+
+
+func test_a_counter_receiver_judged_where_they_were_before_breaking_out() -> void:
+	# 奪取側（カウンター型）の w2 は M2-L2 から A1-L2 へ飛び出す。喪失側の最終ラインは M2（l1 の M1-R2）。
+	# 飛び出しはパスと同時の走り込みなので、走り込む前の M2-L2（ラインと同じ列）でオンサイド
+	var origin := LayoutPair.new(_team([["w1", "D2-C", "", ""], ["w2", "M2-L2", "", ""]]),
+			_team([["l1", "M1-R2", "", ""]]), HOME)
+	var output: JudgeOutput = TransitionJudge.judge(origin, _styles(ZONE, COUNTER), _styles(ZONE, POSSESSION),
+			_area("D2-C"), _counter("A1-L2"), _counter_press())
+	assert_str(_summary(output)).is_equal("ADVANCE A1-L2 1-0 NONE")
+
+
+func test_a_counter_carried_by_the_ball_winner_is_never_offside() -> void:
+	# 前に味方がいないので w1 が自分で A2-C へ運ぶ（ドリブル）。喪失側の最終ラインは A1（l1 の D2-C）で、A2 はラインより前だが対象外
+	var origin := LayoutPair.new(_team([["w1", "A1-C", "", ""]]), _team([["l1", "D2-C", "", ""]]), HOME)
+	var output: JudgeOutput = TransitionJudge.judge(origin, _styles(ZONE, POSSESSION), _styles(ZONE, POSSESSION),
+			_area("A1-C"), _counter("A2-C"), _counter_press())
+	assert_array(_moves(output)).is_equal(["w1:A1-C>A2-C:DRIBBLE"])
+	assert_str(_summary(output)).is_equal("ADVANCE A2-C 1-0 NONE")
+
+
 # --- 判定例 JE-07 ---
 
 func test_je07_counter_into_the_space_behind_the_possession_side() -> void:
