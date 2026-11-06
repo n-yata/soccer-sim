@@ -338,11 +338,23 @@ static func _draw_lifted_ball(board: TacticsBoard, foot: Vector2, scale: float, 
 	var r: float = TacticsBoard.BALL_RADIUS * scale
 	_ellipse(board, foot, r, r * 0.38, Color(0, 0, 0, 0.35))
 	var center: Vector2 = foot + Vector2(0, -r * (1.6 + lift))
+	# 駒と同じ光沢の 3D の絵（2026-11-07）。まだ無ければ平面のサッカーボール
+	var sprite: Texture2D = PieceSprites.ball_texture(board)
+	if sprite != null:
+		board.draw_texture_rect(sprite, ball_rect(center, r), false)
+		return
 	board.draw_circle(center, r, _color(board, &"ball"))
 	# サッカーボールの模様（2026-11-06。白い円だけから変えた）
 	for patch: PackedVector2Array in ball_patches(center, r):
 		board.draw_colored_polygon(patch, _color(board, &"bg"))
 	board.draw_arc(center, r, 0.0, TAU, 32, _color(board, &"bg"), 1.5)
+
+
+## ボールの絵を置く範囲。絵の中のボール（半径 PieceSprites.BALL_RADIUS_PX）が、中心 center・半径 r に来るよう縮めて置く
+static func ball_rect(center: Vector2, r: float) -> Rect2:
+	var rate: float = r / PieceSprites.BALL_RADIUS_PX
+	var size: Vector2 = Vector2(PieceSprites.BALL_TEXTURE_SIZE) * rate
+	return Rect2(center - size / 2.0, size)
 
 
 static func _ellipse(board: TacticsBoard, center: Vector2, rx: float, ry: float, color: Color) -> void:

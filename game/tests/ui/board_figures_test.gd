@@ -224,3 +224,13 @@ func test_the_piece_sprite_sits_on_the_feet_at_the_piece_size() -> void:
 	var lifted: Rect2 = BoardPainter.sprite_rect(GROUND, R, 0.5)
 	assert_vector(lifted.position).is_equal_approx(rect.position + Vector2(0, -R * 0.5), Vector2(0.001, 0.001))
 	assert_vector(lifted.size).is_equal_approx(rect.size, Vector2(0.001, 0.001))
+
+
+## 3D のボールの絵は、絵の中のボールが中心 center・半径 r に来るよう縮めて置く
+func test_the_ball_sprite_matches_the_ball_size() -> void:
+	var center := Vector2(120, 80)
+	var radius: float = 11.0
+	var rect: Rect2 = BoardPainter.ball_rect(center, radius)
+	assert_vector(rect.get_center()).is_equal_approx(center, Vector2(0.001, 0.001))
+	# 絵（128px 四方。ボールの半径 56px）を半径 11 に縮めると、128 × 11 / 56 ≈ 25.14 px 四方
+	assert_vector(rect.size).is_equal_approx(Vector2(25.142857, 25.142857), Vector2(0.001, 0.001))

@@ -67,3 +67,35 @@ func test_a_board_that_left_the_tree_before_attaching_gets_the_sprites_when_it_r
 	assert_object(PieceSprites.texture_for(board, true)).is_null()
 	await await_idle_frame()
 	assert_object(board.get_node_or_null(NodePath(PieceSprites.NODE_NAME))).is_not_null()
+
+
+## サッカーボールの模様: 12の五角形の中心は黒、隣り合う中心の間（六角形の上）は白。
+## 黒の面積は球の約 28%（切頂二十面体。五角形の外接の角度は約 20°で、1枚およそ 0.29 sr × 12 / 4π）
+func test_the_ball_has_twelve_black_pentagons_on_white() -> void:
+	for center: Vector3 in PieceSprites.PENTAGON_CENTERS:
+		assert_bool(PieceSprites.on_pentagon(center)).override_failure_message("中心 %s が白" % center).is_true()
+	var a: Vector3 = PieceSprites.PENTAGON_CENTERS[0].normalized()
+	var b: Vector3 = PieceSprites.PENTAGON_CENTERS[4].normalized()
+	assert_float(rad_to_deg(a.angle_to(b))).is_equal_approx(rad_to_deg(PieceSprites.NEIGHBOR_ANGLE), 0.01)
+	assert_bool(PieceSprites.on_pentagon(a + b)).is_false()
+	var black: int = 0
+	var samples: int = 0
+	for i: int in range(-10, 11):
+		for j: int in range(-10, 11):
+			for k: int in range(-10, 11):
+				var direction := Vector3(i, j, k)
+				if direction.length() < 5.0 or direction.length() > 10.0:
+					continue
+				samples += 1
+				if PieceSprites.on_pentagon(direction):
+					black += 1
+	assert_float(float(black) / samples).is_between(0.22, 0.34)
+
+
+## 模様は、最初の五角形がボールの中心からカメラへの向きに来るよう回す（正面に黒い五角形が1枚見える）
+func test_the_ball_shows_a_pentagon_to_the_camera() -> void:
+	var pitch: float = deg_to_rad(PieceSprites.PITCH_DEGREES)
+	var toward_camera := Vector3(0, sin(pitch), cos(pitch))
+	var pattern: Vector3 = PieceSprites.ball_pattern_rotation().inverse() * toward_camera
+	assert_bool(PieceSprites.on_pentagon(pattern)).is_true()
+	assert_vector(pattern.normalized()).is_equal_approx(PieceSprites.PENTAGON_CENTERS[0].normalized(), Vector3(0.001, 0.001, 0.001))
