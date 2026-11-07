@@ -662,6 +662,53 @@ func test_the_reveal_keyframes_are_one_beat_except_a_goal_in_two() -> void:
 	assert_str(frames[1]["ball"] as String).is_equal(goal.ball_after)
 	assert_float(frames[1]["sec"] as float).is_equal(0.5)
 	assert_bool(frames[1].has("flight")).is_false()
+	# カットインを出すときだけ、組み直しの拍をカットインが終わるまで待たせる
+	assert_bool(frames[1]["wait"] as bool).is_false()
+	assert_bool(MatchBoardPanel.reveal_keyframes(goal, 0.6, 0.5, true)[1]["wait"] as bool).is_true()
+
+
+## 決定した後の開示を、作った開示の値で始める（得点の場面をシードで探さないため）。スコアは得点の後の値にする
+func _resolve_with(outcome: GameEnums.TurnOutcome) -> void:
+	_start(true)
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	snapshot.score_user = 1
+	_panel._state = State.SUBMITTING
+	_panel._on_turn_resolved(_reveal_of(outcome), snapshot)
+
+
+## 得点の開示では、シュートが着地したら3Dのカットインを出し、キックオフへの組み直しはカットインが終わるまで待つ（2026-11-06）
+func test_a_goal_shows_the_cut_in_on_landing_and_holds_the_reshape_until_it_ends() -> void:
+	_resolve_with(GameEnums.TurnOutcome.GOAL)
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(cut_in.is_playing()).is_false()
+	await _await_landing()
+	assert_bool(cut_in.is_playing()).is_true()
+	assert_bool(cut_in.is_user_goal()).is_true()
+	assert_str(cut_in.texts()["score"] as String).is_equal("● 1 − 0 ◆")
+	assert_bool(_panel.telop_visible()).is_true()
+	# カットインの間は、組み直しの拍の前で止まっている
+	await await_millis(int(_controller.board_settle_sec() * 1000.0) + 200)
+	assert_bool(_panel.board().is_shifting()).is_true()
+	assert_int(_panel.board().shift_beat_index()).is_equal(0)
+	# カットインが終われば（押して飛ばしても）組み直しが動き、終わる
+	cut_in.stop()
+	await await_millis(int((_controller.board_settle_sec() + _controller.board_beat_gap_sec()) * 1000.0) + 300)
+	assert_bool(_panel.board().is_shifting()).is_false()
+
+
+func test_a_result_other_than_a_goal_shows_no_cut_in() -> void:
+	_resolve_with(GameEnums.TurnOutcome.SAVE)
+	await _await_landing()
+	assert_bool(_panel.goal_cut_in().is_playing()).is_false()
+
+
+func test_starting_the_next_turn_stops_the_cut_in() -> void:
+	_resolve_with(GameEnums.TurnOutcome.GOAL)
+	await _await_landing()
+	assert_bool(_panel.goal_cut_in().is_playing()).is_true()
+	_panel.start_turn()
+	assert_bool(_panel.goal_cut_in().is_playing()).is_false()
+	assert_bool(_panel.board().is_shifting()).is_false()
 
 
 ## ラベルの中で文字を置ける幅（地の内側の余白を除く）

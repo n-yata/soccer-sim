@@ -7,6 +7,7 @@ script = ExtResource("1")
 board_play_sec = 0.6
 board_settle_sec = 0.6
 board_result_sec = 0.8
+goal_cut_in_sec = 3.6
 piece_stagger = 0.35
 piece_hop_height = 0.35
 board_beat_gap_sec = 0.12

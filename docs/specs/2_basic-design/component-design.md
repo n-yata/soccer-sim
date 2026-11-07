@@ -577,6 +577,7 @@ func board_result_sec() -> float                 # 開示の1拍目の終わり�
 func piece_style() -> Dictionary                 # 開示の駒の動きの値 {"stagger": ずらしの幅, "hop": 弾みの高さ（駒の半径の何倍か）}（PresentationConfig。2026-11-05）
 func board_beat_gap_sec() -> float               # 開示の拍と拍の間の小休止（秒。PresentationConfig。2026-11-05。2026-11-06 から2拍になるのは得点だけなので、得点のときだけ効く）
 func ball_style() -> Dictionary                  # 開示の1拍目のボールの軌道の値 {"loft", "touch", "touches"}（PresentationConfig。高さはボールの半径の何倍か。2026-11-03）
+func goal_cut_in_sec() -> float                  # 得点のカットインの時間（秒。PresentationConfig。0 ならカットインを出さない。2026-11-07）
 ## 直前の保存に失敗していて、中断データが最新の状態でないか（中断の確認ダイアログで警告する）
 func has_unsaved_progress() -> bool
 ## 試合中のメニューから中断してタイトルへ。直前の保存に失敗していれば保存をやり直す（保存の時点④）
@@ -862,7 +863,7 @@ func validation_errors() -> Array[String]
 |---|---|---|
 | `MatchRuleConfig` | `match_rule_config.tres` | 1ハーフのターン数・アディショナルタイムの最大ターン数 |
 | `CpuConfig` | `cpu_config.tres` | 温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty（2026-10-25）・マーク注意の減点 marked_penalty（2026-10-29） |
-| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・結果の演出を出す時間（秒）・1拍目のボールの軌道（浮き球の高さ・ドリブルの弾みの高さと回数）・駒の動き（ずらしの幅・弾みの高さ）・拍の間の小休止（秒）・決定前のプレビューの動く時間と止める時間（秒）・振り返りで遡るターン数 |
+| `PresentationConfig` | `presentation_config.tres` | 開示の1拍目・2拍目で駒を動かす時間（秒）・結果の演出を出す時間（秒）・1拍目のボールの軌道（浮き球の高さ・ドリブルの弾みの高さと回数）・駒の動き（ずらしの幅・弾みの高さ）・拍の間の小休止（秒）・決定前のプレビューの動く時間と止める時間（秒）・得点のカットインの時間（秒。2026-11-07）・振り返りで遡るターン数 |
 | `VerificationConfig` | `verification_config.tres` | 自己対戦検証の各組み合わせの試合数（テストだけが読む） |
 
 ```gdscript
@@ -872,7 +873,7 @@ func cpu() -> CpuConfig
 func presentation() -> PresentationConfig
 ```
 
-値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）と結果の演出を出す時間は0より大きく2以下、浮き球の高さは0以上20以下・ドリブルの弾みの高さは0以上5以下（有限の値）・弾みの回数は1以上8以下、駒のずらしの幅は0以上0.8以下・駒の弾みの高さは0以上1.5以下・拍の間の小休止は0以上0.5以下（有限の値）、プレビューの動く時間は0より大きく2以下・止める時間は0以上2以下、遡るターン数は
+値の範囲: ターン数は1以上、アディショナルタイムの最大ターン数は0以上・ターン数以下、τ は0より大きい、floor は0以上1未満、style_bonus・forward_bonus・shot_bonus・anticipation_bonus は0以上（いずれも有限の値）、駒を動かす時間（1拍目・2拍目とも）と結果の演出を出す時間は0より大きく2以下、浮き球の高さは0以上20以下・ドリブルの弾みの高さは0以上5以下（有限の値）・弾みの回数は1以上8以下、駒のずらしの幅は0以上0.8以下・駒の弾みの高さは0以上1.5以下・拍の間の小休止は0以上0.5以下（有限の値）、プレビューの動く時間は0より大きく2以下・止める時間は0以上2以下、得点のカットインの時間は0以上6以下（有限の値。0 ならカットインを出さない）、遡るターン数は
 0以上。初期値は各 Resource の `@export` の既定値として持ち、`functional-overview.md` の表と一致させる。
 
 > 2026-10-19 時点で作ったのは `match_rules()`・`cpu()`。`ConfigRepository.new(config_dir = "res://config")` で作り
@@ -1088,6 +1089,10 @@ func route_back() -> bool
 | `ChoicePanel` | 局面に応じた手のボタン。画面に出す手（`MoveMenu`）のうち選べる手だけを、番号と行動の名前のボタンで2列に並べる（2026-11-05 に、番号・行き先・ヒントの3行から変えた。行き先・人数は「詳細」のポップアップ。8文字以上の名前は語の切れ目で改行する（`MatchTexts.BUTTON_LINE_BREAKS`）） |
 | `MiniPitch` | 試合準備・ハーフタイム・理解度チェックで使う小さな盤面（人数の数字と優劣記号）。作戦ボードと同じ向き（上が敵陣・左が左大外）で、遠近は付けない |
 | `MatchBoardPanel` | 試合画面の盤面と手の選択の部分（左の `TacticsBoard`、右の操作の列の `ChoicePanel`・判定理由）。試合画面とチュートリアルで共用する |
+| `GoalCutIn` | 得点のカットイン（2026-11-07）。盤面の上に重ねる Control で、`SubViewport` に 3D の舞台を写し、上に映画の帯・題・文・閃光を描く。`play(is_user, score_user, score_opponent, sec)`・`stop()`・押して飛ばす・`finished` |
+| `GoalStage3D` | カットインの 3D の舞台（夜のスタジアム・ゴールとネット・ボール・選手とキーパー・カメラ）。`set_progress(p)` で時刻の姿に置く。カットインの間だけ作り、終わったら消す |
+| `GoalCutInArt` | カットインの時間割と動き（時刻 p → 重ねの値・選手の動きと置き場所・キーパー・ボール・ネット・カメラ・文）の純粋な関数。舞台とテストが同じものを使う |
+| `GoalPlayerModel` | カットインの選手（外部の CC0 の 3D モデル。ユニフォームはシェーダーで着せる）。素材の動きを時刻で止めて置き、その上から手足の骨を姿勢・記録の向きへ向ける。足を地面に着け、軸足を留める |
 
 > **2026-10-19 時点**: `AreaCell`・`MoveArrowLayer` は別のノードにせず、`TacticsBoard` の描画（`_draw`）と入力（`gui_input`）に
 > まとめた。エリアの位置の計算（`area_rect`・`area_at`）を描画・入力・テストで共有するため。押す操作の判定（押したエリアの中で
@@ -1181,6 +1186,15 @@ func route_back() -> bool
 > （§5.3 の `TacticsBoard.start_shift`）。`ReplayStage`・`ReplayLayoutMapper`・`replay3d/`・`MatchController.replay_max_sec()` は作らない。
 > 3D 演出の決めごと（判定モジュールを呼ばない・エリアの人数と見た目を一致させる）は、開示の動きの原則として
 > `architecture-overview.md`「UI 層」に引き継いだ。
+>
+> **2026-11-07（得点のカットイン）**: 得点のときだけ、3D の舞台で選手がゴールを決める短いカットインを足した（FR-24。§5.3 の
+> `GoalCutIn`・`GoalStage3D`・`GoalCutInArt`・`GoalPlayerModel`）。毎ターンの開示は作戦ボードのまま。パネルは得点の開示の
+> keyframe の2拍目（キックオフへの組み直し）に `"wait": true` を付け、`BoardReveal` はその拍の前で Tween を止める。1拍目の着地
+> （`play_landed`）でパネルが `GoalCutIn.play` を呼び、`finished`（自動で終わる・押して飛ばす・`stop`）で
+> `TacticsBoard.resume_shift` を呼んで2拍目へ進める（止まる前に再開されたら止まらない）。カットインを出せない
+> （時間が 0 など）ときは `"wait"` を付けない。「ターンを始める」と `unbind` でカットインを止める。
+> 選手の体・動きは外部の素材（`game/assets/LICENSES.md`「3Dモデル・動き」）。蹴る動きは本物の人の記録（CMU のモーションキャプチャ）を、
+> 体の空間の手足の向きにして持ち（`kick_motion.json`）、骨の向きで移す（体の寸法の違いを問わないため）。
 
 ### 5.5 共通部品（`common/`）
 
@@ -1234,7 +1248,7 @@ func route_back() -> bool
 | ドメイン | `MatchRuleConfig`・`CpuConfig`・`PresentationConfig`・`VerificationConfig`・`GameEnums`・`PitchArea`・`FormationDef`・`PlayerSlotDef`・`StyleDef`・`TeamStyles`・`TeamSetup`・`PlayerState`・`TeamLayout`・`LayoutPair`・`LayoutStep`・`Movement`・`TurnChoice`・`MoveOptions`・`ChoiceHint`・`JudgeDetail`・`JudgeOutput`・`TurnRecord`・`MatchState`・`MatchPositions`・`TurnResolution`・`MatchupNote`・`ReviewSummary`・`ContentCatalog`・`MatchupRuleDef`・`PrincipleDef`・`SimplificationDef`・`QuizQuestionDef`・`TutorialStepDef`・`MatchRecord`・`QuizAnswer`・`UserSettings`・`BaseLayoutDeriver`・`StyleLayoutCalculator`・`DefenseMover`・`MoveRules`・`OffsideRule`・`OpenPlayJudge`・`TransitionJudge`・`MoveHints`・`MatchRules`・`CpuPlanner`・`CommentaryGenerator`・`ReviewAggregator` |
 | アプリケーション | `AppScreens`・`MatchController`・`ViewConverter`・`OpponentPolicy`・`CpuOpponent`・`ScriptedOpponent`・`LibraryService`・`UserDataService`・`BoardSnapshot`・`RevealView`・`ReviewView` |
 | データ | `ContentRepository`・`TutorialContentReader`・`QuizContentReader`・`ConfigRepository`・`SuspendedMatchStore`・`SuspendedLoad`・`RecordStore`・`QuizAnswerStore`・`VersionedJsonFile`・`SettingsStore`・`SaveFileIO`・`SaveMigrator` |
-| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`PieceSprites`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout`・`PhaseBanner` |
+| UI | `MainShell`・`AppScreen`・`ScreenSwitcher`・`TitleScreen`〜`SettingsScreen`（§5.2）・`TacticsBoard`・`AreaCell`・`MoveArrowLayer`・`ChoicePanel`・`MiniPitch`・`MatchBoardPanel`・`BoardPainter`・`PieceSprites`・`BoardShift`・`BoardProjection`・`JudgeReasonFormatter`・`NotesView`・`ConfirmDialog`・`ToastView`・`ScreenHeader`・`ScoreBug`・`FormationCard`・`MatchMenu`・`SettingsPanel`・`SimplificationList`・`NewMatchGate`・`MatchTexts`・`QuizTexts`・`StylePicker`・`MatchScreenLayout`・`PhaseBanner`・`GoalCutIn`・`GoalCutInArt`・`GoalStage3D`・`GoalPlayerModel`（2026-11-07。同じ4つの一覧と突き合わせ、衝突なし） |
 
 > `MatchStatus`（enum）と `MatchState`（クラス）、`TurnOutcome.LOSS` と `MatchResult.LOSE` のように
 > 似た名前があるが、いずれも別の名前で衝突しない。`MatchResult` は勝敗の区分値で、戦績のクラスは `MatchRecord`。

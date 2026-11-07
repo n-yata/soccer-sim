@@ -58,7 +58,10 @@ MatchScreen (Control)
 │       │       │       ├── ButtonSummary (Label) # 「→ 中盤（敵陣）・中央」（行き先だけ。手の名前は選んだボタンに出ている。両方では幅に入らなかった。運ぶ先の無い手は手の名前。2026-11-06）／「次のターンへ」
 │       │       │       └── ButtonAction (Label)  # 「LOCK IN」／「NEXT」
 │       │       └── SideBottomSlot (VBoxContainer) # 画面ごとに足すボタンの置き場。S-03 では空、S-08 は「次へ」
-│       ├── MoveDetailView（ModalOverlay）  # BoardPanel の最後の子。選んだ手の詳細のポップアップ（見出し・本文・「閉じる」。2026-11-05）
+│       ├── MoveDetailView（ModalOverlay）  # 盤面と操作の列の上に重ねる。選んだ手の詳細のポップアップ（見出し・本文・「閉じる」。2026-11-05）
+│       ├── GoalCutIn (Control)             # 得点のカットイン（board2d/goal_cut_in.gd。2026-11-07）。BoardPanel の最後の子で、全体を覆い、得点の着地から設定の時間だけ出す。押すと飛ばす（mouse_filter STOP）
+│       │   ├── Stage (SubViewportContainer)  # stretch。SubViewport（own_world_3d・MSAA 4x）に GoalStage3D を写す
+│       │   └── Overlay (Control)           # 映画の帯・「GOAL!」・「得点／失点」（上の帯）・スコア（下の帯）・閃光・暗転を描く
 │       （3D 演出の ReplayLayer は 2026-10-23 にやめた。開示は TacticsBoard の上で駒とボールを動かす）
 ├── PhaseBanner (PanelContainer)              # 局面の帯（s03_match/phase_banner.gd。2026-11-07）。局面が変わったターンの始めに、画面の真ん中を横切る高さ 160px の帯。英字の大見出し 64px（Barlow Condensed）と日本語の一言 28px。地 bg（不透明度 0.92）、縁と見出しは新しい局面でボールを持つ側の色（you／opponent）。1.2 秒で消え、タップを受けない（mouse_filter IGNORE）
 ├── MatchMenu                                 # common/match_menu.tscn。閉じているときは非表示
@@ -185,7 +188,9 @@ MatchScreen (Control)
    判定前（`reveal.*_players_before`・`reveal.ball_before`）→ 次のターン開始時（いまの盤面）を
    `match_controller.board_play_sec()` 秒。位置が変わった全選手を動かす（手で動いた選手も、方式でずれた選手も）。
    得点だけは判定時（`reveal.*_players_at_judgement`・`reveal.ball_after`）も渡して2拍にし、シュートの後に、判定時 → キックオフの
-   配置を `match_controller.board_settle_sec()` 秒で動かす（拍の組み立ては `MatchBoardPanel.reveal_keyframes`。2026-11-06）。ボールは、ボールを持つ側の手
+   配置を `match_controller.board_settle_sec()` 秒で動かす（拍の組み立ては `MatchBoardPanel.reveal_keyframes`。2026-11-06）。
+   得点で `match_controller.goal_cut_in_sec()` が 0 より大きければ、2拍目の keyframe に `"wait": true` を付け、2拍目の前で止めておく
+   （得点のカットインが終わるまで組み直しを待たせる。2026-11-07）。ボールは、ボールを持つ側の手
    （`BallFlight.holder_choice(reveal)`）の軌道 `BallFlight.kind_for(...)` で動かす（2026-11-03）。軌道の高さの値は、
    `bind` で `TacticsBoard.set_ball_style(match_controller.ball_style())` として入れる。駒の動き（ずらし・弾み）と拍の間の
    小休止も、`bind` で `set_piece_style(match_controller.piece_style())`・`set_beat_gap_sec(match_controller.board_beat_gap_sec())`
@@ -202,6 +207,10 @@ MatchScreen (Control)
 > （2026-11-03。手順 4 の中身は開示の瞬間に作っておき、隠しておく。動きが無ければすぐ出る。動きを途中で止めても出し忘れない。
 > 「ターンを始める」で待つのをやめるので、次のターンの後に前のテロップは出ない）。着地のときに、盤面に結果の演出
 > （`ResultEffect.for_reveal(reveal)` を `start_shift` の2つ目の引数で渡す。時間は bind で `set_result_sec(match_controller.board_result_sec())`）を出す。
+> **得点のカットイン**（2026-11-07）: 得点の1拍目（シュート）が着地したら、`GoalCutIn.play(得点が自分か, スコア, match_controller.goal_cut_in_sec())`
+> で盤面の上にカットインを重ねる（出せなければすぐ `TacticsBoard.resume_shift()`）。カットインの `finished`（自動で終わる・押して飛ばす・
+> `stop`）で `resume_shift()` を呼び、止めておいた2拍目（キックオフへの組み直し）を動かす。カットインは押す操作を受け止める
+> （下の盤面・ボタンへ通さない）。「ターンを始める」（`start_turn`）と `unbind` でカットインを止める。
 > 方式の選び直し・ハーフタイムの後と試合の最初は
 > 「ターンを始める」だけを通るので動かさない。2026-10-23 に、3D 演出（`REPLAYING`・`ReplayStage`・「スキップ」・演出の終了）から置き換えた。
 

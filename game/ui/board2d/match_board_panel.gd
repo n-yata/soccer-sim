@@ -35,6 +35,8 @@ const NEXT_SUMMARY: String = "次のターンへ"
 var _controller: MatchController
 var _state: State = State.IDLE
 var _snapshot: BoardSnapshot
+## 得点のカットイン（2026-11-06）
+var _goal_cut_in: GoalCutIn
 var _options: MoveOptions
 var _hints: Array[ChoiceHint] = []
 ## ヒント表示（設定。FR-19）。OFF の間は user_hints() を呼ばず、ヒントを空にする
@@ -98,6 +100,7 @@ func unbind() -> void:
 	_controller = null
 	_state = State.IDLE
 	_detail_view.close()
+	_goal_cut_in.stop()
 
 
 ## ターンを始める（screen-03-match.md「ターンを始める」）。前のターンの選択・ヒント・矢印は残さない。
@@ -110,6 +113,8 @@ func start_turn() -> void:
 	_hints = _current_hints()
 	_selected_action = -1
 	_selected_target = ""
+	# 前のターンのカットインを止める（止めた盤面には組み直しの再開が効かない）
+	_goal_cut_in.stop()
 	_reveal = null
 	_board.clear_overlays()
 	_board.show_snapshot(_snapshot)
@@ -437,7 +442,9 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 	# 着地は start_shift の中ですぐ届くことがあるので、テロップの中身と状態は先に作っておく
 	_state = State.SHOW_RESULT
 	# 拍の組み立ては reveal_keyframes（ふつうは1拍、得点だけ2拍）。矢印はすぐ出し、1拍目の終わりに結果の演出を出す
-	_board.start_shift(reveal_keyframes(reveal, _controller.board_play_sec(), _controller.board_settle_sec()),
+	# 得点でカットインを出すなら、キックオフへの組み直しはカットインが終わるまで待たせる（2026-11-06）
+	var cut_in: bool = reveal.outcome == GameEnums.TurnOutcome.GOAL and _controller.goal_cut_in_sec() > 0.0
+	_board.start_shift(reveal_keyframes(reveal, _controller.board_play_sec(), _controller.board_settle_sec(), cut_in),
 			ResultEffect.for_reveal(reveal))
 	_board.show_movements(reveal.movements)
 	if reveal.has_detail:
@@ -453,23 +460,35 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 ## 2026-11-03 からはプレーと詰め直しの2拍だった）。ボールは、ボールを持つ側の手の軌道で動く。
 ## 得点だけは、シュート（判定前 → 判定時、play_sec 秒）と、キックオフへの組み直し（判定時 → いまの盤面、settle_sec 秒）の2拍にする
 ## （1拍では、シュートの最中に全員がキックオフの配置へ歩き出し、ボールがゴールからセンターへ飛んだ。シャビの判断で案A）。
-static func reveal_keyframes(reveal: RevealView, play_sec: float, settle_sec: float) -> Array[Dictionary]:
+## wait_for_cut_in が真なら、組み直しの拍に "wait" を付け、得点のカットインが終わるまで待たせる（2026-11-06）。
+static func reveal_keyframes(reveal: RevealView, play_sec: float, settle_sec: float,
+		wait_for_cut_in: bool = false) -> Array[Dictionary]:
 	var keyframes: Array[Dictionary] = [
 		{"user": reveal.user_players_before, "opponent": reveal.opponent_players_before, "ball": reveal.ball_before,
 				"sec": play_sec, "flight": BallFlight.kind_for(BallFlight.holder_choice(reveal))},
 	]
 	if reveal.outcome == GameEnums.TurnOutcome.GOAL:
 		keyframes.append({"user": reveal.user_players_at_judgement, "opponent": reveal.opponent_players_at_judgement,
-				"ball": reveal.ball_after, "sec": settle_sec})
+				"ball": reveal.ball_after, "sec": settle_sec, "wait": wait_for_cut_in})
 	return keyframes
 
 
-## 1拍目の着地で、開示のテロップを出す。開示中でなければ出さない（「ターンを始める」は _reveal を空にしてから盤面を消すので、
-## 前のターンの動きを止めたときに届く着地では出ない）。
+## 1拍目の着地で、開示のテロップを出す。得点なら、シュートがゴールに入ったこの瞬間に3Dのカットインを出す（2026-11-06。
+## 出せなければ、待たせた組み直しをすぐ動かす）。開示中でなければ出さない（「ターンを始める」は _reveal を空にしてから
+## 盤面を消すので、前のターンの動きを止めたときに届く着地では出ない）。
 func _on_play_landed() -> void:
 	if _reveal == null:
 		return
 	_judge_telop.visible = true
+	if _reveal.outcome == GameEnums.TurnOutcome.GOAL:
+		var is_user: bool = MatchTexts.turn_winner(_reveal) == MatchTexts.TurnWinner.USER
+		if not _goal_cut_in.play(is_user, _snapshot.score_user, _snapshot.score_opponent, _controller.goal_cut_in_sec()):
+			_board.resume_shift()
+
+
+## 得点のカットイン（盤面と操作の列の上に重ねる）。
+func goal_cut_in() -> GoalCutIn:
+	return _goal_cut_in
 
 
 func _set_primary(summary: String, action: String, enabled: bool) -> void:
@@ -513,6 +532,11 @@ func _build() -> void:
 	_detail_view = MoveDetailView.new()
 	_detail_view.close_button().pressed.connect(close_detail)
 	add_child(_detail_view)
+	# 得点のカットインは、さらにその上（押すと飛ばす。終わったら盤面の組み直しを再開する）
+	_goal_cut_in = GoalCutIn.new()
+	_goal_cut_in.name = "GoalCutIn"
+	_goal_cut_in.finished.connect(_board.resume_shift)
+	add_child(_goal_cut_in)
 
 
 ## 操作の列の上端: 両チームの陣形・方式（常に表示。FR-16・21）
