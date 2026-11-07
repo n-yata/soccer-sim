@@ -24,7 +24,7 @@ func test_each_phase_shows_its_title_line_and_the_holder_color() -> void:
 	var expected: Dictionary = {
 		GameEnums.Phase.ATTACK: ["ATTACK", "攻撃 ― 自分のボールで攻める", you],
 		GameEnums.Phase.NEG_TRANSITION: ["NEG. TRANSITION", "ネガティブトランジション ― ボールを失った", opponent],
-		GameEnums.Phase.DEFENSE: ["DEFENSE", "守備 ― CPU のボールを守る", opponent],
+		GameEnums.Phase.DEFENSE: ["DEFENSE", "守備 ― ゴールを守る", opponent],
 		GameEnums.Phase.POS_TRANSITION: ["POS. TRANSITION", "ポジティブトランジション ― ボールを奪った", you],
 	}
 	for phase: GameEnums.Phase in expected:

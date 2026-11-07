@@ -35,7 +35,7 @@ const ATTACK_STYLE_NAMES: Array[String] = ["保持型", "カウンター型"]
 ## 局面の帯の見出しと一言（GameEnums.Phase の順）
 const PHASE_BANNER_TITLES: Array[String] = ["ATTACK", "NEG. TRANSITION", "DEFENSE", "POS. TRANSITION"]
 const PHASE_BANNER_LINES: Array[String] = ["攻撃 ― 自分のボールで攻める", "ネガティブトランジション ― ボールを失った",
-		"守備 ― CPU のボールを守る", "ポジティブトランジション ― ボールを奪った"]
+		"守備 ― ゴールを守る", "ポジティブトランジション ― ボールを奪った"]
 ## 人数差の符号。マイナスは数学の記号（U+2212）で、ハイフンより読みやすい
 const MINUS_SIGN: String = "−"
 
