@@ -63,7 +63,7 @@ MatchScreen (Control)
 │       │   ├── Stage (SubViewportContainer)  # stretch。SubViewport（own_world_3d・MSAA 4x）に GoalStage3D を写す
 │       │   └── Overlay (Control)           # 映画の帯・「GOAL!」・「得点／失点」（上の帯）・スコア（下の帯）・閃光・暗転を描く
 │       （3D 演出の ReplayLayer は 2026-10-23 にやめた。開示は TacticsBoard の上で駒とボールを動かす）
-├── PhaseBanner (PanelContainer)              # 局面の帯（s03_match/phase_banner.gd。2026-11-07）。局面が変わったターンの始めに、画面の真ん中を横切る高さ 160px の帯。英字の大見出し 64px（Barlow Condensed）と日本語の一言 28px。地 bg（不透明度 0.92）、縁と見出しは新しい局面でボールを持つ側の色（you／opponent）。1.2 秒で消え、タップを受けない（mouse_filter IGNORE）
+├── PhaseBanner (PanelContainer)              # 局面の帯（common/phase_banner.gd。2026-11-07。S-08 と共用）。局面が変わったターンの始めに、画面の真ん中を横切る高さ 160px の帯。英字の大見出し 64px（Barlow Condensed）と日本語の一言 28px。地 bg（不透明度 0.92）、縁と見出しは新しい局面でボールを持つ側の色（you／opponent）。1.2 秒で消え、タップを受けない（mouse_filter IGNORE）
 ├── MatchMenu                                 # common/match_menu.tscn。閉じているときは非表示
 ├── SettingsOverlay (PanelContainer)          # メニューの「設定」で重ねて開く
 │   └── SettingsPanel                         # common/settings_panel.tscn
@@ -137,11 +137,11 @@ MatchScreen (Control)
 4. `PrimaryButton` の要約を空、操作を「LOCK IN」にして押せなくする。`_state = SELECT_ACTION`
 5. `snapshot.turn_number` が 1（前半・後半のキックオフ）なら、笛を鳴らす（`Sfx.play(WHISTLE)`。再開した試合の1ターン目でも鳴らす。
    得点後の再開では鳴らさない。2026-10-30 の効果音の作業。鳴らすのは `MatchScreen` で、チュートリアルでは鳴らさない）
-6. 局面（`MatchTexts.user_phase`。攻撃・守備・ネガトラ・ポジトラ）が前のターンと変わっていれば、`PhaseBanner.show_phase(局面)` で局面の帯を出す
-   （見出し「NEG. TRANSITION」・一言「ネガティブトランジション ― ボールを失った」など。`MatchTexts.phase_banner_title`・`phase_banner_line`）。
-   試合画面を開いた最初のターン（前半・後半・得点後のキックオフ、中断からの再開）は比べる前のターンが無いので出さない。帯は 1.2 秒で消え、
-   その間も手は選べる（読み合いの手の選択を待たせない）。持ち主は `MatchScreen`（前のターンの局面を覚え、開いたときに忘れる）で、
-   チュートリアルでは出さない。2026-11-07 にシャビの依頼で足した（案を3つ見せて、中継のテロップの帯に決めた）
+6. `PhaseBanner.follow(局面)`（局面は `MatchTexts.user_phase`。攻撃・守備・ネガトラ・ポジトラ）。前のターンと変わっていれば局面の帯を出し、
+   変わらなければ消す（見出し「NEG. TRANSITION」・一言「ネガティブトランジション ― ボールを失った」など。`MatchTexts.phase_banner_title`・`phase_banner_line`）。
+   前の局面は帯が覚え、`enter` で忘れる（`forget()`）。試合画面を開いた最初のターン（前半・後半・得点後のキックオフ、中断からの再開）は
+   比べる前のターンが無いので出さない。帯は 1.2 秒で消え、その間も手は選べる（読み合いの手の選択を待たせない）。
+   2026-11-07 にシャビの依頼で足した（案を3つ見せて、中継のテロップの帯に決めた）。2026-11-08 にチュートリアル（S-08）にも出した
 
 ### 手のボタンを押す（`ChoicePanel.action_selected`）
 

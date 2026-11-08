@@ -35,6 +35,8 @@ var _scope_list: SimplificationList
 var _scope_text: Label
 var _complete_button: Button
 var _dialog: ConfirmDialog
+## 局面が変わったときの帯（S-03 と同じ。前の段階と局面が変わったら出す。2026-11-08）
+var _phase_banner: PhaseBanner
 
 
 func _init() -> void:
@@ -55,6 +57,7 @@ func enter(_params: Dictionary) -> void:
 	_controller = App.new_tutorial_controller()
 	_steps = App.library.tutorial_steps()
 	_index = 0
+	_phase_banner.forget()
 	_panel.bind(_controller, false)
 	_panel.turn_started.connect(_on_turn_started)
 	_panel.reveal_started.connect(_on_reveal_started)
@@ -133,6 +136,10 @@ func confirm_dialog() -> ConfirmDialog:
 	return _dialog
 
 
+func phase_banner() -> PhaseBanner:
+	return _phase_banner
+
+
 func phase_text() -> String:
 	return _phase_tag.text if _phase_tag.visible else ""
 
@@ -167,6 +174,7 @@ func _show_scope(text: String) -> void:
 	_panel.visible = false
 	_phase_tag.visible = false
 	_reveal_banner.visible = false
+	_phase_banner.dismiss()
 	_scope_view.visible = true
 	_scope_text.text = text
 	_scope_list.show_items(App.library.simplifications())
@@ -215,6 +223,7 @@ func _on_turn_started(snapshot: BoardSnapshot) -> void:
 	_phase_tag.text = MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball)
 	_phase_tag.visible = true
 	_reveal_banner.visible = false
+	_phase_banner.follow(MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball))
 
 
 func _on_reveal_started(reveal: RevealView) -> void:
@@ -222,6 +231,7 @@ func _on_reveal_started(reveal: RevealView) -> void:
 			MatchTexts.choice_summary(reveal.opponent_choice)]
 	_phase_tag.visible = false
 	_reveal_banner.visible = true
+	_phase_banner.dismiss()
 
 
 ## 判定理由が出た（パネルは主ボタンを出さない）。チュートリアルは continue_after_reveal を呼ばず、次の段階で作り直す。
@@ -263,6 +273,9 @@ func _build() -> void:
 	_build_coach()
 	_scope_view = _build_scope_view()
 	stage.add_child(_scope_view)
+	# 局面の帯は盤面と説明の上に重ね、確認のダイアログより下に置く
+	_phase_banner = PhaseBanner.new()
+	add_child(_phase_banner)
 	_dialog = ConfirmDialog.new()
 	add_child(_dialog)
 

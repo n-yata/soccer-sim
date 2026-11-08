@@ -1,6 +1,7 @@
 ## 局面が変わったときに、画面の真ん中を横切る帯（中継のテロップ。2026-11-07）。英字の大見出しと日本語の一言を出し、
 ## DURATION で勝手に消える。タップは要らず、帯の下の操作も止めない（読み合いの手の選択を遅らせない）。
-## 帯の色は、その局面でボールを持つ側のチームの色（盤面の駒と同じ `you`・`opponent`）。いつ出すかは MatchScreen が決める。
+## 帯の色は、その局面でボールを持つ側のチームの色（盤面の駒と同じ `you`・`opponent`）。
+## 試合画面（ターンごと）とチュートリアル（段階ごと）が、ターンの始めに follow で局面を渡す（2026-11-08 にチュートリアルへ広げた）。
 class_name PhaseBanner
 extends PanelContainer
 
@@ -21,6 +22,8 @@ var _line: Label
 var _band: StyleBoxFlat
 var _accent: Color
 var _tween: Tween
+## 前に follow で渡された局面（GameEnums.Phase）。まだ無ければ -1
+var _last_phase: int = -1
 
 
 func _init() -> void:
@@ -45,6 +48,22 @@ func _init() -> void:
 	column.add_child(_title)
 	_line = _label("Line", LINE_FONT_SIZE)
 	column.add_child(_line)
+
+
+## ターンの始めの局面を渡す。前と変わっていれば帯を出し、変わらなければ消す。最初の局面（forget の後）では出さない
+## （試合のキックオフ・チュートリアルの最初の段階には、比べる前の局面が無い）
+func follow(phase: GameEnums.Phase) -> void:
+	if _last_phase != -1 and phase != _last_phase:
+		show_phase(phase)
+	else:
+		dismiss()
+	_last_phase = phase
+
+
+## 前の局面を忘れて帯を消す（画面を開いたとき）
+func forget() -> void:
+	_last_phase = -1
+	dismiss()
 
 
 ## phase の帯を出す。出ている途中なら、初めから出し直す

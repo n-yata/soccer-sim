@@ -108,6 +108,40 @@ func test_an_operate_step_allows_only_its_actions_and_shows_next_after_the_resul
 	assert_str(screen.coach_text()).is_equal(_steps()[screen.step_index()].text)
 
 
+## 局面の帯（2026-11-08）: 試合と同じく、盤面のある段階で、前の段階と局面が変わったときだけ出す。最初の段階では出さない。
+## 判定理由が出る（開示が始まる）と消え、盤面の無い最後の段階でも出ていない。
+## 段階の数だけ回し、毎回1つ進んだことを確かめる（進まなければ、止まらずに回り続けないよう、そこで落とす）
+func test_the_phase_banner_shows_when_the_phase_changes_between_steps() -> void:
+	var screen: TutorialScreen = _open()
+	var banner: PhaseBanner = screen.phase_banner()
+	var previous: int = -1
+	var changes: int = 0
+	var reached_scope: bool = false
+	for _i: int in range(_steps().size()):
+		var before: int = screen.step_index()
+		var step: TutorialStepDef = _steps()[before]
+		if not step.has_board():
+			assert_bool(banner.is_showing()).override_failure_message("盤面の無い段階で出ている").is_false()
+			reached_scope = true
+			break
+		var phase: GameEnums.Phase = MatchTexts.user_phase(step.turn_kind, step.possession == GameEnums.TeamSide.HOME)
+		var changed: bool = previous != -1 and phase != previous
+		assert_bool(banner.is_showing()).override_failure_message("%s: %s → %s" % [step.id, previous, phase]) \
+				.is_equal(changed)
+		if changed:
+			changes += 1
+			assert_str(banner.title_text()).is_equal(MatchTexts.phase_banner_title(phase))
+		if step.kind == TutorialStepDef.Kind.OPERATE:
+			_play_current_step(screen)
+			assert_bool(banner.is_showing()).override_failure_message("%s: 判定理由で出ている" % step.id).is_false()
+		previous = phase
+		screen.next_button().pressed.emit()
+		assert_int(screen.step_index()).override_failure_message("%s から進まない" % step.id).is_equal(before + 1)
+	assert_bool(reached_scope).override_failure_message("盤面の無い最後の段階に着いていない").is_true()
+	# 同梱の段階は 攻撃 → 守備 → ポジトラ → ネガトラ → 攻撃 と変わる
+	assert_int(changes).is_greater_equal(4)
+
+
 ## 最後まで進むと単純化の一覧が出て、「完了」で完了フラグを保存してタイトルへ
 func test_the_last_step_shows_the_scope_and_complete_saves_the_flag() -> void:
 	var screen: TutorialScreen = _open()

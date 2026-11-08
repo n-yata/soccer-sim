@@ -34,6 +34,8 @@ TutorialScreen (Control)
 │       └── ScopeView (HBoxContainer)       # 最後の段階
 │           ├── ScopeList (ScrollContainer) # 本体: 単純化の一覧（SimplificationList。S-10 と同じカード、2列）
 │           └── ScopeSide (VBoxContainer)   # 操作の列: 説明文と、下端の「完了」（高さ 112px）
+├── PhaseBanner (PanelContainer)            # 局面の帯（S-03 と同じ部品。common/phase_banner.gd。2026-11-08）。前の段階と局面が変わった段階の始めに出し、1.2 秒で消える
+└── ConfirmDialog                           # やめるかの確認
 ```
 
 - `MatchView` は S-03 の `BoardPanel` と同じ `MatchBoardPanel` を使い、S-03 と同じ状態（`SELECT_ACTION` 〜 `SHOW_RESULT`）で動かす
@@ -66,7 +68,9 @@ TutorialScreen (Control)
 
 ### 画面を開く（`enter`）
 
-1. `_controller = App.new_tutorial_controller()`、`_steps = library.tutorial_steps()`、`_index = 0`。`MatchView.bind(_controller, false)`。パネルの `turn_started`・`reveal_started` を受けて `PhaseTag`・`RevealBanner` を描き直し、`turn_ready_to_leave` を受けて `_can_next = true` にする
+1. `_controller = App.new_tutorial_controller()`、`_steps = library.tutorial_steps()`、`_index = 0`。`MatchView.bind(_controller, false)`。パネルの `turn_started`・`reveal_started` を受けて `PhaseTag`・`RevealBanner` を描き直し、`turn_ready_to_leave` を受けて `_can_next = true` にする。
+   `PhaseBanner.forget()`（最初の段階では局面の帯を出さない）。`turn_started` では `PhaseBanner.follow(局面)` で、前の段階と局面が変わっていれば帯を出し
+   （S-03「ターンを始める」6. と同じ。同梱の段階では 攻撃 → 守備 → ポジトラ → ネガトラ → 攻撃 で4回出る）、`reveal_started` では帯を消す（2026-11-08）
 2. 段階を始める（次節）
 
 ### 段階を始める
@@ -114,7 +118,7 @@ S-03 の「決定」〜「開示」と同じ（`MatchBoardPanel` が `_controlle
   （今の説明文に強調する語が無いため。強調が要る説明を足すときに `RichTextLabel` へ替える）
 - 両者の選択の帯（`RevealBanner`）は、ヘッダーの右に「あなた: …」「CPU: …」の2行で出す
 - ヒント表示は設定（`App.user_data.settings().show_hints`）に従う
-- 盤面の無い段階（`SCOPE`）は、`StepProgress` と見出しだけを更新し、局面のタグと選択の帯を隠す
+- 盤面の無い段階（`SCOPE`）は、`StepProgress` と見出しだけを更新し、局面のタグと選択の帯を隠す。局面の帯も消す
 
 ## 例外・エラー表示
 

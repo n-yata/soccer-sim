@@ -35,6 +35,25 @@ func test_each_phase_shows_its_title_line_and_the_holder_color() -> void:
 		assert_object(banner.accent_color()).is_equal(expected[phase][2])
 
 
+## follow: 最初の局面（キックオフ・チュートリアルの最初の段階）では出さず、前と変わったときだけ出す。
+## 変わらなければ、前の帯が残っていても消す（チュートリアルの説明だけの段階は開示が無く、そこで消えないため）。forget で最初に戻る
+func test_follow_shows_only_when_the_phase_changes() -> void:
+	var banner: PhaseBanner = _banner()
+	banner.follow(GameEnums.Phase.ATTACK)
+	assert_bool(banner.is_showing()).is_false()
+	banner.follow(GameEnums.Phase.DEFENSE)
+	assert_bool(banner.is_showing()).is_true()
+	assert_str(banner.title_text()).is_equal("DEFENSE")
+	banner.follow(GameEnums.Phase.DEFENSE)
+	assert_bool(banner.is_showing()).is_false()
+	banner.follow(GameEnums.Phase.POS_TRANSITION)
+	assert_bool(banner.is_showing()).is_true()
+	banner.forget()
+	assert_bool(banner.is_showing()).is_false()
+	banner.follow(GameEnums.Phase.ATTACK)
+	assert_bool(banner.is_showing()).override_failure_message("忘れた後の最初の局面で出た").is_false()
+
+
 ## 約1秒で勝手に消える（タップは要らない）
 func test_the_banner_hides_itself_after_its_duration() -> void:
 	var banner: PhaseBanner = _banner()
