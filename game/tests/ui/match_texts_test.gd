@@ -276,7 +276,7 @@ func test_target_rule_explains_who_moves_and_what_each_defense_reads() -> void:
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)) \
 			.is_equal("ドリブルのコースを切る: 相手のドリブルの行き先を読み、隣の味方1人がそのエリアへ寄せる。読みが当たれば、人数に関係なく奪う")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)) \
-			.is_equal("シュートコースを塞ぐ: 隣の味方1人がボールを持つ選手へ寄せ、シュートを止めに行く。相手のシュートを読む手")
+			.is_equal("シュートコースを塞ぐ: ボールを持つ選手のシュートを止めに行く（隣に味方がいれば1人寄せ、いなければボールのエリアの味方が塞ぐ）。相手のシュートを読む手")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.BACK_PASS)) \
 			.is_equal("バックパス: 後ろの味方へ戻して作り直す。相手は読めず必ず通るが、前には進めない")
 	assert_str(MatchTexts.target_rule(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.DRIBBLE)).is_empty()

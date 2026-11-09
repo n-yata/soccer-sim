@@ -165,6 +165,20 @@ func test_cover_by_a_player_already_behind_fixes_in_place_without_a_movement() -
 	assert_str(step.pair.defender.players[0].fixed_area.to_key()).is_equal("D2-C")
 
 
+func test_blocking_the_shot_with_nobody_next_to_the_ball_fixes_the_player_on_the_ball_in_place() -> void:
+	# ボール A2-L1 = 守備側の D1-R1 にだけ守備側がいる（隣は空）。COVER のその場固定と同じく、動かずに固定する（2026-11-10）
+	var step: LayoutStep = DefenseMover.apply(_pair([], [["d1", "D1-R1", ""]]), GameEnums.DefenseAction.BLOCK_SHOT,
+			_area("A2-L1"))
+	assert_object(step).is_not_null()
+	assert_array(_moves(step)).is_empty()
+	assert_str(step.pair.defender.current_area_of("d1").to_key()).is_equal("D1-R1")
+	assert_str(step.pair.defender.players[0].fixed_area.to_key()).is_equal("D1-R1")
+	# 隣に守備側がいれば、いままでどおり隣から1人寄せる
+	var pressed: LayoutStep = DefenseMover.apply(_pair([], [["d1", "D1-R1", ""], ["d2", "D1-C", ""]]),
+			GameEnums.DefenseAction.BLOCK_SHOT, _area("A2-L1"))
+	assert_array(_moves(pressed)).is_equal(["d2:D1-C>D1-R1:PRESS"])
+
+
 func test_apply_succeeds_exactly_for_the_defense_options() -> void:
 	# MoveRules.defense_options と DefenseMover.apply は同じ条件を別々に書いている。片方だけ直す事故を防ぐため、
 	# 代表的な配置の全エリアで「選べる ⇔ null でない」を確かめる（ゴール前の1列目の選手も含める）
@@ -188,6 +202,28 @@ func test_apply_succeeds_exactly_for_the_defense_options() -> void:
 				assert_bool(step != null).override_failure_message(label).is_equal(target.to_key() in allowed)
 				checked += 1
 	assert_int(checked).is_equal(4 * 2 * 30)
+
+
+func test_blocking_the_shot_applies_whenever_the_rules_offer_it() -> void:
+	# シュートコースを塞ぐの条件も2か所に書いてある（ボールとペナルティエリアの条件はルールだけが持つので、一方向だけ）。
+	# 選べるなら、適用は null でない
+	var layouts: Array = [
+		[["d1", "D1-R1", ""]],
+		[["d1", "D1-C", ""], ["d2", "D2-C", ""]],
+		[["d1", "D2-L1", ""]],
+		[["d1", "D1-L2", ""], ["d2", "D2-L1", ""], ["d3", "D1-C", ""], ["d4", "M1-R1", ""]],
+	]
+	var offered: int = 0
+	for spec: Array in layouts:
+		var pair: LayoutPair = _pair(["A2-L1"], spec)
+		for ball_key: String in ["A2-L1", "A2-C", "A2-R1"]:
+			var options: MoveOptions = MoveRules.defense_options(pair, _area(ball_key))
+			for target: PitchArea in options.targets(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT):
+				assert_object(DefenseMover.apply(pair, GameEnums.DefenseAction.BLOCK_SHOT, target)) \
+						.override_failure_message("%s %s" % [str(spec), ball_key]).is_not_null()
+				offered += 1
+	# ボールのエリアにだけいる場面と、隣にいる場面の両方を通っている
+	assert_int(offered).is_greater(4)
 
 
 func test_cover_in_the_defenders_first_row_returns_null() -> void:

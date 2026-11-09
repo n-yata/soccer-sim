@@ -181,6 +181,14 @@ func test_cutting_the_dribble_lane_goes_where_a_press_can_go_and_blocking_the_sh
 	# ペナルティエリアでも、ボールの隣に守備側がいなければシュートコースは塞げない（ボール A2-L1 = 守備側の D1-R1）
 	var far_shot: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]), _area("A2-L1"))
 	assert_bool(far_shot.is_available(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_false()
+	# ボールのエリアにいる守備側も塞げる（2026-11-10。シャビ「出るときと出ないときがある」。隣に誰もいなくても、
+	# ボールのエリアに1人いれば選べる）。パスコースを切る（プレス）は、いままでどおり隣だけを見る
+	var on_ball: MoveOptions = MoveRules.defense_options(_pair([], ["D1-R1"]), _area("A2-L1"))
+	assert_array(_keys(on_ball.targets(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT))).is_equal(["A2-L1"])
+	assert_bool(_keys(on_ball.targets(DEFENSE, PRESS)).has("A2-L1")).is_false()
+	# ペナルティエリアの外では、ボールのエリアと隣に守備側がいても塞げない（ボール M1-C = 守備側の M2-C）
+	var outside: MoveOptions = MoveRules.defense_options(_pair([], ["M2-C", "M2-L1"]), _area("M1-C"))
+	assert_bool(outside.is_available(DEFENSE, GameEnums.DefenseAction.BLOCK_SHOT)).is_false()
 	# ボールを渡さなければ、どちらも足さない
 	var no_ball: MoveOptions = MoveRules.defense_options(_pair([], ["D2-C"]))
 	assert_bool(no_ball.is_available(DEFENSE, GameEnums.DefenseAction.CLOSE_DOWN)).is_false()

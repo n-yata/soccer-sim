@@ -597,6 +597,30 @@ func test_a_level_shot_read_by_the_defense_is_saved() -> void:
 	assert_str(_summary(output)).is_equal("SAVE A2-L1 2-2 NONE EXACT")
 
 
+func test_a_defender_on_the_ball_blocks_the_shot_in_place_when_nobody_is_next_to_it() -> void:
+	# ボールのエリアにだけ守備側がいる（隣は空）: 誰も動かず、その場の選手がシュートを読んで止める（2026-11-10）
+	var attacker: TeamLayout = _team([["a1", "A2-L1", ""], ["a2", "A2-L1", ""]])
+	var defender: TeamLayout = _team([["d1", "D1-R1", ""], ["d2", "D1-R1", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A2-L1",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.BLOCK_SHOT, "A2-L1"))
+	assert_array(_moves(output)).is_empty()
+	assert_str(_summary(output)).is_equal("SAVE A2-L1 2-2 NONE EXACT")
+	# 読まなければ同数のシュートは得点（塞いだことで結果が変わっている）
+	var plain: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), ZONE, "A2-L1",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.COVER, "A1-L1"))
+	assert_str(_summary(plain).get_slice(" ", 0)).is_equal("GOAL")
+
+
+func test_with_man_marking_the_defender_blocking_on_the_ball_is_not_pulled_away_to_mark() -> void:
+	# マンツーマンでも、その場で塞いだ選手は固定され、付け直しで別の相手のマークへ引き抜かれない（ボールのエリアの守備が減らない）
+	var attacker: TeamLayout = _team([["a1", "A2-L1", ""], ["a2", "A2-L1", ""], ["a3", "A1-L2", ""]])
+	var defender: TeamLayout = _team([["d1", "D1-R1", ""], ["d2", "D1-R1", ""]])
+	var output: JudgeOutput = _judge(LayoutPair.new(attacker, defender, HOME), MAN, "A2-L1",
+			_attack(GameEnums.PlayType.SHOT), _defense(GameEnums.DefenseAction.BLOCK_SHOT, "A2-L1"))
+	assert_int(output.pair.defender.count_at(_area("D1-R1"))).is_greater_equal(1)
+	assert_str(_summary(output).get_slice(" ", 0)).is_equal("SAVE")
+
+
 func test_a_read_shot_with_one_more_attacker_still_scores() -> void:
 	# シュートは、読まれても1人多ければ得点（シュート以外の手と違い、+2 は要らない）
 	var attacker: TeamLayout = _team([["a1", "A2-L1", ""], ["a2", "A2-L1", ""], ["a3", "A2-L1", ""]])

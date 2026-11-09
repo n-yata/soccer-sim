@@ -11,6 +11,7 @@ extends RefCounted
 
 ## 守備の手を適用し、動いた選手を行き先に固定した配置を返す。movements は位置が変わったときだけ1件。
 ## 選べない手（動かせる選手がいない、COVER の背後が盤外）なら null を返す（MoveRules.defense_options の条件と同じ）。
+## シュートコースを塞ぐで隣に誰もいなければ、ボールのエリアの選手をその場で固定する（動きは空。2026-11-10）。
 static func apply(pair: LayoutPair, action: GameEnums.DefenseAction, target: PitchArea) -> LayoutStep:
 	var restricted: PitchArea = target.mirrored()
 	var source: PitchArea = null
@@ -28,6 +29,10 @@ static func apply(pair: LayoutPair, action: GameEnums.DefenseAction, target: Pit
 		if action == GameEnums.DefenseAction.COVER:
 			candidates = cover_neighbors(restricted)
 		source = _press_source(pair, candidates)
+		# シュートコースを塞ぐで隣に誰もいなければ、ボールのエリアの選手がその場で塞ぐ（COVER のその場固定と同じく、
+		# 固定して動きには含めない。マンツーマンの付け直しで引き抜かれない。2026-11-10）
+		if source == null and action == GameEnums.DefenseAction.BLOCK_SHOT and pair.defender.count_at(restricted) >= 1:
+			source = restricted
 	if source == null:
 		return null
 	var mover: PlayerState = _pick_player(pair.defender, source)

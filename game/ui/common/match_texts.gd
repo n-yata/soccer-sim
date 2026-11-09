@@ -96,7 +96,7 @@ static func target_rule(family: GameEnums.ChoiceFamily, action: int) -> String:
 		GameEnums.DefenseAction.CLOSE_DOWN:
 			return "ドリブルのコースを切る: 相手のドリブルの行き先を読み、隣の味方1人がそのエリアへ寄せる。読みが当たれば、人数に関係なく奪う"
 		GameEnums.DefenseAction.BLOCK_SHOT:
-			return "シュートコースを塞ぐ: 隣の味方1人がボールを持つ選手へ寄せ、シュートを止めに行く。相手のシュートを読む手"
+			return "シュートコースを塞ぐ: ボールを持つ選手のシュートを止めに行く（隣に味方がいれば1人寄せ、いなければボールのエリアの味方が塞ぐ）。相手のシュートを読む手"
 	return ""
 
 

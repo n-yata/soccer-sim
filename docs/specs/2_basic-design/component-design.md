@@ -229,6 +229,8 @@ static func cover_neighbors(restricted: PitchArea) -> Array[PitchArea]
 - 同じエリアに動かせる選手が複数いれば、固定されていない選手のうち配置の選手の順で先の選手
 - `COVER` で、隣接から選んだ選手がすでに背後にいる（`T_d` が空で、背後にだけ守備側がいる）ときは、その場で固定し、
   動き（`movements`）には含めない（位置が変わった選手だけを動きにする。`StyleLayoutCalculator` と同じ）
+- `BLOCK_SHOT` で隣に動かせる選手がいなくても、ボールのエリア（`T_d`）に守備側がいれば、その選手がその場で塞ぐ。
+  配置は変えず、動きは空で返す（2026-11-10）
 - 選べない手（動かせる選手がいない、`COVER` の背後が盤外）なら `null` を返す。マンツーマンのマークの付け直しは
   呼び出し側が `StyleLayoutCalculator.remark` で行う
 
@@ -248,7 +250,8 @@ static func is_allowed(options: MoveOptions, choice: TurnChoice) -> bool
 ## 局面の値を受け取る下位の関数（options_for が局面に応じて呼ぶ）。ball と運ぶ先は、攻撃側（トランジションは奪った側）の視点
 static func attack_options(pair: LayoutPair, ball: PitchArea) -> MoveOptions
 ## 運ぶ先（制限するエリア）は攻撃側の視点。守備側が選べる 30 エリアのすべてが候補。ball を渡すと、ドリブルのコースを切る
-## （CLOSE_DOWN。プレスと同じエリア。2026-11-05）と、ペナルティエリアではシュートコースを塞ぐ（BLOCK_SHOT。ボールのエリア）を足す
+## （CLOSE_DOWN。プレスと同じエリア。2026-11-05）と、ペナルティエリアではシュートコースを塞ぐ（BLOCK_SHOT。ボールのエリア。ボールの隣か
+## ボールのエリアに守備側がいれば選べる。2026-11-10）を足す
 static func defense_options(pair: LayoutPair, ball: PitchArea = null) -> MoveOptions
 static func neg_transition_options() -> MoveOptions
 ## winner はアルゴリズム6のカウンターの配置（呼び出し側が作る）。前に味方がいなければ、1列前でレーン差1以内を運ぶ先にする
