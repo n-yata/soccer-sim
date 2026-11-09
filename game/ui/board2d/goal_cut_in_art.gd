@@ -227,21 +227,28 @@ static func _vec(values: Array) -> Vector3:
 	return Vector3(values[0], values[1], values[2])
 
 
-## 時刻 p の点を決める選手の姿勢（kick_frame と同じ形）。蹴る間は記録、その後は喜びの姿勢（CELEBRATE_POSE）へ移る
-static func striker_pose(p: float) -> Dictionary:
+## 時刻 p の点を決める選手の姿勢（kick_frame と同じ形）。蹴る間は記録、その後は finish の姿勢（得点なら喜びの
+## CELEBRATE_POSE、止められたら SaveCutInArt.DEJECTED_POSE）へ CELEBRATE_AT までに移る
+static func striker_pose(p: float, finish: Dictionary = CELEBRATE_POSE) -> Dictionary:
 	var end: float = kick_end()
 	if p <= end:
 		return kick_frame(kick_sec(p))
-	return _blend_frames(kick_frame(kick_sec(end)), celebrate_frame(), _smooth(_span(p, end, CELEBRATE_AT)))
+	return blend_frames(kick_frame(kick_sec(end)), pose_frame(finish), _smooth(_span(p, end, CELEBRATE_AT)))
 
 
 ## 喜びの姿勢を kick_frame と同じ形にしたもの
 static func celebrate_frame() -> Dictionary:
-	return {"directions": model_directions(CELEBRATE_POSE), "hips": 0.0, "chest": 0.0,
-			"head": CELEBRATE_POSE["head"] as float, "root": Vector3.ZERO}
+	return pose_frame(CELEBRATE_POSE)
 
 
-static func _blend_frames(from: Dictionary, to: Dictionary, t: float) -> Dictionary:
+## 角度の姿勢 pose を kick_frame と同じ形にしたもの
+static func pose_frame(pose: Dictionary) -> Dictionary:
+	return {"directions": model_directions(pose), "hips": pose.get("hips", 0.0) as float, "chest": pose.get("chest", 0.0) as float,
+			"head": pose.get("head", 0.0) as float, "root": Vector3.ZERO}
+
+
+## kick_frame の形の姿勢どうしの補間（向きは正規化した線形補間。腰の位置は from のまま）
+static func blend_frames(from: Dictionary, to: Dictionary, t: float) -> Dictionary:
 	var directions: Dictionary = {}
 	for key: String in KICK_KEYS:
 		directions[key] = ((from["directions"][key] as Vector3).lerp(to["directions"][key] as Vector3, t)).normalized()
@@ -498,10 +505,10 @@ const SHOTS: Array[Dictionary] = [
 	{"until": 0.30, "follow": "striker", "fov": 42.0,
 			"from": {"position": Vector3(-1.2, 0.55, 4.6), "target": Vector3(0.0, 0.95, 0.0)},
 			"to": {"position": Vector3(-1.9, 0.45, 3.6), "target": Vector3(0.0, 0.9, 0.0)}},
-	# 2. 蹴る瞬間を、ボールの前から低く寄る（全身が入る）
-	{"until": 0.43, "follow": "", "fov": 44.0,
-			"from": {"position": Vector3(8.2, 0.55, 2.4), "target": Vector3(11.5, 0.85, 0.1)},
-			"to": {"position": Vector3(8.5, 0.5, 2.2), "target": Vector3(11.4, 0.8, 0.1)}},
+	# 2. 蹴る瞬間を、ボールの前から低く寄る（大きな頭の上まで全身が入る）
+	{"until": 0.43, "follow": "", "fov": 50.0,
+			"from": {"position": Vector3(8.2, 0.55, 2.4), "target": Vector3(11.5, 1.0, 0.1)},
+			"to": {"position": Vector3(8.5, 0.5, 2.2), "target": Vector3(11.4, 0.95, 0.1)}},
 	# 3. 飛ぶボールを望遠で追ってパンする
 	{"until": 0.48, "follow": "ball", "fov": 26.0,
 			"from": {"position": Vector3(8.0, 1.0, 3.0), "target": Vector3.ZERO},

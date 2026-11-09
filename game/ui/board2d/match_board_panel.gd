@@ -37,6 +37,8 @@ var _state: State = State.IDLE
 var _snapshot: BoardSnapshot
 ## 得点のカットイン（2026-11-06）
 var _goal_cut_in: GoalCutIn
+## 直前の開示で、ボールを奪った・奪われたときのカットインを出したか（次の開示まで覚えておく。画面が局面の帯を出すかを決める）
+var _transition_cut_in_shown: bool = false
 var _options: MoveOptions
 var _hints: Array[ChoiceHint] = []
 ## ヒント表示（設定。FR-19）。OFF の間は user_hints() を呼ばず、ヒントを空にする
@@ -426,6 +428,7 @@ func _on_turn_resolved(reveal: RevealView, snapshot: BoardSnapshot) -> void:
 		return
 	_reveal = reveal
 	_snapshot = snapshot
+	_transition_cut_in_shown = false
 	reveal_started.emit(reveal)
 	_board.clear_overlays()
 	_board.show_snapshot(snapshot)
@@ -480,15 +483,34 @@ func _on_play_landed() -> void:
 	if _reveal == null:
 		return
 	_judge_telop.visible = true
-	if _reveal.outcome == GameEnums.TurnOutcome.GOAL:
-		var is_user: bool = MatchTexts.turn_winner(_reveal) == MatchTexts.TurnWinner.USER
-		if not _goal_cut_in.play(is_user, _snapshot.score_user, _snapshot.score_opponent, _controller.goal_cut_in_sec()):
-			_board.resume_shift()
+	# 主役の側（得点した側・奪った側）は、手が成功した側
+	var is_user: bool = MatchTexts.turn_winner(_reveal) == MatchTexts.TurnWinner.USER
+	match _reveal.outcome:
+		GameEnums.TurnOutcome.GOAL:
+			if not _goal_cut_in.play(GoalCutIn.Kind.GOAL, is_user, _snapshot.score_user, _snapshot.score_opponent,
+					_controller.goal_cut_in_sec()):
+				_board.resume_shift()
+		# トランジションが始まる結果（ボールを失った・シュートを止めた）は短いカットイン（2026-11-08）。盤面は1拍で終わるので待たせない
+		GameEnums.TurnOutcome.LOSS, GameEnums.TurnOutcome.SAVE:
+			var kind: GoalCutIn.Kind = GoalCutIn.Kind.STEAL if _reveal.outcome == GameEnums.TurnOutcome.LOSS \
+					else GoalCutIn.Kind.SAVE
+			_transition_cut_in_shown = _goal_cut_in.play(kind, is_user, _snapshot.score_user, _snapshot.score_opponent,
+					_controller.transition_cut_in_sec())
 
 
-## 得点のカットイン（盤面と操作の列の上に重ねる）。
+## 試合のカットイン（得点・ボールを奪った・奪われた。盤面と操作の列の上に重ねる）。
 func goal_cut_in() -> GoalCutIn:
 	return _goal_cut_in
+
+
+## 直前の開示で、ボールを奪った・奪われたときのカットインを出したか（出したら、次のターンの局面の帯は出さない。2026-11-08）
+func showed_transition_cut_in() -> bool:
+	return _transition_cut_in_shown
+
+
+## 出したカットインを忘れる（チュートリアルは段階ごとに別の場面を組むので、前の段階のカットインで帯を止めない）
+func forget_transition_cut_in() -> void:
+	_transition_cut_in_shown = false
 
 
 func _set_primary(summary: String, action: String, enabled: bool) -> void:

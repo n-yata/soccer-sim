@@ -37,15 +37,17 @@
 
 ## 3Dモデル・動き
 
-得点のカットイン（`GoalPlayerModel`）の選手とゴールキーパーに使う。置き場所はすべて `models/goal_cut_in/`。
+カットイン（`GoalPlayerModel`）の選手とゴールキーパーに使う。置き場所はすべて `models/goal_cut_in/`。
+2026-11-10 から、体は**骨だけ**を使う（見た目は骨に付けた人形の部品で、素材の体の形・テクスチャは描かない）。
+テクスチャは体の gltf が参照しているので置いたままにしている。
 Quaternius の素材はどれも CC0 1.0（パブリックドメイン。表示の義務は無いが、作者名をここに残す）。
 
 | ファイル | 元のファイル | 調達元 | バージョン | 作者 | 手を加えたこと |
 |---|---|---|---|---|---|
 | `Superhero_Male_FullBody.gltf`・`.bin`、`T_Superhero_Male_*.png`、`T_Eye_*.png` | `Base Characters/Godot - UE/Superhero_Male_FullBody.gltf` と同じフォルダのテクスチャ | itch.io の「Universal Base Characters」の Standard（`quaternius.itch.io/universal-base-characters`。同梱の `License_Standard.txt` が CC0。`License.txt` として置いた） | Standard（2026-11-07 に取得） | Quaternius | テクスチャを縮めた（2048px の肌・法線を 1024px、粗さを 512px。目の 256px は元のまま）。gltf の画像の参照を縮めたファイル名に直した |
-| `Hair_SimpleParted.gltf`・`.bin`、`T_Hair_1_*.png` | `Hairstyles/Rigged to Head Bone/glTF (Godot -Unreal)/Hair_SimpleParted.gltf` と同じフォルダのテクスチャ | 同上 | 同上 | Quaternius | テクスチャを 2048px から 1024px に縮めた |
-| `animations.res`（Sprint・Idle・Jump_Start・Jump・Roll） | `Unreal Engine/AL_Standard.fbx` | OpenGameArt の「Universal Animation Library」（`universal_animation_librarystandard.zip`。同梱の `License.txt` が CC0） | Standard（2026-11-07 に取得） | Quaternius | 使う動きだけを抜き出した。位置を cm から m に直し、体全体を動かす root の記録を外した |
-| `animations.res`（Yes） | `Unreal-Godot/UAL2_Standard.glb` | OpenGameArt の「Universal Animation Library 2」（`universal_animation_library_2standard.zip`。同梱の `License.txt` が CC0） | Standard（2026-11-07 に取得） | Quaternius | 使う動きだけを抜き出した |
+| `T_Hair_1_*.png` | `Hairstyles/Rigged to Head Bone/glTF (Godot -Unreal)/` のテクスチャ | 同上 | 同上 | Quaternius | テクスチャを 2048px から 1024px に縮めた。髪の形（`Hair_SimpleParted.gltf`・`.bin`）は 2026-11-10 に外した（体の gltf がテクスチャを参照するので、テクスチャだけ残る） |
+| `animations.res`（Sprint・Idle・Roll） | `Unreal Engine/AL_Standard.fbx` | OpenGameArt の「Universal Animation Library」（`universal_animation_librarystandard.zip`。同梱の `License.txt` が CC0） | Standard（2026-11-07 に取得） | Quaternius | 使う動きだけを抜き出した。位置を cm から m に直し、体全体を動かす root の記録を外した |
+| `animations.res`（Yes・Slide_Start・Slide_Exit） | `Unreal-Godot/UAL2_Standard.glb` | OpenGameArt の「Universal Animation Library 2」（`universal_animation_library_2standard.zip`。同梱の `License.txt` が CC0） | Standard（2026-11-07 に取得） | Quaternius | 使う動きだけを抜き出し、体全体を動かす root の記録を外した（Slide_Start・Slide_Exit は 2026-11-08 に足した。ボールを奪うスライディング） |
 | `kick_motion.json` | `data/011/11_01.bvh`（soccer - kick ball） | CMU Graphics Lab Motion Capture Database の BVH 版（GitHub の meshula/cmu-mocap。同梱の `READMEFIRST.txt` の「USAGE RIGHTS」） | 2010 年の BVH 版（2026-11-07 に取得） | CMU Graphics Lab（BVH への変換は Bruce Hahne） | 下の「蹴る動きの抜き出し」 |
 
 - CMU の動きの記録は、研究にも商用の製品にも使え、製品に含めてよい。ただし**データそのものを（変換した形でも）単体で

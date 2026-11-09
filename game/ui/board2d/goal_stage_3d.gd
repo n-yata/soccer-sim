@@ -1,7 +1,9 @@
-## 得点のカットインの3Dの舞台（screen-common.md の GoalCutIn。2026-11-06）。夜のスタジアム（芝・ライン・観客席・照明）、
-## ゴール（ポスト・バー・網目のネット）、ボール、カメラは基本の形とシェーダーで組み、点を決める選手とキーパーは
-## 外部の素材の体（GoalPlayerModel。game/assets/LICENSES.md「3Dモデル・動き」）を置く。
-## 動きは GoalCutInArt の関数で決め、set_progress(p) で時刻 p の姿に置く。GoalCutIn の SubViewport の中に置く。
+## 試合のカットイン（screen-common.md の GoalCutIn。得点 2026-11-06、ボールを奪った・奪われた 2026-11-08）の3Dの舞台。
+## 夜のスタジアム（芝・ライン・観客席・照明）、ゴール（ポスト・バー・網目のネット）、ボール、カメラは基本の形とシェーダーで組み、
+## 2人の選手は外部の素材の体（GoalPlayerModel。game/assets/LICENSES.md「3Dモデル・動き」）を置く。
+## 2人は場面ごとに、ボールを持つ側（holder: 点を決める選手・ドリブルする選手）と、それを止める側（stopper: キーパー・奪う選手）。
+## 動きは場面の関数（得点は GoalCutInArt、シュートを止める場面は SaveCutInArt、奪う場面は StealCutInArt）で決め、set_progress(p) で時刻 p の姿に置く。
+## GoalCutIn の SubViewport の中に置く。
 class_name GoalStage3D
 extends Node3D
 
@@ -10,9 +12,10 @@ const STRIPE_WIDTH: float = 5.5
 const CROWD_COUNT: int = 2400
 ## ネットの網目の大きさ（m）
 const NET_CELL: float = 0.16
-## 背番号（点を決める選手・キーパー）
+## 背番号（フィールドの選手・キーパー・奪う選手）
 const STRIKER_NUMBER: int = 9
 const KEEPER_NUMBER: int = 1
+const TACKLER_NUMBER: int = 4
 
 ## ボールの模様（12 面の五角形の向きに黒い丸）。物体の座標の法線で決めるので、回すと模様も回る
 const BALL_SHADER: String = """
@@ -63,29 +66,40 @@ var _camera: Camera3D
 var _ball: MeshInstance3D
 var _back_net: MeshInstance3D
 var _net_material: ShaderMaterial
-var _striker: GoalPlayerModel
-var _keeper: GoalPlayerModel
+var _kind: GoalCutIn.Kind = GoalCutIn.Kind.GOAL
+var _holder: GoalPlayerModel
+var _stopper: GoalPlayerModel
 
 
-## 舞台を組む。is_user は得点した側が利用者か（点を決める選手は得点した側、キーパーは得点された側。ユニフォームの柄と
-## 胸の印でチームを示す。NFR-20）。colors は {"team": 得点した側の色, "keeper": キーパーのユニフォームの色, "hair",
-## "boot", "dark", "glove", "number_color"}、font は背番号の字。
-func build(is_user: bool, colors: Dictionary, font: Font = null) -> void:
+## 舞台を組む。kind は場面、is_user は主役の側（得点した側・奪った側）が利用者か。ユニフォームの柄と胸の印でチームを
+## 示す（自分は無地で ●、相手は縦じまで ◆。キーパーは長袖とグローブ。NFR-20）。colors は {"you", "opponent": チームの色,
+## "keeper_you", "keeper_opponent": キーパーのユニフォームの色, "hair", "boot", "dark", "glove", "number_color"}、
+## font は背番号の字。
+func build(kind: GoalCutIn.Kind, is_user: bool, colors: Dictionary, font: Font = null) -> void:
 	for child: Node in get_children():
 		child.free()
+	_kind = kind
+	var hero: Color = colors["you" if is_user else "opponent"] as Color
 	_build_environment()
 	_build_pitch()
-	_build_stands(colors["team"] as Color)
+	_build_stands(hero)
 	_build_goal()
 	_build_ball()
-	var team: Color = colors["team"] as Color
-	_striker = _add_figure("Striker", colors, font, {"shirt": team, "shorts": team.darkened(0.55), "sock": team,
-			"trim": team.darkened(0.45), "round_emblem": is_user, "stripes": not is_user, "number": STRIKER_NUMBER,
-			"skin": "dark"})
-	var keeper: Color = colors["keeper"] as Color
-	_keeper = _add_figure("Keeper", colors, font, {"shirt": keeper, "shorts": keeper.darkened(0.6), "sock": keeper,
-			"trim": keeper.darkened(0.4), "round_emblem": not is_user, "stripes": false, "number": KEEPER_NUMBER,
-			"long_sleeves": true, "glove": colors["glove"], "skin": "light"})
+	# ボールを持つ側は、得点なら主役の側、奪う場面なら奪われた側
+	var holder_is_user: bool = is_user if kind == GoalCutIn.Kind.GOAL else not is_user
+	var holder: Color = colors["you" if holder_is_user else "opponent"] as Color
+	_holder = _add_figure("Holder", colors, font,
+			_field_kit(holder, holder_is_user, STRIKER_NUMBER, "dark", GoalPlayerModel.HairStyle.FRINGE))
+	var stopper_is_user: bool = not holder_is_user
+	if kind == GoalCutIn.Kind.STEAL:
+		_stopper = _add_figure("Stopper", colors, font,
+				_field_kit(colors["you" if stopper_is_user else "opponent"] as Color, stopper_is_user, TACKLER_NUMBER, "light",
+						GoalPlayerModel.HairStyle.SPIKY))
+	else:
+		var keeper: Color = colors["keeper_you" if stopper_is_user else "keeper_opponent"] as Color
+		_stopper = _add_figure("Stopper", colors, font, {"shirt": keeper, "shorts": keeper.darkened(0.6), "sock": keeper,
+				"trim": keeper.darkened(0.4), "round_emblem": stopper_is_user, "stripes": false, "number": KEEPER_NUMBER,
+				"long_sleeves": true, "glove": colors["glove"], "skin": "light", "hair_style": GoalPlayerModel.HairStyle.MOHAWK})
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.near = 0.05
@@ -102,29 +116,59 @@ func ball() -> MeshInstance3D:
 	return _ball
 
 
-func striker() -> GoalPlayerModel:
-	return _striker
+## ボールを持つ側の選手（点を決める選手・ドリブルする選手）
+func holder() -> GoalPlayerModel:
+	return _holder
 
 
-func keeper() -> GoalPlayerModel:
-	return _keeper
+## 止める側の選手（キーパー・奪う選手）
+func stopper() -> GoalPlayerModel:
+	return _stopper
 
 
-## 時刻 p の姿に置く（選手とキーパーの関節・ボール・ネットのふくらみ・カメラ）。
+func kind() -> GoalCutIn.Kind:
+	return _kind
+
+
+## 時刻 p の姿に置く（2人の選手の関節・ボール・ネットのふくらみ・カメラ）。
 func set_progress(p: float) -> void:
 	if _camera == null:
 		return
-	_striker.transform = GoalCutInArt.striker_model_transform(p)
-	_apply_motion(_striker, GoalCutInArt.striker_motion(p))
-	_keeper.transform = GoalCutInArt.keeper_model_transform(p)
-	_apply_motion(_keeper, GoalCutInArt.keeper_motion(p))
-	_ball.position = GoalCutInArt.ball_position(p)
-	_ball.rotation_degrees = Vector3(0.0, 30.0, GoalCutInArt.ball_spin(p))
-	# 舞台の中の座標で計算する（木の外でも動くよう、global の変換を使わない）
-	var contact: Vector3 = _back_net.transform.affine_inverse() * GoalCutInArt.net_contact(p)
-	_net_material.set_shader_parameter(&"bulge", GoalCutInArt.net_bulge(p))
-	_net_material.set_shader_parameter(&"hit", Vector2(contact.x, contact.z))
-	var view: Dictionary = GoalCutInArt.camera_at(p)
+	var view: Dictionary
+	if _kind == GoalCutIn.Kind.STEAL:
+		_holder.transform = StealCutInArt.dribbler_transform(p)
+		_apply_motion(_holder, StealCutInArt.dribbler_motion(p))
+		_stopper.transform = StealCutInArt.tackler_transform(p)
+		_apply_motion(_stopper, StealCutInArt.tackler_motion(p))
+		_ball.position = StealCutInArt.ball_position(p)
+		_ball.rotation_degrees = Vector3(0.0, 30.0, StealCutInArt.ball_spin(p))
+		_net_material.set_shader_parameter(&"bulge", 0.0)
+		view = StealCutInArt.camera_at(p)
+	elif _kind == GoalCutIn.Kind.SAVE:
+		_holder.transform = SaveCutInArt.striker_transform(p)
+		_apply_motion(_holder, SaveCutInArt.striker_motion(p))
+		_stopper.transform = SaveCutInArt.keeper_transform(p)
+		_apply_motion(_stopper, SaveCutInArt.keeper_motion(p))
+		_ball.position = SaveCutInArt.ball_position(p)
+		if SaveCutInArt.ball_in_hands(p):
+			# つかんだボールは、キーパーの両手の間
+			_ball.position = (_stopper.transform * _stopper.bone_position("hand_l")
+					+ _stopper.transform * _stopper.bone_position("hand_r")) / 2.0
+		_ball.rotation_degrees = Vector3(0.0, 30.0, SaveCutInArt.ball_spin(p))
+		_net_material.set_shader_parameter(&"bulge", 0.0)
+		view = SaveCutInArt.camera_at(p)
+	else:
+		_holder.transform = GoalCutInArt.striker_model_transform(p)
+		_apply_motion(_holder, GoalCutInArt.striker_motion(p))
+		_stopper.transform = GoalCutInArt.keeper_model_transform(p)
+		_apply_motion(_stopper, GoalCutInArt.keeper_motion(p))
+		_ball.position = GoalCutInArt.ball_position(p)
+		_ball.rotation_degrees = Vector3(0.0, 30.0, GoalCutInArt.ball_spin(p))
+		# 舞台の中の座標で計算する（木の外でも動くよう、global の変換を使わない）
+		var contact: Vector3 = _back_net.transform.affine_inverse() * GoalCutInArt.net_contact(p)
+		_net_material.set_shader_parameter(&"bulge", GoalCutInArt.net_bulge(p))
+		_net_material.set_shader_parameter(&"hit", Vector2(contact.x, contact.z))
+		view = GoalCutInArt.camera_at(p)
 	_camera.fov = view["fov"] as float
 	var at: Vector3 = view["position"] as Vector3
 	var target: Vector3 = view["target"] as Vector3
@@ -139,6 +183,13 @@ static func _apply_motion(figure: GoalPlayerModel, motion: Dictionary) -> void:
 
 
 # --- 組み立て ---
+
+## フィールドの選手のユニフォーム（チームの色。自分は無地で ●、相手は縦じまで ◆）と髪型
+static func _field_kit(team: Color, is_user_team: bool, number: int, skin: String,
+		hair_style: GoalPlayerModel.HairStyle) -> Dictionary:
+	return {"shirt": team, "shorts": team.darkened(0.55), "sock": team, "trim": team.darkened(0.45),
+			"round_emblem": is_user_team, "stripes": not is_user_team, "number": number, "skin": skin, "hair_style": hair_style}
+
 
 ## 選手を1人組む。kit はユニフォームの色・柄と背番号。髪・スパイク・胸の印・背番号の色は colors から入れる
 func _add_figure(node_name: String, colors: Dictionary, font: Font, kit: Dictionary) -> GoalPlayerModel:

@@ -1,4 +1,4 @@
-## カットインの3Dの選手（GoalPlayerModel。Quaternius の素材の体にユニフォームを着せ、動きを置く）のテスト
+## カットインの3Dの選手（GoalPlayerModel。Quaternius の素材の骨に人形の部品を付け、動きを置く）のテスト
 ## （見え方はスクリーンショットと、遊んで確かめる）。
 extends GdUnitTestSuite
 
@@ -18,32 +18,65 @@ func _model(overrides: Dictionary = {}) -> GoalPlayerModel:
 	return model
 
 
-func test_the_kit_colors_and_patterns_go_to_the_body_shader() -> void:
-	var material: ShaderMaterial = _model({"stripes": true}).body_material()
-	assert_object(material.get_shader_parameter(&"shirt_color")).is_equal(_kit()["shirt"])
-	assert_object(material.get_shader_parameter(&"shorts_color")).is_equal(_kit()["shorts"])
-	assert_float(material.get_shader_parameter(&"stripes") as float).is_equal(1.0)
-	assert_float(material.get_shader_parameter(&"gloves") as float).is_equal(0.0)
-	assert_float(material.get_shader_parameter(&"long_sleeves") as float).is_equal(0.0)
+func _count(model: GoalPlayerModel, part_name: String) -> int:
+	var count: int = 0
+	for node: Node in model.find_children("*", "MeshInstance3D", true, false):
+		if node.name.begins_with(part_name):
+			count += 1
+	return count
+
+
+func test_the_kit_colors_go_to_the_parts() -> void:
+	# 自分のチーム: 無地。袖は半袖なので前腕・手は肌
+	var model: GoalPlayerModel = _model()
+	assert_array(model.shirt_colors()).is_equal([_kit()["shirt"]])
+	assert_object(model.part_material("arm").albedo_color).is_equal(_kit()["shirt"])
+	assert_object(model.part_material("shorts").albedo_color).is_equal(_kit()["shorts"])
+	assert_object(model.part_material("sock").albedo_color).is_equal(_kit()["sock"])
+	assert_object(model.part_material("boot").albedo_color).is_equal(_kit()["boot"])
+	assert_object(model.part_material("sleeve")).is_same(model.part_material("skin"))
+	assert_object(model.part_material("hand")).is_same(model.part_material("skin"))
+	assert_object(model.part_material("skin").albedo_color).is_equal(GoalPlayerModel.SKIN_COLORS["dark"])
+	assert_object(_model({"skin": "light"}).part_material("skin").albedo_color).is_equal(GoalPlayerModel.SKIN_COLORS["light"])
+
+
+func test_the_opponent_shirt_has_stripes_of_the_shirt_and_trim_colors() -> void:
+	var model: GoalPlayerModel = _model({"stripes": true})
+	var colors: Array[Color] = model.shirt_colors()
+	assert_int(colors.size()).is_equal(2)
+	assert_bool(colors[0].is_equal_approx(_kit()["shirt"] as Color)).is_true()
+	assert_bool(colors[1].is_equal_approx(_kit()["trim"] as Color)).is_true()
+	assert_float(model.part_material("shirt").uv1_scale.x).is_equal(float(GoalPlayerModel.STRIPE_COUNT))
+	# 袖は縦じまにしない
+	assert_object(model.part_material("arm").albedo_texture).is_null()
 
 
 func test_the_keeper_wears_long_sleeves_and_gloves() -> void:
-	var material: ShaderMaterial = _model({"long_sleeves": true, "glove": Color(0.95, 0.95, 0.96)}).body_material()
-	assert_float(material.get_shader_parameter(&"long_sleeves") as float).is_equal(1.0)
-	assert_float(material.get_shader_parameter(&"gloves") as float).is_equal(1.0)
-	assert_object(material.get_shader_parameter(&"glove_color")).is_equal(Color(0.95, 0.95, 0.96))
+	var model: GoalPlayerModel = _model({"long_sleeves": true, "glove": Color(0.95, 0.95, 0.96)})
+	assert_object(model.part_material("sleeve").albedo_color).is_equal(_kit()["shirt"])
+	assert_object(model.part_material("hand").albedo_color).is_equal(Color(0.95, 0.95, 0.96))
 
 
-func test_the_rest_position_of_every_vertex_is_kept_for_the_kit() -> void:
-	# シェーダーは UV2 の基準の姿勢の位置（x, y）で部位を決める
-	var source := ArrayMesh.new()
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(0.2, 1.4, 0.1), Vector3(-0.1, 0.3, 0.0), Vector3(0.0, 0.05, 0.1)])
-	source.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var mesh: ArrayMesh = GoalPlayerModel.with_rest_positions(source)
-	var uv2: PackedVector2Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2]
-	assert_array(Array(uv2)).is_equal([Vector2(0.2, 1.4), Vector2(-0.1, 0.3), Vector2(0.0, 0.05)])
+func test_the_hair_style_follows_the_kit() -> void:
+	# 横に流した前髪は2房、つんつんは8本、モヒカンは5房。どれも頭にかぶせる髪（Hair）を1つ持つ
+	var expected: Dictionary = {GoalPlayerModel.HairStyle.FRINGE: [2, 0, 0], GoalPlayerModel.HairStyle.SPIKY: [0, 8, 0],
+			GoalPlayerModel.HairStyle.MOHAWK: [0, 0, 5]}
+	for style: GoalPlayerModel.HairStyle in expected:
+		var model: GoalPlayerModel = _model({"hair_style": style})
+		var counts: Array = [_count(model, "Fringe"), _count(model, "Spike"), _count(model, "Crest")]
+		assert_array(counts).override_failure_message(str(style)).is_equal(expected[style])
+		assert_int(_count(model, "Hair")).is_equal(1)
+
+
+func test_only_the_doll_parts_are_drawn_and_each_follows_a_bone() -> void:
+	# 素材の写実の体は出さない。描く部品はどれも骨に付いていて、骨と一緒に動く
+	var model: GoalPlayerModel = _model()
+	var parts: Array[Node] = model.find_children("*", "MeshInstance3D", true, false)
+	assert_int(parts.size()).is_greater(20)
+	for part: Node in parts:
+		assert_object(part.get_parent()).override_failure_message(str(part.name)).is_instanceof(BoneAttachment3D)
+	for part_name: String in ["Head", "Torso", "Shorts", "UpperArm", "Forearm", "Hand", "Thigh", "Shin", "Boot"]:
+		assert_int(_count(model, part_name)).override_failure_message(part_name).is_greater(0)
 
 
 func test_the_number_is_on_the_back_and_the_badge_shape_tells_the_team() -> void:
@@ -136,9 +169,16 @@ func test_the_planted_foot_is_moved_over_the_spot_and_onto_the_ground() -> void:
 	assert_float(minf(height.call("foot_r") as float, height.call("ball_r") as float)).is_less(-0.02)
 
 
+func test_every_clip_the_cut_ins_use_is_in_the_library() -> void:
+	# 場面の関数（GoalCutInArt・SaveCutInArt・StealCutInArt）が選ぶ動きは、どれも素材の動きにある
+	for clip: String in ["Sprint", "Idle", "Yes", "Roll", "Slide_Start", "Slide_Exit"]:
+		assert_bool(GoalPlayerModel.ANIMATIONS.has_animation(clip)).override_failure_message(clip).is_true()
+
+
 func test_looping_clips_wrap_and_one_shot_clips_hold_the_end() -> void:
 	var model: GoalPlayerModel = _model()
 	var sprint: float = GoalPlayerModel.ANIMATIONS.get_animation("Sprint").length
 	assert_float(model.clamp_time("Sprint", sprint + 0.1)).is_equal_approx(0.1, 0.0001)
 	var yes: float = GoalPlayerModel.ANIMATIONS.get_animation("Yes").length
 	assert_float(model.clamp_time("Yes", yes + 1.0)).is_equal(yes)
+

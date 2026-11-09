@@ -22,6 +22,8 @@ const MAX_PIECE_HOP_HEIGHT: float = 1.5
 const MAX_BOARD_BEAT_GAP_SEC: float = 0.5
 ## 得点のカットインの時間の上限（秒）。範囲の正本は同じ表
 const MAX_GOAL_CUT_IN_SEC: float = 6.0
+## ボールを奪った・奪われたときのカットインの時間の上限（秒）
+const MAX_TRANSITION_CUT_IN_SEC: float = 4.0
 
 var _config_dir: String
 var _match_rules: MatchRuleConfig
@@ -115,6 +117,10 @@ func _load_presentation() -> PresentationConfig:
 	if not _is_within(loaded.goal_cut_in_sec, MAX_GOAL_CUT_IN_SEC):
 		push_error("ConfigRepository: %s の値が範囲外（goal_cut_in_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE,
 				loaded.goal_cut_in_sec])
+		return PresentationConfig.new()
+	if not _is_within(loaded.transition_cut_in_sec, MAX_TRANSITION_CUT_IN_SEC):
+		push_error("ConfigRepository: %s の値が範囲外（transition_cut_in_sec=%s）のため、初期値を使う" % [PRESENTATION_FILE,
+				loaded.transition_cut_in_sec])
 		return PresentationConfig.new()
 	var play_sec: float = loaded.board_play_sec
 	if not _is_board_sec_valid(play_sec):

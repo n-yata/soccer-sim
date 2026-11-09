@@ -70,7 +70,8 @@ TutorialScreen (Control)
 
 1. `_controller = App.new_tutorial_controller()`、`_steps = library.tutorial_steps()`、`_index = 0`。`MatchView.bind(_controller, false)`。パネルの `turn_started`・`reveal_started` を受けて `PhaseTag`・`RevealBanner` を描き直し、`turn_ready_to_leave` を受けて `_can_next = true` にする。
    `PhaseBanner.forget()`（最初の段階では局面の帯を出さない）。`turn_started` では `PhaseBanner.follow(局面)` で、前の段階と局面が変わっていれば帯を出し
-   （S-03「ターンを始める」6. と同じ。同梱の段階では 攻撃 → 守備 → ポジトラ → ネガトラ → 攻撃 で4回出る）、`reveal_started` では帯を消す（2026-11-08）
+   （S-03「ターンを始める」6. と同じ。同梱の段階では 攻撃 → 守備 → ポジトラ → ネガトラ → 攻撃 で4回出る）、`reveal_started` では帯を消す（2026-11-08）。
+   直前の開示でトランジションのカットインを出したときは、quiet で渡して帯を出さない（S-03 と同じ。2026-11-08）
 2. 段階を始める（次節）
 
 ### 段階を始める
@@ -80,7 +81,8 @@ TutorialScreen (Control)
    1. `_controller.start_tutorial_step(step)` で段階の盤面を作る
    2. `MatchView.set_options_filter(step.allowed_actions)`（試合と同じ規則の範囲内で絞るだけ。手を足すことはない）
    3. `MatchView.set_interactive(step.kind == OPERATE)`（`EXPLAIN` では手のボタンと「決定」を隠す）
-   4. `MatchView.start_turn()`
+   4. `MatchView.forget_transition_cut_in()`（前の段階で出したトランジションのカットインで、この段階の局面の帯を止めない。2026-11-10）
+   5. `MatchView.start_turn()`
 3. `SCOPE` なら `ScopeView` に `library.simplifications()` を出し、「次へ」の代わりに `ScopeSide` の「完了」を使う
 4. `_can_next` を「段階の種類と画面」の表のとおりにする。`_can_next` が偽の間は「次へ」を隠す（説明文と手のボタンを一度に見せるため）
 

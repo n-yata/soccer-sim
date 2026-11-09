@@ -667,13 +667,16 @@ func test_the_reveal_keyframes_are_one_beat_except_a_goal_in_two() -> void:
 	assert_bool(MatchBoardPanel.reveal_keyframes(goal, 0.6, 0.5, true)[1]["wait"] as bool).is_true()
 
 
-## 決定した後の開示を、作った開示の値で始める（得点の場面をシードで探さないため）。スコアは得点の後の値にする
-func _resolve_with(outcome: GameEnums.TurnOutcome) -> void:
+## 決定した後の開示を、作った開示の値で始める（得点の場面をシードで探さないため）。スコアは得点の後の値にする。
+## user_role は利用者の役割（攻撃なら利用者がボールを持つ側）
+func _resolve_with(outcome: GameEnums.TurnOutcome, user_role: GameEnums.Phase = GameEnums.Phase.ATTACK) -> void:
 	_start(true)
 	var snapshot: BoardSnapshot = _controller.snapshot()
 	snapshot.score_user = 1
 	_panel._state = State.SUBMITTING
-	_panel._on_turn_resolved(_reveal_of(outcome), snapshot)
+	var reveal: RevealView = _reveal_of(outcome)
+	reveal.user_role = user_role
+	_panel._on_turn_resolved(reveal, snapshot)
 
 
 ## 得点の開示では、シュートが着地したら3Dのカットインを出し、キックオフへの組み直しはカットインが終わるまで待つ（2026-11-06）
@@ -696,10 +699,69 @@ func test_a_goal_shows_the_cut_in_on_landing_and_holds_the_reshape_until_it_ends
 	assert_bool(_panel.board().is_shifting()).is_false()
 
 
-func test_a_result_other_than_a_goal_shows_no_cut_in() -> void:
+## ボールを失った・奪った（トランジションの始まり）ときは、着地で短いカットインを出す（2026-11-08）。盤面は止めない
+func test_losing_the_ball_shows_the_steal_cut_in_on_landing() -> void:
+	_resolve_with(GameEnums.TurnOutcome.LOSS)
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(_panel.showed_transition_cut_in()).is_false()
+	await _await_landing()
+	assert_bool(cut_in.is_playing()).is_true()
+	assert_int(cut_in.kind()).is_equal(GoalCutIn.Kind.STEAL)
+	# 攻撃していた利用者が奪われた（主役の奪った側は相手）
+	assert_bool(cut_in.is_user_goal()).is_false()
+	assert_str(cut_in.texts()["title"] as String).is_equal("BALL LOST")
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	assert_bool(_panel.board().is_shifting()).is_false()
+
+
+func test_winning_the_ball_shows_the_steal_cut_in_for_the_user() -> void:
+	_resolve_with(GameEnums.TurnOutcome.LOSS, GameEnums.Phase.DEFENSE)
+	await _await_landing()
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(cut_in.is_user_goal()).is_true()
+	assert_str(cut_in.texts()["title"] as String).is_equal("BALL WON!")
+
+
+func test_a_saved_shot_shows_the_save_cut_in() -> void:
 	_resolve_with(GameEnums.TurnOutcome.SAVE)
 	await _await_landing()
-	assert_bool(_panel.goal_cut_in().is_playing()).is_false()
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(cut_in.is_playing()).is_true()
+	assert_int(cut_in.kind()).is_equal(GoalCutIn.Kind.SAVE)
+	assert_str(cut_in.texts()["title"] as String).is_equal("SAVED")
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+
+
+func test_results_that_start_no_transition_show_no_cut_in() -> void:
+	# 前進・奪い返し（攻守ターンへ戻る）・オフサイド（守備側の攻撃から始まる）はトランジションにならない
+	for outcome: GameEnums.TurnOutcome in [GameEnums.TurnOutcome.ADVANCE, GameEnums.TurnOutcome.REGAIN,
+			GameEnums.TurnOutcome.OFFSIDE]:
+		_resolve_with(outcome)
+		await _await_landing()
+		assert_bool(_panel.goal_cut_in().is_playing()).override_failure_message(str(outcome)).is_false()
+		assert_bool(_panel.showed_transition_cut_in()).override_failure_message(str(outcome)).is_false()
+		_panel.start_turn()
+
+
+func test_the_next_reveal_forgets_the_transition_cut_in() -> void:
+	_resolve_with(GameEnums.TurnOutcome.LOSS)
+	await _await_landing()
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	# 次のターンを始めても覚えている（画面が局面の帯を出すかを決める）。次の開示で忘れる
+	_panel.start_turn()
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	_panel._state = State.SUBMITTING
+	_panel._on_turn_resolved(_reveal_of(GameEnums.TurnOutcome.ADVANCE), _controller.snapshot())
+	assert_bool(_panel.showed_transition_cut_in()).is_false()
+
+
+func test_forgetting_the_transition_cut_in_lets_the_next_banner_show() -> void:
+	# チュートリアルが段階を始めるときに忘れさせる
+	_resolve_with(GameEnums.TurnOutcome.LOSS)
+	await _await_landing()
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	_panel.forget_transition_cut_in()
+	assert_bool(_panel.showed_transition_cut_in()).is_false()
 
 
 func test_starting_the_next_turn_stops_the_cut_in() -> void:
