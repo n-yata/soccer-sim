@@ -1,0 +1,365 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/s01_title/title_screen.gd" id="1"]
+
+[node name="TitleScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Layout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Hero" type="MarginContainer" parent="Layout"]
+custom_minimum_size = Vector2(600, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 56
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 64
+
+[node name="HeroBox" type="VBoxContainer" parent="Layout/Hero"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 12
+
+[node name="TagLabel" type="Label" parent="Layout/Hero/HeroBox"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_type_variation = &"TagLabel"
+text = "MATCHDAY TACTICS"
+
+[node name="ProductNameLabel" type="Label" parent="Layout/Hero/HeroBox"]
+layout_mode = 2
+theme_type_variation = &"DisplayHeading"
+text = "SOCCER GAME"
+
+[node name="TaglineLabel" type="Label" parent="Layout/Hero/HeroBox"]
+layout_mode = 2
+theme_type_variation = &"SubLabel"
+text = "読み合いで戦術を学ぶボードゲーム"
+autowrap_mode = 3
+
+[node name="CardsMargin" type="MarginContainer" parent="Layout"]
+custom_minimum_size = Vector2(680, 0)
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="Cards" type="VBoxContainer" parent="Layout/CardsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ResumeCard" type="Button" parent="Layout/CardsMargin/Cards"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 140)
+layout_mode = 2
+theme_type_variation = &"ResumeCard"
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/ResumeCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 12.0
+offset_right = -24.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ResumeTag" type="Label" parent="Layout/CardsMargin/Cards/ResumeCard/Box"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_type_variation = &"TagLabel"
+text = "RESUME"
+
+[node name="ResumeTitle" type="Label" parent="Layout/CardsMargin/Cards/ResumeCard/Box"]
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "中断した試合を再開"
+
+[node name="ResumeRow" type="HBoxContainer" parent="Layout/CardsMargin/Cards/ResumeCard/Box"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="ResumeSummary" type="Label" parent="Layout/CardsMargin/Cards/ResumeCard/Box/ResumeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"SubLabel"
+text = "前半 1／15・4-3-3 対 4-4-2"
+
+[node name="ResumeScore" type="Label" parent="Layout/CardsMargin/Cards/ResumeCard/Box/ResumeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "0 – 0"
+
+[node name="TutorialCard" type="Button" parent="Layout/CardsMargin/Cards"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/TutorialCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 12.0
+offset_right = -24.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="TitleRow" type="HBoxContainer" parent="Layout/CardsMargin/Cards/TutorialCard/Box"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="TutorialTitle" type="Label" parent="Layout/CardsMargin/Cards/TutorialCard/Box/TitleRow"]
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "チュートリアル"
+
+[node name="FirstTimeBadge" type="Label" parent="Layout/CardsMargin/Cards/TutorialCard/Box/TitleRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"YouTagLabel"
+text = "はじめての方へ"
+
+[node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/TutorialCard/Box/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 10
+theme_type_variation = &"MutedLabel"
+text = "準備中"
+
+[node name="TutorialSub" type="Label" parent="Layout/CardsMargin/Cards/TutorialCard/Box"]
+layout_mode = 2
+theme_type_variation = &"SubLabel"
+text = "ピッチ・局面・読み合いを、操作して覚える"
+text_overrun_behavior = 3
+
+[node name="KickOffCard" type="Button" parent="Layout/CardsMargin/Cards"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 136)
+layout_mode = 2
+theme_type_variation = &"AccentCard"
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/KickOffCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 12.0
+offset_right = -24.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="KickOffLabel" type="Label" parent="Layout/CardsMargin/Cards/KickOffCard/Box"]
+layout_mode = 2
+theme_type_variation = &"KickOffLabel"
+text = "KICK OFF"
+
+[node name="SubRow" type="HBoxContainer" parent="Layout/CardsMargin/Cards/KickOffCard/Box"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="KickOffSub" type="Label" parent="Layout/CardsMargin/Cards/KickOffCard/Box/SubRow"]
+layout_mode = 2
+theme_type_variation = &"KickOffSubLabel"
+text = "CPU 対戦"
+
+[node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/KickOffCard/Box/SubRow"]
+layout_mode = 2
+size_flags_horizontal = 10
+theme_type_variation = &"MutedLabel"
+text = "準備中"
+
+[node name="SmallCards" type="GridContainer" parent="Layout/CardsMargin/Cards"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 2
+
+[node name="QuizCard" type="Button" parent="Layout/CardsMargin/Cards/SmallCards"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/SmallCards/QuizCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/QuizCard/Box"]
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "理解度チェック"
+autowrap_mode = 3
+
+[node name="QuizSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/QuizCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/QuizCard/Box"]
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "準備中"
+
+[node name="RecordsCard" type="Button" parent="Layout/CardsMargin/Cards/SmallCards"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/SmallCards/RecordsCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/RecordsCard/Box"]
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "戦績"
+autowrap_mode = 3
+
+[node name="RecordsSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/RecordsCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/RecordsCard/Box"]
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "準備中"
+
+[node name="ScopeCard" type="Button" parent="Layout/CardsMargin/Cards/SmallCards"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/SmallCards/ScopeCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/ScopeCard/Box"]
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "表現範囲"
+autowrap_mode = 3
+
+[node name="ScopeSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/ScopeCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "実戦との違い"
+autowrap_mode = 3
+
+[node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/ScopeCard/Box"]
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "準備中"
+
+[node name="SettingsCard" type="Button" parent="Layout/CardsMargin/Cards/SmallCards"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Box" type="VBoxContainer" parent="Layout/CardsMargin/Cards/SmallCards/SettingsCard"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/SettingsCard/Box"]
+layout_mode = 2
+theme_type_variation = &"CardTitleLabel"
+text = "設定"
+autowrap_mode = 3
+
+[node name="SettingsSub" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/SettingsCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "音量・ヒント"
+autowrap_mode = 3
+
+[node name="PendingLabel" type="Label" parent="Layout/CardsMargin/Cards/SmallCards/SettingsCard/Box"]
+layout_mode = 2
+size_flags_vertical = 10
+theme_type_variation = &"MutedLabel"
+text = "準備中"

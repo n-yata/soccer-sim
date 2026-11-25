@@ -1,0 +1,421 @@
+[gd_resource type="Theme" load_steps=24 format=3]
+
+; アプリ全体のテーマ（project.godot の gui/theme/custom）。各画面は色を直接書かない。
+; 色は docs/specs/3_detail-design/screen/screen-common.md §3 の写し（bg #070D18・surface #101827・text #F8FAFC・
+; text_sub #CBD5E1・muted #94A3B8・accent #F5C518・you #4CC3FF・disabled_bg #1E293B・disabled_text #94A3B8・
+; pitch #165C34・pitch_line #F8FAFC（80%）・zone_line #F8FAFC（25%））。正本を変えたらここも合わせる。
+; ホバーの見た目は通常と同じにする（screen-common.md §4.1。タッチには無い状態で、Android ではタップ後も残るため）。
+; フォーカスの枠も出さない（タッチでは不要で、タップ後にも残るため。キーボード操作は Windows 版の範囲）。
+; 日本語は Noto Sans JP を置くまで Godot の既定のフォント（端末のフォントで代わりに表示される）を使う。
+
+[ext_resource type="FontFile" path="res://assets/fonts/barlow-condensed/BarlowCondensed-Bold.ttf" id="1_barlow_bold"]
+[ext_resource type="FontFile" path="res://assets/fonts/barlow-condensed/BarlowCondensed-SemiBold.ttf" id="2_barlow_semibold"]
+
+[sub_resource type="StyleBoxFlat" id="card_normal"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="card_pressed"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="card_disabled"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.117647, 0.160784, 0.231373, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="you_tag_normal"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.298039, 0.764706, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="accent_normal"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="accent_pressed"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.972549, 0.980392, 0.988235, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="tag_normal"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxEmpty" id="empty"]
+
+[sub_resource type="StyleBoxFlat" id="you_chip"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.054902, 0.227451, 0.333333, 1)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+
+[sub_resource type="StyleBoxFlat" id="opponent_chip"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.290196, 0.14902, 0.066667, 1)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+
+[sub_resource type="StyleBoxFlat" id="score_box"]
+content_margin_left = 20.0
+content_margin_top = 4.0
+content_margin_right = 20.0
+content_margin_bottom = 4.0
+bg_color = Color(0.972549, 0.980392, 0.988235, 1)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+
+[sub_resource type="StyleBoxFlat" id="surface_box"]
+content_margin_left = 16.0
+content_margin_top = 8.0
+content_margin_right = 16.0
+content_margin_bottom = 8.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
+
+[sub_resource type="StyleBoxFlat" id="telop_box"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.972549, 0.980392, 0.988235, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="outcome_box"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="you_outcome_box"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(0.298039, 0.764706, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="opponent_outcome_box"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.541176, 0.239216, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="choice_normal"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="choice_pressed"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="choice_disabled"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.117647, 0.160784, 0.231373, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="toast_box"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.062745, 0.094118, 0.152941, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.960784, 0.772549, 0.094118, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="dialog_box"]
+content_margin_left = 40.0
+content_margin_top = 32.0
+content_margin_right = 40.0
+content_margin_bottom = 32.0
+bg_color = Color(0.027451, 0.05098, 0.094118, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.580392, 0.639216, 0.721569, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[resource]
+default_font_size = 28
+ResumeCard/base_type = &"Button"
+ResumeCard/styles/normal = SubResource("card_pressed")
+ResumeCard/styles/hover = SubResource("card_pressed")
+ToastPanel/base_type = &"PanelContainer"
+ToastPanel/styles/panel = SubResource("toast_box")
+DialogPanel/base_type = &"PanelContainer"
+DialogPanel/styles/panel = SubResource("dialog_box")
+DialogPanel/colors/dim = Color(0.027451, 0.05098, 0.094118, 0.75)
+SurfaceCard/base_type = &"PanelContainer"
+SurfaceCard/styles/panel = SubResource("surface_box")
+AccentCard/base_type = &"Button"
+AccentCard/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_hover_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_pressed_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_hover_pressed_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/colors/font_focus_color = Color(0.027451, 0.05098, 0.094118, 1)
+AccentCard/styles/normal = SubResource("accent_normal")
+AccentCard/styles/hover = SubResource("accent_normal")
+AccentCard/styles/pressed = SubResource("accent_pressed")
+AccentCard/styles/hover_pressed = SubResource("accent_pressed")
+AccentCard/styles/focus = SubResource("empty")
+Button/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_hover_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_pressed_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_hover_pressed_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_focus_color = Color(0.972549, 0.980392, 0.988235, 1)
+Button/colors/font_disabled_color = Color(0.580392, 0.639216, 0.721569, 1)
+Button/font_sizes/font_size = 28
+Button/styles/normal = SubResource("card_normal")
+Button/styles/hover = SubResource("card_normal")
+Button/styles/pressed = SubResource("card_pressed")
+Button/styles/hover_pressed = SubResource("card_pressed")
+Button/styles/disabled = SubResource("card_disabled")
+Button/styles/focus = SubResource("empty")
+CardTitleLabel/base_type = &"Label"
+CardTitleLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+CardTitleLabel/font_sizes/font_size = 30
+DisplayHeading/base_type = &"Label"
+DisplayHeading/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+DisplayHeading/fonts/font = ExtResource("1_barlow_bold")
+DisplayHeading/font_sizes/font_size = 88
+GoalCutIn/colors/glove = Color(0.94902, 0.952941, 0.960784, 1)
+GoalCutIn/colors/hair = Color(0.231373, 0.164706, 0.12549, 1)
+GoalCutIn/colors/keeper_opponent = Color(0.623529, 0.403922, 0.960784, 1)
+GoalCutIn/colors/keeper_you = Color(0.827451, 0.956863, 0.243137, 1)
+KickOffLabel/base_type = &"Label"
+KickOffLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+KickOffLabel/fonts/font = ExtResource("1_barlow_bold")
+KickOffLabel/font_sizes/font_size = 44
+KickOffSubLabel/base_type = &"Label"
+KickOffSubLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+KickOffSubLabel/font_sizes/font_size = 28
+Label/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+Label/font_sizes/font_size = 28
+Label/styles/normal = SubResource("empty")
+MutedLabel/base_type = &"Label"
+MutedLabel/colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+MutedLabel/font_sizes/font_size = 24
+CautionLabel/base_type = &"Label"
+CautionLabel/colors/font_color = Color(0.984314, 0.74902, 0.466667, 1)
+CautionLabel/font_sizes/font_size = 24
+SubLabel/base_type = &"Label"
+SubLabel/colors/font_color = Color(0.796078, 0.835294, 0.882353, 1)
+SubLabel/font_sizes/font_size = 28
+TagLabel/base_type = &"Label"
+TagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+TagLabel/fonts/font = ExtResource("2_barlow_semibold")
+TagLabel/font_sizes/font_size = 26
+TagLabel/styles/normal = SubResource("tag_normal")
+YouTagLabel/base_type = &"Label"
+YouTagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+YouTagLabel/font_sizes/font_size = 24
+YouTagLabel/styles/normal = SubResource("you_tag_normal")
+CheckMarkLabel/base_type = &"Label"
+CheckMarkLabel/colors/font_color = Color(0.960784, 0.772549, 0.094118, 1)
+CheckMarkLabel/font_sizes/font_size = 32
+MiniPitch/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+MiniPitch/colors/pitch = Color(0.086275, 0.360784, 0.203922, 1)
+MiniPitch/colors/pitch_line = Color(0.972549, 0.980392, 0.988235, 0.8)
+MiniPitch/colors/zone_line = Color(0.972549, 0.980392, 0.988235, 0.25)
+MiniPitch/colors/you = Color(0.298039, 0.764706, 1, 1)
+MiniPitch/colors/opponent = Color(1, 0.541176, 0.239216, 1)
+MiniPitch/colors/ball = Color(0.972549, 0.980392, 0.988235, 1)
+MiniPitch/font_sizes/font_size = 24
+SectionTitleLabel/base_type = &"Label"
+SectionTitleLabel/colors/font_color = Color(0.796078, 0.835294, 0.882353, 1)
+SectionTitleLabel/font_sizes/font_size = 26
+FormationNameLabel/base_type = &"Label"
+FormationNameLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+FormationNameLabel/fonts/font = ExtResource("1_barlow_bold")
+FormationNameLabel/font_sizes/font_size = 36
+TacticsBoard/colors/accent = Color(0.960784, 0.772549, 0.094118, 1)
+TacticsBoard/colors/ball = Color(0.972549, 0.980392, 0.988235, 1)
+TacticsBoard/colors/ball_area_fill = Color(1, 1, 1, 0.1)
+TacticsBoard/colors/bg = Color(0.027451, 0.05098, 0.094118, 1)
+TacticsBoard/colors/lane_text = Color(0.796078, 0.835294, 0.882353, 1)
+TacticsBoard/colors/tag_muted_bg = Color(0.043137, 0.066667, 0.109804, 0.7)
+TacticsBoard/colors/opponent = Color(1, 0.541176, 0.239216, 1)
+TacticsBoard/colors/pitch = Color(0.086275, 0.360784, 0.203922, 1)
+TacticsBoard/colors/pitch_halfspace = Color(0.07451, 0.305882, 0.176471, 1)
+TacticsBoard/colors/pitch_line = Color(0.972549, 0.980392, 0.988235, 0.8)
+TacticsBoard/colors/pitch_stripe = Color(0.094118, 0.384314, 0.227451, 1)
+TacticsBoard/colors/selected_fill = Color(0.960784, 0.772549, 0.094118, 0.35)
+TacticsBoard/colors/text = Color(0.972549, 0.980392, 0.988235, 1)
+TacticsBoard/colors/you = Color(0.298039, 0.764706, 1, 1)
+TacticsBoard/colors/zone_line = Color(0.972549, 0.980392, 0.988235, 0.25)
+TacticsBoard/font_sizes/hint_size = 18
+TacticsBoard/font_sizes/lane_size = 16
+TacticsBoard/font_sizes/tag_size = 26
+YouChipLabel/base_type = &"Label"
+YouChipLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+YouChipLabel/font_sizes/font_size = 26
+YouChipLabel/styles/normal = SubResource("you_chip")
+OpponentChipLabel/base_type = &"Label"
+OpponentChipLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+OpponentChipLabel/font_sizes/font_size = 26
+OpponentChipLabel/styles/normal = SubResource("opponent_chip")
+ScoreLabel/base_type = &"Label"
+ScoreLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+ScoreLabel/fonts/font = ExtResource("1_barlow_bold")
+ScoreLabel/font_sizes/font_size = 52
+ScoreLabel/styles/normal = SubResource("score_box")
+ClockLabel/base_type = &"Label"
+ClockLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+ClockLabel/font_sizes/font_size = 26
+ClockLabel/styles/normal = SubResource("surface_box")
+PanelLabel/base_type = &"Label"
+PanelLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+PanelLabel/font_sizes/font_size = 26
+PanelLabel/styles/normal = SubResource("surface_box")
+TelopLabel/base_type = &"Label"
+TelopLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+TelopLabel/font_sizes/font_size = 28
+TelopLabel/styles/normal = SubResource("telop_box")
+OutcomeTagLabel/base_type = &"Label"
+OutcomeTagLabel/colors/font_color = Color(0.027451, 0.05098, 0.094118, 1)
+OutcomeTagLabel/fonts/font = ExtResource("1_barlow_bold")
+OutcomeTagLabel/font_sizes/font_size = 44
+OutcomeTagLabel/styles/normal = SubResource("outcome_box")
+YouOutcomeTagLabel/base_type = &"OutcomeTagLabel"
+YouOutcomeTagLabel/styles/normal = SubResource("you_outcome_box")
+OpponentOutcomeTagLabel/base_type = &"OutcomeTagLabel"
+OpponentOutcomeTagLabel/styles/normal = SubResource("opponent_outcome_box")
+ResultLabel/base_type = &"Label"
+ResultLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+ResultLabel/fonts/font = ExtResource("1_barlow_bold")
+ResultLabel/font_sizes/font_size = 96
+SetupLabel/base_type = &"Label"
+SetupLabel/colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
+SetupLabel/font_sizes/font_size = 24
+SetupLabel/styles/normal = SubResource("surface_box")
+ChoiceButton/base_type = &"Button"
+ChoiceButton/font_sizes/font_size = 24
+ChoiceButton/styles/normal = SubResource("choice_normal")
+ChoiceButton/styles/hover = SubResource("choice_normal")
+ChoiceButton/styles/pressed = SubResource("choice_pressed")
+ChoiceButton/styles/hover_pressed = SubResource("choice_pressed")
+ChoiceButton/styles/disabled = SubResource("choice_disabled")
+ChoiceButton/styles/focus = SubResource("empty")
