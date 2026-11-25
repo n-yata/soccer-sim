@@ -8,6 +8,7 @@ extends ModalOverlay
 ## [名前, 本文のファイル]。本文の先頭に著作権表示がある
 const LICENSES: Array[Array] = [
 	["Barlow Condensed", "res://assets/fonts/barlow-condensed/OFL.txt"],
+	["Noto Sans JP", "res://assets/fonts/noto-sans-jp/OFL.txt"],
 ]
 const TEXT_HEIGHT: float = 440.0
 const UNREADABLE_TEXT: String = "（ライセンスの本文を読み込めませんでした）"

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node -e \"require('fs').copyFileSync('dist/index.html','dist/404.html')\"",
+    "game:export": "bash soccer-game/tools/export-web.sh public/game",
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,vue}\"",

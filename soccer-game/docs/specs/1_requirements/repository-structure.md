@@ -42,13 +42,15 @@ soccer-game/
 │   ├── content/                   # 静的データ（JSON。陣形・方式・噛み合わせルール・原則・単純化・場面問題・チュートリアル）
 │   ├── config/                    # 調整値（Resource .tres。今は match_rule_config.tres・cpu_config.tres）
 │   ├── assets/                    # 素材（テクスチャ・音・フォント。ライセンス台帳 LICENSES.md を含む）
-│   │   ├── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/。noto-sans-jp/ はサブセットの作業で作る）。フォントと OFL.txt
+│   │   ├── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/・noto-sans-jp/。noto-sans-jp/ はサブセット）。フォントと OFL.txt
 │   │   ├── models/                # 3D モデルと動き（goal_cut_in/: カットインの選手の骨と動き。CC0 の素材と CMU の動きの記録。2026-11-07）
 │   │   └── sounds/                # 効果音（Ogg Vorbis。CC0。2026-10-30）
 │   └── tests/                     # gdUnit4 のテスト
 └── tools/                         # 開発補助スクリプト
     ├── run-tests.sh               # テストの一括実行（禁止依存の検査と gdUnit4）
     ├── check_domain_deps.gd       # ドメイン層の禁止依存の検出（NFR-13）
+    ├── export-web.sh              # ブラウザ版（PWA）の書き出し
+    ├── subset_noto_sans_jp.py     # Noto Sans JP のサブセットの生成と、フォントに無い文字の検出
     └── mcp/drawio-mcp.mjs         # drawio MCP を空きポートで起動するラッパー
 ```
 
@@ -157,7 +159,12 @@ Godot のインポート対象から外し、書き出し（エクスポート�
   Godot を画面なしで動かして実行する（`godot --headless --path game --script <このファイルの絶対パス> -- [ディレクトリ]`。
   省くと `res://domain`）。見つかれば終了コード 1、検査できなければ（ディレクトリが無い・スクリプトが0件）2。
   `--self-check <カテゴリ>` は、fixture でそのカテゴリの全ルールが当たることを確かめる（ルールを足したら fixture にも足す）
-- フォントのサブセットの生成と、フォントに無い文字の検出（`architecture-overview.md` のフォントの注記）
+- `subset_noto_sans_jp.py`: Noto Sans JP のサブセットの生成と、フォントに無い文字の検出（`architecture-overview.md` のフォントの注記）。
+  `--src <元の OTF のディレクトリ>` で作り直し、`--check` で文言の全文字がサブセットにあるかを確かめる（無ければ終了コード 1）。
+  Python 3 と `pip install fonttools brotli` が要る。文字は `.gd`（コメントを除く。複数行の文字列は文字列として残す）・`.tscn`/`.tres`（`;` のコメント行を除く）・
+  `content/*.json` から集める（`tests/`・`addons/` を除く）。文言を変えたら作り直す
+- `export-web.sh <出力先>`: ブラウザ版（PWA）の書き出し。`export_presets.cfg` が無ければ example を写して使い、あっても Web の
+  プリセットが無ければ止まる。Godot の Web の書き出しテンプレート（`web_nothreads_release.zip`）が要る
 - カタログと静的データの突き合わせスクリプト（NFR-17 ②）
 - ワイヤーフレームと画面一覧の対応検査スクリプト（後述「ワイヤーフレームの運用」）
 - `run-tests.sh`: テストの一括実行（後述「セットアップ手順」2 の「テストの実行」）

@@ -123,6 +123,9 @@ func test_the_license_shows_the_bundled_font_license_with_its_copyright() -> voi
 	assert_str(text).starts_with("Barlow Condensed")
 	assert_str(text).contains("Copyright 2017 The Barlow Project Authors")
 	assert_str(text).contains("SIL OPEN FONT LICENSE Version 1.1")
+	# 日本語の書体（Noto Sans JP）も、配布元の本文に無い著作権表示を先頭に足した OFL で出す（LICENSES.md の台帳）
+	assert_str(text).contains("Noto Sans JP\n\nCopyright 2014-2021 Adobe (http://www.adobe.com/).")
+	assert_str(text).not_contains(LicenseView.UNREADABLE_TEXT)
 	screen.license_view().close_button().pressed.emit()
 	assert_bool(screen.license_view().is_open()).is_false()
 

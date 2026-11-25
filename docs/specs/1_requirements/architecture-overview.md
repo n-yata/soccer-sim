@@ -100,6 +100,14 @@
   `https://n-yata.github.io/soccer-sim/robots.txt`はクローラーから参照されない可能性が高い。
   sitemapの登録は`https://n-yata.github.io/soccer-sim/sitemap.xml`をGoogle Search Console等へ
   直接送信する運用とする
+- **ゲームのブラウザ版（2026-11-26追加）**: `https://n-yata.github.io/soccer-sim/game/index.html` に、
+  戦術ゲーム（`soccer-game/`。Godot）の Web 書き出しを載せる。ラボとは独立したページで、ゲーム単体で
+  PWA（ホーム画面への追加・オフライン起動）になる。Service Worker のスコープは `/soccer-sim/game/` に限られ、
+  ラボには影響しない
+  - GitHub Pages は COOP/COEP ヘッダーを付けられないため、スレッドを使わない版で書き出す
+  - 案内する URL は `index.html` まで含める。Godot の Service Worker は `index.html` の名前でキャッシュするため、
+    `/game/` で開くとオフラインでは起動しない（インストールした PWA は `index.html` から起動するので影響しない）
+  - wasm 約39MB・pck 約5MB。オフライン起動に要るキャッシュがそろうのは2回目に開いたとき（Godot の仕様）
 - **自動デプロイ**: `main`へのpushで GitHub Actions（`.github/workflows/deploy-pages.yml`）が
   lint・型チェック・テスト・ビルドを実行し、成功したときだけ GitHub Pages へデプロイする
   （2026-10-17導入。手順・設定は`repository-structure.md`の「CI/CD」）

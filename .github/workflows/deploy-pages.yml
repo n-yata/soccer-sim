@@ -20,6 +20,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GODOT_VERSION: "4.7.2"
+      GODOT_EDITOR_SHA512: 9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65
+      GODOT_TEMPLATES_SHA512: ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +40,37 @@ jobs:
           # 公開リンク先はリポジトリのVariables（Settings → Secrets and variables → Actions）で設定する。
           # 未設定ならリンク非表示のままビルドされる
           VITE_JLEAGUE_URL: ${{ vars.VITE_JLEAGUE_URL }}
+      # ゲーム（soccer-game/。Godot）のブラウザ版を dist/game/ へ書き出す。
+      # Godot 本体とテンプレートは公式のリリースから取得し、公式の SHA512-SUMS.txt の値（下の固定値）で検証する。
+      # 版を上げるときは3つの値を同時に変える（soccer-game の architecture-overview.md の版と揃える）
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          # ハッシュもキーに入れる。版を変えずに固定値だけ直したときも、キャッシュに当たらず取得と検証をやり直す
+          key: godot-${{ env.GODOT_VERSION }}-web-nothreads-${{ env.GODOT_EDITOR_SHA512 }}-${{ env.GODOT_TEMPLATES_SHA512 }}
+      - name: Install Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          editor="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          templates_dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          fetch() { curl -fsSL --retry 3 --retry-all-errors --connect-timeout 20 --max-time 900 "$@"; }
+          fetch -o /tmp/godot.zip "$base/$editor.zip"
+          fetch -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          echo "$GODOT_EDITOR_SHA512  /tmp/godot.zip" | sha512sum -c -
+          echo "$GODOT_TEMPLATES_SHA512  /tmp/templates.tpz" | sha512sum -c -
+          mkdir -p ~/godot "$templates_dir"
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/"$editor" ~/godot/godot
+          # テンプレートは全体で1GBを超えるので、Web（スレッドなし）だけを置く
+          unzip -q -j /tmp/templates.tpz templates/web_nothreads_release.zip templates/version.txt -d "$templates_dir"
+          rm /tmp/godot.zip /tmp/templates.tpz
+      - name: Export the game for the web
+        run: GODOT_BIN="$HOME/godot/godot" bash soccer-game/tools/export-web.sh dist/game
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
