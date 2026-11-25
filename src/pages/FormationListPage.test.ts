@@ -178,6 +178,29 @@ describe("FormationListPage", () => {
     expect(linkInBody.exists()).toBe(false);
   });
 
+  // ゲームは同じサイトの別アプリ（Godot の PWA）。Service Worker が index.html の名前でキャッシュするため、
+  // オフラインでも起動するよう index.html まで含めたパスへ、同じタブで遷移する
+  it("ヘッダー内にゲームへのリンクがあり、ゲームのindex.htmlへ同じタブで遷移する", () => {
+    // テストでは BASE_URL が "/" になるため、公開時のサブパス配信と同じ値にする
+    vi.stubEnv("BASE_URL", "/soccer-sim/");
+    const wrapper = mountPage();
+    const link = wrapper.get(".page-header__actions a.formation-list-page__game-link");
+    expect(link.text()).toBe("戦術ゲームで遊ぶ");
+    expect(link.attributes("href")).toBe("/soccer-sim/game/index.html");
+    expect(link.attributes("target")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("Jリーグの外部リンクが未設定でも、ゲームへのリンクは表示する", () => {
+    vi.stubEnv("VITE_JLEAGUE_URL", "");
+    const wrapper = mountPage();
+    expect(wrapper.find("a.formation-list-page__jleague-link").exists()).toBe(false);
+    expect(wrapper.find(".page-header__actions a.formation-list-page__game-link").exists()).toBe(
+      true,
+    );
+    wrapper.unmount();
+  });
+
   it("本文コンテナが広い画面幅を活かせるmax-widthを持つ（最大3列固定を廃止）", () => {
     const wrapper = mount(FormationListPage, {
       attachTo: document.body,
