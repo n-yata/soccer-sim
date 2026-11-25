@@ -5,6 +5,8 @@ node_modules/
 node_modules/.vite/
 dist/
 coverage/
+# ゲームのブラウザ版の手元の書き出し先（npm run game:export）。公開用は CI が dist/game/ へ書き出す
+/public/game/
 *.local
 
 # OS が自動生成するファイル

@@ -1,0 +1,827 @@
+## MatchBoardPanel（試合画面の盤面と手の選択。screen-03-match.md の状態と手順）のテスト。
+## 本物の MatchController（固定シード・本物の CpuOpponent）につなぐ。開示の後すぐ判定理由を出す（駒とボールは盤面の上で動く。3D 演出は 2026-10-23 にやめた）。
+extends GdUnitTestSuite
+
+const State := MatchBoardPanel.State
+## 失ったトランジションに数ターンで届くシード（_start_in_a_lost_transition が最初に試す）
+const LOST_TRANSITION_SEED: int = 67
+
+var _catalog: ContentCatalog
+var _panel: MatchBoardPanel
+var _controller: MatchController
+## _start が使ったシード
+var _controller_seed: int = 0
+var _requests: Array[int] = []
+
+
+func before() -> void:
+	_catalog = ContentRepository.new().load_catalog()
+
+
+func before_test() -> void:
+	_requests.clear()
+	_controller = null
+	_panel = auto_free(MatchBoardPanel.new()) as MatchBoardPanel
+	add_child(_panel)
+	_panel.size = Vector2(1232, 576)
+
+
+func _record(screen: AppScreens.Id, _params: Dictionary = {}) -> void:
+	_requests.append(screen)
+
+
+## 前半のキックオフで利用者がボールを持つ（user_has_ball）試合を作り、パネルにつないで最初のターンを始める。
+## シードは first_seed から順に試す
+func _start(user_has_ball: bool, first_seed: int = 0) -> void:
+	for seed_value: int in range(first_seed, first_seed + 100):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		var config := ConfigRepository.new()
+		var controller := MatchController.new(_catalog, config, rng, CpuOpponent.new(_catalog, config.cpu(), rng),
+				_record, true)
+		controller.start_match(TeamSetup.new("4-4-2",
+				TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER)))
+		if controller.snapshot().user_has_ball == user_has_ball:
+			_controller = controller
+			_controller_seed = seed_value
+			break
+	assert_object(_controller).override_failure_message("条件に合うシードが無い").is_not_null()
+	_requests.clear()
+	_panel.bind(_controller)
+	_panel.start_turn()
+
+
+func _keys(areas: Array[PitchArea]) -> Array[String]:
+	var keys: Array[String] = []
+	for area: PitchArea in areas:
+		keys.append(area.to_key())
+	return keys
+
+
+## 運ぶ先を持つ手のうち、画面に出ている最初の手（ボタンの並び）
+func _first_targeted_action(family: GameEnums.ChoiceFamily) -> int:
+	var options: MoveOptions = _controller.user_options()
+	for action: int in _panel.choice_panel().actions():
+		if MoveOptions.needs_target(family, action) and options.is_available(family, action):
+			return action
+	return -1
+
+
+## 画面に出す手の行き先（利用者の視点のキー）
+func _target_of(family: GameEnums.ChoiceFamily, action: int) -> String:
+	return _controller.user_options().targets(family, action)[0].to_key()
+
+
+func _press(action: int) -> void:
+	_panel.choice_panel().button_for(action).pressed.emit()
+
+
+func test_a_turn_starts_with_nothing_selected() -> void:
+	_start(true)
+	assert_int(_panel.state()).is_equal(State.SELECT_ACTION)
+	assert_bool(_panel.primary_button().disabled).is_true()
+	assert_int(_panel.choice_panel().family()).is_equal(GameEnums.ChoiceFamily.ATTACK)
+	assert_str(_panel.board().selected_area()).is_empty()
+	assert_bool(_panel.board().has_intent()).is_false()
+	assert_bool(_panel.telop_visible()).is_false()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	assert_array(_panel.setup_texts()).is_equal([
+		"● %s" % MatchTexts.setup_text(snapshot.user_setup),
+		"◆ %s" % MatchTexts.setup_text(snapshot.opponent_setup)])
+
+
+func test_a_turn_shows_every_own_destination_with_its_number_and_hint() -> void:
+	# 自分の手の行き先は、選ぶ前に盤面にすべて出す（2026-11-03）。札は手の番号（ボタンと同じ）と、ヒントの人数差
+	_start(true)
+	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
+	var expected_keys: Array[String] = []
+	for action: int in _panel.choice_panel().actions():
+		if MoveOptions.needs_target(family, action) and not expected_keys.has(_target_of(family, action)):
+			expected_keys.append(_target_of(family, action))
+	assert_array(_panel.board().selectable_areas()).is_equal(expected_keys)
+	# 札の値は MatchController のヒントと同じ。行き先を持つ手の数だけ確かめる（空振りしない）
+	var checked: int = 0
+	var seen: Array[String] = []
+	for action: int in _panel.choice_panel().actions():
+		# 同じ行き先の2つ目以降の手は、先の手（ボタンの並び）の札に番号を並べるだけなので、先の手で確かめる
+		if not MoveOptions.needs_target(family, action) or seen.has(_target_of(family, action)):
+			continue
+		var key: String = _target_of(family, action)
+		seen.append(key)
+		var hint: ChoiceHint = null
+		for candidate: ChoiceHint in _controller.user_hints():
+			if candidate.action == action and candidate.target != null and candidate.target.to_key() == key:
+				hint = candidate
+		var number: String = _panel.choice_panel().number_of(action)
+		var tag: String = MatchTexts.hint_tag(hint)
+		# 札は番号を先に（同じ行き先の手が複数あれば「①②」）、先の手のヒントを後ろに置く
+		assert_str(_panel.board().hint_of(key)).starts_with(number)
+		if not tag.is_empty():
+			assert_str(_panel.board().hint_of(key)).ends_with(" " + tag)
+		# 差が ±0 の札は控えめに描く。区別は札の文字ではなく、ヒントの人数差で渡す
+		assert_bool(_panel.board().is_hint_even(key)).override_failure_message(key).is_equal(MatchTexts.is_hint_muted(hint))
+		checked += 1
+	assert_int(checked).is_greater(0)
+
+
+func test_choosing_a_move_makes_it_ready_with_the_destination_the_game_chose() -> void:
+	_start(true)
+	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
+	var action: int = _first_targeted_action(family)
+	_press(action)
+	var target: String = _target_of(family, action)
+	assert_int(_panel.state()).is_equal(State.READY)
+	assert_bool(_panel.primary_button().disabled).is_false()
+	assert_str(_panel.board().selected_area()).is_equal(target)
+	assert_bool(_panel.board().has_intent()).is_true()
+	# 要約は行き先だけ（手の名前は選んだボタンに出ている。両方では幅に入らない。2026-11-06）
+	assert_str(_panel.primary_summary()).is_equal("→ %s" % MatchTexts.area_name(target))
+	# 行き先は「詳細」のポップアップで見せる（2026-11-05）
+	assert_bool(_panel.detail_button().disabled).is_false()
+	_panel.detail_button().pressed.emit()
+	assert_bool(_panel.detail_view().is_open()).is_true()
+	assert_str(_panel.detail_view().text()).starts_with("行き先: %s" % MatchTexts.area_name(target))
+	# 閉じても選んだ手はそのまま
+	_panel.detail_view().close_button().pressed.emit()
+	assert_bool(_panel.detail_view().is_open()).is_false()
+	assert_int(_panel.state()).is_equal(State.READY)
+
+
+func test_the_detail_shows_the_button_name_the_destination_the_numbers_and_the_rule() -> void:
+	_start(true)
+	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
+	for action: int in _panel.choice_panel().actions():
+		_press(action)
+		_panel.detail_button().pressed.emit()
+		# 見出しは押したボタンと同じ番号と名前。中身の手が違えば添える（「① ショートパス（スルーパス）」）
+		var title: String = "%s %s" % [_panel.choice_panel().number_of(action), MatchTexts.slot_name(family, action)]
+		if MatchTexts.action_name(family, action) != MatchTexts.slot_name(family, action):
+			title = "%s（%s）" % [title, MatchTexts.action_name(family, action)]
+		assert_str(_panel.detail_view().title()).is_equal(title)
+		# 本文は行き先・判断材料（ヒントの札と人数。どちらも無ければ出さない）・手の説明の順で、空の行を出さない
+		var lines: Array[String] = []
+		if MoveOptions.needs_target(family, action):
+			lines.append("行き先: %s" % MatchTexts.area_name(_target_of(family, action)))
+		for hint: ChoiceHint in _controller.user_hints():
+			if hint.action == action:
+				var parts: Array[String] = []
+				for part: String in [MatchTexts.hint_tag(hint), MatchTexts.hint_counts(hint)]:
+					if not part.is_empty():
+						parts.append(part)
+				if not parts.is_empty():
+					lines.append("判断材料: %s" % "　".join(parts))
+		if not MatchTexts.target_rule(family, action).is_empty():
+			lines.append(MatchTexts.target_rule(family, action))
+		assert_str(_panel.detail_view().text()).override_failure_message(str(action)).is_equal("\n".join(lines))
+		_panel.close_detail()
+
+
+func test_turning_hints_off_with_the_detail_open_redraws_it_without_the_numbers() -> void:
+	_start(true)
+	_press(GameEnums.PlayType.DRIBBLE)
+	_panel.detail_button().pressed.emit()
+	assert_str(_panel.detail_view().text()).contains("判断材料: ")
+	_panel.set_show_hints(false)
+	assert_bool(_panel.detail_view().is_open()).is_true()
+	assert_str(_panel.detail_view().text()).not_contains("判断材料: ")
+
+
+func test_the_detail_button_works_only_while_a_move_is_chosen() -> void:
+	_start(true)
+	# 手を選ぶ前は押せない
+	assert_bool(_panel.detail_button().disabled).is_true()
+	_press(_first_targeted_action(GameEnums.ChoiceFamily.ATTACK))
+	assert_bool(_panel.detail_button().disabled).is_false()
+	# 詳細を開いたまま決定しても、判定理由を出すときに閉じて隠す
+	_panel.detail_button().pressed.emit()
+	assert_bool(_panel.detail_view().is_open()).is_true()
+	_panel.primary_button().pressed.emit()
+	assert_bool(_panel.detail_button().visible).is_false()
+	assert_bool(_panel.detail_view().is_open()).is_false()
+	# 次のターンでは、また選ぶまで押せない
+	_panel.primary_button().pressed.emit()
+	_controller.continue_after_reveal()
+	_panel.start_turn()
+	assert_bool(_panel.detail_button().visible).is_true()
+	assert_bool(_panel.detail_button().disabled).is_true()
+
+
+func test_pressing_a_destination_on_the_board_chooses_its_move() -> void:
+	_start(true)
+	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
+	var actions: Array[int] = _panel.choice_panel().actions()
+	# 盤面で最後のボタンの手の行き先を押すと、その行き先を持つ手（ボタンの並びで先の手）を選ぶ
+	var last: int = actions[actions.size() - 1]
+	var target: String = _target_of(family, last)
+	var expected: int = last
+	for action: int in actions:
+		if MoveOptions.needs_target(family, action) and _target_of(family, action) == target:
+			expected = action
+			break
+	_panel.board().area_pressed.emit(target)
+	assert_int(_panel.state()).is_equal(State.READY)
+	assert_str(_panel.board().selected_area()).is_equal(target)
+	assert_bool(_panel.choice_panel().button_for(expected).button_pressed).is_true()
+
+
+func test_an_area_that_is_not_selectable_is_ignored() -> void:
+	_start(true)
+	var not_selectable: String = ""
+	for area: PitchArea in PitchArea.all():
+		if not _panel.board().selectable_areas().has(area.to_key()):
+			not_selectable = area.to_key()
+			break
+	_panel.board().area_pressed.emit(not_selectable)
+	assert_int(_panel.state()).is_equal(State.SELECT_ACTION)
+	assert_str(_panel.board().selected_area()).is_empty()
+
+
+func test_submitting_shows_the_result_and_the_reason() -> void:
+	_start(true)
+	var shown: Array = []
+	_panel.reveal_started.connect(func(reveal: RevealView) -> void: shown.append(reveal))
+	_press(_first_targeted_action(GameEnums.ChoiceFamily.ATTACK))
+	_panel.primary_button().pressed.emit()
+	assert_int(_controller.state().turn_records.size()).is_equal(1)
+	assert_int(_panel.state()).is_equal(State.SHOW_RESULT)
+	var reveal: RevealView = _controller.last_reveal()
+	assert_array(shown).is_equal([reveal])
+	# 判定理由は、1拍目（ボールを運ぶプレー）が着地してから出す。「次へ」はすぐ押せる
+	assert_bool(_panel.board().is_shifting()).is_true()
+	assert_bool(_panel.telop_visible()).is_false()
+	assert_bool(_panel.primary_button().disabled).is_false()
+	await _await_landing()
+	assert_bool(_panel.telop_visible()).is_true()
+	# 着地で、この開示の結果の演出を盤面に出す（結果ごとの種類・場所・色は result_effect_test で固定する。ここはつなぎ込み）。
+	# 盤面に印を描くのは得点・セーブ・ロスト・奪回成功・オフサイドだけ
+	var marked: Array[int] = [GameEnums.TurnOutcome.GOAL, GameEnums.TurnOutcome.SAVE, GameEnums.TurnOutcome.LOSS,
+			GameEnums.TurnOutcome.REGAIN, GameEnums.TurnOutcome.OFFSIDE]
+	if reveal.outcome in marked:
+		assert_dict(_panel.board().result_effect()).is_equal(ResultEffect.for_reveal(reveal))
+	else:
+		assert_dict(_panel.board().result_effect()).is_empty()
+	assert_bool(_panel.choice_panel().visible).is_false()
+	assert_str(_panel.outcome_text()).is_equal(MatchTexts.outcome_tag(reveal))
+	# 結果の札は、成功した側の色（自分は水色、相手はオレンジ。駒と同じ）。判定なしは元の札
+	var expected_variation: Dictionary = {MatchTexts.TurnWinner.USER: "YouOutcomeTagLabel",
+			MatchTexts.TurnWinner.OPPONENT: "OpponentOutcomeTagLabel", MatchTexts.TurnWinner.NONE: "OutcomeTagLabel"}
+	assert_str(_panel.outcome_variation()).is_equal(expected_variation[MatchTexts.turn_winner(reveal)] as String)
+	assert_str(_panel.reason_text()).is_equal(JudgeReasonFormatter.format(reveal))
+	assert_str(_panel.detail_text()).is_equal(JudgeReasonFormatter.detail(reveal))
+	if reveal.has_detail:
+		assert_str(_panel.board().compare_tag()).is_equal("%d対%d" % [reveal.user_count, reveal.opponent_count])
+	assert_int(_panel.board().movement_count()).is_equal(reveal.movements.size())
+	assert_str(_panel.primary_summary()).is_equal("次のターンへ")
+
+
+## 1拍目の着地まで待つ（1拍目の時間と少しの余裕）
+func _await_landing() -> void:
+	await await_millis(int(_controller.board_play_sec() * 1000.0) + 300)
+
+
+func test_the_outcome_tag_color_follows_the_side_that_succeeded() -> void:
+	assert_str(MatchBoardPanel.outcome_variation_for(MatchTexts.TurnWinner.USER)).is_equal("YouOutcomeTagLabel")
+	assert_str(MatchBoardPanel.outcome_variation_for(MatchTexts.TurnWinner.OPPONENT)).is_equal("OpponentOutcomeTagLabel")
+	assert_str(MatchBoardPanel.outcome_variation_for(MatchTexts.TurnWinner.NONE)).is_equal("OutcomeTagLabel")
+	# 地はチームの色（駒と同じ。TacticsBoard の you・opponent）で、2つは違う色。文字は元の札の暗い色を受け継ぐ
+	var you: StyleBoxFlat = _panel.get_theme_stylebox("normal", &"YouOutcomeTagLabel") as StyleBoxFlat
+	var opponent: StyleBoxFlat = _panel.get_theme_stylebox("normal", &"OpponentOutcomeTagLabel") as StyleBoxFlat
+	assert_object(you).is_not_null()
+	assert_object(opponent).is_not_null()
+	assert_bool(you.bg_color.is_equal_approx(_panel.get_theme_color(&"you", TacticsBoard.THEME_TYPE))).is_true()
+	assert_bool(opponent.bg_color.is_equal_approx(_panel.get_theme_color(&"opponent", TacticsBoard.THEME_TYPE))).is_true()
+	assert_bool(you.bg_color.is_equal_approx(opponent.bg_color)).is_false()
+	# 札に付けたときの文字の色と大きさは、元の札（OutcomeTagLabel）から受け継ぐ（Label に付けて、種類の継承を通して確かめる）
+	var base: Label = _tag_label(&"OutcomeTagLabel")
+	for variation: StringName in [&"YouOutcomeTagLabel", &"OpponentOutcomeTagLabel"]:
+		var label: Label = _tag_label(variation)
+		assert_bool(label.get_theme_color(&"font_color").is_equal_approx(base.get_theme_color(&"font_color"))) \
+				.override_failure_message(variation).is_true()
+		assert_int(label.get_theme_font_size(&"font_size")).is_equal(base.get_theme_font_size(&"font_size"))
+
+
+func _tag_label(variation: StringName) -> Label:
+	var label := Label.new()
+	label.theme_type_variation = variation
+	_panel.add_child(label)
+	return label
+
+
+func test_next_is_sent_only_once() -> void:
+	_start(true)
+	var leaves: Array[int] = [0]
+	_panel.turn_ready_to_leave.connect(func() -> void: leaves[0] += 1)
+	var action: int = _first_targeted_action(GameEnums.ChoiceFamily.ATTACK)
+	_press(action)
+	# このターンに選べたエリア（有効なキー）。LEAVING で押しても受け付けないことを、無効なキーでなく確かめる
+	var chosen: String = _target_of(GameEnums.ChoiceFamily.ATTACK, action)
+	_panel.primary_button().pressed.emit()
+	_panel.primary_button().pressed.emit()
+	_panel.primary_button().pressed.emit()
+	assert_int(leaves[0]).is_equal(1)
+	assert_int(_panel.state()).is_equal(State.LEAVING)
+	# LEAVING では手もエリアも受け付けない
+	_press(action)
+	_panel.board().area_pressed.emit(chosen)
+	assert_int(_panel.state()).is_equal(State.LEAVING)
+	assert_int(_controller.state().turn_records.size()).is_equal(1)
+
+
+func test_the_next_turn_starts_clean() -> void:
+	_start(true)
+	_press(_first_targeted_action(GameEnums.ChoiceFamily.ATTACK))
+	_panel.primary_button().pressed.emit()
+	_panel.primary_button().pressed.emit()
+	_controller.continue_after_reveal()
+	_panel.start_turn()
+	assert_int(_panel.state()).is_equal(State.SELECT_ACTION)
+	assert_str(_panel.board().selected_area()).is_empty()
+	assert_int(_panel.board().movement_count()).is_equal(0)
+	assert_str(_panel.board().compare_tag()).is_empty()
+	assert_bool(_panel.board().has_intent()).is_false()
+	assert_array(_panel.board().preview_ghost_ids()).is_empty()
+	assert_bool(_panel.telop_visible()).is_false()
+	assert_bool(_panel.choice_panel().visible).is_true()
+	assert_str(_panel.primary_summary()).is_empty()
+	# 前のターンの1拍目が着地する前に次のターンへ進んだ。前のターンのテロップは後からも出ない
+	await _await_landing()
+	assert_bool(_panel.telop_visible()).is_false()
+	assert_dict(_panel.board().result_effect()).is_empty()
+
+
+func test_the_user_defends_with_the_board_in_the_user_view() -> void:
+	_start(false)
+	assert_int(_panel.choice_panel().family()).is_equal(GameEnums.ChoiceFamily.DEFENSE)
+	var action: int = _first_targeted_action(GameEnums.ChoiceFamily.DEFENSE)
+	_press(action)
+	# 守る位置は利用者の視点のまま（UI では変換しない）
+	assert_str(_panel.board().selected_area()).is_equal(
+			_keys(_controller.user_options().targets(GameEnums.ChoiceFamily.DEFENSE, action))[0])
+	assert_str(_panel.board().ball_area()).is_equal(_controller.snapshot().ball_area)
+
+
+func test_a_move_that_cannot_be_chosen_is_not_shown() -> void:
+	_start(true)
+	# キックオフ（中盤（自陣）・中央）ではシュートを選べないので、ボタンを出さない（2026-11-03）
+	assert_object(_panel.choice_panel().button_for(GameEnums.PlayType.SHOT)).is_null()
+
+
+func test_unbind_stops_receiving_results() -> void:
+	_start(true)
+	_panel.unbind()
+	assert_bool(_controller.turn_resolved.is_connected(_panel._on_turn_resolved)).is_false()
+	assert_int(_panel.state()).is_equal(State.IDLE)
+
+
+# --- 決定前のプレビュー ---
+
+## 盤面のプレビューは、その手の3つの配置（自分の選手全員）を動かしていて、手で直接動く選手（expected）はすべて半透明の駒で動く
+func _assert_previews(choice: TurnChoice, expected: Array[Movement]) -> void:
+	var board: TacticsBoard = _panel.board()
+	assert_array(board.preview_frames()).is_equal(_controller.user_preview_frames(choice))
+	var movers: Array[String] = []
+	for movement: Movement in expected:
+		movers.append(movement.player_id)
+	assert_array(board.preview_ghost_ids()).contains(movers)
+
+
+func test_a_defensive_area_previews_the_movers_without_the_ball_arrow() -> void:
+	_start(false)
+	var action: int = _first_targeted_action(GameEnums.ChoiceFamily.DEFENSE)
+	_press(action)
+	var target: String = _target_of(GameEnums.ChoiceFamily.DEFENSE, action)
+	var choice := TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, action, PitchArea.from_key(target))
+	var expected: Array[Movement] = _controller.user_preview(choice)
+	# プレスは必ず1人が寄せる（空振りしない）
+	assert_int(expected.size()).is_greater_equal(1)
+	_assert_previews(choice, expected)
+	# 守備の手では、ボールから選んだエリアへの矢印を出さない
+	assert_bool(_panel.board().has_intent()).is_false()
+
+
+func test_an_attacking_area_keeps_the_ball_arrow_and_previews_the_dribbler() -> void:
+	_start(true)
+	var action: int = GameEnums.PlayType.DRIBBLE
+	_press(action)
+	var target: String = _target_of(GameEnums.ChoiceFamily.ATTACK, action)
+	var choice := TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, action, PitchArea.from_key(target))
+	var expected: Array[Movement] = _controller.user_preview(choice)
+	# ボールのエリアには必ず保持者がいるので、ドリブルは1人が運ぶ
+	assert_int(expected.size()).is_equal(1)
+	_assert_previews(choice, expected)
+	assert_bool(_panel.board().has_intent()).is_true()
+
+
+func test_the_board_previews_with_the_timing_from_the_settings() -> void:
+	_start(true)
+	var style: Dictionary = _controller.preview_style()
+	assert_float(style["move_sec"] as float).is_greater(0.0)
+	assert_dict(_panel.board().preview_style()).is_equal(style)
+
+
+func test_choosing_another_move_replaces_the_preview_and_submitting_clears_it() -> void:
+	# キックオフの攻撃は、ショートパス・ドリブル・バックパスなど2つ以上の手が出る
+	_start(true)
+	var family: GameEnums.ChoiceFamily = GameEnums.ChoiceFamily.ATTACK
+	var actions: Array[int] = _panel.choice_panel().actions()
+	assert_int(actions.size()).override_failure_message("攻撃の手が2つ以上ある場面であること").is_greater_equal(2)
+	for action: int in [actions[0], actions[1]]:
+		_press(action)
+		var choice := TurnChoice.new(family, action, PitchArea.from_key(_target_of(family, action)))
+		_assert_previews(choice, _controller.user_preview(choice))
+	_panel.primary_button().pressed.emit()
+	assert_int(_panel.state()).is_equal(State.SHOW_RESULT)
+	assert_array(_panel.board().preview_ghost_ids()).is_empty()
+
+
+func test_the_detail_explains_the_rule_of_the_chosen_move() -> void:
+	# スルーパス・バックパス・守備の手は、詳細の最後の行に手の説明（誰が動くか・何を読む手か）を出す（2026-11-05）
+	for user_has_ball: bool in [true, false]:
+		_start(user_has_ball)
+		var family: GameEnums.ChoiceFamily = _panel.choice_panel().family()
+		var explained: int = 0
+		for action: int in _panel.choice_panel().actions():
+			var rule: String = MatchTexts.target_rule(family, action)
+			if rule.is_empty():
+				continue
+			_press(action)
+			_panel.detail_button().pressed.emit()
+			assert_str(_panel.detail_view().text()).ends_with(rule)
+			_panel.detail_view().close()
+			explained += 1
+		assert_int(explained).override_failure_message("規則の一言がある手が出ている場面であること").is_greater(0)
+		_panel.unbind()
+		_controller = null
+
+
+## 利用者が喪失側のトランジションで、リトリートで誰かが動く場面まで、両者に選べる手の先頭を選ばせて進める
+func _start_in_a_lost_transition() -> void:
+	# 0 から探すと条件に合うまで数十試合を回す（約10秒）ので、2026-11-03 に見つかったシードから試す。
+	# 規則や CPU が変わってそのシードで合わなくなっても、続けて 0 から探す
+	for seed_value: int in [LOST_TRANSITION_SEED] + range(100):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		var config := ConfigRepository.new()
+		var controller := MatchController.new(_catalog, config, rng, CpuOpponent.new(_catalog, config.cpu(), rng),
+				_record, true)
+		controller.start_match(TeamSetup.new("4-4-2",
+				TeamStyles.new(GameEnums.DefenseStyle.ZONE, GameEnums.AttackStyle.COUNTER)))
+		for _turn: int in range(8):
+			if controller.stage() != GameEnums.MatchStage.TURN:
+				break
+			var snapshot: BoardSnapshot = controller.snapshot()
+			var retreat := TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT)
+			if snapshot.turn_kind == GameEnums.TurnKind.TRANSITION and not snapshot.user_has_ball \
+					and not controller.user_preview(retreat).is_empty():
+				_controller = controller
+				break
+			controller.submit_turn(MatchControllerTestHelper.first_choice(controller.user_options()))
+			controller.continue_after_reveal()
+		if _controller != null:
+			break
+	assert_object(_controller).override_failure_message("条件に合うシードが無い").is_not_null()
+	_requests.clear()
+	_panel.bind(_controller)
+	_panel.start_turn()
+
+
+func test_a_move_without_a_target_previews_as_soon_as_it_is_chosen() -> void:
+	_start_in_a_lost_transition()
+	_press(GameEnums.NegTransAction.RETREAT)
+	assert_int(_panel.state()).is_equal(State.READY)
+	var choice := TurnChoice.new(GameEnums.ChoiceFamily.NEG_TRANS, GameEnums.NegTransAction.RETREAT)
+	var expected: Array[Movement] = _controller.user_preview(choice)
+	assert_array(expected).is_not_empty()
+	_assert_previews(choice, expected)
+	assert_bool(_panel.board().has_intent()).is_false()
+
+
+# --- 開示で駒を動かす ---
+
+## before と after で、エリアが変わった選手の ID
+func _moved_ids(before: Array[Dictionary], after: Array[Dictionary]) -> Array[String]:
+	var before_areas: Dictionary = {}
+	for player: Dictionary in before:
+		before_areas[player["player_id"]] = player["area"]
+	var moved: Array[String] = []
+	for player: Dictionary in after:
+		if before_areas.has(player["player_id"]) and before_areas[player["player_id"]] != player["area"]:
+			moved.append(player["player_id"] as String)
+	return moved
+
+
+func _path_ids(paths: Array[Dictionary]) -> Array[String]:
+	var ids: Array[String] = []
+	for path: Dictionary in paths:
+		ids.append(path["player_id"] as String)
+	return ids
+
+
+func test_binding_gives_the_board_the_ball_style_from_the_settings() -> void:
+	# bind で設定の軌道の値を盤面に入れる。入れないと、浮き球が高さ 0 のまま静かに動く
+	_start(true)
+	var board: TacticsBoard = _panel.board()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var ball_area: String = snapshot.ball_area
+	var from_key: String = "D1-C" if ball_area != "D1-C" else "D2-C"
+	board.start_shift([{"user": snapshot.user_players, "opponent": snapshot.opponent_players, "ball": from_key,
+			"sec": 1.0, "flight": BallFlight.Kind.LOFTED}])
+	await await_millis(500)
+	# 同梱の浮き球の高さ（半径の6倍）の弧の途中。値が入っていなければ 0
+	assert_float(board.ball_lift()).is_greater(1.0)
+	assert_float(board.ball_lift()).is_less_equal(_controller.ball_style()["loft"] as float)
+
+
+func test_binding_gives_the_board_the_result_time_from_the_settings() -> void:
+	# bind で設定の演出の時間を盤面に入れる。入れないと、着地しても演出が出ない
+	_start(true)
+	var board: TacticsBoard = _panel.board()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var from_key: String = "D1-C" if snapshot.ball_area != "D1-C" else "D2-C"
+	board.start_shift([{"user": snapshot.user_players, "opponent": snapshot.opponent_players, "ball": from_key,
+			"sec": 0.05}], {"kind": ResultEffect.Kind.WIN_BALL, "area": snapshot.ball_area, "is_user": true, "toward": ""})
+	await await_millis(300)
+	assert_int(board.result_effect()["kind"] as int).is_equal(ResultEffect.Kind.WIN_BALL)
+	# 同梱の 0.8 秒が過ぎたら消える
+	await await_millis(int(_controller.board_result_sec() * 1000.0) + 200)
+	assert_dict(board.result_effect()).is_empty()
+
+
+func test_binding_gives_the_board_the_piece_motion_from_the_settings() -> void:
+	# bind で設定の駒の動き（弾み）と小休止を盤面に入れる。入れないと、駒が浮かず、拍の間も空かない
+	_start(true)
+	var board: TacticsBoard = _panel.board()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var mover: Dictionary = snapshot.user_players[0]
+	var moved_from: Dictionary = mover.duplicate()
+	var area: PitchArea = PitchArea.from_key(mover["area"] as String)
+	moved_from["area"] = PitchArea.new(area.lane, (area.zone + 1 if area.zone < GameEnums.Zone.A2 else area.zone - 1) as GameEnums.Zone).to_key()
+	var moved_before: Array[Dictionary] = snapshot.user_players.duplicate()
+	moved_before[0] = moved_from
+	var from_key: String = "D1-C" if snapshot.ball_area != "D1-C" else "D2-C"
+	# 1拍目はボールだけが動く（0.05 秒）。2拍目で駒が1人だけ、いまの位置へ動く（1 秒）
+	board.start_shift([
+		{"user": moved_before, "opponent": snapshot.opponent_players, "ball": from_key, "sec": 0.05},
+		{"user": moved_before, "opponent": snapshot.opponent_players, "ball": snapshot.ball_area, "sec": 1.0},
+	])
+	assert_int(board.shift_beat_count()).is_equal(2)
+	# 小休止は設定の値が入っている（小休止で2拍目が遅れることは tactics_board_test で確かめる）
+	assert_float(board.beat_gap_sec()).is_equal(_controller.board_beat_gap_sec())
+	# 2拍目の途中: 1人だけが動くのでずらしは無く、浮いている（同梱の弾みは駒の半径の 0.35 倍）
+	await await_millis(600)
+	assert_int(board.shift_beat_index()).is_equal(1)
+	assert_float(board.shifting_piece_lift(mover["player_id"] as String, true)).is_greater(0.05)
+	assert_float(board.shifting_piece_lift(mover["player_id"] as String, true)) \
+			.is_less_equal(_controller.piece_style()["hop"] as float + 0.0001)
+
+
+## 利用者が守備の最初のターンで、画面に出た最初の守備の手を決定し、ボールが動く開示の場面をシードを変えて探す
+## （2026-11-03 に手の選び方が変わり、最初のシードでは詰め直す選手がいなくなったため）
+func _start_with_a_reveal_moving_the_ball() -> void:
+	var first_seed: int = 0
+	for _attempt: int in range(30):
+		_start(false, first_seed)
+		_press(_first_targeted_action(GameEnums.ChoiceFamily.DEFENSE))
+		_panel.primary_button().pressed.emit()
+		var reveal: RevealView = _controller.last_reveal()
+		var reshaped: Array[String] = _moved_ids(reveal.user_players_at_judgement, _controller.snapshot().user_players)
+		if reveal.ball_before != reveal.ball_after and not reshaped.is_empty():
+			return
+		first_seed = _controller_seed + 1
+		_panel.unbind()
+		remove_child(_panel)
+		_panel.free()
+		_panel = auto_free(MatchBoardPanel.new()) as MatchBoardPanel
+		add_child(_panel)
+		_panel.size = Vector2(1232, 576)
+		_controller = null
+	fail("ボールが動き、詰め直す選手がいる開示の場面が無い")
+
+
+## 開示は1拍で動かす（2026-11-06。シャビ「2拍で動くのいらない」）。判定前の配置から次のターン開始時の配置へ、
+## 手の動きと詰め直しをまとめて動かす
+func test_the_reveal_shifts_from_before_to_the_next_turn_start_in_one_beat_and_the_next_turn_stops_it() -> void:
+	_start_with_a_reveal_moving_the_ball()
+	var reveal: RevealView = _controller.last_reveal()
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	var board: TacticsBoard = _panel.board()
+	assert_int(board.shift_beat_count()).is_equal(1)
+	# 判定前 → 次のターン開始時で位置が変わった選手が、その1拍で動く。プレスで寄せた選手（判定時に動いた選手）と、
+	# 詰め直した選手（判定時 → 次のターン開始時に動いた選手）の両方を含む
+	var moved: Array[String] = _moved_ids(reveal.user_players_before, snapshot.user_players)
+	moved.append_array(_moved_ids(reveal.opponent_players_before, snapshot.opponent_players))
+	assert_array(moved).contains(_moved_ids(reveal.user_players_at_judgement, snapshot.user_players))
+	assert_array(_path_ids(board.shift_beat_paths(0))).contains(moved)
+	for path: Dictionary in board.shift_beat_paths(0):
+		assert_bool((path["from"] as Vector2).is_equal_approx(path["to"] as Vector2)).is_false()
+	assert_bool(board.is_shifting()).is_true()
+	# ボールは判定前の位置から判定後の位置へ動く（ボールの位置が変わる場面を選んだ。空振りしない）
+	var ball_path: Dictionary = board.shift_beat_ball_path(0)
+	assert_str(board.plan_area_at(ball_path["from"] as Vector2)).is_equal(reveal.ball_before)
+	assert_str(board.plan_area_at(ball_path["to"] as Vector2)).is_equal(reveal.ball_after)
+	# ボールの軌道は、ボールを持つ側（この場面では CPU の攻撃）の手で決まる
+	assert_int(reveal.opponent_choice.family).is_equal(GameEnums.ChoiceFamily.ATTACK)
+	assert_int(ball_path["flight"] as int).is_equal(BallFlight.kind_for(reveal.opponent_choice))
+	_panel.primary_button().pressed.emit()
+	_controller.continue_after_reveal()
+	_panel.start_turn()
+	assert_bool(board.is_shifting()).is_false()
+
+
+## 判定前（A2-C にボール）・判定時（A2-C）の配置だけを持つ開示の値。outcome で結果を変える
+func _reveal_of(outcome: GameEnums.TurnOutcome) -> RevealView:
+	var reveal := RevealView.new()
+	reveal.outcome = outcome
+	reveal.user_choice = TurnChoice.new(GameEnums.ChoiceFamily.ATTACK, GameEnums.PlayType.SHOT)
+	reveal.opponent_choice = TurnChoice.new(GameEnums.ChoiceFamily.DEFENSE, GameEnums.DefenseAction.PRESS,
+			PitchArea.from_key("M2-C"))
+	reveal.ball_before = "A2-C"
+	reveal.ball_after = "A2-C"
+	reveal.user_players_before = [{"player_id": "p1", "number": 9, "area": "A1-C"}]
+	reveal.opponent_players_before = [{"player_id": "p1", "number": 4, "area": "M2-C"}]
+	reveal.user_players_at_judgement = [{"player_id": "p1", "number": 9, "area": "A2-C"}]
+	reveal.opponent_players_at_judgement = [{"player_id": "p1", "number": 4, "area": "A2-C"}]
+	return reveal
+
+
+## 開示はふつう1拍（判定前の配置だけ）。得点だけは、シュート（判定前 → 判定時）と、キックオフへの組み直し（判定時 → いまの盤面）の
+## 2拍にする（2026-11-06。1拍ではシュートの最中に全員がキックオフへ歩き出し、ボールがゴールからセンターへ飛んでいた。シャビの判断で案A）
+func test_the_reveal_keyframes_are_one_beat_except_a_goal_in_two() -> void:
+	var save: Array[Dictionary] = MatchBoardPanel.reveal_keyframes(_reveal_of(GameEnums.TurnOutcome.SAVE), 0.6, 0.5)
+	assert_int(save.size()).is_equal(1)
+	assert_array(save[0]["user"] as Array).is_equal(_reveal_of(GameEnums.TurnOutcome.SAVE).user_players_before)
+	assert_str(save[0]["ball"] as String).is_equal("A2-C")
+	assert_float(save[0]["sec"] as float).is_equal(0.6)
+	assert_int(save[0]["flight"] as int).is_equal(BallFlight.Kind.DRIVEN)
+	var goal: RevealView = _reveal_of(GameEnums.TurnOutcome.GOAL)
+	var frames: Array[Dictionary] = MatchBoardPanel.reveal_keyframes(goal, 0.6, 0.5)
+	assert_int(frames.size()).is_equal(2)
+	assert_float(frames[0]["sec"] as float).is_equal(0.6)
+	assert_array(frames[1]["user"] as Array).is_equal(goal.user_players_at_judgement)
+	assert_array(frames[1]["opponent"] as Array).is_equal(goal.opponent_players_at_judgement)
+	assert_str(frames[1]["ball"] as String).is_equal(goal.ball_after)
+	assert_float(frames[1]["sec"] as float).is_equal(0.5)
+	assert_bool(frames[1].has("flight")).is_false()
+	# カットインを出すときだけ、組み直しの拍をカットインが終わるまで待たせる
+	assert_bool(frames[1]["wait"] as bool).is_false()
+	assert_bool(MatchBoardPanel.reveal_keyframes(goal, 0.6, 0.5, true)[1]["wait"] as bool).is_true()
+
+
+## 決定した後の開示を、作った開示の値で始める（得点の場面をシードで探さないため）。スコアは得点の後の値にする。
+## user_role は利用者の役割（攻撃なら利用者がボールを持つ側）
+func _resolve_with(outcome: GameEnums.TurnOutcome, user_role: GameEnums.Phase = GameEnums.Phase.ATTACK) -> void:
+	_start(true)
+	var snapshot: BoardSnapshot = _controller.snapshot()
+	snapshot.score_user = 1
+	_panel._state = State.SUBMITTING
+	var reveal: RevealView = _reveal_of(outcome)
+	reveal.user_role = user_role
+	_panel._on_turn_resolved(reveal, snapshot)
+
+
+## 得点の開示では、シュートが着地したら3Dのカットインを出し、キックオフへの組み直しはカットインが終わるまで待つ（2026-11-06）
+func test_a_goal_shows_the_cut_in_on_landing_and_holds_the_reshape_until_it_ends() -> void:
+	_resolve_with(GameEnums.TurnOutcome.GOAL)
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(cut_in.is_playing()).is_false()
+	await _await_landing()
+	assert_bool(cut_in.is_playing()).is_true()
+	assert_bool(cut_in.is_user_goal()).is_true()
+	assert_str(cut_in.texts()["score"] as String).is_equal("● 1 − 0 ◆")
+	assert_bool(_panel.telop_visible()).is_true()
+	# カットインの間は、組み直しの拍の前で止まっている
+	await await_millis(int(_controller.board_settle_sec() * 1000.0) + 200)
+	assert_bool(_panel.board().is_shifting()).is_true()
+	assert_int(_panel.board().shift_beat_index()).is_equal(0)
+	# カットインが終われば（押して飛ばしても）組み直しが動き、終わる
+	cut_in.stop()
+	await await_millis(int((_controller.board_settle_sec() + _controller.board_beat_gap_sec()) * 1000.0) + 300)
+	assert_bool(_panel.board().is_shifting()).is_false()
+
+
+## ボールを失った・奪った（トランジションの始まり）ときは、着地で短いカットインを出す（2026-11-08）。盤面は止めない
+func test_losing_the_ball_shows_the_steal_cut_in_on_landing() -> void:
+	_resolve_with(GameEnums.TurnOutcome.LOSS)
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(_panel.showed_transition_cut_in()).is_false()
+	await _await_landing()
+	assert_bool(cut_in.is_playing()).is_true()
+	assert_int(cut_in.kind()).is_equal(GoalCutIn.Kind.STEAL)
+	# 攻撃していた利用者が奪われた（主役の奪った側は相手）
+	assert_bool(cut_in.is_user_goal()).is_false()
+	assert_str(cut_in.texts()["title"] as String).is_equal("BALL LOST")
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	assert_bool(_panel.board().is_shifting()).is_false()
+
+
+func test_winning_the_ball_shows_the_steal_cut_in_for_the_user() -> void:
+	_resolve_with(GameEnums.TurnOutcome.LOSS, GameEnums.Phase.DEFENSE)
+	await _await_landing()
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(cut_in.is_user_goal()).is_true()
+	assert_str(cut_in.texts()["title"] as String).is_equal("BALL WON!")
+
+
+func test_a_saved_shot_shows_the_save_cut_in() -> void:
+	_resolve_with(GameEnums.TurnOutcome.SAVE)
+	await _await_landing()
+	var cut_in: GoalCutIn = _panel.goal_cut_in()
+	assert_bool(cut_in.is_playing()).is_true()
+	assert_int(cut_in.kind()).is_equal(GoalCutIn.Kind.SAVE)
+	assert_str(cut_in.texts()["title"] as String).is_equal("SAVED")
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+
+
+func test_results_that_start_no_transition_show_no_cut_in() -> void:
+	# 前進・奪い返し（攻守ターンへ戻る）・オフサイド（守備側の攻撃から始まる）はトランジションにならない
+	for outcome: GameEnums.TurnOutcome in [GameEnums.TurnOutcome.ADVANCE, GameEnums.TurnOutcome.REGAIN,
+			GameEnums.TurnOutcome.OFFSIDE]:
+		_resolve_with(outcome)
+		await _await_landing()
+		assert_bool(_panel.goal_cut_in().is_playing()).override_failure_message(str(outcome)).is_false()
+		assert_bool(_panel.showed_transition_cut_in()).override_failure_message(str(outcome)).is_false()
+		_panel.start_turn()
+
+
+func test_the_next_reveal_forgets_the_transition_cut_in() -> void:
+	_resolve_with(GameEnums.TurnOutcome.LOSS)
+	await _await_landing()
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	# 次のターンを始めても覚えている（画面が局面の帯を出すかを決める）。次の開示で忘れる
+	_panel.start_turn()
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	_panel._state = State.SUBMITTING
+	_panel._on_turn_resolved(_reveal_of(GameEnums.TurnOutcome.ADVANCE), _controller.snapshot())
+	assert_bool(_panel.showed_transition_cut_in()).is_false()
+
+
+func test_forgetting_the_transition_cut_in_lets_the_next_banner_show() -> void:
+	# チュートリアルが段階を始めるときに忘れさせる
+	_resolve_with(GameEnums.TurnOutcome.LOSS)
+	await _await_landing()
+	assert_bool(_panel.showed_transition_cut_in()).is_true()
+	_panel.forget_transition_cut_in()
+	assert_bool(_panel.showed_transition_cut_in()).is_false()
+
+
+func test_starting_the_next_turn_stops_the_cut_in() -> void:
+	_resolve_with(GameEnums.TurnOutcome.GOAL)
+	await _await_landing()
+	assert_bool(_panel.goal_cut_in().is_playing()).is_true()
+	_panel.start_turn()
+	assert_bool(_panel.goal_cut_in().is_playing()).is_false()
+	assert_bool(_panel.board().is_shifting()).is_false()
+
+
+## ラベルの中で文字を置ける幅（地の内側の余白を除く）
+func _content_width(label: Label) -> float:
+	var box: StyleBox = label.get_theme_stylebox("normal")
+	return label.size.x - box.get_content_margin(SIDE_LEFT) - box.get_content_margin(SIDE_RIGHT)
+
+
+func _text_width(label: Label, text: String) -> float:
+	return label.get_theme_font("font").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			label.get_theme_font_size("font_size")).x
+
+
+## 陣形・方式の札は、どの陣形・方式の組み合わせでも、省略記号を出さずに1行に入る
+## （2026-11-06。「● 自分 4-3-3 マンツーマン・カウンタ…」で切れていた。文字は 24px より小さくしない（screen-common.md））
+func test_every_setup_fits_on_its_line() -> void:
+	_start(true)
+	await await_idle_frame()
+	var label: Label = _panel.find_child("UserSetupLabel", true, false) as Label
+	var width: float = _content_width(label)
+	assert_float(width).is_greater(0.0)
+	# 字を縮めて入れない（補助の文字も 24px 以上。screen-common.md「文字の大きさ」）
+	assert_int(label.get_theme_font_size("font_size")).is_greater_equal(24)
+	for formation: FormationDef in _catalog.formations:
+		for defense: int in GameEnums.DefenseStyle.values():
+			for attack: int in GameEnums.AttackStyle.values():
+				var setup := TeamSetup.new(formation.id, TeamStyles.new(defense as GameEnums.DefenseStyle,
+						attack as GameEnums.AttackStyle))
+				for is_user: bool in [true, false]:
+					var text: String = MatchBoardPanel.setup_line(is_user, setup)
+					assert_float(_text_width(label, text)).override_failure_message("入らない: %s（幅 %.1f > %.1f）" % [text,
+							_text_width(label, text), width]).is_less_equal(width)
+
+
+## 決定ボタンの要約は、どの手・どの行き先でも、省略記号を出さずに1行に入る
+## （2026-11-06。「パスコースを切る → 中…」で切れていた）
+func test_every_button_summary_fits_on_its_line() -> void:
+	_start(true)
+	await await_idle_frame()
+	var label: Label = _panel.find_child("ButtonSummary", true, false) as Label
+	var width: float = _content_width(label)
+	assert_float(width).is_greater(0.0)
+	# 字を縮めて入れない（補助の文字も 24px 以上。screen-common.md「文字の大きさ」）
+	assert_int(label.get_theme_font_size("font_size")).is_greater_equal(24)
+	var targets: Array[PitchArea] = [null]
+	for zone: int in GameEnums.Zone.values():
+		for lane: int in GameEnums.Lane.values():
+			targets.append(PitchArea.new(lane as GameEnums.Lane, zone as GameEnums.Zone))
+	for family: int in MatchTexts.ACTION_NAMES:
+		for action: int in range((MatchTexts.ACTION_NAMES[family] as Array).size()):
+			for target: PitchArea in targets:
+				var text: String = MatchTexts.button_summary(TurnChoice.new(family as GameEnums.ChoiceFamily, action, target))
+				assert_float(_text_width(label, text)).override_failure_message("入らない: %s（幅 %.1f > %.1f）" % [text,
+						_text_width(label, text), width]).is_less_equal(width)

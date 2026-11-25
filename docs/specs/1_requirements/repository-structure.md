@@ -74,7 +74,9 @@ soccer-sim/
 │   ├── apple-touch-icon.png     # iOSホーム画面用アイコン（2026-09-27追加）
 │   ├── og-image.png             # OGP/Twitter Card用シェア画像 1200x630（2026-09-27追加）
 │   ├── robots.txt               # クローラー向け設定（2026-09-27追加）
-│   └── sitemap.xml              # 静的4画面のサイトマップ（2026-09-27追加。動的な/compare/は対象外）
+│   ├── sitemap.xml              # 静的4画面のサイトマップ（2026-09-27追加。動的な/compare/は対象外）
+│   └── game/                    # ゲームのブラウザ版の手元の書き出し先（npm run game:export。Git管理外）
+├── soccer-game/                 # 戦術ゲーム（Godot。2026-11-26に別リポジトリから履歴ごと移した。下記「soccer-game/ 配下」）
 ├── docs/                        # プロジェクトドキュメント
 ├── index.html                   # Vite エントリーHTML
 ├── vite.config.ts               # Vite設定
@@ -194,6 +196,15 @@ FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalR
 
 **役割**: プロジェクト全体で使う型定義（`Formation`, `Position`, `PositionType`, `Matchup` 等）。
 
+### soccer-game/ 配下
+
+戦術ゲーム（Godot 4.7.2 ＋ GDScript）。ラボとは技術スタック・規約・ドキュメントが別の、独立したプロジェクトとして置く。
+**ゲームの規約・設計・構造の正本は `soccer-game/AGENTS.md` と `soccer-game/docs/`** で、ここには重ねて書かない。
+
+- ラボの lint・整形・型チェック・テストの対象外（`eslint.config.js`・`.prettierignore`・`tsconfig.json` の `include`）
+- ブラウザ版（PWA）は `soccer-game/tools/export-web.sh` で書き出し、GitHub Pages の `/soccer-sim/game/` に載せる
+  （下記「CI/CD」）。ラボの画面からの導線はまだ無い
+
 ### docs/ 配下
 
 **配置ドキュメント**:
@@ -226,6 +237,7 @@ FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalR
 | -------- | ---------- | ---------------- |
 | Node.js  | 20系 LTS   | 公式サイトまたはバージョン管理ツール（nvm等）でインストール |
 | npm      | Node.js に同梱 | 追加インストール不要 |
+| Godot    | 4.7.2（ゲームを手元で書き出すときだけ） | `soccer-game/docs/specs/1_requirements/repository-structure.md`「開発環境セットアップ」。ブラウザ版には Web の書き出しテンプレート（`web_nothreads_release.zip`）も要る |
 
 ## 環境変数（`.env`）一覧
 
@@ -249,14 +261,24 @@ npm run dev
 公開用の `npm run build` にも同じ設定が必要。別のクローン・配信環境へ `.env.local` は共有されないため、
 配信側で公開値を設定してからビルドする。未設定でもアプリ本体は動作する。
 
+ゲームのブラウザ版を手元で遊ぶときは、`npm run game:export` で `public/game/` へ書き出し、`npm run dev` の
+`/soccer-sim/game/index.html` を開く（Godot が要る。上の表）。ゲームの文言を変えたときは、日本語フォントの
+サブセットを作り直す（`soccer-game/tools/subset_noto_sans_jp.py`）。
+
 ## CI/CD
 
 GitHub Pages への公開に合わせて導入した（2026-10-17）。
 
 - **ワークフロー**: `.github/workflows/deploy-pages.yml`
 - **起動条件**: `main` への push、または Actions 画面からの手動実行（`workflow_dispatch`）
-- **内容**: `npm ci` → `npm run lint` → `npm run typecheck` → `npm test` → `npm run build` を実行し、
-  すべて成功したときだけ `dist/` を GitHub Pages へデプロイする。PR 上でのチェックは行わない
+- **内容**: `npm ci` → `npm run lint` → `npm run typecheck` → `npm test` → `npm run build` →
+  ゲームのブラウザ版の書き出し（`soccer-game/tools/export-web.sh dist/game`）を実行し、
+  すべて成功したときだけ `dist/` を GitHub Pages へデプロイする。PR 上でのチェックは行わない。
+  ゲームのテスト（`soccer-game/tools/run-tests.sh`）は CI では流さない（手元で流す）
+- **Godot の取得**: 公式のリリースから Godot 本体（linux.x86_64）とテンプレート（tpz）を取得し、
+  ワークフローに固定した SHA512（公式の `SHA512-SUMS.txt` の値）で検証してから使う。テンプレートは Web
+  （スレッドなし）だけを置き、`actions/cache` で版ごとに再利用する。版を上げるときは `GODOT_VERSION` と
+  2つのハッシュを同時に変え、ゲーム側の `architecture-overview.md` の版と揃える
 - **必要なリポジトリ設定**: Settings → Pages の Source を「GitHub Actions」にする。
   また Settings → Environments → `github-pages` のデプロイ許可ブランチに `main` を含める
   （既定ブランチ名を変えたときはここも合わせて変える）

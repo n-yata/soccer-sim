@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PresentationConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://domain/config/presentation_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+board_play_sec = 0.6
+board_settle_sec = 0.6
+board_result_sec = 0.8
+goal_cut_in_sec = 3.6
+transition_cut_in_sec = 1.8
+piece_stagger = 0.35
+piece_hop_height = 0.35
+board_beat_gap_sec = 0.12
+preview_move_sec = 0.6
+preview_hold_sec = 0.6
+ball_loft_height = 6.0
+ball_touch_height = 1.0
+ball_dribble_touches = 3
+review_lookback_turns = 3
