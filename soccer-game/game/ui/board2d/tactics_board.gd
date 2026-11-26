@@ -186,7 +186,6 @@ func clear_overlays() -> void:
 ## 終わりのエリアが違うときだけ動かす（空文字・読めないキーなら動かさない）。動きの無い拍・時間が 0 以下の拍は飛ばす。
 ## result（ResultEffect.for_reveal の値。省略可）があれば、ボールの道筋を結果に合わせ（得点はゴールへ・膠着は跳ね返り）、
 ## 1拍目が終わったとき（play_landed）から結果の演出を出す。
-## keyframe に "wait": true があれば、その拍の前で止まり、resume_shift で進む（得点のカットインの間。2026-11-06）。
 func start_shift(keyframes: Array[Dictionary], result: Dictionary = {}) -> void:
 	# 前の開示を止めてから、いまの盤面で拍を組む（止めたときの着地の受け手が盤面を書き換えても、新しい状態で組むため）
 	_reveal.stop()
@@ -195,11 +194,6 @@ func start_shift(keyframes: Array[Dictionary], result: Dictionary = {}) -> void:
 	var beats: Array[Dictionary] = BoardShift.build_beats(keyframes, end, slot_center, _ball_point)
 	ResultEffect.shape_ball_paths(beats, keyframes, result, _ball_area, _ball_point, goal_mouth)
 	_reveal.start(beats, result)
-
-
-## "wait" の拍の前で止めた開示を進める。止まる前に呼べば止まらない。開示中でなければ何もしない。
-func resume_shift() -> void:
-	_reveal.resume()
 
 
 ## 出している結果の演出（ResultEffect.for_reveal の値）。出していなければ空。

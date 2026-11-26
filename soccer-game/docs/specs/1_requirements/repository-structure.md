@@ -43,7 +43,6 @@ soccer-game/
 │   ├── config/                    # 調整値（Resource .tres。今は match_rule_config.tres・cpu_config.tres）
 │   ├── assets/                    # 素材（テクスチャ・音・フォント。ライセンス台帳 LICENSES.md を含む）
 │   │   ├── fonts/                 # 書体ごとのディレクトリ（barlow-condensed/・noto-sans-jp/。noto-sans-jp/ はサブセット）。フォントと OFL.txt
-│   │   ├── models/                # 3D モデルと動き（goal_cut_in/: カットインの選手の骨と動き。CC0 の素材と CMU の動きの記録。2026-11-07）
 │   │   └── sounds/                # 効果音（Ogg Vorbis。CC0。2026-10-30）
 │   └── tests/                     # gdUnit4 のテスト
 └── tools/                         # 開発補助スクリプト
@@ -131,7 +130,7 @@ Godot のインポート対象から外し、書き出し（エクスポート�
 **配置ファイル**（2026-10-19 時点）:
 - `match_rule_config.tres`: 1ハーフのターン数・アディショナルタイムの最大ターン数
 - `cpu_config.tres`: CPU の選択の温度 τ・下限確率 floor・方式の癖の加点 style_bonus・前へ運ぶ加点 forward_bonus・シュートの加点 shot_bonus・守備の先読みの加点 anticipation_bonus・オフサイドの減点 offside_penalty・マーク注意の減点 marked_penalty
-- `presentation_config.tres`: 開示で駒を動かす時間（2026-10-22 に追加。2026-11-03 に1拍目・2拍目の2つにした。2026-11-06 に開示を1拍にし、2拍目の時間と拍の間の小休止は得点のときだけ使う）・1拍目のボールの軌道の高さと弾み・結果の演出を出す時間（2026-11-03 に追加）・駒のずらしと弾み・拍の間の小休止・決定前のプレビューの時間（2026-11-05 に追加）・得点のカットインの時間（2026-11-07 に追加）・トランジションのカットインの時間（2026-11-08 に追加）・振り返りで遡るターン数（2026-10-29 に追加）
+- `presentation_config.tres`: 開示で駒を動かす時間（2026-10-22 に追加。2026-11-03 に1拍目・2拍目の2つにした。2026-11-06 に開示を1拍にし、2拍目の時間と拍の間の小休止は得点のときだけ使う）・1拍目のボールの軌道の高さと弾み・結果の演出を出す時間（2026-11-03 に追加）・駒のずらしと弾み・拍の間の小休止・決定前のプレビューの時間（2026-11-05 に追加）・振り返りで遡るターン数（2026-10-29 に追加）
 - 自己対戦検証の調整値（`verification_config.tres`）は、それを使う作業で作る
 
 #### game/assets/
@@ -329,7 +328,7 @@ GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項�
 
 - `game/export_presets.cfg.example` をコピーして、各自の `game/export_presets.cfg` を作る。`.example` には署名の項目を書いていない。
   デバッグ版は、エディタ設定のデバッグ用の鍵で署名される
-- `.example` の要点: プリセット名 `Android (debug)`、書き出し先 `export/`、リソース以外に含めるファイル `content/*.json`・`assets/fonts/*/OFL.txt`・`assets/models/*/*.json`（得点のカットインの蹴る動きの記録。2026-11-07 に足し、APK の `assets/assets/models/goal_cut_in/` に入ることを確かめた）、
+- `.example` の要点: プリセット名 `Android (debug)`、書き出し先 `export/`、リソース以外に含めるファイル `content/*.json`・`assets/fonts/*/OFL.txt`（2026-11-27 に、カットインの素材と一緒に `assets/models/*/*.json` を外した）、
   除外するファイル `tests/*, addons/gdUnit4/*`、Gradle ビルドなし、`arm64-v8a` と `x86_64`（エミュレーター用）、
   `permissions/internet=false`、パッケージ名は仮の `com.example.soccergame`（正式名は要件定義書 §7.1 #4 の決定後）
 - 書き出し（`game/` で実行。書き出し先の `export/` は Godot が作らないので、先に作っておく）:

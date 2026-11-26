@@ -51,10 +51,9 @@ func _init() -> void:
 
 
 ## ターンの始めの局面を渡す。前と変わっていれば帯を出し、変わらなければ消す。最初の局面（forget の後）では出さない
-## （試合のキックオフ・チュートリアルの最初の段階には、比べる前の局面が無い）。quiet なら局面は覚えるが帯は出さない
-## （直前の開示で、ボールを奪った・奪われたカットインが局面の変わり目をもう見せたとき。2026-11-08）
-func follow(phase: GameEnums.Phase, quiet: bool = false) -> void:
-	if not quiet and _last_phase != -1 and phase != _last_phase:
+## （試合のキックオフ・チュートリアルの最初の段階には、比べる前の局面が無い）
+func follow(phase: GameEnums.Phase) -> void:
+	if _last_phase != -1 and phase != _last_phase:
 		show_phase(phase)
 	else:
 		dismiss()

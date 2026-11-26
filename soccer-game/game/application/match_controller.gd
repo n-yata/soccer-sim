@@ -387,17 +387,6 @@ func board_result_sec() -> float:
 	return _config.presentation().board_result_sec
 
 
-## 得点のカットインの時間（秒。PresentationConfig。0 ならカットインを出さない。2026-11-06）。
-func goal_cut_in_sec() -> float:
-	return _config.presentation().goal_cut_in_sec
-
-
-## ボールを奪った・奪われたとき（トランジションの始まり）のカットインの時間（秒。PresentationConfig。0 ならカットインを出さない。
-## 2026-11-08）。
-func transition_cut_in_sec() -> float:
-	return _config.presentation().transition_cut_in_sec
-
-
 ## 開示で駒が動くときの値（PresentationConfig）。{"stagger": ボールに近い駒から順に動き出す遅れの幅（拍の時間の割合）,
 ## "hop": 動いている駒が浮く高さ（駒の半径の何倍か）}。
 func piece_style() -> Dictionary:

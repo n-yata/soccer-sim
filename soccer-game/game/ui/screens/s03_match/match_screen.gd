@@ -113,9 +113,7 @@ func _on_turn_started(snapshot: BoardSnapshot) -> void:
 	_phase_tag.text = MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball)
 	_phase_tag.visible = true
 	_reveal_banner.visible = false
-	# 直前の開示でボールを奪った・奪われたカットインを出したなら、局面の変わり目はもう見せている（2026-11-08）
-	_phase_banner.follow(MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball),
-			_board_panel.showed_transition_cut_in())
+	_phase_banner.follow(MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball))
 	# 前半・後半のキックオフの笛（再開した試合の1ターン目でも鳴らす）
 	if snapshot.turn_number == 1:
 		Sfx.play(SoundCues.Cue.WHISTLE)

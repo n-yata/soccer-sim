@@ -161,22 +161,20 @@ func _assert_possession(screen: MatchScreen, user_has_ball: bool) -> void:
 	assert_str(screen.possession_variation()).is_equal("YouChipLabel" if user_has_ball else "OpponentChipLabel")
 
 
-## 直前の開示でボールを奪った・奪われたカットインを出したら、次のターンで局面が変わっても帯は出さない（2026-11-08。
-## カットインが局面の変わり目を見せている）。出さなかったときは、いままでどおり帯を出す
-func test_the_phase_banner_stays_hidden_after_a_transition_cut_in() -> void:
+## ボールの持ち主が変わった（トランジションの始まり）次のターンでも、局面の帯を出す（2026-11-27。ボールを奪った・奪われた
+## カットインを消したので、局面の変わり目はこの帯で見せる。2026-11-08 からはカットインを出したターンの後は帯を出さなかった）
+func test_the_phase_banner_shows_after_the_ball_changes_hands() -> void:
 	var controller: MatchController = _match_at(ScreenTestHelper.Stop.START)
 	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
 	var snapshot: BoardSnapshot = controller.snapshot()
 	var changed: BoardSnapshot = controller.snapshot()
 	changed.turn_kind = GameEnums.TurnKind.TRANSITION
 	changed.user_has_ball = not snapshot.user_has_ball
-	screen.board_panel()._transition_cut_in_shown = true
-	screen._on_turn_started(changed)
-	assert_bool(screen.phase_banner().is_showing()).is_false()
-	# カットインを出さなかったときは出す
-	screen.board_panel()._transition_cut_in_shown = false
 	screen._on_turn_started(snapshot)
+	screen._on_turn_started(changed)
 	assert_bool(screen.phase_banner().is_showing()).is_true()
+	assert_str(screen.phase_banner().title_text()).is_equal(
+			MatchTexts.phase_banner_title(MatchTexts.user_phase(changed.turn_kind, changed.user_has_ball)))
 
 
 ## 局面の帯（2026-11-07）: 試合画面を開いた最初のターン（キックオフ）では出さず、前のターンと局面が変わったターンにだけ出す。

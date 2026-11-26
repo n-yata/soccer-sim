@@ -137,8 +137,7 @@ func _point_on(path: Dictionary, index: int) -> Vector2:
 ## 拍の始まりの配置の並び（keyframes。TacticsBoard.start_shift）から拍を組み立てる。i 番目の拍は keyframes[i] から
 ## keyframes[i + 1] へ、最後の拍は end（いまの盤面 {"user", "opponent", "ball"}）へ。各拍の駒の道筋は paths、ボールの道筋は
 ## 始まりと終わりのエリアが違うときだけ（どちらかが読めなければ空）。keyframe に "flight"（BallFlight.Kind）があれば、
-## その拍のボールの軌道にする。"wait": true があれば、その拍の前で止めて再開を待つ（拍に "wait" を写す。BoardReveal。
-## 得点のカットインの間、キックオフへの組み直しを待たせる。2026-11-06）。center は slot_center、ball_point はエリアのキー → ボールの位置。
+## その拍のボールの軌道にする。center は slot_center、ball_point はエリアのキー → ボールの位置。
 static func build_beats(keyframes: Array[Dictionary], end: Dictionary, center: Callable, ball_point: Callable) -> Array[Dictionary]:
 	var beats: Array[Dictionary] = []
 	for index: int in range(keyframes.size()):
@@ -150,8 +149,7 @@ static func build_beats(keyframes: Array[Dictionary], end: Dictionary, center: C
 		var ball_path: Dictionary = _ball_path(start["ball"] as String, finish["ball"] as String, ball_point)
 		if not ball_path.is_empty() and start.has("flight"):
 			ball_path["flight"] = start["flight"] as BallFlight.Kind
-		beats.append({"piece_paths": piece_paths, "ball_path": ball_path, "sec": start["sec"] as float, "keyframe": index,
-				"wait": start.get("wait", false) as bool})
+		beats.append({"piece_paths": piece_paths, "ball_path": ball_path, "sec": start["sec"] as float, "keyframe": index})
 	return beats
 
 
