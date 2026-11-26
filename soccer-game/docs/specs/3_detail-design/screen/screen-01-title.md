@@ -45,6 +45,8 @@ TitleScreen (Control)
         └── (TutorialCard)                 # 完了後はここ（最後）へ移し、小さなカードの形で表示する
 ```
 
+- 縦（2026-11-27。`screen-common.md` §1.2）: `Hero` と `Cards` の区画を並べる `Layout`（`BoxContainer`）を上下に積む。`Hero` は最小 360px で
+  余った高さを受け（中身は上下の中ほど）、`Cards` の区画は中身の高さで画面の下に寄せる（小さなカードは1段 160px）
 - チュートリアルの位置は `enter` のたびに決める。未完了なら `Cards` の `KickOffCard` の直前、完了後は `SmallCards` の最後へ
   `reparent()` し、大きさ・内側の余白（大きなカードは左右 24px・上下 12px、小さなカードは 16px）と「はじめての方へ」の表示を切り替える
 - 再開カードもチュートリアルも無いとき（完了済みで中断中の試合が無い）は、`KickOffCard` を高さ 200px に広げる

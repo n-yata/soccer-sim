@@ -199,3 +199,37 @@ func test_kick_off_card_is_enabled_because_match_setup_exists() -> void:
 	_title.enter({})
 	assert_bool(_card("KickOffCard").disabled).is_false()
 	assert_bool(_pending_label("KickOffCard").visible).is_false()
+
+
+## 縦（2026-11-27）: プロダクト名の区画を上、カードを下に積み、見えているカードは 720×1280 からはみ出さない。
+## 横に戻せば、今までどおり左右に並ぶ
+func test_portrait_stacks_the_brand_above_the_cards_inside_the_screen() -> void:
+	_title.enter({})
+	_title.size = Vector2(720, 1280)
+	_title.set_portrait(true)
+	await await_idle_frame()
+	var hero: Control = _title.find_child("Hero", true, false) as Control
+	var cards: Control = _title.find_child("CardsMargin", true, false) as Control
+	assert_float(hero.get_global_rect().end.y).is_less_equal(cards.get_global_rect().position.y)
+	var screen_rect := Rect2(Vector2.ZERO, Vector2(720, 1280))
+	for card_name: String in CARD_DESTINATIONS:
+		var card: Button = _card(card_name)
+		if card.is_visible_in_tree():
+			assert_bool(screen_rect.encloses(card.get_global_rect())).override_failure_message(card_name).is_true()
+	_title.set_portrait(false)
+	_title.size = Vector2(1280, 720)
+	await await_idle_frame()
+	assert_float(hero.get_global_rect().end.x).is_less_equal(cards.get_global_rect().position.x)
+
+
+## 縦長の端末（720×1558。390×844 の画面を幅に合わせた大きさ）では、余った高さをプロダクト名の区画が受け、カードは下に寄せる。
+## 小さなカードは1段 PORTRAIT_SMALL_CARD_HEIGHT の高さを保つ
+func test_portrait_on_a_tall_phone_keeps_the_cards_at_the_bottom() -> void:
+	_title.enter({})
+	_title.size = Vector2(720, 1558)
+	_title.set_portrait(true)
+	await await_idle_frame()
+	var cards: Control = _title.find_child("CardsMargin", true, false) as Control
+	assert_float(cards.get_global_rect().end.y).is_equal_approx(1558.0, 1.0)
+	assert_float(_card("QuizCard").size.y).is_greater_equal(TitleScreen.PORTRAIT_SMALL_CARD_HEIGHT)
+

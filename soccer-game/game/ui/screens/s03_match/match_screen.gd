@@ -9,6 +9,11 @@ extends AppScreen
 const TOP_BAR_HEIGHT: float = 96.0
 ## 画面の上下の外周の余白（左右は 24px）
 const VERTICAL_MARGIN: int = 12
+const SIDE_MARGIN: int = 24
+## 縦の左右の外周の余白。幅 720px から作戦ボードの最小の幅（136px × 5レーン = 680px）を取るため、横より詰める（2026-11-27）
+const PORTRAIT_SIDE_MARGIN: int = 16
+## 縦の上部バーの2段目（保持・局面のタグ／両者の選択の帯）の高さ
+const PORTRAIT_SECOND_ROW_HEIGHT: float = 72.0
 
 var _controller: MatchController
 var _score_bug: ScoreBug
@@ -19,6 +24,10 @@ var _reveal_banner: VBoxContainer
 var _user_choice_label: Label
 var _opponent_choice_label: Label
 var _board_panel: MatchBoardPanel
+## 外周の余白と、上部バーの1段目・2段目（2段目は縦のときだけ使う。2026-11-27）
+var _margin: MarginContainer
+var _top_bar: HBoxContainer
+var _top_second_row: HBoxContainer
 var _menu_host: MatchMenuHost
 ## 開示中のターン（結果を出したときに、得点の音を選ぶ）
 var _reveal: RevealView
@@ -163,10 +172,11 @@ func _build() -> void:
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# 左右は 24px、上下は 12px（2026-10-25。6列の作戦ボードの高さ 600px を入れるため）
 	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
+		margin.add_theme_constant_override("margin_" + side, SIDE_MARGIN)
 	for side: String in ["top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, VERTICAL_MARGIN)
 	add_child(margin)
+	_margin = margin
 	# 上部バー 96px ＋ 本体 600px ＋ 外周 12px × 2 = 720px（screen-common.md §1.1）。上部バーと本体の間に余白を置かない
 	# （置くと本体が 600px を割り、作戦ボードの最小の高さ 600px が入らない）
 	var layout := VBoxContainer.new()
@@ -178,6 +188,14 @@ func _build() -> void:
 	top_bar.custom_minimum_size = Vector2(0, TOP_BAR_HEIGHT)
 	top_bar.add_theme_constant_override("separation", 16)
 	layout.add_child(top_bar)
+	_top_bar = top_bar
+	# 縦の2段目。横では空で隠す（保持・局面のタグ・両者の選択の帯は1段目に並べる）
+	_top_second_row = HBoxContainer.new()
+	_top_second_row.name = "TopSecondRow"
+	_top_second_row.custom_minimum_size = Vector2(0, PORTRAIT_SECOND_ROW_HEIGHT)
+	_top_second_row.add_theme_constant_override("separation", 16)
+	_top_second_row.visible = false
+	layout.add_child(_top_second_row)
 	_score_bug = ScoreBug.new()
 	_score_bug.name = "ScoreBug"
 	top_bar.add_child(_score_bug)
@@ -213,6 +231,18 @@ func _build() -> void:
 	add_child(_phase_banner)
 	# メニューは画面の最後の子（上に重ねる）
 	_menu_host = MatchMenuHost.new(self, top_bar, _can_open_menu, _board_panel.set_show_hints)
+
+
+## 縦（2026-11-27）: 上部バーを2段にし（1段目にメニュー・スコア、2段目に保持・局面のタグ・両者の選択の帯）、
+## 盤面と手の選択を上下に積む。横に戻せば1段目へ戻す。並べ替えるのは配置だけで、出している文・状態は変えない
+func _apply_orientation(portrait: bool) -> void:
+	var row: HBoxContainer = _top_second_row if portrait else _top_bar
+	for label: Control in [_possession_label, _phase_tag, _reveal_banner]:
+		label.reparent(row, false)
+	_top_second_row.visible = portrait
+	for side: String in ["left", "right"]:
+		_margin.add_theme_constant_override("margin_" + side, PORTRAIT_SIDE_MARGIN if portrait else SIDE_MARGIN)
+	_board_panel.set_portrait(portrait)
 
 
 ## メニューを開けるのは、手を選んでいる間と判定理由を出している間（screen-03-match.md「メニュー」）。

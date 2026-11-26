@@ -22,7 +22,7 @@
 ```
 MatchSetupScreen (Control)
 ├── Header                                  # common/screen_header.tscn。「← 戻る」と画面名「試合準備」
-└── Columns (HBoxContainer)                 # screen-common.md §1.1 の本体と操作の列
+└── Columns (BoxContainer)                  # screen-common.md §1.1 の本体と操作の列。縦では上下に積み、陣形の区画が余った高さを受ける（2026-11-27。§1.2）
     ├── FormationPane (VBoxContainer)       # 本体
     │   ├── FormationTitle (Label)          # 「① 陣形」
     │   └── FormationGrid (GridContainer)   # 2列。カード 4枚

@@ -87,3 +87,28 @@ func test_unknown_screen_reports_an_error() -> void:
 func test_scene_whose_root_is_not_app_screen_reports_an_error() -> void:
 	await assert_error(func() -> void: _switcher.open(AppScreens.Id.S12_SETTINGS, _params("settings"))) \
 			.is_push_error("ScreenSwitcher: 画面のルートが AppScreen でない: " + NOT_A_SCREEN)
+
+
+## 縦・横（2026-11-27）: 向きは、表示中の画面と、その後に開く画面へ伝える。開く画面へは enter の前に伝える（配置を組んでから中身を出す）。
+## 同じ向きを伝え直しても、画面は組み替えない
+func test_the_orientation_reaches_the_current_and_later_screens_once_per_change() -> void:
+	_switcher.set_portrait(true)
+	_switcher.open(AppScreens.Id.S01_TITLE, _params("title"))
+	var title: AppScreen = _switcher.current()
+	assert_bool(title.is_portrait()).is_true()
+	assert_array(title.get("orientation_calls") as Array).is_equal([true])
+	_switcher.set_portrait(true)
+	assert_array(title.get("orientation_calls") as Array).is_equal([true])
+	_switcher.set_portrait(false)
+	assert_bool(title.is_portrait()).is_false()
+	assert_array(title.get("orientation_calls") as Array).is_equal([true, false])
+	# 横で開く画面は、初めから横（組み替えは呼ばない）
+	_switcher.open(AppScreens.Id.S11_RECORDS, _params("records"))
+	assert_bool(_switcher.current().is_portrait()).is_false()
+	assert_array(_switcher.current().get("orientation_calls") as Array).is_empty()
+
+
+func test_setting_the_orientation_without_a_screen_does_nothing_but_remembers_it() -> void:
+	_switcher.set_portrait(true)
+	assert_object(_switcher.current()).is_null()
+	assert_bool(_switcher.is_portrait()).is_true()

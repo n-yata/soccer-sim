@@ -1039,6 +1039,12 @@ const SCREEN_SCENES: Dictionary
 static func has_screen(screen: AppScreens.Id) -> bool
 ## セーフエリアの左右の余白（基準解像度の px。x が左、y が右）。モバイルのときだけ当てる（screen-common.md §1.1）
 static func side_margins(window_size: Vector2i, safe_area: Rect2i, viewport_height: float) -> Vector2
+## 縦のセーフエリアの上下の余白（x が上、y が下。2026-11-27。screen-common.md §1.2）
+static func top_bottom_margins(window_size: Vector2i, safe_area: Rect2i, viewport_width: float) -> Vector2
+## ウィンドウが縦長なら縦。縦・横の基準解像度（720×1280／1280×720）と合わせ方（keep_width／keep_height）
+static func is_portrait_window(window_size: Vector2i) -> bool
+static func base_size(portrait: bool) -> Vector2i
+static func scale_aspect(portrait: bool) -> Window.ContentScaleAspect
 
 ## 各画面のルートが継承する親クラス。enter / exit / handle_back の約束（screen-common.md §4）を型で表す
 ## （型の警告をエラーにしているため、画面を Node のまま扱うと呼べない）
@@ -1046,6 +1052,10 @@ class_name AppScreen extends Control
 func enter(params: Dictionary) -> void
 func exit() -> void
 func handle_back() -> bool            # 既定は false
+## 縦・横（2026-11-27）。変わったときだけ _apply_orientation(portrait) を呼ぶ（配置だけを組み替え、状態は変えない）
+func set_portrait(portrait: bool) -> void
+func is_portrait() -> bool
+func _apply_orientation(portrait: bool) -> void   # 既定は何もしない（縦の配置を持たない画面）
 
 ## 画面のシーンの入れ替えと、戻る操作の振り分け。入れる先と「画面 ID → シーン」の対応を引数で受け取る
 ## （本番は MainShell.SCREEN_SCENES、テストはテスト用の対応）
@@ -1057,6 +1067,9 @@ func current() -> AppScreen           # 無ければ null
 func current_id() -> int              # 無ければ -1
 ## 表示中の画面の handle_back() を1回呼んでその値を返す。画面が無ければ false
 func route_back() -> bool
+## 向きを変える。表示中の画面に伝え、その後に開く画面には enter の前に伝える（2026-11-27）
+func set_portrait(portrait: bool) -> void
+func is_portrait() -> bool
 ```
 
 - 戻る操作（Android の戻る操作・PC の Esc）は `MainShell` が受け、`ScreenSwitcher.route_back()` が `false` なら

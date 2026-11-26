@@ -23,7 +23,7 @@
 ```
 MatchScreen (Control)
 ├── Layout (VBoxContainer)                    # 外周の余白 左右 24px・上下 12px（screen-common.md §1.1。2026-10-25）
-│   ├── TopBar (HBoxContainer)                # 高さ 96px
+│   ├── TopBar (HBoxContainer)                # 高さ 96px。縦では PossessionLabel・PhaseTag・RevealBanner を TopSecondRow へ移す（2026-11-27）
 │   │   ├── MenuButton (Button)               # 「≡」。96×96px
 │   │   ├── ScoreBug (HBoxContainer)          # 中継風のスコア表示（common/score_bug.tscn）
 │   │   │   ├── UserChip (Label)              # 「● YOU」。地 #0E3A55
@@ -36,7 +36,7 @@ MatchScreen (Control)
 │   │       ├── UserChoiceLabel (Label)       # 「● ショートパス」。手の名前だけ（行き先は盤面の矢印と判定理由で読む。「あなた:」と行き先まで書くと入らなかった。2026-11-06）。地 #0E3A55
 │   │       └── OpponentChoiceLabel (Label)   # 「◆ パスコースを切る」。地 #4A2611
 │   └── BoardPanel                            # MatchBoardPanel（board2d/match_board_panel.tscn）。高さ 600px（2026-10-25 に6列で 576px から変更）。S-08 と共用
-│       ├── Columns (HBoxContainer)           # 間隔 24px
+│       ├── Columns (BoxContainer)            # 間隔 24px。縦では上下に積み、間隔 16px（2026-11-27。MatchBoardPanel.set_portrait）
 │       │   ├── BoardArea (Control)           # 本体。残りの幅いっぱい（16:9 で 728×600px。5レーン×6列で、平面図の1エリア 約 145×100px）
 │       │   │   └── TacticsBoard              # board2d/tactics_board.tscn。ピッチ・駒・札・矢印
 │       │   └── SideColumn (VBoxContainer)    # 操作の列。幅 480〜640px（screen-common.md §1.1）、間隔 16px
@@ -68,7 +68,7 @@ MatchScreen (Control)
 └── ConfirmDialog                             # common/confirm_dialog.tscn
 ```
 
-- **画面の向き**: 横向きだけ（要件定義書 §6.1）。端末の横の長さの違い（16:9〜21:9）は、操作の列の幅（上限 640px）と
+- **画面の向き**: 横向きと縦向き（2026-11-27。縦の配置は `screen-common.md` §1.2。上部バーを2段にし、`BoardPanel` の `Columns`（`BoxContainer`）を上下に積む）。横向きでは、端末の横の長さの違い（16:9〜21:9）は、操作の列の幅（上限 640px）と
   `BoardArea` の幅で吸収する（横に長い端末ほどピッチが横に伸びる。高さは 600px で一定。screen-common.md §1.1）
 - **開示の表示場所**: 開示は `TacticsBoard` の上で、判定前の位置から次のターン開始時の位置へ、駒とボールを1拍で動かして見せる
   （2026-11-03 にプレーと詰め直しの2拍にし、2026-11-06 に1拍に戻した）。

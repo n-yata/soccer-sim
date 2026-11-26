@@ -63,5 +63,5 @@ html/experimental_virtual_keyboard=false
 progressive_web_app/enabled=true
 progressive_web_app/ensure_cross_origin_isolation_headers=false
 progressive_web_app/display=0
-progressive_web_app/orientation=1
+progressive_web_app/orientation=0
 progressive_web_app/background_color=Color(0.02745098, 0.050980393, 0.09411765, 1)

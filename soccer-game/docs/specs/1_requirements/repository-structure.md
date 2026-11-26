@@ -240,8 +240,8 @@ GDScript の警告と画面の設定の、Godot 4.7.2 での実際の設定項�
 | `debug/gdscript/warnings/unused_variable` | 既定の `1`（Warn）のまま（ファイルに書かれない） | 同上 |
 | `debug/gdscript/warnings/enable` | 既定の `true` のまま | 同上 |
 | `display/window/size/viewport_width`・`viewport_height` | `1280`・`720` | `screen-common.md` §1 |
-| `display/window/stretch/mode`・`aspect` | `"canvas_items"`・`"keep_height"` | 同上 |
-| `display/window/handheld/orientation` | `4`（Sensor Landscape） | 同上・NFR-25 |
+| `display/window/stretch/mode`・`aspect` | `"canvas_items"`・`"keep_height"`（縦のときは `MainShell` が 720×1280・`keep_width` に切り替える。2026-11-27） | 同上 |
+| `display/window/handheld/orientation` | `6`（Sensor。2026-11-27 に `4`（Sensor Landscape）から変えた） | 同上・NFR-25 |
 | `rendering/renderer/rendering_method`（と `.mobile`） | `"gl_compatibility"` | `architecture-overview.md`（Compatibility レンダラー） |
 | `rendering/textures/vram_compression/import_etc2_astc` | `true` | Android の書き出しの必須条件（無いと書き出せない） |
 | `application/config/quit_on_go_back` | `false` | 既定の `true` だと、Android の戻る操作で画面の `handle_back()` に関係なくアプリが閉じる（`screen-common.md` §4.1） |

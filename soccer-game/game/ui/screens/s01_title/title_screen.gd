@@ -19,6 +19,10 @@ const SMALL_CARD_PADDING: Vector2 = Vector2(16, 16)
 ## 小さなカードの列の数。チュートリアルのカードが加わっても同じ（2026-11-05 に 4列・5列から変えた。
 ## 4列では幅 146px で、名前と一言が語の途中で縦に折り返していた。3列でも「理解度チェック」が1行に入らない）
 const SMALL_COLUMNS: int = 2
+## 縦のプロダクト名の区画の最小の高さ（2026-11-27。縦長の端末で余った高さもこの区画が受け、カードは下に寄せる）
+const PORTRAIT_HERO_HEIGHT: float = 360.0
+## 縦の小さなカードの1段の高さ（横は区画の高さに合わせて伸びるが、縦はカードを中身の高さに留めるので段の高さを決める）
+const PORTRAIT_SMALL_CARD_HEIGHT: float = 160.0
 
 @onready var _resume_card: Button = %ResumeCard
 @onready var _resume_summary: Label = %ResumeSummary
@@ -28,6 +32,15 @@ const SMALL_COLUMNS: int = 2
 @onready var _quiz_sub: Label = %QuizSub
 @onready var _tutorial_card: Button = %TutorialCard
 @onready var _small_cards: GridContainer = $Layout/CardsMargin/Cards/SmallCards
+## プロダクト名の区画とカードの区画を並べる箱（横は左右、縦は上下。2026-11-27。向きを変えられるのは BoxContainer だけ）
+@onready var _layout: BoxContainer = $Layout
+@onready var _hero: MarginContainer = $Layout/Hero
+@onready var _hero_box: VBoxContainer = $Layout/Hero/HeroBox
+@onready var _cards_margin: MarginContainer = $Layout/CardsMargin
+## シーンで決めた2つの区画の最小の大きさ（横の配置）
+@onready var _hero_landscape_minimum: Vector2 = _hero.custom_minimum_size
+@onready var _cards_landscape_minimum: Vector2 = _cards_margin.custom_minimum_size
+@onready var _hero_landscape_alignment: BoxContainer.AlignmentMode = _hero_box.alignment
 ## 小さなカード → その一言。押せない間は一言を隠し「準備中」だけを出す（screen-01-title.md「作る順序」）
 @onready var _card_subs: Dictionary = {
 	%QuizCard: %QuizSub,
@@ -74,6 +87,29 @@ func enter(_params: Dictionary) -> void:
 	_state = State.IDLE
 
 
+## 縦（2026-11-27）: プロダクト名の区画を上、カードの区画を下に積む。余った高さはプロダクト名の区画が受け、カードは
+## 中身の高さで下に寄せる（親指で押しやすい）。横に戻せばシーンの配置に戻す
+func _apply_orientation(portrait: bool) -> void:
+	_layout.vertical = portrait
+	_hero.custom_minimum_size = Vector2(0, PORTRAIT_HERO_HEIGHT) if portrait else _hero_landscape_minimum
+	_hero.size_flags_vertical = Control.SIZE_EXPAND_FILL if portrait else Control.SIZE_FILL
+	# 横は左下にそろえる（シーン）。縦は高さの余る区画なので、上下の中ほどに置く
+	_hero_box.alignment = BoxContainer.ALIGNMENT_CENTER if portrait else _hero_landscape_alignment
+	_cards_margin.custom_minimum_size = Vector2.ZERO if portrait else _cards_landscape_minimum
+	_fit_small_cards()
+
+
+## 小さなカードの区画の最小の高さ。縦では段の数 × PORTRAIT_SMALL_CARD_HEIGHT（チュートリアルが加わると段が増える）。
+## 横は 0（区画の残りの高さに伸びる）
+func _fit_small_cards() -> void:
+	if not is_portrait():
+		_small_cards.custom_minimum_size = Vector2.ZERO
+		return
+	var rows: int = ceili(float(_small_cards.get_child_count()) / float(SMALL_COLUMNS))
+	var gap: float = float(_small_cards.get_theme_constant("v_separation"))
+	_small_cards.custom_minimum_size = Vector2(0, rows * PORTRAIT_SMALL_CARD_HEIGHT + maxf(0, rows - 1) * gap)
+
+
 ## チュートリアルのカードを置く（screen-01-title.md「画面を開く」の 3.）。完了後は小さなカードの最後へ移し、
 ## 「はじめての方へ」と説明の行を隠す。未完了なら KICK OFF の直前の大きなカードに戻す。
 ## 再開カードもチュートリアルの大きなカードも無いときは、KICK OFF を高くする。
@@ -116,6 +152,7 @@ func place_tutorial_card(is_completed: bool) -> void:
 	box.offset_bottom = -padding.y
 	var has_large_card: bool = _resume_card.visible or not is_completed
 	_kick_off_card.custom_minimum_size = KICK_OFF_SIZE if has_large_card else KICK_OFF_TALL_SIZE
+	_fit_small_cards()
 
 
 func tutorial_card() -> Button:

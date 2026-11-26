@@ -20,6 +20,9 @@ const SCREEN_SCENES: Dictionary = {
 	AppScreens.Id.S12_SETTINGS: "res://ui/screens/s12_settings/settings_screen.tscn",
 }
 
+const LANDSCAPE_SIZE: Vector2i = Vector2i(1280, 720)
+const PORTRAIT_SIZE: Vector2i = Vector2i(720, 1280)
+
 @onready var _screen_root: MarginContainer = $ScreenRoot
 var _switcher: ScreenSwitcher
 var _toast: ToastView
@@ -33,16 +36,40 @@ static func has_screen(screen: AppScreens.Id) -> bool:
 	return SCREEN_SCENES.has(screen)
 
 
-## 左右の余白（基準解像度の px。x が左、y が右）。keep_height なので倍率は viewport_height / window_size.y。
+## 左右の余白（横。基準解像度の px。x が左、y が右）。keep_height なので倍率は viewport_height / window_size.y。
 ## safe_area はウィンドウの座標で表した安全な範囲。はみ出していても余白は負にしない。
 static func side_margins(window_size: Vector2i, safe_area: Rect2i, viewport_height: float) -> Vector2:
 	# 安全な範囲が大きさ 0 で返る端末・状態がある。そのまま計算すると右の余白が画面幅になるので、余白なしとする
 	if window_size.y <= 0 or not safe_area.has_area():
 		return Vector2.ZERO
-	var scale_factor: float = viewport_height / float(window_size.y)
-	var left: float = maxf(0.0, float(safe_area.position.x)) * scale_factor
-	var right: float = maxf(0.0, float(window_size.x - safe_area.end.x)) * scale_factor
-	return Vector2(left, right)
+	return _edge_margins(window_size.x, safe_area.position.x, safe_area.end.x, viewport_height / float(window_size.y))
+
+
+## 上下の余白（縦。基準解像度の px。x が上、y が下）。keep_width なので倍率は viewport_width / window_size.x（2026-11-27）
+static func top_bottom_margins(window_size: Vector2i, safe_area: Rect2i, viewport_width: float) -> Vector2:
+	if window_size.x <= 0 or not safe_area.has_area():
+		return Vector2.ZERO
+	return _edge_margins(window_size.y, safe_area.position.y, safe_area.end.y, viewport_width / float(window_size.x))
+
+
+## 1つの軸の両端の余白（安全な範囲の外の長さを基準解像度へ写す）。負にはしない
+static func _edge_margins(window_length: int, safe_start: int, safe_end: int, scale_factor: float) -> Vector2:
+	return Vector2(maxf(0.0, float(safe_start)) * scale_factor, maxf(0.0, float(window_length - safe_end)) * scale_factor)
+
+
+## ウィンドウが縦長（高さ ＞ 幅）なら縦の配置にする（2026-11-27。正方形・大きさ 0 は横のまま）
+static func is_portrait_window(window_size: Vector2i) -> bool:
+	return window_size.y > window_size.x
+
+
+## 基準の解像度。横は 1280×720、縦は 720×1280（screen-common.md §1.1）
+static func base_size(portrait: bool) -> Vector2i:
+	return PORTRAIT_SIZE if portrait else LANDSCAPE_SIZE
+
+
+## 基準の解像度の合わせ方。横は高さに合わせて余った幅を、縦は幅に合わせて余った高さを画面に渡す
+static func scale_aspect(portrait: bool) -> Window.ContentScaleAspect:
+	return Window.CONTENT_SCALE_ASPECT_KEEP_WIDTH if portrait else Window.CONTENT_SCALE_ASPECT_KEEP_HEIGHT
 
 
 func _ready() -> void:
@@ -51,8 +78,8 @@ func _ready() -> void:
 	add_child(_toast)
 	App.screen_requested.connect(_on_screen_requested)
 	App.storage_error.connect(_on_storage_error)
-	get_viewport().size_changed.connect(_apply_safe_area)
-	_apply_safe_area()
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	_on_viewport_size_changed()
 	# 起動時の後始末（UC-05）。中断データが壊れていれば、ここで出た通知をタイトルを開いた後に出す。
 	# 設定を読んで音量をバスへ反映する。読み込みの失敗の通知も、タイトルを開いた後に出す
 	App.match_controller.inspect_suspended()
@@ -135,15 +162,42 @@ func current_screen() -> AppScreen:
 	return _switcher.current()
 
 
-## セーフエリアの分を左右の余白に足す。PC の get_display_safe_area() は画面全体の範囲でウィンドウとは
+## ウィンドウの向きに合わせて基準の解像度と合わせ方を変え、表示中・この後に開く画面へ向きを伝える（2026-11-27）。
+## 基準の解像度を変えると size_changed がもう一度来るが、向きは変わらないので余白だけを当て直す。
+func _on_viewport_size_changed() -> void:
+	var portrait: bool = is_portrait_window(get_window().size)
+	if portrait != _switcher.is_portrait() or get_window().content_scale_size != base_size(portrait):
+		# ウィンドウの大きさを変えている最中（size_changed の中）に基準の解像度を変えると、拡大縮小の変換が古い大きさのまま
+		# 残り、ブラウザ版で画面が歪んだ（2026-11-27）。変更はこのフレームの処理が終わってから行う
+		_apply_orientation.call_deferred(portrait)
+	_apply_safe_area()
+
+
+func _apply_orientation(portrait: bool) -> void:
+	# 先に画面へ伝える（基準解像度を変えると size_changed がすぐ来るが、向きはもう同じなので、もう一度積まない）
+	_switcher.set_portrait(portrait)
+	get_window().content_scale_aspect = scale_aspect(portrait)
+	get_window().content_scale_size = base_size(portrait)
+	_apply_safe_area()
+
+
+## セーフエリアの分を左右（横）・上下（縦）の余白に足す。PC の get_display_safe_area() は画面全体の範囲でウィンドウとは
 ## 関係ないため、モバイルのときだけ当てる。外周の余白 24px は各画面が自分の配置で持つ（screen-common.md §1.1）。
 ## 左右には同じ余白（大きい方）を当てる。横向きのまま 180° 回すと切り欠きは反対側へ移るが、ビューポートの大きさは
 ## 変わらないため size_changed が来ない。左右を同じにしておけば、どちら向きでも切り欠きに内容が重ならない。
 func _apply_safe_area() -> void:
 	var margin: float = 0.0
+	var portrait: bool = _switcher.is_portrait()
 	if OS.has_feature("mobile"):
-		var margins: Vector2 = side_margins(DisplayServer.window_get_size(), DisplayServer.get_display_safe_area(),
-				get_viewport_rect().size.y)
+		var window_size: Vector2i = DisplayServer.window_get_size()
+		var safe_area: Rect2i = DisplayServer.get_display_safe_area()
+		var margins: Vector2
+		if portrait:
+			margins = top_bottom_margins(window_size, safe_area, get_viewport_rect().size.x)
+		else:
+			margins = side_margins(window_size, safe_area, get_viewport_rect().size.y)
 		margin = maxf(margins.x, margins.y)
-	_screen_root.add_theme_constant_override("margin_left", roundi(margin))
-	_screen_root.add_theme_constant_override("margin_right", roundi(margin))
+	# 縦も横の 180° と同じく、上下に同じ余白（大きい方）を当てる（さかさまの縦でも切り欠きに重ならない）
+	for side: String in ["left", "right", "top", "bottom"]:
+		var is_cutout_side: bool = (side in ["top", "bottom"]) == portrait
+		_screen_root.add_theme_constant_override("margin_" + side, roundi(margin) if is_cutout_side else 0)

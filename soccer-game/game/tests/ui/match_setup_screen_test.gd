@@ -290,3 +290,22 @@ func test_screen_opens_without_formations_when_catalog_is_empty() -> void:
 	assert_int(_cards().size()).is_equal(0)
 	assert_bool(_screen.is_ready()).is_false()
 	assert_bool(_start_button().disabled).is_true()
+
+
+## 縦（2026-11-27）: 陣形のカードを上、方式と「この布陣で試合開始」を下に積み、どれも 720×1280 からはみ出さない
+func test_portrait_stacks_the_formations_above_the_styles_inside_the_screen() -> void:
+	_screen.size = Vector2(720, 1280)
+	_screen.set_portrait(true)
+	await await_idle_frame()
+	var formations: Control = _screen.find_child("FormationPane", true, false) as Control
+	var side: Control = _screen.find_child("SideColumn", true, false) as Control
+	assert_float(formations.get_global_rect().end.y).is_less_equal(side.get_global_rect().position.y)
+	var screen_rect := Rect2(Vector2.ZERO, Vector2(720, 1280))
+	var grid: Control = _screen.find_child("FormationGrid", true, false) as Control
+	var controls: Array[Control] = []
+	for child: Node in grid.get_children():
+		controls.append(child as Control)
+	for node_name: String in ["ZoneButton", "ManButton", "PossessionButton", "CounterButton", "NotesButton", "StartButton"]:
+		controls.append(_screen.find_child(node_name, true, false) as Control)
+	for control: Control in controls:
+		assert_bool(screen_rect.encloses(control.get_global_rect())).override_failure_message(control.name).is_true()

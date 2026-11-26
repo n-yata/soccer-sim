@@ -8,6 +8,8 @@ var _container: Node
 var _scene_paths: Dictionary
 var _current: AppScreen = null
 var _current_id: int = -1
+## 縦の配置で開くか（MainShell がウィンドウの向きから決める。2026-11-27）
+var _portrait: bool = false
 
 
 func _init(container: Node, scene_paths: Dictionary) -> void:
@@ -41,8 +43,21 @@ func open(screen: AppScreens.Id, params: Dictionary) -> bool:
 	_current = next_screen
 	_current_id = screen
 	_container.add_child(next_screen)
+	# 配置を組んでから中身を出す（縦なら enter の前に組み替える）
+	next_screen.set_portrait(_portrait)
 	next_screen.enter(params)
 	return true
+
+
+## 向きを変える。表示中の画面があれば組み替え、その後に開く画面は初めからその向きで開く（2026-11-27）
+func set_portrait(portrait: bool) -> void:
+	_portrait = portrait
+	if _current != null:
+		_current.set_portrait(portrait)
+
+
+func is_portrait() -> bool:
+	return _portrait
 
 
 ## 表示中の画面。無ければ null。
