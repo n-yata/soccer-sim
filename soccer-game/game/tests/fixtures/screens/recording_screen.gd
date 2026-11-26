@@ -7,6 +7,8 @@ var screen_name: String = ""
 var back_result: bool = false
 var call_log: Array = []
 var received_params: Dictionary = {}
+## _apply_orientation に渡された向き（呼ばれた順）
+var orientation_calls: Array[bool] = []
 
 
 func enter(params: Dictionary) -> void:
@@ -24,3 +26,7 @@ func exit() -> void:
 func handle_back() -> bool:
 	call_log.append(screen_name + ":back")
 	return back_result
+
+
+func _apply_orientation(portrait: bool) -> void:
+	orientation_calls.append(portrait)

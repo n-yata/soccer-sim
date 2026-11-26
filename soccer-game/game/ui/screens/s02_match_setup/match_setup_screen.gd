@@ -21,6 +21,12 @@ const GUIDE_TEXT: String = "陣形と方式を選ぶと、ここに解説が出�
 @onready var _notes_button: Button = %NotesButton
 @onready var _start_button: Button = %StartButton
 @onready var _start_pending_label: Label = %StartPendingLabel
+## 陣形の区画と、方式・開始の列を並べる箱（横は左右、縦は上下。2026-11-27。向きを変えられるのは BoxContainer だけ）
+@onready var _columns: BoxContainer = $Layout/Body/Columns
+@onready var _formation_pane: VBoxContainer = $Layout/Body/Columns/FormationPane
+@onready var _side_column: VBoxContainer = $Layout/Body/Columns/SideColumn
+## シーンで決めた方式・開始の列の最小の幅（横の配置。縦では外す）
+@onready var _side_landscape_minimum: Vector2 = _side_column.custom_minimum_size
 
 var _state: State = State.EDITING
 var _formation_id: String = ""
@@ -47,6 +53,14 @@ func _ready() -> void:
 	_possession_button.pressed.connect(_on_attack_selected.bind(GameEnums.AttackStyle.POSSESSION))
 	_counter_button.pressed.connect(_on_attack_selected.bind(GameEnums.AttackStyle.COUNTER))
 	_start_button.pressed.connect(_on_start_pressed)
+
+
+## 縦（2026-11-27）: 陣形のカードを上、方式と「この布陣で試合開始」を下に積む。陣形の区画に余った高さを渡し、
+## 方式の列は中身の高さだけにする（間を空ける Spacer は伸びない）。横に戻せばシーンの配置に戻す
+func _apply_orientation(portrait: bool) -> void:
+	_columns.vertical = portrait
+	_side_column.custom_minimum_size = Vector2.ZERO if portrait else _side_landscape_minimum
+	_formation_pane.size_flags_vertical = Control.SIZE_EXPAND_FILL if portrait else Control.SIZE_FILL
 
 
 ## 3項目を未選択から始める（既定の組み合わせのまま始めず、自分で選ぶことを学習の出発点にするため。screen-design.md S-02）。

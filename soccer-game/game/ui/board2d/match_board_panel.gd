@@ -25,6 +25,9 @@ signal result_shown(snapshot: BoardSnapshot)
 enum State { IDLE, SELECT_ACTION, READY, SUBMITTING, SHOW_RESULT, LEAVING }
 
 const SIDE_WIDTH: float = 480.0
+## 盤面と操作の列の間（横は左右、縦は上下。縦は高さが足りないので詰める）
+const COLUMN_SEPARATION: int = 24
+const PORTRAIT_COLUMN_SEPARATION: int = 16
 const PRIMARY_HEIGHT: float = 112.0
 ## 主ボタンの左に並べる「詳細」ボタンの幅
 const DETAIL_WIDTH: float = 128.0
@@ -51,6 +54,9 @@ var _selected_target: String = ""
 var _reveal: RevealView
 
 var _board: TacticsBoard
+## 盤面と操作の列を並べる箱。横は左右、縦は上下（2026-11-27。向きを変えられるのは BoxContainer だけ。HBox は横に固定）
+var _columns: BoxContainer
+var _side_column: VBoxContainer
 var _user_setup_label: Label
 var _opponent_setup_label: Label
 var _choice_panel: ChoicePanel
@@ -178,6 +184,15 @@ func close_detail() -> void:
 	_detail_view.close()
 	if _detail_button.is_visible_in_tree():
 		_detail_button.grab_focus()
+
+
+## 縦（盤面が上、操作の列が下。2026-11-27）・横（盤面が左、操作の列が右）に組み替える。盤面と操作の列の中身・状態は変えない。
+## 縦では、操作の列の最小の幅を外し、余った高さを盤面（最小 5レーン × 6列のエリア）と操作の列（手のボタンのスクロール）で分ける
+func set_portrait(portrait: bool) -> void:
+	_columns.vertical = portrait
+	_columns.add_theme_constant_override("separation", PORTRAIT_COLUMN_SEPARATION if portrait else COLUMN_SEPARATION)
+	_side_column.custom_minimum_size = Vector2.ZERO if portrait else Vector2(SIDE_WIDTH, 0)
+	_side_column.size_flags_vertical = Control.SIZE_EXPAND_FILL if portrait else Control.SIZE_FILL
 
 
 # --- 部品（画面とテストが使う） ---
@@ -482,11 +497,12 @@ func _set_primary(summary: String, action: String, enabled: bool) -> void:
 # --- ノードを組む ---
 
 func _build() -> void:
-	var columns := HBoxContainer.new()
+	var columns := BoxContainer.new()
 	columns.name = "Columns"
 	columns.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	columns.add_theme_constant_override("separation", 24)
+	columns.add_theme_constant_override("separation", COLUMN_SEPARATION)
 	add_child(columns)
+	_columns = columns
 
 	_board = TacticsBoard.new()
 	_board.name = "TacticsBoard"
@@ -501,6 +517,7 @@ func _build() -> void:
 	side.custom_minimum_size = Vector2(SIDE_WIDTH, 0)
 	side.add_theme_constant_override("separation", 16)
 	columns.add_child(side)
+	_side_column = side
 	_build_setup_card(side)
 	_side_top_slot = VBoxContainer.new()
 	_side_top_slot.name = "SideTopSlot"

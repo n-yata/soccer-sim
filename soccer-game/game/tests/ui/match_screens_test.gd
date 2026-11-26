@@ -540,3 +540,64 @@ func test_result_shows_the_final_score_and_returns_to_the_title_once() -> void:
 	assert_bool(screen.handle_back()).is_true()
 	assert_array(_requested).is_equal([AppScreens.Id.S01_TITLE] as Array[int])
 	assert_int(screen.state()).is_equal(ResultScreen.State.LEAVING)
+
+
+## 縦（2026-11-27）: 上部バーを2段（スコアの下に保持・局面）にし、作戦ボードを横幅いっぱいに上へ、手のボタンと主ボタンを下に置く。
+## どれも 720×1280 からはみ出さず、盤面は最小の大きさ（5レーン × 6列のエリア）を保つ
+func test_portrait_puts_the_board_above_the_controls_inside_the_screen() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	screen.size = Vector2(720, 1280)
+	screen.set_portrait(true)
+	await await_idle_frame()
+	var panel: MatchBoardPanel = screen.board_panel()
+	var board_rect: Rect2 = panel.board().get_global_rect()
+	var side: Control = screen.find_child("SideColumn", true, false) as Control
+	assert_float(board_rect.end.y).is_less_equal(side.get_global_rect().position.y)
+	assert_float(board_rect.size.x).is_greater_equal(TacticsBoard.MIN_CELL.x * PitchArea.LANE_COUNT)
+	assert_float(board_rect.size.y).is_greater_equal(TacticsBoard.MIN_CELL.y * PitchArea.ZONE_COUNT)
+	var score_bug: Control = screen.find_child("ScoreBug", true, false) as Control
+	var possession: Control = screen.find_child("PossessionLabel", true, false) as Control
+	assert_float(possession.get_global_rect().position.y).is_greater_equal(score_bug.get_global_rect().end.y)
+	var screen_rect := Rect2(Vector2.ZERO, Vector2(720, 1280))
+	for control: Control in [panel.board(), score_bug, possession, side, panel.primary_button(), panel.detail_button(),
+			panel.choice_panel()]:
+		assert_bool(screen_rect.encloses(control.get_global_rect())).override_failure_message(control.name).is_true()
+
+
+## 向きを変えても、選んだ手は残る（配置だけを組み替える）。横に戻せば、保持の札はスコアと同じ段に戻る
+func test_turning_the_screen_keeps_the_selected_move() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	var panel: MatchBoardPanel = screen.board_panel()
+	var choice: TurnChoice = ScreenTestHelper.forward_choice(App.match_controller.user_options())
+	panel.choice_panel().button_for(choice.action).pressed.emit()
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.READY)
+	screen.size = Vector2(720, 1280)
+	screen.set_portrait(true)
+	await await_idle_frame()
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.READY)
+	assert_bool(panel.primary_button().disabled).is_false()
+	screen.set_portrait(false)
+	screen.size = Vector2(1280, 720)
+	await await_idle_frame()
+	assert_int(panel.state()).is_equal(MatchBoardPanel.State.READY)
+	var score_bug: Control = screen.find_child("ScoreBug", true, false) as Control
+	var possession: Control = screen.find_child("PossessionLabel", true, false) as Control
+	assert_float(possession.get_global_rect().position.y).is_less(score_bug.get_global_rect().end.y)
+
+
+## 16:9 の縦（720×1280）で、切り欠き・ジェスチャーの帯の余白（上下 48px ずつ）が付いても、盤面と主ボタンが画面に収まる
+## （MainShell がセーフエリアの分を画面の上下の余白に足す。足りなければ下端が黙って切れる。screen-common.md §1.2 の最小の高さ）
+func test_portrait_fits_a_16_9_screen_with_cutout_margins() -> void:
+	_match_at(ScreenTestHelper.Stop.START)
+	var screen: MatchScreen = _open("res://ui/screens/s03_match/match_screen.tscn") as MatchScreen
+	screen.size = Vector2(720, 1280 - 96)
+	screen.set_portrait(true)
+	await await_idle_frame()
+	var screen_rect := Rect2(Vector2.ZERO, screen.size)
+	var panel: MatchBoardPanel = screen.board_panel()
+	for control: Control in [panel.board(), panel.choice_panel(), panel.primary_button(), panel.detail_button()]:
+		assert_bool(screen_rect.encloses(control.get_global_rect())).override_failure_message(control.name).is_true()
+	assert_float(screen.get_combined_minimum_size().y).is_less_equal(screen.size.y)
+

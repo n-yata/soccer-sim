@@ -75,6 +75,35 @@ func test_side_margins_with_empty_safe_area_are_zero() -> void:
 	_assert_margins(MainShell.side_margins(Vector2i(2400, 1080), Rect2i(), 720.0), 0.0, 0.0)
 
 
+## 縦・横（2026-11-27）: ウィンドウが縦長（高さ ＞ 幅）なら縦。正方形は横として扱う（今までの配置のまま）
+func test_a_window_taller_than_wide_is_portrait() -> void:
+	assert_bool(MainShell.is_portrait_window(Vector2i(390, 844))).is_true()
+	assert_bool(MainShell.is_portrait_window(Vector2i(844, 390))).is_false()
+	assert_bool(MainShell.is_portrait_window(Vector2i(800, 800))).is_false()
+	assert_bool(MainShell.is_portrait_window(Vector2i(0, 0))).is_false()
+
+
+## 基準の解像度と合わせ方: 横は 1280×720 を高さに合わせ（余った幅を画面に渡す）、縦は 720×1280 を幅に合わせる（余った高さを渡す）
+func test_the_base_size_and_aspect_follow_the_orientation() -> void:
+	assert_object(MainShell.base_size(false)).is_equal(Vector2i(1280, 720))
+	assert_int(MainShell.scale_aspect(false)).is_equal(Window.CONTENT_SCALE_ASPECT_KEEP_HEIGHT)
+	assert_object(MainShell.base_size(true)).is_equal(Vector2i(720, 1280))
+	assert_int(MainShell.scale_aspect(true)).is_equal(Window.CONTENT_SCALE_ASPECT_KEEP_WIDTH)
+
+
+## 縦の切り欠き（上）・ジェスチャーの帯（下）の余白。keep_width なので倍率は viewport_width / window_size.x
+func test_top_bottom_margins_scale_the_cutout_to_the_base_resolution() -> void:
+	# 1080×2400 の窓で、上に 120px の切り欠き、下に 60px の帯。基準の幅 720 なので 2/3 倍
+	_assert_margins(MainShell.top_bottom_margins(Vector2i(1080, 2400), Rect2i(0, 120, 1080, 2220), 720.0), 80.0, 40.0)
+	_assert_margins(MainShell.top_bottom_margins(Vector2i(1080, 2400), Rect2i(0, 0, 1080, 2400), 720.0), 0.0, 0.0)
+
+
+func test_top_bottom_margins_are_zero_for_an_empty_window_or_safe_area_and_never_negative() -> void:
+	_assert_margins(MainShell.top_bottom_margins(Vector2i(0, 0), Rect2i(0, 0, 0, 0), 720.0), 0.0, 0.0)
+	_assert_margins(MainShell.top_bottom_margins(Vector2i(1080, 2400), Rect2i(), 720.0), 0.0, 0.0)
+	_assert_margins(MainShell.top_bottom_margins(Vector2i(1080, 2400), Rect2i(0, -30, 1080, 2500), 720.0), 0.0, 0.0)
+
+
 func test_has_screen_follows_screen_scenes() -> void:
 	assert_bool(MainShell.has_screen(AppScreens.Id.S01_TITLE)).is_true()
 	for screen: int in AppScreens.Id.values():
