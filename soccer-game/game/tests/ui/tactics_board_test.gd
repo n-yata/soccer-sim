@@ -746,45 +746,6 @@ func test_no_gap_is_left_after_the_last_beat_and_bad_gaps_mean_none() -> void:
 		assert_float(_board.beat_gap_sec()).override_failure_message(str(bad)).is_equal(0.0)
 
 
-func test_a_waiting_beat_holds_after_the_landing_until_the_shift_is_resumed() -> void:
-	# 得点のカットインの間、キックオフへの組み直し（2拍目）を待たせる（2026-11-06）
-	var landed: Array[int] = []
-	_board.play_landed.connect(func() -> void: landed.append(1))
-	_board.show_snapshot(_snapshot_of_two_beat_end())
-	var settle: Dictionary = _keyframe(_at_judgement()["user"], _at_judgement()["opponent"], "A1-C", 0.05)
-	settle["wait"] = true
-	_board.start_shift([_keyframe(_before()["user"], _before()["opponent"], _before()["ball"], 0.05), settle])
-	await await_millis(300)
-	assert_array(landed).has_size(1)
-	assert_bool(_board.is_shifting()).is_true()
-	assert_int(_board.shift_beat_index()).is_equal(0)
-	_board.resume_shift()
-	await await_millis(300)
-	assert_bool(_board.is_shifting()).is_false()
-	# 待つ拍の無い開示では、再開しても何も起きない
-	_board.resume_shift()
-	assert_bool(_board.is_shifting()).is_false()
-
-
-func test_resuming_before_the_wait_is_reached_does_not_hold_the_beat() -> void:
-	_board.show_snapshot(_snapshot_of_two_beat_end())
-	var settle: Dictionary = _keyframe(_at_judgement()["user"], _at_judgement()["opponent"], "A1-C", 0.05)
-	settle["wait"] = true
-	_board.start_shift([_keyframe(_before()["user"], _before()["opponent"], _before()["ball"], 0.05), settle])
-	_board.resume_shift()
-	await await_millis(400)
-	assert_bool(_board.is_shifting()).is_false()
-
-
-## _two_beat_board の終わり（いまの盤面）と同じ盤面
-func _snapshot_of_two_beat_end() -> BoardSnapshot:
-	var snapshot := BoardSnapshot.new()
-	snapshot.user_players = _players_of({"p1": "A1-C", "p2": "M2-C"})
-	snapshot.opponent_players = _players_of({"o1": "A1-C"})
-	snapshot.ball_area = "A1-C"
-	return snapshot
-
-
 func test_bad_piece_motion_values_mean_no_stagger_or_hop() -> void:
 	# 有限でない値は 0。NaN のまま入れると駒の位置が NaN になる
 	_board.set_piece_style({"stagger": NAN, "hop": INF})

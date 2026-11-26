@@ -367,71 +367,9 @@ func test_out_of_range_board_result_reports_an_error() -> void:
 			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（board_result_sec=3.0）のため、初期値を使う")
 
 
-func test_bundled_goal_cut_in_matches_the_initial_value() -> void:
-	# functional-overview.md「設定値として外部化する値」の、得点のカットインの時間の初期値 3.6 秒
-	assert_float(ConfigRepository.new().presentation().goal_cut_in_sec).is_equal(3.6)
-	assert_float(PresentationConfig.new().goal_cut_in_sec).is_equal(3.6)
-	assert_str(FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)).contains("goal_cut_in_sec = ")
-
-
-func _goal_cut_in_with(case_name: String, cut_in_sec: float) -> ConfigRepository:
-	var dir: String = create_temp_dir("config_repository/goal_cut_in_" + case_name)
-	var presentation := PresentationConfig.new()
-	presentation.goal_cut_in_sec = cut_in_sec
-	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
-	return ConfigRepository.new(dir)
-
-
-func test_goal_cut_in_inside_the_range_is_read_including_zero_and_the_upper_bound() -> void:
-	# 0 はカットインを出さない設定として読む
-	for cut_in_sec: float in [0.0, 1.5, 6.0]:
-		var repository: ConfigRepository = _goal_cut_in_with("ok_%s" % cut_in_sec, cut_in_sec)
-		assert_float(repository.presentation().goal_cut_in_sec).override_failure_message(str(cut_in_sec)).is_equal(cut_in_sec)
-
-
-func test_out_of_range_goal_cut_in_falls_back_to_the_initial_value() -> void:
-	for cut_in_sec: float in [-0.1, 6.01, NAN, INF]:
-		var repository: ConfigRepository = _goal_cut_in_with("bad_%s" % cut_in_sec, cut_in_sec)
-		assert_float(repository.presentation().goal_cut_in_sec).override_failure_message(str(cut_in_sec)) \
-				.is_equal(PresentationConfig.new().goal_cut_in_sec)
-
-
-func test_out_of_range_goal_cut_in_reports_an_error() -> void:
-	var repository: ConfigRepository = _goal_cut_in_with("error", 7.0)
-	await assert_error(func() -> void: repository.presentation()) \
-			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（goal_cut_in_sec=7.0）のため、初期値を使う")
-
-
-func test_bundled_transition_cut_in_matches_the_initial_value() -> void:
-	# functional-overview.md「設定値として外部化する値」の、ボールを奪った・奪われたときのカットインの時間の初期値 1.8 秒
-	assert_float(ConfigRepository.new().presentation().transition_cut_in_sec).is_equal(1.8)
-	assert_float(PresentationConfig.new().transition_cut_in_sec).is_equal(1.8)
-	assert_str(FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)).contains("transition_cut_in_sec = ")
-
-
-func _transition_cut_in_with(case_name: String, cut_in_sec: float) -> ConfigRepository:
-	var dir: String = create_temp_dir("config_repository/transition_cut_in_" + case_name)
-	var presentation := PresentationConfig.new()
-	presentation.transition_cut_in_sec = cut_in_sec
-	assert_int(ResourceSaver.save(presentation, dir.path_join(PRESENTATION_FILE))).is_equal(OK)
-	return ConfigRepository.new(dir)
-
-
-func test_transition_cut_in_inside_the_range_is_read_including_zero_and_the_upper_bound() -> void:
-	for cut_in_sec: float in [0.0, 1.2, 4.0]:
-		var repository: ConfigRepository = _transition_cut_in_with("ok_%s" % cut_in_sec, cut_in_sec)
-		assert_float(repository.presentation().transition_cut_in_sec).override_failure_message(str(cut_in_sec)) \
-				.is_equal(cut_in_sec)
-
-
-func test_out_of_range_transition_cut_in_falls_back_to_the_initial_value_and_reports_it() -> void:
-	for cut_in_sec: float in [-0.1, 4.01, NAN, INF]:
-		var repository: ConfigRepository = _transition_cut_in_with("bad_%s" % cut_in_sec, cut_in_sec)
-		assert_float(repository.presentation().transition_cut_in_sec).override_failure_message(str(cut_in_sec)) \
-				.is_equal(PresentationConfig.new().transition_cut_in_sec)
-	var repository: ConfigRepository = _transition_cut_in_with("error", 5.0)
-	await assert_error(func() -> void: repository.presentation()) \
-			.is_push_error("ConfigRepository: presentation_config.tres の値が範囲外（transition_cut_in_sec=5.0）のため、初期値を使う")
+## 3Dのカットインを消したので、その時間の設定値も同梱の設定に残さない（2026-11-27。残すと読み込みで未知の項目になる）
+func test_the_bundled_presentation_has_no_cut_in_durations() -> void:
+	assert_str(FileAccess.get_file_as_string("res://config/" + PRESENTATION_FILE)).not_contains("cut_in")
 
 
 ## ボールの軌道の値（浮き球の高さ loft・ドリブルの弾みの高さ touch・弾みの回数 touches）だけを変えた設定

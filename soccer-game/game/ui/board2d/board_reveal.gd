@@ -24,9 +24,6 @@ var _result_sec: float = 0.0
 var _effect_tween: Tween
 ## 拍と拍の間の小休止（秒）。0 なら置かない
 var _beat_gap_sec: float = 0.0
-## "wait" の拍の前で止まっているか、止まる前に再開を頼まれたか（得点のカットインの間。2026-11-06）
-var _waiting: bool = false
-var _resumed: bool = false
 
 
 ## 拍（BoardShift.build_beats の値。ResultEffect.shape_ball_paths で結果に合わせた後）を順に動かし、1拍目が終わったら
@@ -43,8 +40,6 @@ func start(beats: Array[Dictionary], result: Dictionary) -> void:
 		return
 	_shift_tween = create_tween()
 	for index: int in range(shift.beats.size()):
-		if shift.beats[index].get("wait", false) as bool:
-			_shift_tween.tween_callback(_wait)
 		_shift_tween.tween_callback(_begin_beat.bind(index))
 		_shift_tween.tween_method(_set_progress, 0.0, 1.0, shift.beats[index]["sec"] as float)
 		if (shift.beats[index]["keyframe"] as int) == 0:
@@ -58,8 +53,6 @@ func start(beats: Array[Dictionary], result: Dictionary) -> void:
 ## 動きを止める（次の盤面・重ね表示の消去で呼ぶ。前のターンの動きを残さない）。1拍目の前に止めたら、着地だけを知らせる
 ## （テロップを出し忘れない。演出は出さない）。
 func stop() -> void:
-	_waiting = false
-	_resumed = false
 	if _shift_tween != null:
 		_shift_tween.kill()
 		_shift_tween = null
@@ -68,25 +61,6 @@ func stop() -> void:
 		_landing_pending = false
 		landed.emit()
 	changed.emit()
-
-
-## "wait" の拍の前で止めた動きを再開する。止まる前に呼ばれたら、止まらずに進む。動いていなければ何もしない。
-func resume() -> void:
-	if _shift_tween == null:
-		return
-	_resumed = true
-	if _waiting:
-		_waiting = false
-		_shift_tween.play()
-
-
-## "wait" の拍の前で止める（Tween の中から呼ぶ。再開を先に頼まれていれば止めない）。
-func _wait() -> void:
-	if _resumed:
-		_resumed = false
-		return
-	_waiting = true
-	_shift_tween.pause()
 
 
 ## 結果の演出を消す。

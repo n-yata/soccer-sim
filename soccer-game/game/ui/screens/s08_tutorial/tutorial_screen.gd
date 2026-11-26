@@ -165,8 +165,6 @@ func _start_step() -> void:
 	_controller.start_tutorial_step(step)
 	_panel.set_options_filter(step.allowed_actions)
 	_panel.set_interactive(step.kind == TutorialStepDef.Kind.OPERATE)
-	# 前の段階で出したカットインは、この段階の局面と関係が無い（説明だけの段階をはさむと、印が残り続ける）
-	_panel.forget_transition_cut_in()
 	_panel.start_turn()
 	_set_can_next(step.kind == TutorialStepDef.Kind.EXPLAIN)
 
@@ -225,9 +223,7 @@ func _on_turn_started(snapshot: BoardSnapshot) -> void:
 	_phase_tag.text = MatchTexts.phase_tag(snapshot.turn_kind, snapshot.user_has_ball)
 	_phase_tag.visible = true
 	_reveal_banner.visible = false
-	# 直前の開示でボールを奪った・奪われたカットインを出したなら、局面の変わり目はもう見せている（2026-11-08）
-	_phase_banner.follow(MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball),
-			_panel.showed_transition_cut_in())
+	_phase_banner.follow(MatchTexts.user_phase(snapshot.turn_kind, snapshot.user_has_ball))
 
 
 func _on_reveal_started(reveal: RevealView) -> void:

@@ -54,19 +54,6 @@ func test_follow_shows_only_when_the_phase_changes() -> void:
 	assert_bool(banner.is_showing()).override_failure_message("忘れた後の最初の局面で出た").is_false()
 
 
-## quiet: 局面は覚えるが帯は出さない（ボールを奪った・奪われたカットインが、もう局面の変わり目を見せたとき。2026-11-08）
-func test_a_quiet_follow_remembers_the_phase_without_showing_it() -> void:
-	var banner: PhaseBanner = _banner()
-	banner.follow(GameEnums.Phase.ATTACK)
-	banner.follow(GameEnums.Phase.NEG_TRANSITION, true)
-	assert_bool(banner.is_showing()).is_false()
-	# 覚えているので、同じ局面が続いても出さず、次に変わったら出す
-	banner.follow(GameEnums.Phase.NEG_TRANSITION)
-	assert_bool(banner.is_showing()).is_false()
-	banner.follow(GameEnums.Phase.DEFENSE)
-	assert_bool(banner.is_showing()).is_true()
-
-
 ## 約1秒で勝手に消える（タップは要らない）
 func test_the_banner_hides_itself_after_its_duration() -> void:
 	var banner: PhaseBanner = _banner()
