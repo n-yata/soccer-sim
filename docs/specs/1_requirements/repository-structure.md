@@ -203,7 +203,7 @@ FR-20の表示部品は `components/TacticalReplay.vue`（開閉）、`TacticalR
 
 - ラボの lint・整形・型チェック・テストの対象外（`eslint.config.js`・`.prettierignore`・`tsconfig.json` の `include`）
 - ブラウザ版（PWA）は `soccer-game/tools/export-web.sh` で書き出し、GitHub Pages の `/soccer-sim/game/` に載せる
-  （下記「CI/CD」）。ラボの画面からの導線はまだ無い
+  （下記「CI/CD」）。ラボのホームのヘッダーから `game/index.html` へリンクする（`screen-design.md` の画面1）
 
 ### docs/ 配下
 

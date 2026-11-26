@@ -62,6 +62,8 @@ const formations: Formation[] = [
 | 9 | 異常系 | `formations` が空配列の状態でマウントする | `FormationCard` は1件も描画されない。エラーは発生しない（本プロダクトの実データでは発生しない状態だが、堅牢性として確認する） | [x] |
 | 36 | 正常系 | マウントする | Jリーグ外部リンクが描画され、`href`が`https://www.jleague.jp/j1/special/`、`target="_blank"`、`rel="noopener noreferrer"`を持つ（2026-09-27追加。相性表/理解度チェック/用語集への導線は`AppHeader`と重複するため削除し、対応するテストケースも削除した） | [x] |
 | 37 | 正常系 | マウントする | カード一覧のグリッド（`.formation-list-page__grid`）が`max-width: 1200px`を持つ（広い画面幅で列数が増減できるようにするため、旧上限640px「最大3列固定」から2026-09-27に引き上げ） | [x] |
+| 38 | 正常系 | `BASE_URL` を `/soccer-sim/` にしてマウントする | ヘッダー内（`page-header__actions` 配下）に文言「戦術ゲームで遊ぶ」のリンクがあり、`href` が `/soccer-sim/game/index.html`、`target` を持たない（同じタブ）（2026-11-26追加） | [x] |
+| 39 | 正常系 | `VITE_JLEAGUE_URL` を空にしてマウントする | Jリーグ外部リンクは描画されず、ゲームへのリンクは描画される（2026-11-26追加） | [x] |
 
 ## 備考
 

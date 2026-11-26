@@ -40,8 +40,11 @@
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-3" parent="1" style="text;html=1;fontSize=13;align=left;verticalAlign=middle;fontColor=#475569;" value="2つのフォーメーションがどう噛み合うかを、ピッチ図と解説で比較する" vertex="1">
                     <mxGeometry height="30" width="480" x="40" y="195" as="geometry" />
                 </mxCell>
+                <mxCell id="game-link" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#15803D;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" value="🎮 戦術ゲームで遊ぶ" vertex="1">
+                  <mxGeometry height="34" width="170" x="617" y="142" as="geometry" />
+                </mxCell>
                 <mxCell id="jleague-link" parent="1" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#94A3B8;dashed=1;fontSize=12;fontStyle=1;fontColor=#334155;" value="↗ Jリーグの試合日程・キャンペーン情報（外部サイト・新規タブ）" vertex="1">
-                    <mxGeometry height="34" width="250" x="537" y="142" as="geometry" />
+                    <mxGeometry height="34" width="250" x="537" y="186" as="geometry" />
                 </mxCell>
                 <mxCell id="YYDaz3asoqjhuKTv_TAZ-4" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E5E7EB;strokeWidth=1;shadow=1;fontSize=18;fontStyle=1;fontColor=#111827;" value="4-4-2&lt;br&gt;[ミニピッチ]&lt;br&gt;陣形の説明" vertex="1">
                     <mxGeometry height="170" width="175" x="40" y="370" as="geometry" />
@@ -76,7 +79,7 @@
                 <mxCell id="fl-3" parent="1" style="text;html=1;fontSize=13;align=left;verticalAlign=middle;fontColor=#475569;whiteSpace=wrap;" value="4-2-3-1を選択中。あと1つ選ぶと比較画面へ進みます" vertex="1">
                     <mxGeometry height="24" width="600" x="40" y="302" as="geometry" />
                 </mxCell>
-                <mxCell id="fl-4" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#9CA3AF;fontStyle=2;whiteSpace=wrap;" value="901px以上4列・641〜900px2列・640px以下1列。900px以下はピッチと説明を左右配置。選択欄は通常フロー、解除後は選択カードへフォーカス。Jリーグリンクは設定時のみ表示" vertex="1">
+                <mxCell id="fl-4" parent="1" style="text;html=1;fontSize=11;align=left;verticalAlign=middle;fontColor=#9CA3AF;fontStyle=2;whiteSpace=wrap;" value="901px以上4列・641〜900px2列・640px以下1列。900px以下はピッチと説明を左右配置。選択欄は通常フロー、解除後は選択カードへフォーカス。ゲームへのリンク（/game/index.html・同じタブ）は常に表示。Jリーグリンクは設定時のみ表示" vertex="1">
                     <mxGeometry height="60" width="747" x="40" y="835" as="geometry" />
                 </mxCell>
                 <mxCell id="responsive-nav-note" parent="1" style="text;html=1;fontSize=11;align=left;whiteSpace=wrap;fontColor=#475569;" value="900px以下: メニュー開閉 / Escapeで閉じ、ボタンへフォーカス復帰" vertex="1">

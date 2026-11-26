@@ -8,6 +8,12 @@
       <template #title-icon>
         <AppIcon :icon="Goal" size="lg" />
       </template>
+      <!-- ゲームは同じサイトの別アプリ（Godot の PWA）なので router-link ではなく通常の遷移にする。
+           Service Worker が index.html の名前でキャッシュするため、index.html まで含める -->
+      <a :href="gameUrl" class="formation-list-page__game-link">
+        <AppIcon :icon="Gamepad2" />
+        戦術ゲームで遊ぶ
+      </a>
       <a
         v-if="jleagueUrl"
         :href="jleagueUrl"
@@ -63,7 +69,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ExternalLink, Goal } from "@lucide/vue";
+import { ExternalLink, Gamepad2, Goal } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
 import FormationCard from "@/components/FormationCard.vue";
 import PageHeader from "@/components/PageHeader.vue";
@@ -71,6 +77,7 @@ import { formations } from "@/data/formations";
 
 const router = useRouter();
 const jleagueUrl = configuredJleagueUrl();
+const gameUrl = `${import.meta.env.BASE_URL}game/index.html`;
 
 function configuredJleagueUrl(): string | undefined {
   const configured = import.meta.env.VITE_JLEAGUE_URL?.trim();
@@ -134,6 +141,28 @@ watch(
 </script>
 
 <style scoped>
+.formation-list-page__game-link {
+  /* 主操作の塗りボタン（理解度チェックの「次へ」と同じ見た目）。破線枠の外部リンクと区別する */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  box-sizing: border-box;
+  max-width: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-surface);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.formation-list-page__game-link:hover {
+  background: var(--color-green-800);
+}
+
 .formation-list-page__jleague-link {
   /* 外部サイトへの遷移であることを、他の内部導線と区別できるよう破線枠にする */
   display: inline-flex;
@@ -233,6 +262,7 @@ watch(
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .formation-list-page__game-link,
   .formation-list-page__jleague-link {
     transition: none;
   }
